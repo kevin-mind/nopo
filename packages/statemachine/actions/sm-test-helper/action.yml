@@ -3,7 +3,7 @@ description: Create, verify, and cleanup test fixtures for state machine testing
 
 inputs:
   action:
-    description: 'Action to perform: create, verify, cleanup, reset, close, delete, create_e2e_config, update_e2e_config'
+    description: 'Action to perform: create, verify, cleanup, reset, close, delete, sweep, create_e2e_config, update_e2e_config'
     required: true
   fixture_json:
     description: 'JSON configuration for test scenario'
@@ -50,6 +50,10 @@ inputs:
     description: 'Cleanup mode: close (preserves history) or delete (permanent removal)'
     required: false
     default: 'close'
+  manifest_dir:
+    description: 'Directory containing manifest JSON files (for sweep action)'
+    required: false
+    default: ''
 
 outputs:
   issue_number:

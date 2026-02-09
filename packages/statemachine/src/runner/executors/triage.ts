@@ -9,14 +9,18 @@ import * as fs from "fs";
 import {
   GET_PROJECT_FIELDS_QUERY,
   UPDATE_PROJECT_FIELD_MUTATION,
+  parseIssue,
+  createComment,
+  parseMarkdown,
+  createBulletList,
+  createParagraph,
+  createTodoList,
+  type OctokitLike,
 } from "@more/issue-state";
+import type { RootContent } from "mdast";
 import type { ApplyTriageOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
-import {
-  upsertSections,
-  formatRequirements,
-  STANDARD_SECTION_ORDER,
-} from "@more/issue-state";
+import { upsertSection, replaceBody } from "../../parser/index.js";
 import {
   TriageOutputSchema,
   LegacyTriageOutputSchema,
@@ -25,6 +29,13 @@ import {
   type LegacyTriageOutput,
   type TriageClassification,
 } from "./output-schemas.js";
+
+// Helper to cast RunnerContext octokit to OctokitLike
+
+function asOctokitLike(ctx: RunnerContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
+}
 
 // ============================================================================
 // Main Executor
@@ -160,11 +171,11 @@ async function applyLabels(
   issueNumber: number,
   classification: TriageClassification,
 ): Promise<void> {
-  const labels: string[] = [];
+  const newLabels: string[] = [];
 
   // Add type label
   if (classification.type && classification.type !== "null") {
-    labels.push(classification.type);
+    newLabels.push(classification.type);
     core.info(`Adding type label: ${classification.type}`);
   }
 
@@ -173,26 +184,34 @@ async function applyLabels(
     for (const topic of classification.topics) {
       if (topic) {
         const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
-        labels.push(label);
+        newLabels.push(label);
         core.info(`Adding topic label: ${label}`);
       }
     }
   }
 
   // Add triaged label
-  labels.push("triaged");
+  newLabels.push("triaged");
   core.info("Adding triaged label");
 
-  // Apply labels
-  if (labels.length > 0) {
+  // Apply labels via parseIssue + update
+  if (newLabels.length > 0) {
     try {
-      await ctx.octokit.rest.issues.addLabels({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: issueNumber,
-        labels,
-      });
-      core.info(`Applied labels: ${labels.join(", ")}`);
+      const { data, update } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        issueNumber,
+        {
+          octokit: asOctokitLike(ctx),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const existingLabels = data.issue.labels;
+      const mergedLabels = [...new Set([...existingLabels, ...newLabels])];
+      const state = { ...data, issue: { ...data.issue, labels: mergedLabels } };
+      await update(state);
+      core.info(`Applied labels: ${newLabels.join(", ")}`);
     } catch (error) {
       core.warning(`Failed to apply labels: ${error}`);
     }
@@ -212,12 +231,19 @@ async function updateIssueBody(
   newBody: string,
 ): Promise<void> {
   try {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body: newBody,
-    });
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      {
+        octokit: asOctokitLike(ctx),
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+    const bodyAst = parseMarkdown(newBody);
+    const state = replaceBody({ bodyAst }, data);
+    await update(state);
     core.info(`Updated issue body for #${issueNumber}`);
   } catch (error) {
     core.warning(`Failed to update issue body: ${error}`);
@@ -238,60 +264,63 @@ async function updateIssueStructure(
   initialQuestions?: string[],
 ): Promise<void> {
   try {
-    // Get current issue body
-    const { data: issue } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-    });
-
-    const currentBody = issue.body || "";
-
-    // Build sections to update
-    const sections: Array<{ name: string; content: string }> = [];
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      {
+        octokit: asOctokitLike(ctx),
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+    let state = data;
 
     // Requirements section
     if (requirements.length > 0) {
-      sections.push({
-        name: "Requirements",
-        content: formatRequirements(requirements),
-      });
+      const reqContent: RootContent[] = [
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
+        createBulletList(requirements) as unknown as RootContent,
+      ];
+      state = upsertSection(
+        { title: "Requirements", content: reqContent },
+        state,
+      );
     }
 
     // Approach section
     if (initialApproach) {
-      sections.push({
-        name: "Approach",
-        content: initialApproach,
-      });
+      const approachContent: RootContent[] = [
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
+        createParagraph(initialApproach) as unknown as RootContent,
+      ];
+      state = upsertSection(
+        { title: "Approach", content: approachContent },
+        state,
+      );
     }
 
     // Questions section (if any)
     if (initialQuestions && initialQuestions.length > 0) {
-      const questionsContent = initialQuestions
-        .map((q) => `- [ ] ${q}`)
-        .join("\n");
-      sections.push({
-        name: "Questions",
-        content: questionsContent,
-      });
+      const todos = initialQuestions.map((q) => ({
+        text: q,
+        checked: false,
+        manual: false,
+      }));
+      const questionsContent: RootContent[] = [
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
+        createTodoList(todos) as unknown as RootContent,
+      ];
+      state = upsertSection(
+        { title: "Questions", content: questionsContent },
+        state,
+      );
     }
 
-    // Update sections while preserving order and existing content
-    const newBody = upsertSections(
-      currentBody,
-      sections,
-      STANDARD_SECTION_ORDER,
-    );
-
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body: newBody,
-    });
-
-    core.info(`Updated issue #${issueNumber} with structured sections`);
+    if (state !== data) {
+      await update(state);
+      core.info(`Updated issue #${issueNumber} with structured sections`);
+    }
   } catch (error) {
     core.warning(`Failed to update issue structure: ${error}`);
   }
@@ -315,12 +344,13 @@ async function linkRelatedIssues(
   const body = `**Related issues:** ${links}`;
 
   try {
-    await ctx.octokit.rest.issues.createComment({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
+    await createComment(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
       body,
-    });
+      asOctokitLike(ctx),
+    );
     core.info(`Linked related issues: ${links}`);
   } catch (error) {
     core.warning(`Failed to link related issues: ${error}`);

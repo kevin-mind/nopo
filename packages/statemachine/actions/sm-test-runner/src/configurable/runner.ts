@@ -9,6 +9,7 @@
  * - Supports mocked or real Claude and CI
  */
 
+import * as fs from "fs";
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 import type { GitHub } from "@actions/github/lib/utils.js";
@@ -38,6 +39,11 @@ import {
   ADD_ISSUE_TO_PROJECT_MUTATION,
   parseMarkdown,
   serializeMarkdown,
+  parseIssue,
+  createIssue,
+  listComments,
+  setLabels,
+  type OctokitLike,
 } from "@more/issue-state";
 
 type Octokit = InstanceType<typeof GitHub>;
@@ -141,6 +147,11 @@ class ConfigurableTestRunner {
     this.config = config;
   }
 
+  private asOctokitLike(): OctokitLike {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+    return this.config.octokit as unknown as OctokitLike;
+  }
+
   // ============================================================================
   // URL Generation Helpers
   // ============================================================================
@@ -170,6 +181,27 @@ class ConfigurableTestRunner {
   }
 
   /**
+   * Persist parent issue number to disk so cleanup can find it even if the runner crashes.
+   * The manifest is uploaded as an artifact by the workflow.
+   */
+  private saveManifest(): void {
+    if (!this.issueNumber) return;
+    try {
+      const manifest = {
+        parentIssue: this.issueNumber,
+        scenario: this.scenario.name,
+        createdAt: new Date().toISOString(),
+      };
+      const manifestPath = "/tmp/test-resource-manifest.json";
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+      core.info(`Saved resource manifest to ${manifestPath}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      core.warning(`Failed to save resource manifest: ${msg}`);
+    }
+  }
+
+  /**
    * Run the test scenario
    */
   async run(): Promise<TestResult> {
@@ -186,6 +218,7 @@ class ConfigurableTestRunner {
       const firstState = this.scenario.orderedStates[0]!;
       const firstFixture = this.scenario.fixtures.get(firstState)!;
       this.issueNumber = await this.createTestIssue(firstFixture);
+      this.saveManifest();
       this.logResourceCreated("Issue", this.getIssueUrl(this.issueNumber));
 
       // 3. Create test branch for the scenario
@@ -369,15 +402,14 @@ class ConfigurableTestRunner {
       core.info(`Single-issue mode: using task variant ${randomIndex + 1}`);
     }
 
-    const response = await this.config.octokit.rest.issues.create({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      title,
-      body,
-      labels,
-    });
+    const result = await createIssue(
+      this.config.owner,
+      this.config.repo,
+      { title, body, labels },
+      { octokit: this.asOctokitLike() },
+    );
 
-    const issueNumber = response.data.number;
+    const issueNumber = result.issueNumber;
     // Set this.issueNumber early so sub-issue linking can reference the parent
     this.issueNumber = issueNumber;
 
@@ -406,12 +438,20 @@ class ConfigurableTestRunner {
 
     // Assign nopo-bot if in assignees
     if (fixture.issue.assignees.includes("nopo-bot")) {
-      await this.config.octokit.rest.issues.addAssignees({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: issueNumber,
-        assignees: ["nopo-bot"],
-      });
+      const { data: assignData, update: assignUpdate } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        issueNumber,
+        { octokit: this.asOctokitLike(), fetchPRs: false, fetchParent: false },
+      );
+      const assignState = {
+        ...assignData,
+        issue: {
+          ...assignData.issue,
+          assignees: [...new Set([...assignData.issue.assignees, "nopo-bot"])],
+        },
+      };
+      await assignUpdate(assignState);
     }
 
     // Create sub-issues from fixture
@@ -443,12 +483,21 @@ class ConfigurableTestRunner {
 
       // Close the issue if state is CLOSED (not handled by createSubIssue)
       if (subIssue.state === "CLOSED") {
-        await this.config.octokit.rest.issues.update({
-          owner: this.config.owner,
-          repo: this.config.repo,
-          issue_number: subIssueNumber,
-          state: "closed",
-        });
+        const { data: closeData, update: closeUpdate } = await parseIssue(
+          this.config.owner,
+          this.config.repo,
+          subIssueNumber,
+          {
+            octokit: this.asOctokitLike(),
+            fetchPRs: false,
+            fetchParent: false,
+          },
+        );
+        const closeState = {
+          ...closeData,
+          issue: { ...closeData.issue, state: "CLOSED" as const },
+        };
+        await closeUpdate(closeState);
         core.info(`  Closed sub-issue #${subIssueNumber}`);
       }
     }
@@ -585,12 +634,20 @@ Issue: #${this.issueNumber}
     this.logResourceCreated("PR", this.getPrUrl(this.prNumber));
 
     // Add test label to the PR
-    await this.config.octokit.rest.issues.addLabels({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      issue_number: this.prNumber,
-      labels: [TEST_LABEL],
-    });
+    const { data: prLabelData, update: prLabelUpdate } = await parseIssue(
+      this.config.owner,
+      this.config.repo,
+      this.prNumber,
+      { octokit: this.asOctokitLike(), fetchPRs: false, fetchParent: false },
+    );
+    const prLabelState = {
+      ...prLabelData,
+      issue: {
+        ...prLabelData.issue,
+        labels: [...new Set([...prLabelData.issue.labels, TEST_LABEL])],
+      },
+    };
+    await prLabelUpdate(prLabelState);
 
     return this.prNumber;
   }
@@ -636,12 +693,27 @@ Issue: #${this.issueNumber}
 
     if (needsAssignment) {
       core.info("  → Assigning nopo-bot");
-      await this.config.octokit.rest.issues.addAssignees({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber,
-        assignees: ["nopo-bot"],
-      });
+      const { data: sideEffectData, update: sideEffectUpdate } =
+        await parseIssue(
+          this.config.owner,
+          this.config.repo,
+          this.issueNumber,
+          {
+            octokit: this.asOctokitLike(),
+            fetchPRs: false,
+            fetchParent: false,
+          },
+        );
+      const sideEffectState = {
+        ...sideEffectData,
+        issue: {
+          ...sideEffectData.issue,
+          assignees: [
+            ...new Set([...sideEffectData.issue.assignees, "nopo-bot"]),
+          ],
+        },
+      };
+      await sideEffectUpdate(sideEffectState);
     }
 
     // Check if PR needs to be created
@@ -788,30 +860,60 @@ Issue: #${this.issueNumber}
     );
 
     // Update issue body if different
-    await this.config.octokit.rest.issues.update({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      issue_number: this.issueNumber,
-      body: fixture.issue.body,
-    });
+    {
+      const { data: bodyData, update: bodyUpdate } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const bodyState = {
+        ...bodyData,
+        issue: {
+          ...bodyData.issue,
+          bodyAst: parseMarkdown(fixture.issue.body),
+        },
+      };
+      await bodyUpdate(bodyState);
+    }
 
     // Update labels
-    await this.config.octokit.rest.issues.setLabels({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      issue_number: this.issueNumber,
-      labels: [...fixture.issue.labels, TEST_LABEL],
-    });
+    await setLabels(
+      this.config.owner,
+      this.config.repo,
+      this.issueNumber,
+      [...fixture.issue.labels, TEST_LABEL],
+      this.asOctokitLike(),
+    );
 
     // Update assignees - assign nopo-bot if specified in fixture
     if (fixture.issue.assignees.includes("nopo-bot")) {
       core.info("  → Assigning nopo-bot (via setupGitHubState)");
-      await this.config.octokit.rest.issues.addAssignees({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber,
-        assignees: ["nopo-bot"],
-      });
+      const { data: setupAssignData, update: setupAssignUpdate } =
+        await parseIssue(
+          this.config.owner,
+          this.config.repo,
+          this.issueNumber,
+          {
+            octokit: this.asOctokitLike(),
+            fetchPRs: false,
+            fetchParent: false,
+          },
+        );
+      const setupAssignState = {
+        ...setupAssignData,
+        issue: {
+          ...setupAssignData.issue,
+          assignees: [
+            ...new Set([...setupAssignData.issue.assignees, "nopo-bot"]),
+          ],
+        },
+      };
+      await setupAssignUpdate(setupAssignState);
     }
 
     // Handle sub-issues if specified
@@ -1724,12 +1826,17 @@ Issue: #${this.issueNumber}
     // Check requirementsUpdated - verify parent body changed
     if (exp.requirementsUpdated === true) {
       // Fetch parent issue body
-      const { data: parentIssue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      const parentBody = parentIssue.body || "";
+      const { data: reqParentData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const parentBody = serializeMarkdown(reqParentData.issue.bodyAst);
       const originalBody = firstFixture?.issue.body || "";
 
       // Check if body changed (ignoring iteration history section)
@@ -1750,12 +1857,17 @@ Issue: #${this.issueNumber}
 
     // Check parentIssueModified
     if (exp.parentIssueModified === true) {
-      const { data: parentIssue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      const parentBody = parentIssue.body || "";
+      const { data: modParentData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const parentBody = serializeMarkdown(modParentData.issue.bodyAst);
       const originalBody = firstFixture?.issue.body || "";
 
       const getBodyWithoutHistory = (body: string) =>
@@ -1806,13 +1918,18 @@ Issue: #${this.issueNumber}
       for (const closedSub of closedFixtureSubs) {
         const realNumber = this.subIssueNumbers.get(closedSub.title);
         if (realNumber) {
-          const { data: subIssue } = await this.config.octokit.rest.issues.get({
-            owner: this.config.owner,
-            repo: this.config.repo,
-            issue_number: realNumber,
-          });
-          // Check state is still closed
-          if (subIssue.state !== "closed") {
+          const { data: closedSubData } = await parseIssue(
+            this.config.owner,
+            this.config.repo,
+            realNumber,
+            {
+              octokit: this.asOctokitLike(),
+              fetchPRs: false,
+              fetchParent: false,
+            },
+          );
+          // Check state is still closed (parseIssue returns uppercase "CLOSED")
+          if (closedSubData.issue.state !== "CLOSED") {
             allPreserved = false;
             errors.push(
               `completedWorkPreserved: closed sub-issue #${realNumber} was reopened`,
@@ -1842,12 +1959,17 @@ Issue: #${this.issueNumber}
 
     // Check botUnassigned - verify nopo-bot is not assigned
     if (exp.botUnassigned === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      const assignees = issue.assignees?.map((a) => a.login) || [];
+      const { data: botCheckData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const assignees = botCheckData.issue.assignees;
       if (assignees.includes("nopo-bot")) {
         errors.push(
           `botUnassigned: expected nopo-bot to be unassigned, but it's still assigned`,
@@ -1859,12 +1981,17 @@ Issue: #${this.issueNumber}
 
     // Check allTodosComplete - verify all todos are checked
     if (exp.allTodosComplete === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      const body = issue.body || "";
+      const { data: todosData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const body = serializeMarkdown(todosData.issue.bodyAst);
       const uncheckedCount = (body.match(/- \[ \]/g) || []).length;
       if (uncheckedCount > 0) {
         errors.push(
@@ -1877,11 +2004,17 @@ Issue: #${this.issueNumber}
 
     // Check prCreated - verify a PR exists for the branch
     if (exp.prCreated === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
+      const { data: prCreatedData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const prCreatedIssueNumber = prCreatedData.issue.number;
       // Search for PRs that mention this issue
       const { data: prs } = await this.config.octokit.rest.pulls.list({
         owner: this.config.owner,
@@ -1890,12 +2023,12 @@ Issue: #${this.issueNumber}
       });
       const linkedPr = prs.find(
         (pr) =>
-          pr.body?.includes(`#${issue.number}`) ||
-          pr.body?.includes(`Fixes #${issue.number}`),
+          pr.body?.includes(`#${prCreatedIssueNumber}`) ||
+          pr.body?.includes(`Fixes #${prCreatedIssueNumber}`),
       );
       if (!linkedPr) {
         errors.push(
-          `prCreated: expected PR to be created for issue #${issue.number}, but none found`,
+          `prCreated: expected PR to be created for issue #${prCreatedIssueNumber}, but none found`,
         );
       } else {
         core.info(`  ✓ prCreated: PR #${linkedPr.number} found for issue`);
@@ -1904,11 +2037,17 @@ Issue: #${this.issueNumber}
 
     // Check prIsDraft - verify PR is a draft
     if (exp.prIsDraft === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
+      const { data: draftData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const draftIssueNumber = draftData.issue.number;
       const { data: prs } = await this.config.octokit.rest.pulls.list({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -1916,8 +2055,8 @@ Issue: #${this.issueNumber}
       });
       const linkedPr = prs.find(
         (pr) =>
-          pr.body?.includes(`#${issue.number}`) ||
-          pr.body?.includes(`Fixes #${issue.number}`),
+          pr.body?.includes(`#${draftIssueNumber}`) ||
+          pr.body?.includes(`Fixes #${draftIssueNumber}`),
       );
       if (!linkedPr) {
         errors.push(`prIsDraft: no PR found to check draft status`);
@@ -1932,11 +2071,17 @@ Issue: #${this.issueNumber}
 
     // Check prMarkedReady - verify PR is not a draft (ready for review)
     if (exp.prMarkedReady === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
+      const { data: readyData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const readyIssueNumber = readyData.issue.number;
       const { data: prs } = await this.config.octokit.rest.pulls.list({
         owner: this.config.owner,
         repo: this.config.repo,
@@ -1944,8 +2089,8 @@ Issue: #${this.issueNumber}
       });
       const linkedPr = prs.find(
         (pr) =>
-          pr.body?.includes(`#${issue.number}`) ||
-          pr.body?.includes(`Fixes #${issue.number}`),
+          pr.body?.includes(`#${readyIssueNumber}`) ||
+          pr.body?.includes(`Fixes #${readyIssueNumber}`),
       );
       if (!linkedPr) {
         errors.push(`prMarkedReady: no PR found to check ready status`);
@@ -1962,22 +2107,21 @@ Issue: #${this.issueNumber}
 
     // Check commentPosted - verify a comment was posted (by bot or nopo-bot)
     if (exp.commentPosted === true) {
-      const { data: comments } =
-        await this.config.octokit.rest.issues.listComments({
-          owner: this.config.owner,
-          repo: this.config.repo,
-          issue_number: this.issueNumber!,
-        });
+      const issueComments = await listComments(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        this.asOctokitLike(),
+      );
       // Look for comments from claude[bot], nopo-bot, or any Bot type
-      const botComment = comments.find(
+      const botComment = issueComments.find(
         (c) =>
           c.user?.login === "claude[bot]" ||
           c.user?.login === "nopo-bot" ||
-          c.user?.login?.endsWith("[bot]") ||
-          c.user?.type === "Bot",
+          c.user?.login?.endsWith("[bot]"),
       );
       if (!botComment) {
-        const commentUsers = comments.map((c) => c.user?.login).join(", ");
+        const commentUsers = issueComments.map((c) => c.user?.login).join(", ");
         errors.push(
           `commentPosted: expected bot comment, but none found. Comments from: ${commentUsers || "(none)"}`,
         );
@@ -1990,14 +2134,20 @@ Issue: #${this.issueNumber}
 
     // Check issueClosed - verify issue is closed
     if (exp.issueClosed === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      if (issue.state !== "closed") {
+      const { data: closedCheckData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      // parseIssue returns uppercase state: "OPEN" or "CLOSED"
+      if (closedCheckData.issue.state !== "CLOSED") {
         errors.push(
-          `issueClosed: expected issue to be closed, but state is ${issue.state}`,
+          `issueClosed: expected issue to be closed, but state is ${closedCheckData.issue.state}`,
         );
       } else {
         core.info(`  ✓ issueClosed: issue is closed`);
@@ -2026,14 +2176,17 @@ Issue: #${this.issueNumber}
 
     // Check hasTriagedLabel - verify issue has triaged label
     if (exp.hasTriagedLabel === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      const labels = issue.labels.map((l) =>
-        typeof l === "string" ? l : l.name || "",
+      const { data: triagedData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
       );
+      const labels = triagedData.issue.labels;
       if (!labels.includes("triaged")) {
         errors.push(
           `hasTriagedLabel: expected triaged label, but not found. Labels: ${labels.join(", ")}`,
@@ -2045,14 +2198,17 @@ Issue: #${this.issueNumber}
 
     // Check hasGroomedLabel - verify issue has groomed label
     if (exp.hasGroomedLabel === true) {
-      const { data: issue } = await this.config.octokit.rest.issues.get({
-        owner: this.config.owner,
-        repo: this.config.repo,
-        issue_number: this.issueNumber!,
-      });
-      const labels = issue.labels.map((l) =>
-        typeof l === "string" ? l : l.name || "",
+      const { data: groomedData } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        this.issueNumber!,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
       );
+      const labels = groomedData.issue.labels;
       if (!labels.includes("groomed")) {
         errors.push(
           `hasGroomedLabel: expected groomed label, but not found. Labels: ${labels.join(", ")}`,
@@ -2071,15 +2227,14 @@ Issue: #${this.issueNumber}
   private async createSubIssue(subIssue: TestSubIssue): Promise<number> {
     core.info(`Creating sub-issue: ${subIssue.title}`);
 
-    const response = await this.config.octokit.rest.issues.create({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      title: subIssue.title,
-      body: subIssue.body,
-      labels: [TEST_LABEL],
-    });
+    const subResult = await createIssue(
+      this.config.owner,
+      this.config.repo,
+      { title: subIssue.title, body: subIssue.body, labels: [TEST_LABEL] },
+      { octokit: this.asOctokitLike() },
+    );
 
-    const issueNumber = response.data.number;
+    const issueNumber = subResult.issueNumber;
     this.subIssueNumbers.set(subIssue.title, issueNumber);
     core.info(`Created sub-issue #${issueNumber}`);
 
@@ -2220,17 +2375,37 @@ Issue: #${this.issueNumber}
     );
 
     // Get the node IDs for both issues (required for GraphQL mutation)
-    const { data: parentIssue } = await this.config.octokit.rest.issues.get({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      issue_number: this.issueNumber,
-    });
+    const nodeIdQuery = `
+      query GetIssueNodeId($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            id
+          }
+        }
+      }
+    `;
 
-    const { data: subIssue } = await this.config.octokit.rest.issues.get({
-      owner: this.config.owner,
-      repo: this.config.repo,
-      issue_number: subIssueNumber,
-    });
+    interface NodeIdResponse {
+      repository: { issue: { id: string } };
+    }
+
+    const parentNodeIdResult =
+      await this.config.octokit.graphql<NodeIdResponse>(nodeIdQuery, {
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issueNumber: this.issueNumber,
+      });
+    const parentNodeId = parentNodeIdResult.repository.issue.id;
+
+    const subNodeIdResult = await this.config.octokit.graphql<NodeIdResponse>(
+      nodeIdQuery,
+      {
+        owner: this.config.owner,
+        repo: this.config.repo,
+        issueNumber: subIssueNumber,
+      },
+    );
+    const subNodeId = subNodeIdResult.repository.issue.id;
 
     // Use GitHub's addSubIssue mutation to properly link the sub-issue
     const mutation = `
@@ -2248,8 +2423,8 @@ Issue: #${this.issueNumber}
 
     try {
       await this.config.octokit.graphql(mutation, {
-        parentId: parentIssue.node_id,
-        subIssueId: subIssue.node_id,
+        parentId: parentNodeId,
+        subIssueId: subNodeId,
       });
       core.info(
         `  Linked sub-issue #${subIssueNumber} to parent #${this.issueNumber}`,
@@ -2260,13 +2435,26 @@ Issue: #${this.issueNumber}
         `Failed to link via GraphQL, adding parent reference to body: ${error}`,
       );
       const parentRef = `Parent: #${this.issueNumber}`;
-      if (!subIssue.body?.includes(parentRef)) {
-        await this.config.octokit.rest.issues.update({
-          owner: this.config.owner,
-          repo: this.config.repo,
-          issue_number: subIssueNumber,
-          body: `${parentRef}\n\n${subIssue.body || ""}`,
-        });
+      const { data: fallbackData, update: fallbackUpdate } = await parseIssue(
+        this.config.owner,
+        this.config.repo,
+        subIssueNumber,
+        {
+          octokit: this.asOctokitLike(),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+      const fallbackBody = serializeMarkdown(fallbackData.issue.bodyAst);
+      if (!fallbackBody.includes(parentRef)) {
+        const fallbackState = {
+          ...fallbackData,
+          issue: {
+            ...fallbackData.issue,
+            bodyAst: parseMarkdown(`${parentRef}\n\n${fallbackBody}`),
+          },
+        };
+        await fallbackUpdate(fallbackState);
       }
     }
   }

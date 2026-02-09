@@ -35,6 +35,7 @@ import {
   runDiscussionConfigurableTest,
   type DiscussionTestRunnerInputs,
 } from "./src/configurable/index.js";
+import { parseIssue, type OctokitLike } from "@more/issue-state";
 
 /**
  * Trigger cleanup for an issue when test fails
@@ -67,13 +68,22 @@ async function triggerCleanup(
     core.info("Attempting direct close via API...");
 
     try {
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        state: "closed",
-        state_reason: "not_planned",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+      const octokitLike = octokit as unknown as OctokitLike;
+      const { data, update } = await parseIssue(owner, repo, issueNumber, {
+        octokit: octokitLike,
+        fetchPRs: false,
+        fetchParent: false,
       });
+      const state = {
+        ...data,
+        issue: {
+          ...data.issue,
+          state: "CLOSED" as const,
+          stateReason: "not_planned" as const,
+        },
+      };
+      await update(state);
       core.info(`Closed issue #${issueNumber} directly`);
     } catch (closeError) {
       core.warning(`Failed to close issue: ${closeError}`);

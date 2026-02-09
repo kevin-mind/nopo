@@ -28134,6 +28134,7 @@ var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
+  stateReason: external_exports.enum(["completed", "not_planned"]).optional(),
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
@@ -40310,24 +40311,770 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
   bullet: "-",
   listItemIndent: "one"
 });
+function parseMarkdown(markdown) {
+  return parser.parse(markdown);
+}
 function serializeMarkdown(ast) {
   return serializer.stringify(ast);
 }
 
 // ../issue-state/src/graphql/issue-queries.ts
-var GET_ISSUE_BODY_QUERY = `
-query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
+var GET_ISSUE_WITH_PROJECT_QUERY = `
+query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $issueNumber) {
       id
+      number
+      title
       body
+      state
+      assignees(first: 10) {
+        nodes {
+          login
+        }
+      }
+      labels(first: 20) {
+        nodes {
+          name
+        }
+      }
       parent {
         number
+      }
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      subIssues(first: 20) {
+        nodes {
+          id
+          number
+          title
+          body
+          state
+          projectItems(first: 10) {
+            nodes {
+              project {
+                number
+              }
+              fieldValues(first: 20) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                    field {
+                      ... on ProjectV2SingleSelectField {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      comments(first: 50) {
+        nodes {
+          id
+          author {
+            login
+          }
+          body
+          createdAt
+        }
       }
     }
   }
 }
 `;
+var GET_PR_FOR_BRANCH_QUERY = `
+query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(first: 1, headRefName: $headRef, states: [OPEN, MERGED]) {
+      nodes {
+        number
+        title
+        state
+        isDraft
+        headRefName
+        baseRefName
+        url
+        mergeable
+        reviewDecision
+        reviews(first: 50) {
+          totalCount
+        }
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var GET_ISSUE_LINKED_PRS_QUERY = `
+query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+        nodes {
+          ... on CrossReferencedEvent {
+            source {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+          ... on ConnectedEvent {
+            subject {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+// ../issue-state/src/graphql/project-queries.ts
+var GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
+
+// ../issue-state/src/diff.ts
+function setDifference(a, b) {
+  const bSet = new Set(b);
+  return a.filter((x) => !bSet.has(x));
+}
+function computeDiff(original, updated) {
+  const originalBody = serializeMarkdown(original.bodyAst);
+  const updatedBody = serializeMarkdown(updated.bodyAst);
+  return {
+    bodyChanged: originalBody !== updatedBody,
+    titleChanged: original.title !== updated.title,
+    stateChanged: original.state !== updated.state,
+    labelsAdded: setDifference(updated.labels, original.labels),
+    labelsRemoved: setDifference(original.labels, updated.labels),
+    assigneesAdded: setDifference(updated.assignees, original.assignees),
+    assigneesRemoved: setDifference(original.assignees, updated.assignees),
+    projectStatusChanged: original.projectStatus !== updated.projectStatus,
+    iterationChanged: original.iteration !== updated.iteration,
+    failuresChanged: original.failures !== updated.failures
+  };
+}
+
+// ../issue-state/src/project-helpers.ts
+async function getProjectFieldInfo(octokit, owner, repo, issueNumber, projectNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_PROJECT_ITEM_QUERY,
+      {
+        org: owner,
+        repo,
+        issueNumber,
+        projectNumber
+      }
+    );
+    const project = response.organization?.projectV2;
+    if (!project) {
+      return null;
+    }
+    let projectItemId = null;
+    const projectItems = response.repository?.issue?.projectItems?.nodes || [];
+    for (const item of projectItems) {
+      if (item.project?.number === projectNumber) {
+        projectItemId = item.id;
+        break;
+      }
+    }
+    let statusFieldId = null;
+    const statusOptions = /* @__PURE__ */ new Map();
+    let iterationFieldId = null;
+    let failuresFieldId = null;
+    for (const field of project.fields.nodes) {
+      if (field.name === "Status" && field.options) {
+        statusFieldId = field.id;
+        for (const option of field.options) {
+          statusOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Iteration" && field.dataType === "NUMBER") {
+        iterationFieldId = field.id;
+      } else if (field.name === "Failures" && field.dataType === "NUMBER") {
+        failuresFieldId = field.id;
+      }
+    }
+    return {
+      projectId: project.id,
+      projectItemId,
+      statusFieldId,
+      statusOptions,
+      iterationFieldId,
+      failuresFieldId
+    };
+  } catch {
+    return null;
+  }
+}
+async function updateProjectField(octokit, projectId, itemId, fieldId, value) {
+  await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+async function updateProjectFields(octokit, owner, repo, issueNumber, projectNumber, fields) {
+  const fieldInfo = await getProjectFieldInfo(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber
+  );
+  if (!fieldInfo) {
+    return;
+  }
+  const projectItemId = fieldInfo.projectItemId;
+  if (!projectItemId) {
+    return;
+  }
+  const fieldUpdates = [];
+  if (fields.status !== void 0 && fieldInfo.statusFieldId) {
+    const optionId = fields.status ? fieldInfo.statusOptions.get(fields.status) : null;
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.statusFieldId,
+          { singleSelectOptionId: optionId }
+        )
+      );
+    }
+  }
+  if (fields.iteration !== void 0 && fieldInfo.iterationFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.iterationFieldId,
+        { number: fields.iteration }
+      )
+    );
+  }
+  if (fields.failures !== void 0 && fieldInfo.failuresFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.failuresFieldId,
+        { number: fields.failures }
+      )
+    );
+  }
+  await Promise.all(fieldUpdates);
+}
+
+// ../issue-state/src/update-issue.ts
+async function updateIssue(original, updated, octokit, options = {}) {
+  const { owner, repo } = updated;
+  const diff = computeDiff(original.issue, updated.issue);
+  const { projectNumber } = options;
+  const promises = [];
+  if (diff.bodyChanged || diff.titleChanged) {
+    const updateParams = {
+      owner,
+      repo,
+      issue_number: updated.issue.number
+    };
+    if (diff.bodyChanged) {
+      updateParams.body = serializeMarkdown(updated.issue.bodyAst);
+    }
+    if (diff.titleChanged) {
+      updateParams.title = updated.issue.title;
+    }
+    promises.push(octokit.rest.issues.update(updateParams));
+  }
+  if (diff.stateChanged) {
+    const stateParams = {
+      owner,
+      repo,
+      issue_number: updated.issue.number,
+      state: updated.issue.state === "OPEN" ? "open" : "closed"
+    };
+    if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+      stateParams.state_reason = updated.issue.stateReason;
+    }
+    promises.push(octokit.rest.issues.update(stateParams));
+  }
+  if (diff.labelsAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        labels: diff.labelsAdded
+      })
+    );
+  }
+  for (const label of diff.labelsRemoved) {
+    promises.push(
+      octokit.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        name: label
+      })
+    );
+  }
+  if (diff.assigneesAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesAdded
+      })
+    );
+  }
+  if (diff.assigneesRemoved.length > 0) {
+    promises.push(
+      octokit.rest.issues.removeAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesRemoved
+      })
+    );
+  }
+  if (projectNumber && (diff.projectStatusChanged || diff.iterationChanged || diff.failuresChanged)) {
+    const fieldsToUpdate = {};
+    if (diff.projectStatusChanged) {
+      fieldsToUpdate.status = updated.issue.projectStatus;
+    }
+    if (diff.iterationChanged) {
+      fieldsToUpdate.iteration = updated.issue.iteration;
+    }
+    if (diff.failuresChanged) {
+      fieldsToUpdate.failures = updated.issue.failures;
+    }
+    promises.push(
+      updateProjectFields(
+        octokit,
+        owner,
+        repo,
+        updated.issue.number,
+        projectNumber,
+        fieldsToUpdate
+      )
+    );
+  }
+  await Promise.all(promises);
+}
+
+// ../issue-state/src/parse-issue.ts
+function buildUpdateOptions(options) {
+  return {
+    projectNumber: options.projectNumber
+  };
+}
+function parseProjectState(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      status = ProjectStatusSchema.parse(fieldValue.name);
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+function parseSubIssueStatus(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem?.fieldValues?.nodes) {
+    return null;
+  }
+  for (const fieldValue of projectItem.fieldValues.nodes) {
+    if (fieldValue.field?.name === "Status" && fieldValue.name) {
+      return ProjectStatusSchema.parse(fieldValue.name);
+    }
+  }
+  return null;
+}
+function deriveBranchName(parentIssueNumber, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber}`;
+}
+function parseIssueComments(commentNodes, botUsername) {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername
+    };
+  });
+}
+async function getLinkedPRs(octokit, owner, repo, issueNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_ISSUE_LINKED_PRS_QUERY,
+      { owner, repo, issueNumber }
+    );
+    const linkedPRs = [];
+    const timelineNodes = response.repository?.issue?.timelineItems?.nodes || [];
+    for (const node2 of timelineNodes) {
+      const pr = node2.source || node2.subject;
+      if (!pr?.number || !pr?.headRefName) continue;
+      if (linkedPRs.some((p) => p.number === pr.number)) continue;
+      linkedPRs.push({
+        number: pr.number,
+        state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+        isDraft: false,
+        // Timeline doesn't include draft status
+        title: pr.title || "",
+        headRef: pr.headRefName,
+        baseRef: "main",
+        // Timeline doesn't include base ref
+        ciStatus: null
+        // Timeline doesn't include CI status
+      });
+    }
+    return linkedPRs;
+  } catch {
+    return [];
+  }
+}
+async function getPRForBranch(octokit, owner, repo, headRef) {
+  try {
+    const response = await octokit.graphql(
+      GET_PR_FOR_BRANCH_QUERY,
+      { owner, repo, headRef }
+    );
+    const pr = response.repository?.pullRequests?.nodes?.[0];
+    if (!pr || !pr.number) {
+      return null;
+    }
+    const rawCiStatus = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
+    let ciStatus = null;
+    if (rawCiStatus) {
+      const parsed = CIStatusSchema.safeParse(rawCiStatus);
+      if (parsed.success) {
+        ciStatus = parsed.data;
+      }
+    }
+    let reviewDecision = null;
+    if (pr.reviewDecision) {
+      const parsed = ReviewDecisionSchema.safeParse(pr.reviewDecision);
+      if (parsed.success) {
+        reviewDecision = parsed.data;
+      }
+    }
+    let mergeable = null;
+    if (pr.mergeable) {
+      const parsed = MergeableStateSchema.safeParse(pr.mergeable);
+      if (parsed.success) {
+        mergeable = parsed.data;
+      }
+    }
+    return {
+      number: pr.number,
+      state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+      isDraft: pr.isDraft || false,
+      title: pr.title || "",
+      headRef: pr.headRefName || headRef,
+      baseRef: pr.baseRefName || "main",
+      ciStatus,
+      reviewDecision,
+      mergeable,
+      reviewCount: pr.reviews?.totalCount ?? 0,
+      url: pr.url || ""
+    };
+  } catch {
+    return null;
+  }
+}
+function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber) {
+  const status = parseSubIssueStatus(
+    node2.projectItems?.nodes || [],
+    projectNumber
+  );
+  const body = node2.body || "";
+  const bodyAst = parseMarkdown(body);
+  return {
+    number: node2.number || 0,
+    title: node2.title || "",
+    state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
+    bodyAst,
+    projectStatus: status,
+    branch: deriveBranchName(parentIssueNumber, phaseNumber),
+    pr: null
+    // Populated separately if fetchPRs is true
+  };
+}
+async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, botUsername, fetchPRs) {
+  const response = await octokit.graphql(
+    GET_ISSUE_WITH_PROJECT_QUERY,
+    { owner, repo, issueNumber }
+  );
+  const issue2 = response.repository?.issue;
+  if (!issue2) {
+    return null;
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  const { status, iteration, failures } = parseProjectState(
+    projectItems,
+    projectNumber
+  );
+  const subIssueNodes = issue2.subIssues?.nodes || [];
+  const sortedSubIssues = [...subIssueNodes].sort(
+    (a, b) => (a.number || 0) - (b.number || 0)
+  );
+  const subIssues = [];
+  for (let i = 0; i < sortedSubIssues.length; i++) {
+    const node2 = sortedSubIssues[i];
+    if (!node2 || !node2.number) continue;
+    const subIssue = parseSubIssueData(node2, projectNumber, i + 1, issueNumber);
+    if (fetchPRs) {
+      const linkedPRs = await getLinkedPRs(octokit, owner, repo, node2.number);
+      if (linkedPRs.length > 0) {
+        const linkedPR = linkedPRs[0];
+        if (linkedPR) {
+          subIssue.branch = linkedPR.headRef;
+          subIssue.pr = await getPRForBranch(
+            octokit,
+            owner,
+            repo,
+            linkedPR.headRef
+          );
+        }
+      }
+    }
+    subIssues.push(subIssue);
+  }
+  const body = issue2.body || "";
+  const bodyAst = parseMarkdown(body);
+  const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
+  const parentIssueNumber = issue2.parent?.number ?? null;
+  let issueBranch = null;
+  let issuePR = null;
+  if (fetchPRs) {
+    const linkedPRs = await getLinkedPRs(octokit, owner, repo, issueNumber);
+    const firstPR = linkedPRs[0];
+    if (firstPR) {
+      issueBranch = firstPR.headRef;
+      issuePR = await getPRForBranch(octokit, owner, repo, issueBranch);
+    }
+  }
+  return {
+    issue: {
+      number: issue2.number || issueNumber,
+      title: issue2.title || "",
+      state: IssueStateSchema.parse(issue2.state?.toUpperCase() || "OPEN"),
+      bodyAst,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees: issue2.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels: issue2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      comments,
+      branch: issueBranch,
+      pr: issuePR,
+      parentIssueNumber
+    },
+    parentIssueNumber
+  };
+}
+async function parseIssue(owner, repo, issueNumber, options) {
+  const {
+    octokit,
+    projectNumber = 0,
+    botUsername = "nopo-bot",
+    fetchPRs = true,
+    fetchParent = true
+  } = options;
+  const result = await fetchIssueData(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    botUsername,
+    fetchPRs
+  );
+  if (!result) {
+    throw new Error(`Issue #${issueNumber} not found`);
+  }
+  let parentIssue = null;
+  if (fetchParent && result.parentIssueNumber) {
+    const parentResult = await fetchIssueData(
+      octokit,
+      owner,
+      repo,
+      result.parentIssueNumber,
+      projectNumber,
+      botUsername,
+      fetchPRs
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
+  }
+  const data = {
+    owner,
+    repo,
+    issue: result.issue,
+    parentIssue
+  };
+  const original = structuredClone(data);
+  const updateOptions = buildUpdateOptions(options);
+  return {
+    data,
+    update: (newData) => updateIssue(original, newData, octokit, updateOptions)
+  };
+}
 
 // ../issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
@@ -40354,357 +41101,6 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
-
-// ../issue-state/src/sections/history.ts
-var HISTORY_SECTION = "## Iteration History";
-var HEADER_COLUMNS = [
-  { key: "time", value: "Time" },
-  { key: "iteration", value: "#" },
-  { key: "phase", value: "Phase" },
-  { key: "action", value: "Action" },
-  { key: "sha", value: "SHA" },
-  { key: "run", value: "Run" }
-];
-function buildValueToKeyMap() {
-  const map4 = /* @__PURE__ */ new Map();
-  for (const col of HEADER_COLUMNS) {
-    map4.set(col.value, col.key);
-  }
-  return map4;
-}
-function parseHeaderRow(headerRow, valueToKeyMap) {
-  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
-  const keys = [];
-  const unmatched = [];
-  for (const cell of cells) {
-    const key = valueToKeyMap.get(cell);
-    if (key) {
-      keys.push(key);
-    } else {
-      keys.push(null);
-      unmatched.push(cell);
-    }
-  }
-  return { keys, unmatched };
-}
-function parseDataRow(row, columnKeys) {
-  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-  const data = {};
-  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
-    const key = columnKeys[i];
-    if (key) {
-      data[key] = cells[i];
-    }
-  }
-  return data;
-}
-function parseTable(body) {
-  const lines = body.split("\n");
-  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyIdx === -1) {
-    return null;
-  }
-  const valueToKeyMap = buildValueToKeyMap();
-  let headerKeys = [];
-  let unmatchedHeaders = [];
-  const rows = [];
-  let foundHeader = false;
-  for (let i = historyIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
-      break;
-    }
-    if (!line.startsWith("|")) {
-      continue;
-    }
-    if (line.includes("---")) {
-      continue;
-    }
-    if (!foundHeader) {
-      const parsed = parseHeaderRow(line, valueToKeyMap);
-      headerKeys = parsed.keys;
-      unmatchedHeaders = parsed.unmatched;
-      foundHeader = true;
-      continue;
-    }
-    const rowData = parseDataRow(line, headerKeys);
-    rows.push(rowData);
-  }
-  return {
-    headerKeys: headerKeys.filter((k) => k !== null),
-    rows,
-    unmatchedHeaders
-  };
-}
-function generateHeaderRow() {
-  const cells = HEADER_COLUMNS.map((col) => col.value);
-  return `| ${cells.join(" | ")} |`;
-}
-function generateSeparatorRow() {
-  const cells = HEADER_COLUMNS.map(() => "---");
-  return `|${cells.join("|")}|`;
-}
-function serializeRow(data) {
-  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
-  return `| ${cells.join(" | ")} |`;
-}
-function serializeTable(rows) {
-  const headerRow = generateHeaderRow();
-  const separatorRow = generateSeparatorRow();
-  const dataRows = rows.map(serializeRow);
-  return [headerRow, separatorRow, ...dataRows].join("\n");
-}
-function formatTimestamp(isoTimestamp) {
-  if (!isoTimestamp) return "-";
-  try {
-    const date3 = new Date(isoTimestamp);
-    if (isNaN(date3.getTime())) return "-";
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    const month = months[date3.getUTCMonth()];
-    const day = date3.getUTCDate();
-    const hours = String(date3.getUTCHours()).padStart(2, "0");
-    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
-    return `${month} ${day} ${hours}:${minutes}`;
-  } catch {
-    return "-";
-  }
-}
-function parseMarkdownLink(text5) {
-  const match = text5.match(/\[.*?\]\((.*?)\)/);
-  return match?.[1] ?? null;
-}
-function extractRunIdFromUrl(url) {
-  const match = url.match(/\/actions\/runs\/(\d+)/);
-  return match?.[1] ?? null;
-}
-function parseRunIdFromCell(cell) {
-  if (cell === "-" || cell.trim() === "") {
-    return null;
-  }
-  const linkTextMatch = cell.match(/\[(\d+)\]/);
-  if (linkTextMatch) {
-    return linkTextMatch[1] ?? null;
-  }
-  const url = parseMarkdownLink(cell);
-  if (url) {
-    return extractRunIdFromUrl(url);
-  }
-  return null;
-}
-function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
-  let fullRepoUrl = repoUrl;
-  if (!fullRepoUrl) {
-    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const repo = process.env.GITHUB_REPOSITORY || "";
-    fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
-  }
-  let shaCell = "-";
-  if (prNumber) {
-    shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;
-  } else if (sha) {
-    shaCell = `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`;
-  }
-  let runCell = "-";
-  if (runLink) {
-    const runId = extractRunIdFromUrl(runLink);
-    if (runId) {
-      runCell = `[${runId}](${runLink})`;
-    } else {
-      runCell = `[Run](${runLink})`;
-    }
-  }
-  return { shaCell, runCell };
-}
-function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
-  const { shaCell, runCell } = formatHistoryCells(
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  return {
-    time: formatTimestamp(timestamp),
-    iteration: String(iteration),
-    phase: String(phase),
-    action: message,
-    sha: shaCell,
-    run: runCell
-  };
-}
-function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
-  const newRowData = createRowData(
-    iteration,
-    phase,
-    message,
-    timestamp,
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-  if (historyIdx === -1) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  const parsed = parseTable(body);
-  if (!parsed) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  const existingRows = parsed.rows.map((row) => {
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  let allRows;
-  let matchIdx = -1;
-  if (newRunId) {
-    matchIdx = existingRows.findIndex((row) => {
-      const existingRunId = parseRunIdFromCell(row.run ?? "");
-      return existingRunId === newRunId;
-    });
-  }
-  if (matchIdx !== -1) {
-    const existingRow = existingRows[matchIdx];
-    const existingAction = existingRow.action ?? "";
-    const newAction = existingAction ? `${existingAction} -> ${message}` : message;
-    const updatedRow = {
-      ...existingRow,
-      action: newAction
-    };
-    if (sha && newRowData.sha !== "-") {
-      updatedRow.sha = newRowData.sha;
-    }
-    if (newRowData.time && newRowData.time !== "-") {
-      updatedRow.time = newRowData.time;
-    }
-    allRows = existingRows.map(
-      (row, idx) => idx === matchIdx ? updatedRow : row
-    );
-  } else {
-    allRows = [...existingRows, newRowData];
-  }
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(allRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return parts.join("\n");
-}
-function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl, prNumber) {
-  const parsed = parseTable(body);
-  if (!parsed || parsed.rows.length === 0) {
-    return { body, updated: false };
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  let matchIdx = -1;
-  for (let i = parsed.rows.length - 1; i >= 0; i--) {
-    const row = parsed.rows[i];
-    if (!row) continue;
-    const rowIteration = row.iteration || "";
-    const rowPhase = row.phase || "";
-    const rowAction = row.action || "";
-    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowAction.includes(matchPattern)) {
-      matchIdx = i;
-      break;
-    }
-  }
-  if (matchIdx === -1) {
-    return { body, updated: false };
-  }
-  const existingRow = parsed.rows[matchIdx];
-  const { shaCell, runCell } = formatHistoryCells(
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  const updatedRow = {
-    time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
-    iteration: existingRow.iteration,
-    phase: existingRow.phase,
-    action: newMessage,
-    sha: sha || prNumber ? shaCell : existingRow.sha ?? "-",
-    run: runLink ? runCell : existingRow.run ?? "-"
-  };
-  const normalizedRows = parsed.rows.map((row, idx) => {
-    if (idx === matchIdx) {
-      return updatedRow;
-    }
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(normalizedRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return { body: parts.join("\n"), updated: true };
-}
 
 // ../issue-state/src/create-extractor.ts
 function createExtractor(schema, transform2) {
@@ -41650,7 +42046,7 @@ var MinimalTriggerContextSchema = external_exports.object({
 });
 
 // src/parser/issue-adapter.ts
-function deriveBranchName(parentIssueNumber, phaseNumber) {
+function deriveBranchName2(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
   }
@@ -41886,7 +42282,7 @@ function createTableCell(content3) {
 function createTableRowNode(cells) {
   return { type: "tableRow", children: cells };
 }
-function formatTimestamp2(isoTimestamp) {
+function formatTimestamp(isoTimestamp) {
   if (!isoTimestamp) return "-";
   try {
     const date3 = new Date(isoTimestamp);
@@ -41914,7 +42310,7 @@ function formatTimestamp2(isoTimestamp) {
     return "-";
   }
 }
-function extractRunIdFromUrl2(url) {
+function extractRunIdFromUrl(url) {
   const match = url.match(/\/actions\/runs\/(\d+)/);
   return match?.[1] ?? null;
 }
@@ -42027,7 +42423,7 @@ function createHistoryDataRow(entry, repoUrl) {
   }
   let runCell;
   if (entry.runLink) {
-    const runId = extractRunIdFromUrl2(entry.runLink);
+    const runId = extractRunIdFromUrl(entry.runLink);
     const linkText = runId || "Run";
     runCell = [createLinkNode(entry.runLink, linkText)];
   } else {
@@ -42056,7 +42452,7 @@ function getCellRunId(row, index2) {
       if (/^\d+$/.test(linkText)) {
         return linkText;
       }
-      return extractRunIdFromUrl2(child.url);
+      return extractRunIdFromUrl(child.url);
     }
   }
   return null;
@@ -42079,12 +42475,12 @@ var addHistoryEntry2 = createMutator(
       iteration: input.iteration,
       phase: input.phase,
       action: input.action,
-      timestamp: input.timestamp ? formatTimestamp2(input.timestamp) : formatTimestamp2((/* @__PURE__ */ new Date()).toISOString()),
+      timestamp: input.timestamp ? formatTimestamp(input.timestamp) : formatTimestamp((/* @__PURE__ */ new Date()).toISOString()),
       sha: input.sha ?? null,
       runLink: input.runLink ?? null
     };
     const newRow = createHistoryDataRow(entry, input.repoUrl);
-    const runId = input.runLink ? extractRunIdFromUrl2(input.runLink) : null;
+    const runId = input.runLink ? extractRunIdFromUrl(input.runLink) : null;
     if (historyIdx === -1) {
       const heading2 = createHeadingNode(2, "Iteration History");
       const table = {
@@ -42187,7 +42583,7 @@ var updateHistoryEntry2 = createMutator(
     if (input.timestamp) {
       const timeCell = row.children[0];
       if (timeCell) {
-        timeCell.children = [createTextNode(formatTimestamp2(input.timestamp))];
+        timeCell.children = [createTextNode(formatTimestamp(input.timestamp))];
       }
     }
     if (input.sha) {
@@ -42203,7 +42599,7 @@ var updateHistoryEntry2 = createMutator(
     if (input.runLink) {
       const runCell = row.children[5];
       if (runCell) {
-        const runId = extractRunIdFromUrl2(input.runLink);
+        const runId = extractRunIdFromUrl(input.runLink);
         const linkText = runId || "Run";
         runCell.children = [createLinkNode(input.runLink, linkText)];
       }
@@ -42223,7 +42619,7 @@ var appendAgentNotes2 = createMutator(
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
     const notesIdx = findHeadingIndex2(newAst, "Agent Notes");
-    const formattedTimestamp = formatTimestamp2(
+    const formattedTimestamp = formatTimestamp(
       input.timestamp || (/* @__PURE__ */ new Date()).toISOString()
     );
     const headerLink = createLinkNode(input.runLink, `Run ${input.runId}`);
@@ -42267,7 +42663,8 @@ var STANDARD_SECTION_ORDER2 = [
 var upsertSection2 = createMutator(
   external_exports.object({
     title: external_exports.string(),
-    content: external_exports.string(),
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
+    content: external_exports.array(external_exports.record(external_exports.unknown())),
     sectionOrder: external_exports.array(external_exports.string()).optional()
   }),
   (input, data) => {
@@ -42275,7 +42672,6 @@ var upsertSection2 = createMutator(
     const newAst = structuredClone(ast);
     const sectionIdx = findHeadingIndex2(newAst, input.title);
     const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
-    const contentNode = createParagraphNode(input.content);
     if (sectionIdx !== -1) {
       let endIdx = sectionIdx + 1;
       for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
@@ -42288,7 +42684,7 @@ var upsertSection2 = createMutator(
       newAst.children.splice(
         sectionIdx + 1,
         endIdx - sectionIdx - 1,
-        contentNode
+        ...input.content
       );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
@@ -42305,10 +42701,66 @@ var upsertSection2 = createMutator(
         }
       }
       const heading2 = createHeadingNode(2, input.title);
-      newAst.children.splice(insertIdx, 0, heading2, contentNode);
+      newAst.children.splice(insertIdx, 0, heading2, ...input.content);
     }
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   }
+);
+var applyTodoModifications = createMutator(
+  external_exports.object({
+    modifications: external_exports.array(
+      external_exports.object({
+        action: external_exports.enum(["add", "modify", "remove"]),
+        index: external_exports.number(),
+        text: external_exports.string().optional()
+      })
+    )
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    if (todosIdx === -1) return data;
+    const listNode = newAst.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    for (const mod of input.modifications) {
+      if (mod.action === "add") {
+        const newItem = createListItemNode(mod.text || "", false);
+        if (mod.index < 0) {
+          listNode.children.splice(0, 0, newItem);
+        } else if (mod.index >= listNode.children.length) {
+          listNode.children.push(newItem);
+        } else {
+          listNode.children.splice(mod.index + 1, 0, newItem);
+        }
+      } else if (mod.action === "modify") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        item.children = [createParagraphNode(mod.text || "")];
+      } else if (mod.action === "remove") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        listNode.children.splice(mod.index, 1);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var replaceBody = createMutator(
+  external_exports.object({
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
+    bodyAst: external_exports.object({
+      type: external_exports.literal("root"),
+      children: external_exports.array(external_exports.record(external_exports.unknown()))
+    }).passthrough()
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
+  }),
+  (input, data) => ({
+    ...data,
+    issue: { ...data.issue, bodyAst: input.bodyAst }
+  })
 );
 
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
@@ -45988,7 +46440,7 @@ function emitLogReviewRequested({
   return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
 }
 function emitCreateBranch({ context: context2 }) {
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   return [
     {
       type: "createBranch",
@@ -46004,7 +46456,7 @@ function emitCreatePR({ context: context2 }) {
   if (context2.pr) {
     return [];
   }
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
     {
@@ -46074,7 +46526,7 @@ function emitMergePR({ context: context2 }) {
 function buildIteratePromptVars(context2, ciResultOverride) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const iteration = context2.issue.iteration;
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
@@ -65182,6 +65634,33 @@ var TestAnalysis = promptFactory().inputs((z) => ({
 Format as GitHub-flavored markdown.` })
 ] }));
 
+// ../prompts/src/prompts/live-issue-scout.tsx
+var LiveIssueScout = promptFactory().inputs((z) => ({
+  category: z.enum([
+    "documentation",
+    "tests",
+    "performance",
+    "readability",
+    "type-safety"
+  ])
+})).outputs((z) => ({
+  title: z.string().describe("Concise issue title, imperative mood, under 80 chars"),
+  body: z.string().describe("Unstructured paragraph, max 100 words")
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("section", { title: "Purpose", children: `You are a codebase scout. Find exactly ONE small, concrete improvement
+in the "${inputs.category}" category.` }),
+  /* @__PURE__ */ jsx("section", { title: "Constraints", children: `- XS size (under 1 hour of work), touching only 1-2 files
+- Must be a real improvement, not busywork
+- If touching production code, it must be testable
+- No changes to generated files, lock files, or dist/ directories
+- No new dependencies
+- Must be something that can pass CI` }),
+  /* @__PURE__ */ jsx("section", { title: "Output Format", children: `Return a title (imperative, under 80 chars) and a body paragraph
+(max 100 words, unstructured, no markdown headings/bullets).
+Be specific about which file(s) to change and the expected outcome.
+Scope is most important, outcome is second most important.` })
+] }));
+
 // ../prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
@@ -65991,30 +66470,29 @@ var GroomingAgentOutputSchema = external_exports.object({
   ready: external_exports.boolean(),
   questions: external_exports.array(external_exports.string()).optional()
 }).passthrough();
+var RecommendedPhaseSchema = external_exports.object({
+  phase_number: external_exports.number(),
+  title: external_exports.string(),
+  description: external_exports.string(),
+  affected_areas: external_exports.array(
+    external_exports.object({
+      path: external_exports.string(),
+      change_type: external_exports.string().optional(),
+      description: external_exports.string().optional(),
+      impact: external_exports.string().optional()
+    })
+  ).optional(),
+  todos: external_exports.array(
+    external_exports.object({
+      task: external_exports.string(),
+      manual: external_exports.boolean().optional()
+    })
+  ).optional(),
+  depends_on: external_exports.array(external_exports.number()).optional()
+});
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   scope_recommendation: external_exports.enum(["direct", "split"]).optional(),
-  recommended_phases: external_exports.array(
-    external_exports.object({
-      phase_number: external_exports.number(),
-      title: external_exports.string(),
-      description: external_exports.string(),
-      affected_areas: external_exports.array(
-        external_exports.object({
-          path: external_exports.string(),
-          change_type: external_exports.string().optional(),
-          description: external_exports.string().optional(),
-          impact: external_exports.string().optional()
-        })
-      ).optional(),
-      todos: external_exports.array(
-        external_exports.object({
-          task: external_exports.string(),
-          manual: external_exports.boolean().optional()
-        })
-      ).optional(),
-      depends_on: external_exports.array(external_exports.number()).optional()
-    })
-  ).optional()
+  recommended_phases: external_exports.array(RecommendedPhaseSchema).optional()
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
@@ -66051,7 +66529,10 @@ var LegacyTriageOutputSchema = external_exports.object({
       title: external_exports.string(),
       description: external_exports.string(),
       todos: external_exports.array(
-        external_exports.union([external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }), external_exports.string()])
+        external_exports.union([
+          external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }),
+          external_exports.string()
+        ])
       )
     })
   ).optional(),
@@ -66951,6 +67432,9 @@ function determineOutcome(params) {
 }
 
 // actions/sm-log-run-end/index.ts
+function asOctokitLike(octokit) {
+  return octokit;
+}
 async function run() {
   try {
     const token = getRequiredInput("github_token");
@@ -67002,95 +67486,84 @@ async function run() {
       setOutputs({ updated: "false" });
       return;
     }
-    const response = await octokit.graphql(
-      GET_ISSUE_BODY_QUERY,
-      {
-        owner,
-        repo,
-        issueNumber
-      }
-    );
-    const currentBody = response.repository?.issue?.body || "";
-    const parentNumber = response.repository?.issue?.parent?.number;
+    const { data, update } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false
+    });
+    const parentNumber = data.issue.parentIssueNumber;
     const newMessage = `${outcome.emoji} ${outcome.transition}`;
-    const result = updateHistoryEntry(
-      currentBody,
-      iteration,
-      phase,
-      "\u23F3 running...",
-      newMessage,
-      (/* @__PURE__ */ new Date()).toISOString(),
-      outcome.commitSha || void 0,
-      runUrl,
-      repoUrl,
-      outcome.prNumber || void 0
+    let state = updateHistoryEntry2(
+      {
+        matchIteration: iteration,
+        matchPhase: phase,
+        matchPattern: "\u23F3 running...",
+        newAction: newMessage,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        sha: outcome.commitSha || void 0,
+        runLink: runUrl,
+        repoUrl
+      },
+      data
     );
-    let updatedBody = result.body;
-    if (!result.updated) {
+    if (state === data) {
       core22.info(
         `No matching history entry found - adding new entry for Phase ${phase}`
       );
-      updatedBody = addHistoryEntry(
-        currentBody,
-        iteration,
-        phase,
-        newMessage,
-        (/* @__PURE__ */ new Date()).toISOString(),
-        outcome.commitSha || void 0,
-        runUrl,
-        repoUrl,
-        outcome.prNumber || void 0
-      );
-    }
-    await octokit.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      body: updatedBody
-    });
-    core22.info(`Updated history entry for issue #${issueNumber}`);
-    if (parentNumber) {
-      const parentResponse = await octokit.graphql(
-        GET_ISSUE_BODY_QUERY,
+      state = addHistoryEntry2(
         {
-          owner,
-          repo,
-          issueNumber: parentNumber
-        }
-      );
-      const parentBody = parentResponse.repository?.issue?.body || "";
-      const parentResult = updateHistoryEntry(
-        parentBody,
-        iteration,
-        phase,
-        "\u23F3 running...",
-        newMessage,
-        (/* @__PURE__ */ new Date()).toISOString(),
-        outcome.commitSha || void 0,
-        runUrl,
-        repoUrl,
-        outcome.prNumber || void 0
-      );
-      let updatedParentBody = parentResult.body;
-      if (!parentResult.updated) {
-        updatedParentBody = addHistoryEntry(
-          parentBody,
           iteration,
           phase,
-          newMessage,
-          (/* @__PURE__ */ new Date()).toISOString(),
-          outcome.commitSha || void 0,
-          runUrl,
-          repoUrl,
-          outcome.prNumber || void 0
-        );
-      }
-      await octokit.rest.issues.update({
+          action: newMessage,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          sha: outcome.commitSha || void 0,
+          runLink: runUrl,
+          repoUrl
+        },
+        state
+      );
+    }
+    await update(state);
+    core22.info(`Updated history entry for issue #${issueNumber}`);
+    if (parentNumber) {
+      const { data: parentData, update: parentUpdate } = await parseIssue(
         owner,
         repo,
-        issue_number: parentNumber,
-        body: updatedParentBody
-      });
+        parentNumber,
+        {
+          octokit: asOctokitLike(octokit),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      let parentState = updateHistoryEntry2(
+        {
+          matchIteration: iteration,
+          matchPhase: phase,
+          matchPattern: "\u23F3 running...",
+          newAction: newMessage,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          sha: outcome.commitSha || void 0,
+          runLink: runUrl,
+          repoUrl
+        },
+        parentData
+      );
+      if (parentState === parentData) {
+        parentState = addHistoryEntry2(
+          {
+            iteration,
+            phase,
+            action: newMessage,
+            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+            sha: outcome.commitSha || void 0,
+            runLink: runUrl,
+            repoUrl
+          },
+          parentState
+        );
+      }
+      await parentUpdate(parentState);
       core22.info(`Also updated parent issue #${parentNumber}`);
     }
     setOutputs({ updated: "true" });

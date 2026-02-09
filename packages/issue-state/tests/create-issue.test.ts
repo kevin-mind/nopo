@@ -89,6 +89,10 @@ function createMockOctokit(
         createComment: vi.fn(),
         addAssignees: vi.fn(),
         removeAssignees: vi.fn(),
+        setLabels: vi.fn(),
+        updateComment: vi.fn(),
+        listComments: vi.fn(async () => ({ data: [] })),
+        listForRepo: vi.fn(async () => ({ data: [] })),
       },
       pulls: {
         list: vi.fn(async () => ({ data: [] })),

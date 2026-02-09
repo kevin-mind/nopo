@@ -1,16 +1,36 @@
+import * as fs from "fs";
+import * as path from "path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import {
   getRequiredInput,
   getOptionalInput,
   setOutputs,
+  replaceBody,
 } from "@more/statemachine";
+import {
+  parseIssue,
+  createIssue,
+  createComment,
+  listComments,
+  setLabels,
+  parseMarkdown,
+  serializeMarkdown,
+  type OctokitLike,
+} from "@more/issue-state";
 import type {
   TestFixture,
   FixtureCreationResult,
   VerificationResult,
   VerificationError,
 } from "./types.js";
+
+function asOctokitLike(
+  octokit: ReturnType<typeof github.getOctokit>,
+): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return octokit as unknown as OctokitLike;
+}
 
 // GraphQL queries
 const GET_PROJECT_ITEM_QUERY = `
@@ -111,44 +131,6 @@ query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
                     }
                   }
                 }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`;
-
-// Query to get PRs linked to an issue via "Fixes #<number>" or similar
-const GET_ISSUE_LINKED_PRS_QUERY = `
-query GetIssueLinkedPRs($org: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $org, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-      number
-      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
-        nodes {
-          ... on CrossReferencedEvent {
-            source {
-              ... on PullRequest {
-                number
-                title
-                state
-                headRefName
-                url
-              }
-            }
-          }
-          ... on ConnectedEvent {
-            subject {
-              ... on PullRequest {
-                number
-                title
-                state
-                headRefName
-                url
               }
             }
           }
@@ -539,17 +521,20 @@ async function createFixture(
 
   core.info(`Creating parent issue: ${parentTitle}`);
 
-  const { data: parentIssue } = await octokit.rest.issues.create({
+  const createResult = await createIssue(
     owner,
     repo,
-    title: parentTitle,
-    body: fixture.parent_issue.body,
-    labels: parentLabels,
-  });
+    {
+      title: parentTitle,
+      body: fixture.parent_issue.body,
+      labels: parentLabels,
+    },
+    { octokit: asOctokitLike(octokit) },
+  );
 
-  result.issue_number = parentIssue.number;
-  const issueNodeId = parentIssue.node_id; // Use node_id from REST API directly
-  core.info(`Created parent issue #${parentIssue.number}`);
+  result.issue_number = createResult.issueNumber;
+  const issueNodeId = createResult.issueId; // Use node ID from createIssue
+  core.info(`Created parent issue #${createResult.issueNumber}`);
   core.info(`Issue node_id: ${issueNodeId}`);
 
   // Get project fields for setting project values
@@ -714,55 +699,54 @@ async function createFixture(
       // We'll update the body after creation to replace {ISSUE_NUMBER}
       const bodyWithParent = subConfig.body.replace(
         /\{PARENT_NUMBER\}/g,
-        String(parentIssue.number),
+        String(createResult.issueNumber),
       );
 
-      const { data: subIssue } = await octokit.rest.issues.create({
+      const subCreateResult = await createIssue(
         owner,
         repo,
-        title: subTitle,
-        body: bodyWithParent,
-        labels: ["test:automation", "triaged"],
-      });
+        {
+          title: subTitle,
+          body: bodyWithParent,
+          labels: ["test:automation", "triaged"],
+        },
+        { octokit: asOctokitLike(octokit) },
+      );
 
       // Now update body to replace {ISSUE_NUMBER} with actual sub-issue number
       const finalBody = bodyWithParent.replace(
         /\{ISSUE_NUMBER\}/g,
-        String(subIssue.number),
+        String(subCreateResult.issueNumber),
       );
       if (finalBody !== bodyWithParent) {
-        await octokit.rest.issues.update({
+        const { data: subState, update: updateSub } = await parseIssue(
           owner,
           repo,
-          issue_number: subIssue.number,
-          body: finalBody,
-        });
+          subCreateResult.issueNumber,
+          {
+            octokit: asOctokitLike(octokit),
+            fetchPRs: false,
+            fetchParent: false,
+          },
+        );
+        const updatedSubState = replaceBody(
+          { bodyAst: parseMarkdown(finalBody) },
+          subState,
+        );
+        await updateSub(updatedSubState);
       }
 
-      result.sub_issue_numbers.push(subIssue.number);
-      core.info(`Created sub-issue #${subIssue.number}`);
+      result.sub_issue_numbers.push(subCreateResult.issueNumber);
+      core.info(`Created sub-issue #${subCreateResult.issueNumber}`);
 
       // Link sub-issue to parent using GraphQL
-      // First get the node IDs
-      const { data: parentData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: parentIssue.number,
-      });
-
-      const { data: subData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: subIssue.number,
-      });
-
       try {
         await octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
-          parentId: parentData.node_id,
-          subIssueId: subData.node_id,
+          parentId: issueNodeId,
+          subIssueId: subCreateResult.issueId,
         });
         core.info(
-          `Linked sub-issue #${subIssue.number} to parent #${parentIssue.number}`,
+          `Linked sub-issue #${subCreateResult.issueNumber} to parent #${createResult.issueNumber}`,
         );
       } catch (error) {
         core.warning(`Failed to link sub-issue: ${error}`);
@@ -781,7 +765,7 @@ async function createFixture(
           ADD_ISSUE_TO_PROJECT_MUTATION,
           {
             projectId: projectFields.projectId,
-            contentId: subData.node_id,
+            contentId: subCreateResult.issueId,
           },
         );
 
@@ -804,7 +788,7 @@ async function createFixture(
                 value: { singleSelectOptionId: optionId },
               });
               core.info(
-                `Set sub-issue #${subIssue.number} Status to ${subStatus}`,
+                `Set sub-issue #${subCreateResult.issueNumber} Status to ${subStatus}`,
               );
             }
           }
@@ -821,7 +805,7 @@ async function createFixture(
               value: { number: subConfig.project_fields.Iteration },
             });
             core.info(
-              `Set sub-issue #${subIssue.number} Iteration to ${subConfig.project_fields.Iteration}`,
+              `Set sub-issue #${subCreateResult.issueNumber} Iteration to ${subConfig.project_fields.Iteration}`,
             );
           }
 
@@ -837,7 +821,7 @@ async function createFixture(
               value: { number: subConfig.project_fields.Failures },
             });
             core.info(
-              `Set sub-issue #${subIssue.number} Failures to ${subConfig.project_fields.Failures}`,
+              `Set sub-issue #${subCreateResult.issueNumber} Failures to ${subConfig.project_fields.Failures}`,
             );
           }
         }
@@ -997,12 +981,13 @@ async function createFixture(
     core.info(`Created PR #${pr.number}`);
 
     // Add test:automation label to PR
-    await octokit.rest.issues.addLabels({
+    await setLabels(
       owner,
       repo,
-      issue_number: pr.number,
-      labels: ["test:automation"],
-    });
+      pr.number,
+      ["test:automation"],
+      asOctokitLike(octokit),
+    );
 
     // Request review if specified
     if (fixture.pr.request_review) {
@@ -1023,14 +1008,15 @@ async function createFixture(
   // Create comment on issue if specified
   if (fixture.comment && result.issue_number) {
     core.info("Adding comment to issue");
-    const { data: comment } = await octokit.rest.issues.createComment({
+    const { commentId } = await createComment(
       owner,
       repo,
-      issue_number: result.issue_number,
-      body: fixture.comment.body,
-    });
-    result.comment_id = String(comment.id);
-    core.info(`Created comment ${comment.id}`);
+      result.issue_number,
+      fixture.comment.body,
+      asOctokitLike(octokit),
+    );
+    result.comment_id = String(commentId);
+    core.info(`Created comment ${commentId}`);
   }
 
   // Create review on PR if specified
@@ -1457,15 +1443,13 @@ async function verifyFixture(
 
   // Check expected labels
   if (fixture.expected.labels && fixture.expected.labels.length > 0) {
-    const { data: issueData } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber,
+    const { data: labelData } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false,
     });
 
-    const actualLabels = issueData.labels.map((l) =>
-      typeof l === "string" ? l : l.name || "",
-    );
+    const actualLabels = labelData.issue.labels;
 
     for (const expectedLabel of fixture.expected.labels) {
       if (!actualLabels.includes(expectedLabel)) {
@@ -1482,18 +1466,19 @@ async function verifyFixture(
   if (fixture.expected.min_comments !== undefined) {
     // Check issue comments
     if (fixture.parent_issue) {
-      const { data: comments } = await octokit.rest.issues.listComments({
+      const issueComments = await listComments(
         owner,
         repo,
-        issue_number: issueNumber,
-        per_page: 100,
-      });
+        issueNumber,
+        asOctokitLike(octokit),
+        { perPage: 100 },
+      );
 
-      if (comments.length < fixture.expected.min_comments) {
+      if (issueComments.length < fixture.expected.min_comments) {
         errors.push({
           field: "min_comments",
           expected: `>= ${fixture.expected.min_comments}`,
-          actual: String(comments.length),
+          actual: String(issueComments.length),
         });
       }
     }
@@ -1580,16 +1565,21 @@ async function verifyFixture(
     for (let i = 0; i < subIssues.length; i++) {
       const subIssue = subIssues[i];
       if (subIssue?.number) {
-        const { data: subIssueData } = await octokit.rest.issues.get({
+        const { data: subClosedData } = await parseIssue(
           owner,
           repo,
-          issue_number: subIssue.number,
-        });
-        if (subIssueData.state !== "closed") {
+          subIssue.number,
+          {
+            octokit: asOctokitLike(octokit),
+            fetchPRs: false,
+            fetchParent: false,
+          },
+        );
+        if (subClosedData.issue.state !== "CLOSED") {
           errors.push({
             field: `sub_issue_${i + 1}_closed`,
             expected: "closed",
-            actual: subIssueData.state,
+            actual: subClosedData.issue.state.toLowerCase(),
           });
         }
       }
@@ -1624,12 +1614,17 @@ async function verifyFixture(
     for (let i = 0; i < subIssues.length; i++) {
       const subIssue = subIssues[i];
       if (subIssue?.number) {
-        const { data: subIssueData } = await octokit.rest.issues.get({
+        const { data: subTodoData } = await parseIssue(
           owner,
           repo,
-          issue_number: subIssue.number,
-        });
-        const body = subIssueData.body || "";
+          subIssue.number,
+          {
+            octokit: asOctokitLike(octokit),
+            fetchPRs: false,
+            fetchParent: false,
+          },
+        );
+        const body = serializeMarkdown(subTodoData.issue.bodyAst);
         const unchecked = (body.match(/- \[ \]/g) || []).length;
         if (unchecked > 0) {
           errors.push({
@@ -1644,12 +1639,12 @@ async function verifyFixture(
 
   // Check iteration history has expected log entries
   if (fixture.expected.history_contains) {
-    const { data: issueData } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber,
+    const { data: historyData } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false,
     });
-    const body = issueData.body || "";
+    const body = serializeMarkdown(historyData.issue.bodyAst);
     for (const pattern of fixture.expected.history_contains) {
       if (!body.includes(pattern)) {
         errors.push({
@@ -1809,54 +1804,6 @@ async function forceCancelRelatedWorkflows(
 
 type CleanupMode = "close" | "delete";
 
-interface ResourceSnapshot {
-  parentIssue: {
-    number: number;
-    title: string;
-    state: string;
-    labels: string[];
-    url: string;
-  };
-  subIssues: Array<{
-    number: number;
-    title: string;
-    state: string;
-    url: string;
-  }>;
-  pullRequests: Array<{
-    number: number;
-    title: string;
-    state: string;
-    branch: string;
-    url: string;
-  }>;
-  branches: Array<{
-    name: string;
-    ref: string;
-  }>;
-  workflowRuns: Array<{
-    id: number;
-    name: string;
-    status: string;
-    url: string;
-  }>;
-}
-
-type CleanupNodeType =
-  | "workflow"
-  | "pr"
-  | "branch"
-  | "sub-issue"
-  | "parent-issue";
-
-interface CleanupNode {
-  type: CleanupNodeType;
-  id: string;
-  displayName: string;
-  status: "pending" | "cleaning" | "verified" | "failed";
-  error?: string;
-}
-
 interface CleanupResult {
   success: boolean;
   cleaned: number;
@@ -1866,880 +1813,230 @@ interface CleanupResult {
 }
 
 /**
- * Retry an operation with linear backoff and jitter
- *
- * @param operation - The async operation to retry
- * @param verify - Function to verify the operation succeeded
- * @param options - Retry configuration
- * @returns The result of the operation
+ * Delete a branch, ignoring 404 (already deleted)
  */
-async function retryWithBackoff<T>(
-  operation: () => Promise<T>,
-  verify: () => Promise<boolean>,
-  options: {
-    maxRetries: number;
-    baseDelayMs: number;
-    maxJitterMs: number;
-    operationName: string;
-  },
-): Promise<{ success: boolean; result?: T; error?: string }> {
-  const { maxRetries, baseDelayMs, maxJitterMs, operationName } = options;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const result = await operation();
-
-      // Verify the operation succeeded
-      const verified = await verify();
-      if (verified) {
-        core.info(`✓ ${operationName} succeeded on attempt ${attempt}`);
-        return { success: true, result };
-      }
-
-      core.warning(
-        `${operationName} completed but verification failed (attempt ${attempt}/${maxRetries})`,
-      );
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      core.warning(
-        `${operationName} failed (attempt ${attempt}/${maxRetries}): ${errorMsg}`,
-      );
+async function deleteBranch(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<void> {
+  try {
+    await octokit.rest.git.deleteRef({
+      owner,
+      repo,
+      ref: `heads/${branch}`,
+    });
+    core.info(`Deleted branch: ${branch}`);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "status" in error &&
+      error.status === 404
+    ) {
+      core.info(`Branch already deleted: ${branch}`);
+      return;
     }
-
-    if (attempt < maxRetries) {
-      // Linear backoff with jitter: delay = (attempt * baseDelay) + random(0, maxJitter)
-      const jitter = Math.floor(Math.random() * maxJitterMs);
-      const delay = attempt * baseDelayMs + jitter;
-      core.info(`Waiting ${delay}ms before retry...`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
+    throw error;
   }
-
-  return {
-    success: false,
-    error: `${operationName} failed after ${maxRetries} attempts`,
-  };
 }
 
 /**
- * Take a snapshot of all resources related to an issue for the workflow summary
+ * Close an issue if it's open, ignoring 404/410 (already deleted)
  */
-async function snapshotResources(
+async function closeIssue(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
   issueNumber: number,
-): Promise<ResourceSnapshot> {
-  // Get parent issue
-  const { data: issue } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber,
-  });
-
-  const labels = issue.labels.map((l) =>
-    typeof l === "string" ? l : l.name || "",
-  );
-
-  // Get sub-issues
-  interface SubIssuesResponse {
-    repository?: {
-      issue?: {
-        subIssues?: {
-          nodes?: Array<{
-            number?: number;
-            title?: string;
-            state?: string;
-            url?: string;
-          }>;
-        };
-      };
-    };
-  }
-
-  const subResponse = await octokit.graphql<SubIssuesResponse>(
-    GET_SUB_ISSUES_QUERY,
-    {
-      org: owner,
-      repo,
-      parentNumber: issueNumber,
-    },
-  );
-
-  const subIssueNodes = subResponse.repository?.issue?.subIssues?.nodes || [];
-
-  // Get full details for each sub-issue
-  const subIssues: ResourceSnapshot["subIssues"] = [];
-  for (const sub of subIssueNodes) {
-    if (sub.number) {
-      const { data: subData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: sub.number,
-      });
-      subIssues.push({
-        number: subData.number,
-        title: subData.title,
-        state: subData.state,
-        url: subData.html_url,
-      });
-    }
-  }
-
-  // Get linked PRs for parent and all sub-issues using GitHub's timeline API
-  // This finds PRs that have "Fixes #<issue>" linking
-  const relatedPRs: ResourceSnapshot["pullRequests"] = [];
-  const branches: ResourceSnapshot["branches"] = [];
-  const allIssueNumbers = [issueNumber, ...subIssues.map((s) => s.number)];
-
-  interface LinkedPRsResponse {
-    repository?: {
-      issue?: {
-        timelineItems?: {
-          nodes?: Array<{
-            source?: {
-              number?: number;
-              title?: string;
-              state?: string;
-              headRefName?: string;
-              url?: string;
-            };
-            subject?: {
-              number?: number;
-              title?: string;
-              state?: string;
-              headRefName?: string;
-              url?: string;
-            };
-          }>;
-        };
-      };
-    };
-  }
-
-  for (const issueNum of allIssueNumbers) {
-    try {
-      const response = await octokit.graphql<LinkedPRsResponse>(
-        GET_ISSUE_LINKED_PRS_QUERY,
-        { org: owner, repo, issueNumber: issueNum },
-      );
-
-      const timelineNodes =
-        response.repository?.issue?.timelineItems?.nodes || [];
-
-      for (const node of timelineNodes) {
-        // Handle both CrossReferencedEvent (source) and ConnectedEvent (subject)
-        const pr = node.source || node.subject;
-        if (pr?.number && pr?.headRefName) {
-          // Avoid duplicates
-          if (!relatedPRs.some((p) => p.number === pr.number)) {
-            relatedPRs.push({
-              number: pr.number,
-              title: pr.title || "",
-              state: pr.state?.toLowerCase() || "open",
-              branch: pr.headRefName,
-              url: pr.url || "",
-            });
-
-            // Add branch from PR (branches come from PRs, not searched separately)
-            if (!branches.some((b) => b.name === pr.headRefName)) {
-              branches.push({
-                name: pr.headRefName,
-                ref: `refs/heads/${pr.headRefName}`,
-              });
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      core.debug(`Failed to get linked PRs for issue #${issueNum}: ${msg}`);
-    }
-  }
-
-  // Get running workflow runs
-  const workflowRuns: ResourceSnapshot["workflowRuns"] = [];
+): Promise<void> {
   try {
-    const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
+    const { data: closeData, update: closeUpdate } = await parseIssue(
       owner,
       repo,
-      status: "in_progress",
-      per_page: 50,
-    });
-
-    const { data: queuedRuns } =
-      await octokit.rest.actions.listWorkflowRunsForRepo({
-        owner,
-        repo,
-        status: "queued",
-        per_page: 50,
-      });
-
-    const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
-    const issuePattern = `#${issueNumber}`;
-    const currentRunId = github.context.runId;
-
-    for (const run of allRuns) {
-      // Skip the current run - don't include ourselves in cleanup!
-      if (run.id === currentRunId) {
-        continue;
-      }
-
-      const runName = run.name || "";
-      const displayTitle = run.display_title || "";
-
-      const isRelated =
-        runName.includes(issuePattern) ||
-        displayTitle.includes(issuePattern) ||
-        displayTitle.includes(`[TEST]`) ||
-        run.head_branch?.includes(`issue/${issueNumber}`) ||
-        run.head_branch?.includes(`issue-${issueNumber}`);
-
-      if (isRelated) {
-        workflowRuns.push({
-          id: run.id,
-          name: `${runName} - ${displayTitle}`,
-          status: run.status || "unknown",
-          url: run.html_url,
-        });
-      }
-    }
-  } catch {
-    // Ignore errors listing workflows
-  }
-
-  return {
-    parentIssue: {
-      number: issue.number,
-      title: issue.title,
-      state: issue.state,
-      labels,
-      url: issue.html_url,
-    },
-    subIssues,
-    pullRequests: relatedPRs,
-    branches,
-    workflowRuns,
-  };
-}
-
-/**
- * Render the resource snapshot as markdown for the workflow summary
- */
-function renderSnapshotMarkdown(
-  snapshot: ResourceSnapshot,
-  mode: CleanupMode,
-): string {
-  const lines: string[] = [];
-
-  lines.push(`## Cleanup Summary (mode: ${mode})`);
-  lines.push("");
-  lines.push("### Resources to Clean");
-  lines.push("");
-
-  // Parent Issue
-  lines.push("#### Parent Issue");
-  lines.push(`| # | Title | State | Labels |`);
-  lines.push(`|---|-------|-------|--------|`);
-  lines.push(
-    `| [#${snapshot.parentIssue.number}](${snapshot.parentIssue.url}) | ${snapshot.parentIssue.title} | ${snapshot.parentIssue.state} | ${snapshot.parentIssue.labels.join(", ")} |`,
-  );
-  lines.push("");
-
-  // Sub-Issues
-  if (snapshot.subIssues.length > 0) {
-    lines.push("#### Sub-Issues");
-    lines.push(`| # | Title | State |`);
-    lines.push(`|---|-------|-------|`);
-    for (const sub of snapshot.subIssues) {
-      lines.push(
-        `| [#${sub.number}](${sub.url}) | ${sub.title} | ${sub.state} |`,
-      );
-    }
-    lines.push("");
-  }
-
-  // Pull Requests
-  if (snapshot.pullRequests.length > 0) {
-    lines.push("#### Pull Requests");
-    lines.push(`| # | Title | State | Branch |`);
-    lines.push(`|---|-------|-------|--------|`);
-    for (const pr of snapshot.pullRequests) {
-      lines.push(
-        `| [#${pr.number}](${pr.url}) | ${pr.title} | ${pr.state} | \`${pr.branch}\` |`,
-      );
-    }
-    lines.push("");
-  }
-
-  // Branches
-  if (snapshot.branches.length > 0) {
-    lines.push("#### Branches");
-    lines.push(`| Name |`);
-    lines.push(`|------|`);
-    for (const branch of snapshot.branches) {
-      lines.push(`| \`${branch.name}\` |`);
-    }
-    lines.push("");
-  }
-
-  // Workflow Runs
-  if (snapshot.workflowRuns.length > 0) {
-    lines.push("#### Active Workflow Runs");
-    lines.push(`| ID | Name | Status |`);
-    lines.push(`|---|------|--------|`);
-    for (const run of snapshot.workflowRuns) {
-      lines.push(`| [${run.id}](${run.url}) | ${run.name} | ${run.status} |`);
-    }
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
-
-/**
- * Graph-based cleanup with deterministic retry
- *
- * Traverses resources from leaves to root:
- * Workflows (parallel) -> PRs -> Branches -> Sub-Issues -> Parent Issue
- */
-class CleanupGraph {
-  private octokit: ReturnType<typeof github.getOctokit>;
-  private owner: string;
-  private repo: string;
-  private mode: CleanupMode;
-  private projectNumber: number;
-  private nodes: CleanupNode[] = [];
-  private snapshot: ResourceSnapshot;
-
-  // Retry configuration
-  private readonly MAX_NODE_RETRIES = 10;
-  private readonly BASE_DELAY_MS = 2000;
-  private readonly MAX_JITTER_MS = 1000;
-
-  constructor(
-    octokit: ReturnType<typeof github.getOctokit>,
-    owner: string,
-    repo: string,
-    mode: CleanupMode,
-    projectNumber: number,
-    snapshot: ResourceSnapshot,
-  ) {
-    this.octokit = octokit;
-    this.owner = owner;
-    this.repo = repo;
-    this.mode = mode;
-    this.projectNumber = projectNumber;
-    this.snapshot = snapshot;
-  }
-
-  /**
-   * Set the project Status field to "Done" for an issue
-   */
-  private async setProjectStatusDone(issueNumber: number): Promise<void> {
-    try {
-      // Get project item and field info from the issue's linked project
-      interface ProjectFieldNode {
-        id?: string;
-        name?: string;
-        options?: Array<{ id: string; name: string }>;
-      }
-
-      interface ProjectItemNode {
-        id?: string;
-        project?: {
-          id?: string;
-          number?: number;
-          fields?: {
-            nodes?: ProjectFieldNode[];
-          };
-        };
-      }
-
-      interface ProjectQueryResponse {
-        repository?: {
-          issue?: {
-            projectItems?: {
-              nodes?: ProjectItemNode[];
-            };
-          };
-        };
-      }
-
-      // Query project item and get project fields from the linked project directly
-      const response = await this.octokit.graphql<ProjectQueryResponse>(
-        `query GetProjectInfo($org: String!, $repo: String!, $issueNumber: Int!) {
-          repository(owner: $org, name: $repo) {
-            issue(number: $issueNumber) {
-              projectItems(first: 10) {
-                nodes {
-                  id
-                  project {
-                    id
-                    number
-                    fields(first: 20) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          name
-                          options { id name }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }`,
-        {
-          org: this.owner,
-          repo: this.repo,
-          issueNumber,
-        },
-      );
-
-      // Find the project item for this project
-      const projectItem = response.repository?.issue?.projectItems?.nodes?.find(
-        (item) => item.project?.number === this.projectNumber,
-      );
-
-      if (!projectItem?.id) {
-        core.warning(
-          `Issue #${issueNumber} not found in project ${this.projectNumber}`,
-        );
-        return;
-      }
-
-      // Get project ID from the project item
-      const projectId = projectItem.project?.id;
-      if (!projectId) {
-        core.warning(`Project ${this.projectNumber} not found`);
-        return;
-      }
-
-      // Find Status field and Done option from the project item's project
-      const statusField = projectItem.project?.fields?.nodes?.find(
-        (f) => f.name === "Status",
-      );
-
-      if (!statusField?.id || !statusField.options) {
-        core.warning(`Status field not found in project ${this.projectNumber}`);
-        return;
-      }
-
-      const doneOption = statusField.options.find((o) => o.name === "Done");
-      if (!doneOption) {
-        core.warning(`"Done" option not found in Status field`);
-        return;
-      }
-
-      // Update the status
-      await this.octokit.graphql(
-        `mutation UpdateStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-          updateProjectV2ItemFieldValue(input: {
-            projectId: $projectId
-            itemId: $itemId
-            fieldId: $fieldId
-            value: { singleSelectOptionId: $optionId }
-          }) {
-            projectV2Item { id }
-          }
-        }`,
-        {
-          projectId,
-          itemId: projectItem.id,
-          fieldId: statusField.id,
-          optionId: doneOption.id,
-        },
-      );
-
-      core.info(`Set issue #${issueNumber} project status to Done`);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      core.warning(
-        `Failed to set project status for issue #${issueNumber}: ${errorMsg}`,
-      );
-    }
-  }
-
-  /**
-   * Build the cleanup graph from the snapshot
-   */
-  buildGraph(): void {
-    this.nodes = [];
-
-    // Add workflow nodes (can be cleaned in parallel, no dependencies)
-    for (const run of this.snapshot.workflowRuns) {
-      this.nodes.push({
-        type: "workflow",
-        id: String(run.id),
-        displayName: `Workflow ${run.id}`,
-        status: "pending",
-      });
-    }
-
-    // Add PR nodes (must be cleaned before branches)
-    for (const pr of this.snapshot.pullRequests) {
-      if (pr.state === "open") {
-        this.nodes.push({
-          type: "pr",
-          id: String(pr.number),
-          displayName: `PR #${pr.number}`,
-          status: "pending",
-        });
-      }
-    }
-
-    // Add branch nodes (must be cleaned after PRs)
-    for (const branch of this.snapshot.branches) {
-      this.nodes.push({
-        type: "branch",
-        id: branch.name,
-        displayName: `Branch ${branch.name}`,
-        status: "pending",
-      });
-    }
-
-    // Add sub-issue nodes (must be cleaned before parent)
-    // Always add - we need to ensure they're closed AND status is Done
-    for (const sub of this.snapshot.subIssues) {
-      this.nodes.push({
-        type: "sub-issue",
-        id: String(sub.number),
-        displayName: `Sub-issue #${sub.number}`,
-        status: "pending",
-      });
-    }
-
-    // Add parent issue node (cleaned last)
-    // Always add - we need to ensure it's closed AND status is Done
-    this.nodes.push({
-      type: "parent-issue",
-      id: String(this.snapshot.parentIssue.number),
-      displayName: `Parent issue #${this.snapshot.parentIssue.number}`,
-      status: "pending",
-    });
-
-    core.info(`Built cleanup graph with ${this.nodes.length} nodes`);
-  }
-
-  /**
-   * Get nodes of a specific type that are still pending
-   */
-  private getPendingByType(type: CleanupNodeType): CleanupNode[] {
-    return this.nodes.filter((n) => n.type === type && n.status === "pending");
-  }
-
-  /**
-   * Check if all nodes of given types are verified
-   */
-  private allVerified(types: CleanupNodeType[]): boolean {
-    return this.nodes
-      .filter((n) => types.includes(n.type))
-      .every((n) => n.status === "verified" || n.status === "failed");
-  }
-
-  /**
-   * Clean a single node with retry
-   */
-  private async cleanNode(node: CleanupNode): Promise<boolean> {
-    node.status = "cleaning";
-
-    const result = await retryWithBackoff(
-      () => this.executeCleanup(node),
-      () => this.verifyCleanup(node),
-      {
-        maxRetries: this.MAX_NODE_RETRIES,
-        baseDelayMs: this.BASE_DELAY_MS,
-        maxJitterMs: this.MAX_JITTER_MS,
-        operationName: node.displayName,
-      },
+      issueNumber,
+      { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false },
     );
-
-    if (result.success) {
-      node.status = "verified";
-      return true;
+    if (closeData.issue.state === "OPEN") {
+      const closedState = {
+        ...closeData,
+        issue: {
+          ...closeData.issue,
+          state: "CLOSED" as const,
+          stateReason: "completed" as const,
+        },
+      };
+      await closeUpdate(closedState);
+      core.info(`Closed issue #${issueNumber}`);
     } else {
-      node.status = "failed";
-      node.error = result.error;
-      return false;
+      core.info(`Issue #${issueNumber} already closed`);
     }
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "status" in error &&
+      (error.status === 404 || error.status === 410)
+    ) {
+      core.info(`Issue #${issueNumber} already gone`);
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Cleanup all resources for a test issue using parseIssue from @more/issue-state.
+ *
+ * Derives the full resource chain (parent -> sub-issues -> PRs -> branches) from
+ * parseIssue and deletes everything deterministically.
+ *
+ * SAFETY: Only cleans up issues whose title starts with [TEST].
+ */
+async function cleanupFromParseIssue(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  projectNumber: number,
+): Promise<CleanupResult> {
+  const result: CleanupResult = {
+    success: true,
+    cleaned: 0,
+    failed: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  core.info(
+    `Cleaning up test resources for issue #${issueNumber} via parseIssue`,
+  );
+
+  // Fetch full relationship chain
+  const { data } = await parseIssue(owner, repo, issueNumber, {
+    octokit: asOctokitLike(octokit),
+    projectNumber,
+    fetchPRs: true,
+    fetchParent: false, // We ARE the parent
+  });
+
+  // Safety: verify title starts with [TEST]
+  if (!data.issue.title.startsWith("[TEST]")) {
+    throw new Error(
+      `SAFETY: Issue #${issueNumber} title "${data.issue.title}" doesn't start with [TEST]. ` +
+        `Only test issues can be cleaned up to prevent accidentally deleting real issues.`,
+    );
   }
 
-  /**
-   * Execute the cleanup action for a node
-   */
-  private async executeCleanup(node: CleanupNode): Promise<void> {
-    switch (node.type) {
-      case "workflow": {
-        const runId = parseInt(node.id, 10);
-        // Check if workflow is already completed/cancelled before attempting to cancel
-        const { data: run } = await this.octokit.rest.actions.getWorkflowRun({
-          owner: this.owner,
-          repo: this.repo,
-          run_id: runId,
-        });
-        if (run.status === "completed" || run.status === "cancelled") {
-          core.debug(
-            `Workflow ${runId} already ${run.status}, skipping cancel`,
-          );
-          break;
-        }
-        await this.octokit.rest.actions.cancelWorkflowRun({
-          owner: this.owner,
-          repo: this.repo,
-          run_id: runId,
-        });
-        break;
-      }
+  core.info(
+    `Safety check passed: Issue #${issueNumber} title starts with [TEST]`,
+  );
 
-      case "pr": {
-        const prNumber = parseInt(node.id, 10);
-        await this.octokit.rest.pulls.update({
-          owner: this.owner,
-          repo: this.repo,
-          pull_number: prNumber,
+  // Render cleanup summary
+  const summaryLines: string[] = [
+    `## Cleanup Summary`,
+    "",
+    `### Parent: #${data.issue.number} - ${data.issue.title}`,
+    `- Sub-issues: ${data.issue.subIssues.length}`,
+    `- PR: ${data.issue.pr ? `#${data.issue.pr.number} (${data.issue.pr.state})` : "none"}`,
+    `- Branch: ${data.issue.branch || "none"}`,
+    "",
+  ];
+
+  if (data.issue.subIssues.length > 0) {
+    summaryLines.push("### Sub-Issues");
+    for (const sub of data.issue.subIssues) {
+      summaryLines.push(
+        `- #${sub.number}: ${sub.title} | PR: ${sub.pr ? `#${sub.pr.number}` : "none"} | Branch: ${sub.branch || "none"}`,
+      );
+    }
+    summaryLines.push("");
+  }
+
+  await core.summary.addRaw(summaryLines.join("\n")).write();
+
+  // Cancel related workflow runs
+  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
+
+  // Walk sub-issues: close PRs -> delete branches -> close sub-issues
+  for (const sub of data.issue.subIssues) {
+    try {
+      // Close PR if open
+      if (sub.pr && sub.pr.state === "OPEN") {
+        await octokit.rest.pulls.update({
+          owner,
+          repo,
+          pull_number: sub.pr.number,
           state: "closed",
         });
-        break;
-      }
-
-      case "branch": {
-        await this.octokit.rest.git.deleteRef({
-          owner: this.owner,
-          repo: this.repo,
-          ref: `heads/${node.id}`,
-        });
-        break;
-      }
-
-      case "sub-issue":
-      case "parent-issue": {
-        const issueNumber = parseInt(node.id, 10);
-        if (this.mode === "delete") {
-          // Get issue node ID for deletion
-          const { data: issue } = await this.octokit.rest.issues.get({
-            owner: this.owner,
-            repo: this.repo,
-            issue_number: issueNumber,
-          });
-          await this.octokit.graphql(
-            `mutation DeleteIssue($issueId: ID!) {
-              deleteIssue(input: { issueId: $issueId }) {
-                clientMutationId
-              }
-            }`,
-            { issueId: issue.node_id },
-          );
-        } else {
-          // Close if open
-          const { data: issue } = await this.octokit.rest.issues.get({
-            owner: this.owner,
-            repo: this.repo,
-            issue_number: issueNumber,
-          });
-          if (issue.state === "open") {
-            await this.octokit.rest.issues.update({
-              owner: this.owner,
-              repo: this.repo,
-              issue_number: issueNumber,
-              state: "closed",
-              state_reason: "completed",
-            });
-          }
-          // Always set project status to Done
-          await this.setProjectStatusDone(issueNumber);
-        }
-        break;
-      }
-    }
-  }
-
-  /**
-   * Verify the cleanup action succeeded
-   */
-  private async verifyCleanup(node: CleanupNode): Promise<boolean> {
-    try {
-      switch (node.type) {
-        case "workflow": {
-          const runId = parseInt(node.id, 10);
-          const { data: run } = await this.octokit.rest.actions.getWorkflowRun({
-            owner: this.owner,
-            repo: this.repo,
-            run_id: runId,
-          });
-          return run.status === "completed" || run.status === "cancelled";
-        }
-
-        case "pr": {
-          const prNumber = parseInt(node.id, 10);
-          const { data: pr } = await this.octokit.rest.pulls.get({
-            owner: this.owner,
-            repo: this.repo,
-            pull_number: prNumber,
-          });
-          return pr.state === "closed";
-        }
-
-        case "branch": {
-          try {
-            await this.octokit.rest.git.getRef({
-              owner: this.owner,
-              repo: this.repo,
-              ref: `heads/${node.id}`,
-            });
-            return false; // Branch still exists
-          } catch (error) {
-            // 404 means branch is deleted
-            if (
-              error &&
-              typeof error === "object" &&
-              "status" in error &&
-              error.status === 404
-            ) {
-              return true;
-            }
-            throw error;
-          }
-        }
-
-        case "sub-issue":
-        case "parent-issue": {
-          const issueNumber = parseInt(node.id, 10);
-          if (this.mode === "delete") {
-            try {
-              await this.octokit.rest.issues.get({
-                owner: this.owner,
-                repo: this.repo,
-                issue_number: issueNumber,
-              });
-              return false; // Issue still exists
-            } catch (error) {
-              if (
-                error &&
-                typeof error === "object" &&
-                "status" in error &&
-                error.status === 404
-              ) {
-                return true;
-              }
-              // Issue exists but different error - re-fetch
-              return false;
-            }
-          } else {
-            const { data: issue } = await this.octokit.rest.issues.get({
-              owner: this.owner,
-              repo: this.repo,
-              issue_number: issueNumber,
-            });
-            return issue.state === "closed";
-          }
-        }
-
-        default:
-          return false;
-      }
-    } catch (error) {
-      core.warning(`Verification error for ${node.displayName}: ${error}`);
-      return false;
-    }
-  }
-
-  /**
-   * Clean all nodes in dependency order
-   *
-   * Order: workflows -> PRs -> branches -> sub-issues -> parent-issue
-   */
-  async cleanAll(): Promise<CleanupResult> {
-    const result: CleanupResult = {
-      success: true,
-      cleaned: 0,
-      failed: 0,
-      skipped: 0,
-      errors: [],
-    };
-
-    // Phase 1: Workflows (parallel)
-    core.info("Phase 1: Cancelling workflow runs...");
-    const workflows = this.getPendingByType("workflow");
-    if (workflows.length > 0) {
-      await Promise.all(workflows.map((n) => this.cleanNode(n)));
-    }
-
-    // Phase 2: PRs (sequential to avoid rate limits)
-    core.info("Phase 2: Closing PRs...");
-    for (const node of this.getPendingByType("pr")) {
-      await this.cleanNode(node);
-    }
-
-    // Phase 3: Branches (sequential, after PRs closed)
-    core.info("Phase 3: Deleting branches...");
-    for (const node of this.getPendingByType("branch")) {
-      await this.cleanNode(node);
-    }
-
-    // Phase 4: Sub-issues (sequential, before parent)
-    core.info("Phase 4: Closing/deleting sub-issues...");
-    for (const node of this.getPendingByType("sub-issue")) {
-      await this.cleanNode(node);
-    }
-
-    // Phase 5: Parent issue (last)
-    core.info("Phase 5: Closing/deleting parent issue...");
-    for (const node of this.getPendingByType("parent-issue")) {
-      await this.cleanNode(node);
-    }
-
-    // Tally results
-    for (const node of this.nodes) {
-      if (node.status === "verified") {
+        core.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
         result.cleaned++;
-      } else if (node.status === "failed") {
-        result.failed++;
-        result.success = false;
-        if (node.error) {
-          result.errors.push(`${node.displayName}: ${node.error}`);
-        }
-      } else {
-        result.skipped++;
       }
-    }
 
-    return result;
+      // Delete branch
+      if (sub.branch) {
+        await deleteBranch(octokit, owner, repo, sub.branch);
+        result.cleaned++;
+      }
+
+      // Close sub-issue
+      await closeIssue(octokit, owner, repo, sub.number);
+      result.cleaned++;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      core.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
+      result.failed++;
+      result.errors.push(`Sub-issue #${sub.number}: ${msg}`);
+      result.success = false;
+    }
   }
 
-  /**
-   * Verify all nodes are in expected final state
-   */
-  async verifyAll(): Promise<boolean> {
-    let allGood = true;
-    for (const node of this.nodes) {
-      if (node.status === "verified") {
-        const stillVerified = await this.verifyCleanup(node);
-        if (!stillVerified) {
-          core.warning(`${node.displayName} reverted to unclean state`);
-          node.status = "pending";
-          allGood = false;
-        }
-      }
+  // Close parent PR -> delete parent branch -> close parent issue
+  try {
+    if (data.issue.pr && data.issue.pr.state === "OPEN") {
+      await octokit.rest.pulls.update({
+        owner,
+        repo,
+        pull_number: data.issue.pr.number,
+        state: "closed",
+      });
+      core.info(`Closed parent PR #${data.issue.pr.number}`);
+      result.cleaned++;
     }
-    return allGood;
+
+    if (data.issue.branch) {
+      await deleteBranch(octokit, owner, repo, data.issue.branch);
+      result.cleaned++;
+    }
+
+    await closeIssue(octokit, owner, repo, issueNumber);
+    result.cleaned++;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    core.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
+    result.failed++;
+    result.errors.push(`Parent issue #${issueNumber}: ${msg}`);
+    result.success = false;
   }
+
+  core.info(
+    `Cleanup result: cleaned=${result.cleaned}, failed=${result.failed}`,
+  );
+
+  return result;
 }
 
 /**
- * Cleanup a test fixture with graph-based traversal and deterministic retry
+ * Cleanup a test fixture using parseIssue to derive the full resource chain.
  *
- * SAFETY: Only cleans up issues that have the `test:automation` label to prevent
- * accidentally closing real issues.
+ * SAFETY: Only cleans up issues whose title starts with [TEST].
  *
  * Steps:
- * 1. Take snapshot and render to workflow summary
- * 2. Build dependency graph
- * 3. Clean graph with per-node retry (10x with backoff+jitter)
- * 4. Top-level retry of entire graph (3x)
- * 5. Fail if cleanup unsuccessful after all retries
+ * 1. Fetch full relationship chain via parseIssue
+ * 2. Force cancel related workflows
+ * 3. Walk sub-issues: close PRs -> delete branches -> close sub-issues
+ * 4. Close parent PR -> delete parent branch -> close parent issue
  */
 async function cleanupFixture(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -2747,112 +2044,26 @@ async function cleanupFixture(
   repo: string,
   issueNumber: number,
   projectNumber: number,
-  mode: CleanupMode = "close",
+  _mode: CleanupMode = "close",
 ): Promise<void> {
-  const MAX_TREE_RETRIES = 3;
-
-  core.info(
-    `Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`,
-  );
-
-  // SAFETY CHECK: Verify the issue has the test:automation label before proceeding
-  const { data: issue } = await octokit.rest.issues.get({
+  const result = await cleanupFromParseIssue(
+    octokit,
     owner,
     repo,
-    issue_number: issueNumber,
-  });
-
-  const labels = issue.labels.map((l) =>
-    typeof l === "string" ? l : l.name || "",
+    issueNumber,
+    projectNumber,
   );
 
-  if (!labels.includes("test:automation")) {
-    throw new Error(
-      `SAFETY: Refusing to cleanup issue #${issueNumber} - it does not have the test:automation label. ` +
-        `Labels found: [${labels.join(", ")}]. ` +
-        `Only issues with the test:automation label can be cleaned up to prevent accidentally closing real issues.`,
-    );
+  if (!result.success) {
+    const errorMsg =
+      `Cleanup had failures: cleaned=${result.cleaned}, failed=${result.failed}. ` +
+      `Errors: ${result.errors.join("; ")}`;
+    await core.summary
+      .addRaw("\n\n## Cleanup Warnings\n\n")
+      .addRaw(`${errorMsg}\n`)
+      .write();
+    core.warning(errorMsg);
   }
-
-  core.info(
-    `Safety check passed: Issue #${issueNumber} has test:automation label`,
-  );
-
-  // Step 1: Take snapshot (once, before any cleanup)
-  core.info("Step 1: Taking resource snapshot...");
-  const snapshot = await snapshotResources(octokit, owner, repo, issueNumber);
-
-  // Render snapshot to workflow summary
-  const summaryMarkdown = renderSnapshotMarkdown(snapshot, mode);
-  await core.summary.addRaw(summaryMarkdown).write();
-  core.info("Resource snapshot written to workflow summary");
-
-  // Step 2: Force cancel any running workflow runs first (before graph)
-  core.info("Step 2: Force-cancelling related workflows...");
-  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
-
-  // Step 3: Build and run cleanup graph with top-level retry
-  core.info("Step 3: Building cleanup graph...");
-
-  let lastResult: CleanupResult | null = null;
-
-  for (let treeAttempt = 1; treeAttempt <= MAX_TREE_RETRIES; treeAttempt++) {
-    core.info(
-      `\n=== Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`,
-    );
-
-    // Re-snapshot to pick up any state changes
-    const currentSnapshot =
-      treeAttempt === 1
-        ? snapshot
-        : await snapshotResources(octokit, owner, repo, issueNumber);
-
-    const graph = new CleanupGraph(
-      octokit,
-      owner,
-      repo,
-      mode,
-      projectNumber,
-      currentSnapshot,
-    );
-    graph.buildGraph();
-
-    lastResult = await graph.cleanAll();
-
-    core.info(
-      `Tree attempt ${treeAttempt} result: cleaned=${lastResult.cleaned}, failed=${lastResult.failed}, skipped=${lastResult.skipped}`,
-    );
-
-    if (lastResult.success) {
-      // Final verification
-      const verified = await graph.verifyAll();
-      if (verified) {
-        core.info("✓ Cleanup complete and verified");
-        return;
-      }
-      core.warning("Cleanup completed but final verification failed");
-    }
-
-    if (treeAttempt < MAX_TREE_RETRIES) {
-      // Wait before tree-level retry (longer delay)
-      const treeDelay = treeAttempt * 5000 + Math.floor(Math.random() * 2000);
-      core.info(`Waiting ${treeDelay}ms before tree-level retry...`);
-      await new Promise((resolve) => setTimeout(resolve, treeDelay));
-    }
-  }
-
-  // All retries exhausted
-  const errorMsg =
-    `Cleanup failed after ${MAX_TREE_RETRIES} tree-level retries. ` +
-    `Errors: ${lastResult?.errors.join("; ") || "unknown"}`;
-
-  // Add failure summary
-  await core.summary
-    .addRaw("\n\n## ❌ Cleanup Failed\n\n")
-    .addRaw(`${errorMsg}\n`)
-    .write();
-
-  throw new Error(errorMsg);
 }
 
 /**
@@ -2921,20 +2132,20 @@ async function resetIssue(
   }
 
   // Get parent issue and re-open it
-  const { data: issue } = await octokit.rest.issues.get({
+  const { data: resetData, update: resetUpdate } = await parseIssue(
     owner,
     repo,
-    issue_number: issueNumber,
-  });
+    issueNumber,
+    { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false },
+  );
 
-  if (issue.state === "closed") {
+  if (resetData.issue.state === "CLOSED") {
     core.info(`Re-opening parent issue #${issueNumber}`);
-    await octokit.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      state: "open",
-    });
+    const reopenedState = {
+      ...resetData,
+      issue: { ...resetData.issue, state: "OPEN" as const },
+    };
+    await resetUpdate(reopenedState);
     resetCount++;
   }
 
@@ -2979,20 +2190,24 @@ async function resetIssue(
   // Re-open and reset each sub-issue
   for (const subIssue of subIssues) {
     if (subIssue.number) {
-      const { data: subIssueData } = await octokit.rest.issues.get({
+      const { data: subResetData, update: subResetUpdate } = await parseIssue(
         owner,
         repo,
-        issue_number: subIssue.number,
-      });
+        subIssue.number,
+        {
+          octokit: asOctokitLike(octokit),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
 
-      if (subIssueData.state === "closed") {
+      if (subResetData.issue.state === "CLOSED") {
         core.info(`Re-opening sub-issue #${subIssue.number}`);
-        await octokit.rest.issues.update({
-          owner,
-          repo,
-          issue_number: subIssue.number,
-          state: "open",
-        });
+        const subReopenedState = {
+          ...subResetData,
+          issue: { ...subResetData.issue, state: "OPEN" as const },
+        };
+        await subResetUpdate(subReopenedState);
         resetCount++;
       }
 
@@ -3032,15 +2247,13 @@ async function deleteIssueAndSubIssues(
   let deleteCount = 0;
 
   // SAFETY CHECK: Verify the issue has the test:automation label
-  const { data: issue } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber,
+  const { data: deleteCheckData } = await parseIssue(owner, repo, issueNumber, {
+    octokit: asOctokitLike(octokit),
+    fetchPRs: false,
+    fetchParent: false,
   });
 
-  const labels = issue.labels.map((l) =>
-    typeof l === "string" ? l : l.name || "",
-  );
+  const labels = deleteCheckData.issue.labels;
 
   if (!labels.includes("test:automation")) {
     throw new Error(
@@ -3048,6 +2261,31 @@ async function deleteIssueAndSubIssues(
         `Labels found: [${labels.join(", ")}]. ` +
         `Only issues with the test:automation label can be deleted to prevent accidentally deleting real issues.`,
     );
+  }
+
+  // Get node ID for GraphQL delete mutation
+  interface IssueNodeIdResponse {
+    repository?: {
+      issue?: {
+        id: string;
+      };
+    };
+  }
+
+  const nodeIdResponse = await octokit.graphql<IssueNodeIdResponse>(
+    `query GetIssueNodeId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }`,
+    { owner, repo, issueNumber },
+  );
+
+  const issueNodeIdForDelete = nodeIdResponse.repository?.issue?.id;
+  if (!issueNodeIdForDelete) {
+    throw new Error(`Could not get node ID for issue #${issueNumber}`);
   }
 
   // Get sub-issues
@@ -3117,7 +2355,7 @@ async function deleteIssueAndSubIssues(
           clientMutationId
         }
       }`,
-      { issueId: issue.node_id },
+      { issueId: issueNodeIdForDelete },
     );
     deleteCount++;
   } catch (error) {
@@ -3141,14 +2379,31 @@ async function setIssueProjectStatus(
   status: string,
   projectFields: ProjectFields,
 ): Promise<void> {
-  // Get issue node ID
-  const { data: issue } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber,
-  });
+  // Get issue node ID via GraphQL
+  interface IssueIdResponse {
+    repository?: {
+      issue?: {
+        id: string;
+      };
+    };
+  }
 
-  const issueNodeId = issue.node_id;
+  const issueIdResponse = await octokit.graphql<IssueIdResponse>(
+    `query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }`,
+    { owner, repo, issueNumber },
+  );
+
+  const issueNodeId = issueIdResponse.repository?.issue?.id;
+  if (!issueNodeId) {
+    core.warning(`Could not get node ID for issue #${issueNumber}`);
+    return;
+  }
 
   // Check if issue is in project, add if not
   interface ProjectItemsResponse {
@@ -3572,6 +2827,90 @@ async function run(): Promise<void> {
         success: "true",
         config_path: configPath,
       });
+      return;
+    }
+
+    if (action === "sweep") {
+      const manifestDir = path.resolve(getRequiredInput("manifest_dir"));
+
+      core.info(`Sweeping test resources from manifests in ${manifestDir}`);
+
+      // Read all manifest JSON files
+      const parentIssues = new Set<number>();
+
+      if (fs.existsSync(manifestDir)) {
+        const files = fs.readdirSync(manifestDir);
+        for (const file of files) {
+          if (!file.endsWith(".json")) continue;
+          try {
+            const content = fs.readFileSync(
+              path.join(manifestDir, file),
+              "utf-8",
+            );
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, validating shape inline
+            const parsed = JSON.parse(content) as {
+              parentIssue?: unknown;
+            };
+            if (
+              typeof parsed.parentIssue === "number" &&
+              parsed.parentIssue > 0
+            ) {
+              parentIssues.add(parsed.parentIssue);
+            } else {
+              core.warning(
+                `Invalid manifest in ${file}: missing or invalid parentIssue`,
+              );
+            }
+          } catch (err) {
+            core.warning(`Failed to read manifest ${file}: ${err}`);
+          }
+        }
+      }
+
+      core.info(
+        `Found ${parentIssues.size} unique parent issues to sweep: ${[...parentIssues].join(", ")}`,
+      );
+
+      let totalCleaned = 0;
+      let totalFailed = 0;
+      const sweepErrors: string[] = [];
+
+      for (const issueNum of parentIssues) {
+        try {
+          const result = await cleanupFromParseIssue(
+            octokit,
+            owner,
+            repo,
+            issueNum,
+            projectNumber,
+          );
+          totalCleaned += result.cleaned;
+          totalFailed += result.failed;
+          sweepErrors.push(...result.errors);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          core.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
+          sweepErrors.push(`Issue #${issueNum}: ${msg}`);
+          totalFailed++;
+        }
+      }
+
+      await core.summary
+        .addRaw(
+          `## Sweep Summary\n\nIssues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Failed: ${totalFailed}\n`,
+        )
+        .write();
+
+      setOutputs({
+        success: String(totalFailed === 0),
+        delete_count: String(totalCleaned),
+      });
+
+      if (totalFailed > 0) {
+        core.warning(
+          `Sweep completed with ${totalFailed} failures: ${sweepErrors.join("; ")}`,
+        );
+      }
       return;
     }
 

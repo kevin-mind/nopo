@@ -24065,6 +24065,7 @@ var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
+  stateReason: external_exports.enum(["completed", "not_planned"]).optional(),
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
@@ -37832,7 +37833,8 @@ var STANDARD_SECTION_ORDER2 = [
 var upsertSection2 = createMutator(
   external_exports.object({
     title: external_exports.string(),
-    content: external_exports.string(),
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
+    content: external_exports.array(external_exports.record(external_exports.unknown())),
     sectionOrder: external_exports.array(external_exports.string()).optional()
   }),
   (input, data) => {
@@ -37840,7 +37842,6 @@ var upsertSection2 = createMutator(
     const newAst = structuredClone(ast);
     const sectionIdx = findHeadingIndex2(newAst, input.title);
     const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
-    const contentNode = createParagraphNode(input.content);
     if (sectionIdx !== -1) {
       let endIdx = sectionIdx + 1;
       for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
@@ -37853,7 +37854,7 @@ var upsertSection2 = createMutator(
       newAst.children.splice(
         sectionIdx + 1,
         endIdx - sectionIdx - 1,
-        contentNode
+        ...input.content
       );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
@@ -37870,10 +37871,66 @@ var upsertSection2 = createMutator(
         }
       }
       const heading2 = createHeadingNode(2, input.title);
-      newAst.children.splice(insertIdx, 0, heading2, contentNode);
+      newAst.children.splice(insertIdx, 0, heading2, ...input.content);
     }
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   }
+);
+var applyTodoModifications = createMutator(
+  external_exports.object({
+    modifications: external_exports.array(
+      external_exports.object({
+        action: external_exports.enum(["add", "modify", "remove"]),
+        index: external_exports.number(),
+        text: external_exports.string().optional()
+      })
+    )
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    if (todosIdx === -1) return data;
+    const listNode = newAst.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    for (const mod of input.modifications) {
+      if (mod.action === "add") {
+        const newItem = createListItemNode(mod.text || "", false);
+        if (mod.index < 0) {
+          listNode.children.splice(0, 0, newItem);
+        } else if (mod.index >= listNode.children.length) {
+          listNode.children.push(newItem);
+        } else {
+          listNode.children.splice(mod.index + 1, 0, newItem);
+        }
+      } else if (mod.action === "modify") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        item.children = [createParagraphNode(mod.text || "")];
+      } else if (mod.action === "remove") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        listNode.children.splice(mod.index, 1);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var replaceBody = createMutator(
+  external_exports.object({
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
+    bodyAst: external_exports.object({
+      type: external_exports.literal("root"),
+      children: external_exports.array(external_exports.record(external_exports.unknown()))
+    }).passthrough()
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
+  }),
+  (input, data) => ({
+    ...data,
+    issue: { ...data.issue, bodyAst: input.bodyAst }
+  })
 );
 
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
@@ -62274,6 +62331,34 @@ Format as GitHub-flavored markdown.` })
 ] }));
 var test_analysis_default = TestAnalysis;
 
+// ../prompts/src/prompts/live-issue-scout.tsx
+var LiveIssueScout = promptFactory().inputs((z) => ({
+  category: z.enum([
+    "documentation",
+    "tests",
+    "performance",
+    "readability",
+    "type-safety"
+  ])
+})).outputs((z) => ({
+  title: z.string().describe("Concise issue title, imperative mood, under 80 chars"),
+  body: z.string().describe("Unstructured paragraph, max 100 words")
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("section", { title: "Purpose", children: `You are a codebase scout. Find exactly ONE small, concrete improvement
+in the "${inputs.category}" category.` }),
+  /* @__PURE__ */ jsx("section", { title: "Constraints", children: `- XS size (under 1 hour of work), touching only 1-2 files
+- Must be a real improvement, not busywork
+- If touching production code, it must be testable
+- No changes to generated files, lock files, or dist/ directories
+- No new dependencies
+- Must be something that can pass CI` }),
+  /* @__PURE__ */ jsx("section", { title: "Output Format", children: `Return a title (imperative, under 80 chars) and a body paragraph
+(max 100 words, unstructured, no markdown headings/bullets).
+Be specific about which file(s) to change and the expected outcome.
+Scope is most important, outcome is second most important.` })
+] }));
+var live_issue_scout_default = LiveIssueScout;
+
 // ../prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
@@ -63014,6 +63099,7 @@ var PROMPTS = {
   pivot: pivot_default,
   "human-review-response": human_review_response_default,
   "test-analysis": test_analysis_default,
+  "live-issue-scout": live_issue_scout_default,
   // Grooming prompts
   "grooming/engineer": engineer_default,
   "grooming/pm": pm_default,
@@ -63226,30 +63312,29 @@ var GroomingAgentOutputSchema = external_exports.object({
   ready: external_exports.boolean(),
   questions: external_exports.array(external_exports.string()).optional()
 }).passthrough();
+var RecommendedPhaseSchema = external_exports.object({
+  phase_number: external_exports.number(),
+  title: external_exports.string(),
+  description: external_exports.string(),
+  affected_areas: external_exports.array(
+    external_exports.object({
+      path: external_exports.string(),
+      change_type: external_exports.string().optional(),
+      description: external_exports.string().optional(),
+      impact: external_exports.string().optional()
+    })
+  ).optional(),
+  todos: external_exports.array(
+    external_exports.object({
+      task: external_exports.string(),
+      manual: external_exports.boolean().optional()
+    })
+  ).optional(),
+  depends_on: external_exports.array(external_exports.number()).optional()
+});
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   scope_recommendation: external_exports.enum(["direct", "split"]).optional(),
-  recommended_phases: external_exports.array(
-    external_exports.object({
-      phase_number: external_exports.number(),
-      title: external_exports.string(),
-      description: external_exports.string(),
-      affected_areas: external_exports.array(
-        external_exports.object({
-          path: external_exports.string(),
-          change_type: external_exports.string().optional(),
-          description: external_exports.string().optional(),
-          impact: external_exports.string().optional()
-        })
-      ).optional(),
-      todos: external_exports.array(
-        external_exports.object({
-          task: external_exports.string(),
-          manual: external_exports.boolean().optional()
-        })
-      ).optional(),
-      depends_on: external_exports.array(external_exports.number()).optional()
-    })
-  ).optional()
+  recommended_phases: external_exports.array(RecommendedPhaseSchema).optional()
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
@@ -63286,7 +63371,10 @@ var LegacyTriageOutputSchema = external_exports.object({
       title: external_exports.string(),
       description: external_exports.string(),
       todos: external_exports.array(
-        external_exports.union([external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }), external_exports.string()])
+        external_exports.union([
+          external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }),
+          external_exports.string()
+        ])
       )
     })
   ).optional(),

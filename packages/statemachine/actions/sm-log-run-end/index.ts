@@ -8,7 +8,7 @@
 
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { GET_ISSUE_BODY_QUERY } from "@more/issue-state";
+import { parseIssue, type OctokitLike } from "@more/issue-state";
 import {
   // Action utilities
   getRequiredInput,
@@ -16,21 +16,17 @@ import {
   setOutputs,
   determineOutcome,
   type JobResult,
-  // Runner utilities
+  // MDAST mutators
   updateHistoryEntry,
   addHistoryEntry,
 } from "@more/statemachine";
 
-interface IssueBodyResponse {
-  repository?: {
-    issue?: {
-      id?: string;
-      body?: string;
-      parent?: {
-        number?: number;
-      };
-    };
-  };
+// Helper to cast octokit
+function asOctokitLike(
+  octokit: ReturnType<typeof github.getOctokit>,
+): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+  return octokit as unknown as OctokitLike;
 }
 
 // ============================================================================
@@ -105,115 +101,98 @@ async function run(): Promise<void> {
       return;
     }
 
-    // Fetch current issue body
-    const response = await octokit.graphql<IssueBodyResponse>(
-      GET_ISSUE_BODY_QUERY,
-      {
-        owner,
-        repo,
-        issueNumber,
-      },
-    );
+    // Fetch current issue state via parseIssue
+    const { data, update } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false,
+    });
 
-    const currentBody = response.repository?.issue?.body || "";
-    const parentNumber = response.repository?.issue?.parent?.number;
+    const parentNumber = data.issue.parentIssueNumber;
 
     // Format the new message
     const newMessage = `${outcome.emoji} ${outcome.transition}`;
 
     // Update the history entry
-    const result = updateHistoryEntry(
-      currentBody,
-      iteration,
-      phase,
-      "⏳ running...",
-      newMessage,
-      new Date().toISOString(),
-      outcome.commitSha || undefined,
-      runUrl,
-      repoUrl,
-      outcome.prNumber || undefined,
+    let state = updateHistoryEntry(
+      {
+        matchIteration: iteration,
+        matchPhase: phase,
+        matchPattern: "\u23f3 running...",
+        newAction: newMessage,
+        timestamp: new Date().toISOString(),
+        sha: outcome.commitSha || undefined,
+        runLink: runUrl,
+        repoUrl,
+      },
+      data,
     );
 
-    let updatedBody = result.body;
-
-    if (!result.updated) {
+    if (state === data) {
       // No matching entry found - add a new entry instead
       core.info(
         `No matching history entry found - adding new entry for Phase ${phase}`,
       );
-      updatedBody = addHistoryEntry(
-        currentBody,
-        iteration,
-        phase,
-        newMessage,
-        new Date().toISOString(),
-        outcome.commitSha || undefined,
-        runUrl,
-        repoUrl,
-        outcome.prNumber || undefined,
+      state = addHistoryEntry(
+        {
+          iteration,
+          phase,
+          action: newMessage,
+          timestamp: new Date().toISOString(),
+          sha: outcome.commitSha || undefined,
+          runLink: runUrl,
+          repoUrl,
+        },
+        state,
       );
     }
 
-    // Update the issue
-    await octokit.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      body: updatedBody,
-    });
-
+    await update(state);
     core.info(`Updated history entry for issue #${issueNumber}`);
 
     // Also update parent if this is a sub-issue
     if (parentNumber) {
-      const parentResponse = await octokit.graphql<IssueBodyResponse>(
-        GET_ISSUE_BODY_QUERY,
+      const { data: parentData, update: parentUpdate } = await parseIssue(
+        owner,
+        repo,
+        parentNumber,
         {
-          owner,
-          repo,
-          issueNumber: parentNumber,
+          octokit: asOctokitLike(octokit),
+          fetchPRs: false,
+          fetchParent: false,
         },
       );
 
-      const parentBody = parentResponse.repository?.issue?.body || "";
-
-      const parentResult = updateHistoryEntry(
-        parentBody,
-        iteration,
-        phase,
-        "⏳ running...",
-        newMessage,
-        new Date().toISOString(),
-        outcome.commitSha || undefined,
-        runUrl,
-        repoUrl,
-        outcome.prNumber || undefined,
+      let parentState = updateHistoryEntry(
+        {
+          matchIteration: iteration,
+          matchPhase: phase,
+          matchPattern: "\u23f3 running...",
+          newAction: newMessage,
+          timestamp: new Date().toISOString(),
+          sha: outcome.commitSha || undefined,
+          runLink: runUrl,
+          repoUrl,
+        },
+        parentData,
       );
 
-      let updatedParentBody = parentResult.body;
-
-      if (!parentResult.updated) {
-        updatedParentBody = addHistoryEntry(
-          parentBody,
-          iteration,
-          phase,
-          newMessage,
-          new Date().toISOString(),
-          outcome.commitSha || undefined,
-          runUrl,
-          repoUrl,
-          outcome.prNumber || undefined,
+      if (parentState === parentData) {
+        parentState = addHistoryEntry(
+          {
+            iteration,
+            phase,
+            action: newMessage,
+            timestamp: new Date().toISOString(),
+            sha: outcome.commitSha || undefined,
+            runLink: runUrl,
+            repoUrl,
+          },
+          parentState,
         );
       }
 
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: parentNumber,
-        body: updatedParentBody,
-      });
-
+      await parentUpdate(parentState);
       core.info(`Also updated parent issue #${parentNumber}`);
     }
 

@@ -52,14 +52,24 @@ export async function updateIssue(
 
   // State changed (open/closed)
   if (diff.stateChanged) {
-    promises.push(
-      octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: updated.issue.number,
-        state: updated.issue.state === "OPEN" ? "open" : "closed",
-      }),
-    );
+    const stateParams: {
+      owner: string;
+      repo: string;
+      issue_number: number;
+      state: string;
+      state_reason?: string;
+    } = {
+      owner,
+      repo,
+      issue_number: updated.issue.number,
+      state: updated.issue.state === "OPEN" ? "open" : "closed",
+    };
+
+    if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+      stateParams.state_reason = updated.issue.stateReason;
+    }
+
+    promises.push(octokit.rest.issues.update(stateParams));
   }
 
   // Labels added

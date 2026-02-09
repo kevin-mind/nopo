@@ -9,6 +9,7 @@ export const IssueDataSchema = z.object({
   number: z.number().int().positive(),
   title: z.string(),
   state: IssueStateSchema,
+  stateReason: z.enum(["completed", "not_planned"]).optional(),
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: z.number().int().min(0),

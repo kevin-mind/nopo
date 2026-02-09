@@ -12,6 +12,7 @@ import Comment from "./prompts/comment.js";
 import Pivot from "./prompts/pivot.js";
 import HumanReviewResponse from "./prompts/human-review-response.js";
 import TestAnalysis from "./prompts/test-analysis.js";
+import LiveIssueScout from "./prompts/live-issue-scout.js";
 
 // Grooming prompts
 import * as Grooming from "./prompts/grooming/index.js";
@@ -37,6 +38,7 @@ export const PROMPTS = {
   pivot: Pivot,
   "human-review-response": HumanReviewResponse,
   "test-analysis": TestAnalysis,
+  "live-issue-scout": LiveIssueScout,
 
   // Grooming prompts
   "grooming/engineer": Grooming.Engineer,

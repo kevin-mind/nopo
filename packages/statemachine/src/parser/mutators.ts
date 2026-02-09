@@ -625,12 +625,16 @@ const STANDARD_SECTION_ORDER = [
 ];
 
 /**
- * Upsert a section in the issue body
+ * Upsert a section in the issue body.
+ * Content is an array of MDAST RootContent nodes inserted directly.
  */
 export const upsertSection = createMutator(
   z.object({
     title: z.string(),
-    content: z.string(),
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
+    content: z.array(z.record(z.unknown())) as unknown as z.ZodType<
+      RootContent[]
+    >,
     sectionOrder: z.array(z.string()).optional(),
   }),
   (input, data) => {
@@ -638,11 +642,6 @@ export const upsertSection = createMutator(
     const newAst: Root = structuredClone(ast);
     const sectionIdx = findHeadingIndex(newAst, input.title);
     const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER;
-
-    // Create content nodes from markdown string
-    // For simplicity, we create a single paragraph
-    // TODO: Parse markdown string to MDAST for complex content
-    const contentNode = createParagraphNode(input.content);
 
     if (sectionIdx !== -1) {
       // Section exists - find its end and replace content
@@ -655,11 +654,11 @@ export const upsertSection = createMutator(
         endIdx = i + 1;
       }
 
-      // Remove old content, insert new
+      // Remove old content, insert new MDAST nodes
       newAst.children.splice(
         sectionIdx + 1,
         endIdx - sectionIdx - 1,
-        contentNode,
+        ...input.content,
       );
     } else {
       // Section doesn't exist - find insertion point based on order
@@ -679,11 +678,92 @@ export const upsertSection = createMutator(
         }
       }
 
-      // Insert heading and content
+      // Insert heading and content nodes
       const heading = createHeadingNode(2, input.title);
-      newAst.children.splice(insertIdx, 0, heading, contentNode);
+      newAst.children.splice(insertIdx, 0, heading, ...input.content);
     }
 
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   },
+);
+
+// ============================================================================
+// Todo Index-Based Mutators
+// ============================================================================
+
+/**
+ * Apply index-based todo modifications (add/modify/remove).
+ * Used by pivot executor for structured todo changes.
+ * Safety: refuses to modify or remove checked todos.
+ */
+export const applyTodoModifications = createMutator(
+  z.object({
+    modifications: z.array(
+      z.object({
+        action: z.enum(["add", "modify", "remove"]),
+        index: z.number(),
+        text: z.string().optional(),
+      }),
+    ),
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst: Root = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny(newAst, ["Todo", "Todos"]);
+    if (todosIdx === -1) return data;
+
+    const listNode = newAst.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+
+    for (const mod of input.modifications) {
+      if (mod.action === "add") {
+        const newItem = createListItemNode(mod.text || "", false);
+        if (mod.index < 0) {
+          // Prepend
+          listNode.children.splice(0, 0, newItem);
+        } else if (mod.index >= listNode.children.length) {
+          listNode.children.push(newItem);
+        } else {
+          listNode.children.splice(mod.index + 1, 0, newItem);
+        }
+      } else if (mod.action === "modify") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue; // Safety: don't modify checked
+        item.children = [createParagraphNode(mod.text || "")];
+      } else if (mod.action === "remove") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue; // Safety: don't remove checked
+        listNode.children.splice(mod.index, 1);
+      }
+    }
+
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  },
+);
+
+// ============================================================================
+// Body Replacement
+// ============================================================================
+
+/**
+ * Replace the entire issue body AST.
+ * Used by executors that receive a fully-formed body from Claude output.
+ */
+export const replaceBody = createMutator(
+  z.object({
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
+    bodyAst: z
+      .object({
+        type: z.literal("root"),
+        children: z.array(z.record(z.unknown())),
+      })
+      .passthrough() as unknown as z.ZodType<Root>,
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
+  }),
+  (input, data) => ({
+    ...data,
+    issue: { ...data.issue, bodyAst: input.bodyAst },
+  }),
 );

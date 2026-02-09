@@ -10,6 +10,7 @@
  */
 
 import * as core from "@actions/core";
+import { parseIssue, type OctokitLike } from "@more/issue-state";
 import type { TriageResult, TriageExpectation } from "./types.js";
 import { pollUntil, DEFAULT_POLLER_CONFIG } from "./poller.js";
 
@@ -19,19 +20,6 @@ interface OctokitType {
     variables?: Record<string, unknown>,
   ) => Promise<T>;
   rest: {
-    issues: {
-      get: (params: {
-        owner: string;
-        repo: string;
-        issue_number: number;
-      }) => Promise<{ data: IssueData }>;
-      addLabels: (params: {
-        owner: string;
-        repo: string;
-        issue_number: number;
-        labels: string[];
-      }) => Promise<unknown>;
-    };
     actions: {
       listWorkflowRunsForRepo: (params: {
         owner: string;
@@ -67,13 +55,6 @@ interface WorkflowRun {
   html_url: string;
   display_title: string;
   created_at: string;
-}
-
-interface IssueData {
-  state: string;
-  labels: Array<string | { name?: string }>;
-  body?: string | null;
-  node_id: string;
 }
 
 interface TriageState {
@@ -412,14 +393,26 @@ async function labelSubIssuesForCleanup(
     `Adding test:automation label to ${subIssueNumbers.length} sub-issue(s)...`,
   );
 
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible runtime types
+  const octokitLike = octokit as unknown as OctokitLike;
+
   for (const issueNumber of subIssueNumbers) {
     try {
-      await octokit.rest.issues.addLabels({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        labels: ["test:automation"],
+      const { data, update } = await parseIssue(owner, repo, issueNumber, {
+        octokit: octokitLike,
+        fetchPRs: false,
+        fetchParent: false,
       });
+      if (!data.issue.labels.includes("test:automation")) {
+        const updated = {
+          ...data,
+          issue: {
+            ...data.issue,
+            labels: [...data.issue.labels, "test:automation"],
+          },
+        };
+        await update(updated);
+      }
       core.info(
         `  ✅ Added test:automation label to sub-issue #${issueNumber}`,
       );

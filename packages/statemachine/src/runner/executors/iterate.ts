@@ -8,12 +8,20 @@ import * as core from "@actions/core";
 import * as fs from "node:fs";
 import type { ApplyIterateOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
-import { appendAgentNotes } from "../../parser/index.js";
+import { checkOffTodo, appendAgentNotes } from "../../parser/index.js";
+import { parseIssue, type OctokitLike } from "@more/issue-state";
 import {
   IterateOutputSchema,
   parseOutput,
   type IterateOutput,
 } from "./output-schemas.js";
+
+// Helper to cast RunnerContext octokit to OctokitLike
+
+function asOctokitLike(ctx: RunnerContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
+}
 
 // ============================================================================
 // Apply Iterate Output
@@ -75,15 +83,14 @@ export async function executeApplyIterateOutput(
     return { applied: true, status: iterateOutput.status };
   }
 
-  // Fetch current issue body once for both operations
-  const issue = await ctx.octokit.rest.issues.get({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: issueNumber,
+  // Fetch current issue state via parseIssue
+  const { data, update } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
+    octokit: asOctokitLike(ctx),
+    fetchPRs: false,
+    fetchParent: false,
   });
 
-  let body = issue.data.body || "";
-  let bodyChanged = false;
+  let state = data;
 
   // Check off completed todos in issue body
   if (iterateOutput.status === "completed_todo") {
@@ -100,11 +107,12 @@ export async function executeApplyIterateOutput(
     }
 
     for (const todoText of todosToCheck) {
-      const result = checkOffTodoInBody(body, todoText);
-      if (result.found) {
-        body = result.body;
-        bodyChanged = true;
+      const newState = checkOffTodo({ todoText }, state);
+      if (newState !== state) {
+        state = newState;
         core.info(`Completed todo: ${todoText}`);
+      } else {
+        core.warning(`Could not find unchecked todo matching: "${todoText}"`);
       }
     }
   }
@@ -117,12 +125,10 @@ export async function executeApplyIterateOutput(
       ctx.runUrl ||
       `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
 
-    body = appendAgentNotes(body, {
-      runId,
-      runLink,
-      notes: iterateOutput.agent_notes,
-    });
-    bodyChanged = true;
+    state = appendAgentNotes(
+      { runId, runLink, notes: iterateOutput.agent_notes },
+      state,
+    );
 
     core.info("Agent notes appended to issue body:");
     for (const note of iterateOutput.agent_notes) {
@@ -130,14 +136,9 @@ export async function executeApplyIterateOutput(
     }
   }
 
-  // Update the issue body if changed
-  if (bodyChanged) {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body,
-    });
+  // Persist if changed
+  if (state !== data) {
+    await update(state);
   }
 
   // Log status info
@@ -157,51 +158,4 @@ export async function executeApplyIterateOutput(
   }
 
   return { applied: true, status: iterateOutput.status };
-}
-
-/**
- * Check off a todo item in a body string
- *
- * Finds the unchecked todo matching the text and checks it off.
- * Uses fuzzy matching to handle slight differences in formatting.
- *
- * @param body - The issue body
- * @param todoText - The todo text to check off
- * @returns Object with updated body and whether a match was found
- */
-function checkOffTodoInBody(
-  body: string,
-  todoText: string,
-): { body: string; found: boolean } {
-  // Normalize whitespace for matching
-  const normalizedTodoText = todoText.trim().toLowerCase();
-
-  // Split body into lines and find the matching todo
-  const lines = body.split("\n");
-  let found = false;
-  const updatedLines = lines.map((line) => {
-    // Check if this is an unchecked todo
-    const uncheckedMatch = line.match(/^(\s*)-\s*\[\s*\]\s*(.+)$/);
-    if (uncheckedMatch) {
-      const [, indent, text] = uncheckedMatch;
-      const normalizedLineText = (text ?? "").trim().toLowerCase();
-
-      // Check for match (exact or fuzzy)
-      if (
-        normalizedLineText === normalizedTodoText ||
-        normalizedLineText.includes(normalizedTodoText) ||
-        normalizedTodoText.includes(normalizedLineText)
-      ) {
-        found = true;
-        return `${indent}- [x] ${text}`;
-      }
-    }
-    return line;
-  });
-
-  if (!found) {
-    core.warning(`Could not find unchecked todo matching: "${todoText}"`);
-  }
-
-  return { body: updatedLines.join("\n"), found };
 }

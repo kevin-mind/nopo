@@ -5,9 +5,15 @@
  */
 
 import * as core from "@actions/core";
+import { parseIssue, type OctokitLike } from "@more/issue-state";
 import type { AppendAgentNotesAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import { appendAgentNotes } from "../../parser/index.js";
+
+function asOctokitLike(ctx: RunnerContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
+}
 
 /**
  * Execute appendAgentNotes action
@@ -25,7 +31,6 @@ export async function executeAppendAgentNotes(
 ): Promise<{ appended: boolean }> {
   const { issueNumber, notes, runId, runLink, timestamp } = action;
 
-  // Skip if no notes to append
   if (notes.length === 0) {
     core.info("No agent notes to append, skipping");
     return { appended: false };
@@ -43,32 +48,17 @@ export async function executeAppendAgentNotes(
     return { appended: true };
   }
 
-  // Fetch current issue body
-  const issue = await ctx.octokit.rest.issues.get({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: issueNumber,
+  // Use parseIssue + mutator + update pattern
+  const { data, update } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
+    octokit: asOctokitLike(ctx),
+    fetchPRs: false,
+    fetchParent: false,
   });
 
-  const currentBody = issue.data.body || "";
+  const state = appendAgentNotes({ runId, runLink, timestamp, notes }, data);
 
-  // Append the new notes entry
-  const updatedBody = appendAgentNotes(currentBody, {
-    runId,
-    runLink,
-    timestamp,
-    notes,
-  });
-
-  // Update the issue if body changed
-  if (updatedBody !== currentBody) {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body: updatedBody,
-    });
-
+  if (state !== data) {
+    await update(state);
     core.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
     core.startGroup("Agent Notes");
     for (const note of notes) {

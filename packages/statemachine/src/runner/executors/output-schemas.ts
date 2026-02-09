@@ -82,8 +82,6 @@ const TodoModificationSchema = z.object({
   text: z.string().optional(),
 });
 
-export type TodoModification = z.infer<typeof TodoModificationSchema>;
-
 const SubIssueModificationSchema = z.object({
   issue_number: z.number(),
   action: z.enum(["modify", "skip"]),

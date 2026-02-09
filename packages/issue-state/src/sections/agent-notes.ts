@@ -146,7 +146,7 @@ function formatEntry(entry: AgentNotesEntry): string {
  * @returns Formatted markdown string for prompt injection
  */
 export function formatAgentNotesForPrompt(entries: AgentNotesEntry[]): string {
-  if (entries.length === 0) {
+  if (!entries || entries.length === 0) {
     return "No previous agent notes found for this issue.";
   }
 

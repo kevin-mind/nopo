@@ -6,13 +6,16 @@
 
 import * as core from "@actions/core";
 import {
-  GET_ISSUE_BODY_QUERY,
   GET_PR_ID_QUERY,
   GET_REPO_ID_QUERY,
   CONVERT_PR_TO_DRAFT_MUTATION,
   MARK_PR_READY_MUTATION,
   CREATE_ISSUE_MUTATION,
   ADD_SUB_ISSUE_MUTATION,
+  parseIssue,
+  createComment,
+  parseMarkdown,
+  type OctokitLike,
 } from "@more/issue-state";
 import type {
   CloseIssueAction,
@@ -34,24 +37,16 @@ import type {
   AddLabelAction,
   RemoveLabelAction,
 } from "../../schemas/index.js";
-import { addHistoryEntry, updateHistoryEntry } from "../../parser/index.js";
+import {
+  addHistoryEntry,
+  updateHistoryEntry,
+  replaceBody,
+} from "../../parser/index.js";
 import type { RunnerContext } from "../types.js";
 
 // ============================================================================
 // Types
 // ============================================================================
-
-interface IssueBodyResponse {
-  repository?: {
-    issue?: {
-      id?: string;
-      body?: string;
-      parent?: {
-        number?: number;
-      };
-    };
-  };
-}
 
 interface PRIdResponse {
   repository?: {
@@ -76,6 +71,13 @@ interface CreateIssueResponse {
   };
 }
 
+// Helper to cast RunnerContext octokit to OctokitLike
+
+function asOctokitLike(ctx: RunnerContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
+}
+
 // ============================================================================
 // Issue Executors
 // ============================================================================
@@ -87,13 +89,31 @@ export async function executeCloseIssue(
   action: CloseIssueAction,
   ctx: RunnerContext,
 ): Promise<{ closed: boolean }> {
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    state: "closed",
-    state_reason: action.reason === "not_planned" ? "not_planned" : "completed",
-  });
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit: asOctokitLike(ctx),
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false,
+    },
+  );
+
+  const state = {
+    ...data,
+    issue: {
+      ...data.issue,
+      state: "CLOSED" as const,
+      stateReason:
+        action.reason === "not_planned"
+          ? ("not_planned" as const)
+          : ("completed" as const),
+    },
+  };
+
+  await update(state);
 
   core.info(`Closed issue #${action.issueNumber}`);
   return { closed: true };
@@ -107,78 +127,69 @@ export async function executeAppendHistory(
   action: AppendHistoryAction,
   ctx: RunnerContext,
 ): Promise<{ appended: boolean }> {
-  // Get current issue body and parent info
-  const response = await ctx.octokit.graphql<IssueBodyResponse>(
-    GET_ISSUE_BODY_QUERY,
+  const octokit = asOctokitLike(ctx);
+  const iteration = action.iteration ?? 0;
+  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = action.timestamp || new Date().toISOString();
+
+  // Update the issue
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
     {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber,
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false,
     },
   );
 
-  const currentBody = response.repository?.issue?.body || "";
-  const parentNumber = response.repository?.issue?.parent?.number;
-
-  // Use iteration from action if provided, otherwise default to 0
-  const iteration = action.iteration ?? 0;
-
-  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
-  // Auto-generate timestamp if not provided
-  const timestamp = action.timestamp || new Date().toISOString();
-  const newBody = addHistoryEntry(
-    currentBody,
-    iteration,
-    action.phase,
-    action.message,
-    timestamp,
-    action.commitSha,
-    action.runLink,
-    repoUrl,
-    action.prNumber,
+  const state = addHistoryEntry(
+    {
+      iteration,
+      phase: action.phase,
+      action: action.message,
+      timestamp,
+      sha: action.commitSha ?? null,
+      runLink: action.runLink ?? null,
+      repoUrl,
+    },
+    data,
   );
 
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: newBody,
-  });
-
+  await update(state);
   core.info(`Appended history: Phase ${action.phase}, ${action.message}`);
 
   // If this is a sub-issue, also log to parent
-  if (parentNumber) {
-    const parentResponse = await ctx.octokit.graphql<IssueBodyResponse>(
-      GET_ISSUE_BODY_QUERY,
+  if (data.issue.parentIssueNumber) {
+    const { data: parentData, update: parentUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      data.issue.parentIssueNumber,
       {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issueNumber: parentNumber,
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
       },
     );
 
-    const parentBody = parentResponse.repository?.issue?.body || "";
-    const newParentBody = addHistoryEntry(
-      parentBody,
-      iteration,
-      action.phase,
-      action.message,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl,
-      action.prNumber,
+    const parentState = addHistoryEntry(
+      {
+        iteration,
+        phase: action.phase,
+        action: action.message,
+        timestamp,
+        sha: action.commitSha ?? null,
+        runLink: action.runLink ?? null,
+        repoUrl,
+      },
+      parentData,
     );
 
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: parentNumber,
-      body: newParentBody,
-    });
-
-    core.info(`Also appended to parent issue #${parentNumber}`);
+    await parentUpdate(parentState);
+    core.info(`Also appended to parent issue #${data.issue.parentIssueNumber}`);
   }
 
   return { appended: true };
@@ -192,134 +203,111 @@ export async function executeUpdateHistory(
   action: UpdateHistoryAction,
   ctx: RunnerContext,
 ): Promise<{ updated: boolean }> {
-  // Get current issue body and parent info
-  const response = await ctx.octokit.graphql<IssueBodyResponse>(
-    GET_ISSUE_BODY_QUERY,
+  const octokit = asOctokitLike(ctx);
+  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+  const timestamp = action.timestamp || new Date().toISOString();
+
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
     {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber,
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false,
     },
   );
 
-  const currentBody = response.repository?.issue?.body || "";
-  const parentNumber = response.repository?.issue?.parent?.number;
-  const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
-
-  // Auto-generate timestamp for new entries if not provided
-  const timestamp = action.timestamp || new Date().toISOString();
-
-  const result = updateHistoryEntry(
-    currentBody,
-    action.matchIteration,
-    action.matchPhase,
-    action.matchPattern,
-    action.newMessage,
-    timestamp,
-    action.commitSha,
-    action.runLink,
-    repoUrl,
-    action.prNumber,
+  // Try to update existing entry
+  let state = updateHistoryEntry(
+    {
+      matchIteration: action.matchIteration,
+      matchPhase: action.matchPhase,
+      matchPattern: action.matchPattern,
+      newAction: action.newMessage,
+      timestamp,
+      sha: action.commitSha ?? null,
+      runLink: action.runLink ?? null,
+      repoUrl,
+    },
+    data,
   );
 
-  if (result.updated) {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: result.body,
-    });
-
-    core.info(
-      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`,
-    );
-  } else {
-    // No matching entry found - add a new record instead
-    // This handles cases where the entry doesn't exist yet or table is missing
+  // If no change (no matching entry found), add a new entry
+  if (state === data) {
     core.info(
       `No matching history entry found - adding new entry for Phase ${action.matchPhase}`,
     );
-
-    const newBody = addHistoryEntry(
-      currentBody,
-      action.matchIteration,
-      action.matchPhase,
-      action.newMessage,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl,
-      action.prNumber,
+    state = addHistoryEntry(
+      {
+        iteration: action.matchIteration,
+        phase: action.matchPhase,
+        action: action.newMessage,
+        timestamp,
+        sha: action.commitSha ?? null,
+        runLink: action.runLink ?? null,
+        repoUrl,
+      },
+      data,
     );
-
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: newBody,
-    });
-
+  } else {
     core.info(
-      `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`,
+      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`,
     );
   }
 
+  await update(state);
+
   // If this is a sub-issue, also update parent
-  if (parentNumber) {
-    const parentResponse = await ctx.octokit.graphql<IssueBodyResponse>(
-      GET_ISSUE_BODY_QUERY,
+  if (data.issue.parentIssueNumber) {
+    const { data: parentData, update: parentUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      data.issue.parentIssueNumber,
       {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issueNumber: parentNumber,
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
       },
     );
 
-    const parentBody = parentResponse.repository?.issue?.body || "";
-
-    const parentResult = updateHistoryEntry(
-      parentBody,
-      action.matchIteration,
-      action.matchPhase,
-      action.matchPattern,
-      action.newMessage,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl,
-      action.prNumber,
+    let parentState = updateHistoryEntry(
+      {
+        matchIteration: action.matchIteration,
+        matchPhase: action.matchPhase,
+        matchPattern: action.matchPattern,
+        newAction: action.newMessage,
+        timestamp,
+        sha: action.commitSha ?? null,
+        runLink: action.runLink ?? null,
+        repoUrl,
+      },
+      parentData,
     );
 
-    if (parentResult.updated) {
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentNumber,
-        body: parentResult.body,
-      });
-      core.info(`Also updated parent issue #${parentNumber}`);
-    } else {
-      // Add new entry to parent if no match found
-      const newParentBody = addHistoryEntry(
-        parentBody,
-        action.matchIteration,
-        action.matchPhase,
-        action.newMessage,
-        timestamp,
-        action.commitSha,
-        action.runLink,
-        repoUrl,
-        action.prNumber,
+    if (parentState === parentData) {
+      parentState = addHistoryEntry(
+        {
+          iteration: action.matchIteration,
+          phase: action.matchPhase,
+          action: action.newMessage,
+          timestamp,
+          sha: action.commitSha ?? null,
+          runLink: action.runLink ?? null,
+          repoUrl,
+        },
+        parentData,
       );
-
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentNumber,
-        body: newParentBody,
-      });
-      core.info(`Added new entry to parent issue #${parentNumber}`);
+      core.info(
+        `Added new entry to parent issue #${data.issue.parentIssueNumber}`,
+      );
+    } else {
+      core.info(`Also updated parent issue #${data.issue.parentIssueNumber}`);
     }
+
+    await parentUpdate(parentState);
   }
 
   return { updated: true };
@@ -332,12 +320,23 @@ export async function executeUpdateIssueBody(
   action: UpdateIssueBodyAction,
   ctx: RunnerContext,
 ): Promise<{ updated: boolean }> {
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: action.body,
-  });
+  const octokit = asOctokitLike(ctx);
+
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false,
+    },
+  );
+
+  const newBodyAst = parseMarkdown(action.body);
+  const state = replaceBody({ bodyAst: newBodyAst }, data);
+  await update(state);
 
   core.info(`Updated body for issue #${action.issueNumber}`);
   return { updated: true };
@@ -350,15 +349,16 @@ export async function executeAddComment(
   action: AddCommentAction,
   ctx: RunnerContext,
 ): Promise<{ commentId: number }> {
-  const response = await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: action.body,
-  });
+  const result = await createComment(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    action.body,
+    asOctokitLike(ctx),
+  );
 
   core.info(`Added comment to issue #${action.issueNumber}`);
-  return { commentId: response.data.id };
+  return { commentId: result.commentId };
 }
 
 /**
@@ -368,12 +368,29 @@ export async function executeUnassignUser(
   action: UnassignUserAction,
   ctx: RunnerContext,
 ): Promise<{ unassigned: boolean }> {
-  await ctx.octokit.rest.issues.removeAssignees({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    assignees: [action.username],
-  });
+  const octokit = asOctokitLike(ctx);
+
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false,
+    },
+  );
+
+  const state = {
+    ...data,
+    issue: {
+      ...data.issue,
+      assignees: data.issue.assignees.filter((a) => a !== action.username),
+    },
+  };
+
+  await update(state);
 
   core.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
   return { unassigned: true };
@@ -387,12 +404,29 @@ export async function executeAssignUser(
   action: AssignUserAction,
   ctx: RunnerContext,
 ): Promise<{ assigned: boolean }> {
-  await ctx.octokit.rest.issues.addAssignees({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    assignees: [action.username],
-  });
+  const octokit = asOctokitLike(ctx);
+
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false,
+    },
+  );
+
+  const state = {
+    ...data,
+    issue: {
+      ...data.issue,
+      assignees: [...data.issue.assignees, action.username],
+    },
+  };
+
+  await update(state);
 
   core.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
   return { assigned: true };
@@ -420,14 +454,23 @@ export async function executeCreateSubIssues(
   }
 
   // Get parent issue ID
-  const parentResponse = await ctx.octokit.graphql<IssueBodyResponse>(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.parentIssueNumber,
-    },
-  );
+  const parentQuery = `
+    query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }
+  `;
+
+  const parentResponse = await ctx.octokit.graphql<{
+    repository: { issue: { id: string } | null };
+  }>(parentQuery, {
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issueNumber: action.parentIssueNumber,
+  });
 
   const parentId = parentResponse.repository?.issue?.id;
   if (!parentId) {
@@ -435,6 +478,7 @@ export async function executeCreateSubIssues(
   }
 
   const subIssueNumbers: number[] = [];
+  const octokit = asOctokitLike(ctx);
 
   for (let i = 0; i < action.phases.length; i++) {
     const phase = action.phases[i];
@@ -465,13 +509,25 @@ export async function executeCreateSubIssues(
       childId: issueId,
     });
 
-    // Add "triaged" label to skip triage step when assigned
-    // Sub-issues inherit context from parent and don't need separate triage
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      labels: ["triaged"],
+    // Add "triaged" label via parseIssue + update
+    const { data: subData, update: subUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+
+    await subUpdate({
+      ...subData,
+      issue: {
+        ...subData.issue,
+        labels: [...subData.issue.labels, "triaged"],
+      },
     });
 
     subIssueNumbers.push(issueNumber);
@@ -611,54 +667,65 @@ export async function executeMergePR(
   action: MergePRAction,
   ctx: RunnerContext,
 ): Promise<{ markedReady: boolean }> {
+  const octokit = asOctokitLike(ctx);
   const label = "ready-to-merge";
 
-  // Add "ready-to-merge" label to the PR
+  // Add "ready-to-merge" label to the PR via parseIssue
   try {
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.prNumber, // PRs use issue numbers for labels
-      labels: [label],
+    const { data: prData, update: prUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.prNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+
+    await prUpdate({
+      ...prData,
+      issue: {
+        ...prData.issue,
+        labels: [...prData.issue.labels, label],
+      },
     });
     core.info(`Added "${label}" label to PR #${action.prNumber}`);
   } catch (error) {
     core.warning(`Failed to add label: ${error}`);
   }
 
-  // Get the issue body to add history entry
-  const response = await ctx.octokit.graphql<IssueBodyResponse>(
-    GET_ISSUE_BODY_QUERY,
+  // Add history entry indicating PR is ready for merge
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
     {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber,
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false,
     },
   );
 
-  const currentBody = response.repository?.issue?.body || "";
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
   const timestamp = new Date().toISOString();
   const runLink = ctx.runUrl;
 
-  // Add history entry indicating PR is ready for merge
-  const newBody = addHistoryEntry(
-    currentBody,
-    0, // iteration (0 = orchestration level)
-    "-", // phase (dash = orchestration)
-    "🔀 Ready for merge",
-    timestamp,
-    undefined, // no SHA
-    runLink,
-    repoUrl,
+  const state = addHistoryEntry(
+    {
+      iteration: 0,
+      phase: "-",
+      action: "🔀 Ready for merge",
+      timestamp,
+      runLink: runLink ?? null,
+      repoUrl,
+    },
+    data,
   );
 
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: newBody,
-  });
+  await update(state);
 
   core.info(
     `PR #${action.prNumber} marked ready for merge (human action required)`,
@@ -745,21 +812,26 @@ export async function executeResetIssue(
   ctx: RunnerContext,
 ): Promise<{ resetCount: number }> {
   let resetCount = 0;
+  const octokit = asOctokitLike(ctx);
 
   // 1. Reopen the parent issue if closed
   try {
-    const { data: issue } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-    });
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
 
-    if (issue.state === "closed") {
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        state: "open",
+    if (data.issue.state === "CLOSED") {
+      await update({
+        ...data,
+        issue: { ...data.issue, state: "OPEN" },
       });
       core.info(`Reopened issue #${action.issueNumber}`);
       resetCount++;
@@ -771,18 +843,22 @@ export async function executeResetIssue(
   // 2. Reopen all sub-issues if closed
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
-      const { data: subIssue } = await ctx.octokit.rest.issues.get({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssueNumber,
-      });
+      const { data: subData, update: subUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        subIssueNumber,
+        {
+          octokit,
+          projectNumber: ctx.projectNumber,
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
 
-      if (subIssue.state === "closed") {
-        await ctx.octokit.rest.issues.update({
-          owner: ctx.owner,
-          repo: ctx.repo,
-          issue_number: subIssueNumber,
-          state: "open",
+      if (subData.issue.state === "CLOSED") {
+        await subUpdate({
+          ...subData,
+          issue: { ...subData.issue, state: "OPEN" },
         });
         core.info(`Reopened sub-issue #${subIssueNumber}`);
         resetCount++;
@@ -794,11 +870,24 @@ export async function executeResetIssue(
 
   // 3. Unassign bot from parent issue
   try {
-    await ctx.octokit.rest.issues.removeAssignees({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      assignees: [action.botUsername],
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+
+    await update({
+      ...data,
+      issue: {
+        ...data.issue,
+        assignees: data.issue.assignees.filter((a) => a !== action.botUsername),
+      },
     });
     core.info(
       `Unassigned ${action.botUsername} from issue #${action.issueNumber}`,
@@ -812,11 +901,26 @@ export async function executeResetIssue(
   // 4. Unassign bot from all sub-issues
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
-      await ctx.octokit.rest.issues.removeAssignees({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssueNumber,
-        assignees: [action.botUsername],
+      const { data: subData, update: subUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        subIssueNumber,
+        {
+          octokit,
+          projectNumber: ctx.projectNumber,
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+
+      await subUpdate({
+        ...subData,
+        issue: {
+          ...subData.issue,
+          assignees: subData.issue.assignees.filter(
+            (a) => a !== action.botUsername,
+          ),
+        },
       });
       core.info(
         `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`,
@@ -827,19 +931,6 @@ export async function executeResetIssue(
       );
     }
   }
-
-  // Note: Project field updates (Status, Iteration, Failures) are handled
-  // by the project executor via separate actions emitted by the state machine.
-  // The resetIssue action focuses on GitHub issue state (open/closed, assignees).
-  //
-  // For a complete reset, the caller should also emit:
-  // - updateProjectStatus(issueNumber, "Backlog")
-  // - updateProjectStatus(subIssueNumbers, "Ready")
-  // - clearFailures(issueNumber)
-  // - setIteration(issueNumber, 0) -- if such an action exists
-  //
-  // However, since the reset is meant to be a single compound action,
-  // we'll use the project executor directly here.
 
   core.info(`Reset complete: ${resetCount} issues reopened`);
   return { resetCount };
@@ -857,11 +948,25 @@ export async function executeAddLabel(
   ctx: RunnerContext,
 ): Promise<{ added: boolean }> {
   try {
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      labels: [action.label],
+    const octokit = asOctokitLike(ctx);
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+
+    await update({
+      ...data,
+      issue: {
+        ...data.issue,
+        labels: [...data.issue.labels, action.label],
+      },
     });
 
     core.info(`Added label "${action.label}" to issue #${action.issueNumber}`);
@@ -882,11 +987,25 @@ export async function executeRemoveLabel(
   ctx: RunnerContext,
 ): Promise<{ removed: boolean }> {
   try {
-    await ctx.octokit.rest.issues.removeLabel({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      name: action.label,
+    const octokit = asOctokitLike(ctx);
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+
+    await update({
+      ...data,
+      issue: {
+        ...data.issue,
+        labels: data.issue.labels.filter((l) => l !== action.label),
+      },
     });
 
     core.info(

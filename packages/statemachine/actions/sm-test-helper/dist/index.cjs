@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs2.existsSync(filePath)) {
+      if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs2.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -996,14 +996,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path2 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path3 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path2 && !path2.startsWith("/")) {
-          path2 = `/${path2}`;
+        if (path3 && !path3.startsWith("/")) {
+          path3 = `/${path3}`;
         }
-        url = new URL(origin + path2);
+        url = new URL(origin + path3);
       }
       return url;
     }
@@ -2617,20 +2617,20 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "../../node_modules/.pnpm/@fastify+busboy@2.1.1/node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path2) {
-      if (typeof path2 !== "string") {
+    module2.exports = function basename(path3) {
+      if (typeof path3 !== "string") {
         return "";
       }
-      for (var i = path2.length - 1; i >= 0; --i) {
-        switch (path2.charCodeAt(i)) {
+      for (var i = path3.length - 1; i >= 0; --i) {
+        switch (path3.charCodeAt(i)) {
           case 47:
           // '/'
           case 92:
-            path2 = path2.slice(i + 1);
-            return path2 === ".." || path2 === "." ? "" : path2;
+            path3 = path3.slice(i + 1);
+            return path3 === ".." || path3 === "." ? "" : path3;
         }
       }
-      return path2 === ".." || path2 === "." ? "" : path2;
+      return path3 === ".." || path3 === "." ? "" : path3;
     };
   }
 });
@@ -4023,8 +4023,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise = new Promise((resolve, reject) => {
-        res = resolve;
+      const promise = new Promise((resolve2, reject) => {
+        res = resolve2;
         rej = reject;
       });
       return { promise, resolve: res, reject: rej };
@@ -5528,8 +5528,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve, reject) => {
-              busboy.on("finish", resolve);
+            const busboyResolve = new Promise((resolve2, reject) => {
+              busboy.on("finish", resolve2);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -5660,7 +5660,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path: path2,
+        path: path3,
         method,
         body,
         headers,
@@ -5674,11 +5674,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path2 !== "string") {
+        if (typeof path3 !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path2[0] !== "/" && !(path2.startsWith("http://") || path2.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path3[0] !== "/" && !(path3.startsWith("http://") || path3.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path2) !== null) {
+        } else if (invalidPathRegex.exec(path3) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5741,7 +5741,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query2 ? util3.buildURL(path2, query2) : path2;
+        this.path = query2 ? util3.buildURL(path3, query2) : path3;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6063,9 +6063,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback) {
         if (callback === void 0) {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve2, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve(data);
+              return err ? reject(err) : resolve2(data);
             });
           });
         }
@@ -6103,12 +6103,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback === void 0) {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve2, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve(data);
+              ) : resolve2(data);
             });
           });
         }
@@ -6749,9 +6749,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search: search2 } = util3.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path2 = search2 ? `${pathname}${search2}` : pathname;
+        const path3 = search2 ? `${pathname}${search2}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path2;
+        this.opts.path = path3;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7168,16 +7168,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve) => {
+        return new Promise((resolve2) => {
           if (!this[kSize]) {
-            resolve(null);
+            resolve2(null);
           } else {
-            this[kClosedResolve] = resolve;
+            this[kClosedResolve] = resolve2;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve) => {
+        return new Promise((resolve2) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request = requests[i];
@@ -7188,7 +7188,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve();
+            resolve2();
           };
           if (this[kHTTP2Session] != null) {
             util3.destroy(this[kHTTP2Session], err);
@@ -7768,7 +7768,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve, reject) => {
+        const socket = await new Promise((resolve2, reject) => {
           client[kConnector]({
             host,
             hostname: hostname2,
@@ -7780,7 +7780,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve(socket2);
+              resolve2(socket2);
             }
           });
         });
@@ -7991,7 +7991,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path: path2, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path: path3, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8041,7 +8041,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path2} HTTP/1.1\r
+      let header = `${method} ${path3} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8104,7 +8104,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path: path2, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path: path3, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
@@ -8147,7 +8147,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path2;
+      headers[HTTP2_HEADER_PATH] = path3;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -8404,12 +8404,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve, reject) => {
+      const waitForDrain = () => new Promise((resolve2, reject) => {
         assert2(callback === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback = resolve;
+          callback = resolve2;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8754,8 +8754,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve) => {
-            this[kClosedResolve] = resolve;
+          return new Promise((resolve2) => {
+            this[kClosedResolve] = resolve2;
           });
         }
       }
@@ -9333,7 +9333,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           const signalListenerCleanup = signal ? util3.addAbortListener(signal, () => {
             this.destroy();
           }) : noop;
@@ -9342,7 +9342,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve(null);
+              resolve2(null);
             }
           }).on("error", noop).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9364,11 +9364,11 @@ var require_readable = __commonJS({
         throw new TypeError("unusable");
       }
       assert2(!stream[kConsume]);
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve2, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve,
+          resolve: resolve2,
           reject,
           length: 0,
           body: []
@@ -9403,12 +9403,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve, stream, length } = consume2;
+      const { type, body, resolve: resolve2, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve(toUSVString(Buffer.concat(body)));
+          resolve2(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve(JSON.parse(Buffer.concat(body)));
+          resolve2(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9416,12 +9416,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve(dst.buffer);
+          resolve2(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = require("buffer").Blob;
           }
-          resolve(new Blob2(body, { type: stream[kContentType] }));
+          resolve2(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9676,9 +9676,9 @@ var require_api_request = __commonJS({
     };
     function request(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           request.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -9851,9 +9851,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -10134,9 +10134,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -10225,9 +10225,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve(data);
+            return err ? reject(err) : resolve2(data);
           });
         });
       }
@@ -10387,20 +10387,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path2) {
-      if (typeof path2 !== "string") {
-        return path2;
+    function safeUrl(path3) {
+      if (typeof path3 !== "string") {
+        return path3;
       }
-      const pathSegments = path2.split("?");
+      const pathSegments = path3.split("?");
       if (pathSegments.length !== 2) {
-        return path2;
+        return path3;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path2, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path2);
+    function matchKey(mockDispatch2, { path: path3, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path3);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10418,7 +10418,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path2 }) => matchValue(safeUrl(path2), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path3 }) => matchValue(safeUrl(path3), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10455,9 +10455,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path2, method, body, headers, query: query2 } = opts;
+      const { path: path3, method, body, headers, query: query2 } = opts;
       return {
-        path: path2,
+        path: path3,
         method,
         body,
         headers,
@@ -10906,10 +10906,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path2, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path3, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path2,
+            Path: path3,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -13849,7 +13849,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve, reject) => agent.dispatch(
+        return new Promise((resolve2, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -13925,7 +13925,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve({
+              resolve2({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -13968,7 +13968,7 @@ var require_fetch = __commonJS({
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve({
+              resolve2({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -15529,8 +15529,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path2) {
-      for (const char of path2) {
+    function validateCookiePath(path3) {
+      for (const char of path3) {
         const code3 = char.charCodeAt(0);
         if (code3 < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -17210,11 +17210,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path2 = opts.path;
+          let path3 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path2 = `/${path2}`;
+            path3 = `/${path3}`;
           }
-          url = new URL(util3.parseOrigin(url).origin + path2);
+          url = new URL(util3.parseOrigin(url).origin + path3);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -17322,11 +17322,11 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17342,7 +17342,7 @@ var require_lib = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17428,26 +17428,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve(output.toString());
+              resolve2(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve(Buffer.concat(chunks));
+              resolve2(Buffer.concat(chunks));
             });
           }));
         });
@@ -17656,14 +17656,14 @@ var require_lib = __commonJS({
        */
       requestRaw(info22, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve(res);
+                resolve2(res);
               }
             }
             this.requestRawWithCallback(info22, data, callbackForResult);
@@ -17845,12 +17845,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve) => setTimeout(() => resolve(), ms));
+          return new Promise((resolve2) => setTimeout(() => resolve2(), ms));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17858,7 +17858,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve(response);
+              resolve2(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -17897,7 +17897,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve(response);
+              resolve2(response);
             }
           }));
         });
@@ -17914,11 +17914,11 @@ var require_auth = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17934,7 +17934,7 @@ var require_auth = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18018,11 +18018,11 @@ var require_oidc_utils = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18038,7 +18038,7 @@ var require_oidc_utils = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18116,11 +18116,11 @@ var require_summary = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18136,7 +18136,7 @@ var require_summary = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18437,7 +18437,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path2 = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18447,7 +18447,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path2.sep);
+      return pth.replace(/[/\\]/g, path3.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18482,11 +18482,11 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18502,7 +18502,7 @@ var require_io_util = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs2 = __importStar(require("fs"));
-    var path2 = __importStar(require("path"));
-    _a = fs2.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    var fs3 = __importStar(require("fs"));
+    var path3 = __importStar(require("path"));
+    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs2.constants.O_RDONLY;
+    exports2.READONLY = fs3.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -18560,7 +18560,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path2.extname(filePath).toUpperCase();
+            const upperExt = path3.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18584,11 +18584,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path2.dirname(filePath);
-                const upperName = path2.basename(filePath).toUpperCase();
+                const directory = path3.dirname(filePath);
+                const upperName = path3.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path2.join(directory, actualName);
+                    filePath = path3.join(directory, actualName);
                     break;
                   }
                 }
@@ -18655,11 +18655,11 @@ var require_io = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18675,7 +18675,7 @@ var require_io = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18683,7 +18683,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path2 = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18692,7 +18692,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path2.join(dest, path2.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path3.join(dest, path3.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18704,7 +18704,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path2.relative(source, newDest) === "") {
+          if (path3.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18717,7 +18717,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path2.join(dest, path2.basename(source));
+            dest = path3.join(dest, path3.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18728,7 +18728,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path2.dirname(dest));
+        yield mkdirP(path3.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18791,7 +18791,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension2 of process.env["PATHEXT"].split(path2.delimiter)) {
+          for (const extension2 of process.env["PATHEXT"].split(path3.delimiter)) {
             if (extension2) {
               extensions.push(extension2);
             }
@@ -18804,12 +18804,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path2.sep)) {
+        if (tool.includes(path3.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path2.delimiter)) {
+          for (const p of process.env.PATH.split(path3.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18817,7 +18817,7 @@ var require_io = __commonJS({
         }
         const matches2 = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path2.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path3.join(directory, tool), extensions);
           if (filePath) {
             matches2.push(filePath);
           }
@@ -18903,11 +18903,11 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18923,7 +18923,7 @@ var require_toolrunner = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18933,7 +18933,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path2 = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19148,10 +19148,10 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path2.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path3.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19234,7 +19234,7 @@ var require_toolrunner = __commonJS({
               if (error6) {
                 reject(error6);
               } else {
-                resolve(exitCode);
+                resolve2(exitCode);
               }
             });
             if (this.options.input) {
@@ -19387,11 +19387,11 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19407,7 +19407,7 @@ var require_exec = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19498,11 +19498,11 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19518,7 +19518,7 @@ var require_platform = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19617,11 +19617,11 @@ var require_core = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19637,7 +19637,7 @@ var require_core = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19648,7 +19648,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path2 = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19676,7 +19676,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path3.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -19832,8 +19832,8 @@ var require_context = __commonJS({
           if ((0, fs_1.existsSync)(process.env.GITHUB_EVENT_PATH)) {
             this.payload = JSON.parse((0, fs_1.readFileSync)(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
           } else {
-            const path2 = process.env.GITHUB_EVENT_PATH;
-            process.stdout.write(`GITHUB_EVENT_PATH ${path2} does not exist${os_1.EOL}`);
+            const path3 = process.env.GITHUB_EVENT_PATH;
+            process.stdout.write(`GITHUB_EVENT_PATH ${path3} does not exist${os_1.EOL}`);
           }
         }
         this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -19905,11 +19905,11 @@ var require_utils3 = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve) {
-          resolve(value);
+        return value instanceof P ? value : new P(function(resolve2) {
+          resolve2(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve, reject) {
+      return new (P || (P = Promise))(function(resolve2, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19925,7 +19925,7 @@ var require_utils3 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -23974,6 +23974,8 @@ var require_extend = __commonJS({
 });
 
 // actions/sm-test-helper/index.ts
+var fs2 = __toESM(require("fs"), 1);
+var path2 = __toESM(require("path"), 1);
 var core22 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
@@ -24455,8 +24457,8 @@ function getErrorMap() {
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path2, errorMaps, issueData } = params;
-  const fullPath = [...path2, ...issueData.path || []];
+  const { data, path: path3, errorMaps, issueData } = params;
+  const fullPath = [...path3, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -24572,11 +24574,11 @@ var errorUtil;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path2, key) {
+  constructor(parent, value, path3, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path2;
+    this._path = path3;
     this._key = key;
   }
   get path() {
@@ -28134,6 +28136,7 @@ var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
+  stateReason: external_exports.enum(["completed", "not_planned"]).optional(),
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
@@ -28614,13 +28617,13 @@ var VFile = class {
    * @returns {undefined}
    *   Nothing.
    */
-  set path(path2) {
-    if (isUrl(path2)) {
-      path2 = (0, import_node_url.fileURLToPath)(path2);
+  set path(path3) {
+    if (isUrl(path3)) {
+      path3 = (0, import_node_url.fileURLToPath)(path3);
     }
-    assertNonEmpty(path2, "path");
-    if (this.path !== path2) {
-      this.history.push(path2);
+    assertNonEmpty(path3, "path");
+    if (this.path !== path3) {
+      this.history.push(path3);
     }
   }
   /**
@@ -28887,8 +28890,8 @@ function assertNonEmpty(part, name) {
     throw new Error("`" + name + "` cannot be empty");
   }
 }
-function assertPath(path2, name) {
-  if (!path2) {
+function assertPath(path3, name) {
+  if (!path3) {
     throw new Error("Setting `" + name + "` requires `path` to be set too");
   }
 }
@@ -29156,7 +29159,7 @@ var Processor = class _Processor extends CallableInstance {
     assertParser("process", this.parser || this.Parser);
     assertCompiler("process", this.compiler || this.Compiler);
     return done ? executor(void 0, done) : new Promise(executor);
-    function executor(resolve, reject) {
+    function executor(resolve2, reject) {
       const realFile = vfile(file);
       const parseTree = (
         /** @type {HeadTree extends undefined ? Node : HeadTree} */
@@ -29187,8 +29190,8 @@ var Processor = class _Processor extends CallableInstance {
       function realDone(error6, file2) {
         if (error6 || !file2) {
           reject(error6);
-        } else if (resolve) {
-          resolve(file2);
+        } else if (resolve2) {
+          resolve2(file2);
         } else {
           ok(done, "`done` is defined if `resolve` is not");
           done(void 0, file2);
@@ -29290,7 +29293,7 @@ var Processor = class _Processor extends CallableInstance {
       file = void 0;
     }
     return done ? executor(void 0, done) : new Promise(executor);
-    function executor(resolve, reject) {
+    function executor(resolve2, reject) {
       ok(
         typeof file !== "function",
         "`file` can\u2019t be a `done` anymore, we checked"
@@ -29304,8 +29307,8 @@ var Processor = class _Processor extends CallableInstance {
         );
         if (error6) {
           reject(error6);
-        } else if (resolve) {
-          resolve(resultingTree);
+        } else if (resolve2) {
+          resolve2(resultingTree);
         } else {
           ok(done, "`done` is defined if `resolve` is not");
           done(void 0, resultingTree, file2);
@@ -32133,10 +32136,10 @@ function resolveAll(constructs2, events, context2) {
   const called = [];
   let index2 = -1;
   while (++index2 < constructs2.length) {
-    const resolve = constructs2[index2].resolveAll;
-    if (resolve && !called.includes(resolve)) {
-      events = resolve(events, context2);
-      called.push(resolve);
+    const resolve2 = constructs2[index2].resolveAll;
+    if (resolve2 && !called.includes(resolve2)) {
+      events = resolve2(events, context2);
+      called.push(resolve2);
     }
   }
   return events;
@@ -36874,7 +36877,7 @@ function transformGfmAutolinkLiterals(tree) {
     { ignore: ["link", "linkReference"] }
   );
 }
-function findUrl(_, protocol, domain2, path2, match) {
+function findUrl(_, protocol, domain2, path3, match) {
   let prefix = "";
   if (!previous2(match)) {
     return false;
@@ -36887,7 +36890,7 @@ function findUrl(_, protocol, domain2, path2, match) {
   if (!isCorrectDomain(domain2)) {
     return false;
   }
-  const parts = splitUrl(domain2 + path2);
+  const parts = splitUrl(domain2 + path3);
   if (!parts[0]) return false;
   const result = {
     type: "link",
@@ -40310,8 +40313,1064 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
   bullet: "-",
   listItemIndent: "one"
 });
+function parseMarkdown(markdown) {
+  return parser.parse(markdown);
+}
 function serializeMarkdown(ast) {
   return serializer.stringify(ast);
+}
+
+// ../issue-state/src/graphql/issue-queries.ts
+var GET_ISSUE_WITH_PROJECT_QUERY = `
+query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      title
+      body
+      state
+      assignees(first: 10) {
+        nodes {
+          login
+        }
+      }
+      labels(first: 20) {
+        nodes {
+          name
+        }
+      }
+      parent {
+        number
+      }
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      subIssues(first: 20) {
+        nodes {
+          id
+          number
+          title
+          body
+          state
+          projectItems(first: 10) {
+            nodes {
+              project {
+                number
+              }
+              fieldValues(first: 20) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                    field {
+                      ... on ProjectV2SingleSelectField {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      comments(first: 50) {
+        nodes {
+          id
+          author {
+            login
+          }
+          body
+          createdAt
+        }
+      }
+    }
+  }
+}
+`;
+var GET_PR_FOR_BRANCH_QUERY = `
+query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(first: 1, headRefName: $headRef, states: [OPEN, MERGED]) {
+      nodes {
+        number
+        title
+        state
+        isDraft
+        headRefName
+        baseRefName
+        url
+        mergeable
+        reviewDecision
+        reviews(first: 50) {
+          totalCount
+        }
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var GET_ISSUE_LINKED_PRS_QUERY = `
+query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+        nodes {
+          ... on CrossReferencedEvent {
+            source {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+          ... on ConnectedEvent {
+            subject {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+// ../issue-state/src/graphql/project-queries.ts
+var GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
+var ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+
+// ../issue-state/src/graphql/issue-mutations.ts
+var CREATE_ISSUE_MUTATION = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_SUB_ISSUE_MUTATION = `
+mutation AddSubIssue($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
+    issue {
+      id
+    }
+  }
+}
+`;
+var GET_REPO_ID_QUERY = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
+
+// ../issue-state/src/diff.ts
+function setDifference(a, b) {
+  const bSet = new Set(b);
+  return a.filter((x) => !bSet.has(x));
+}
+function computeDiff(original, updated) {
+  const originalBody = serializeMarkdown(original.bodyAst);
+  const updatedBody = serializeMarkdown(updated.bodyAst);
+  return {
+    bodyChanged: originalBody !== updatedBody,
+    titleChanged: original.title !== updated.title,
+    stateChanged: original.state !== updated.state,
+    labelsAdded: setDifference(updated.labels, original.labels),
+    labelsRemoved: setDifference(original.labels, updated.labels),
+    assigneesAdded: setDifference(updated.assignees, original.assignees),
+    assigneesRemoved: setDifference(original.assignees, updated.assignees),
+    projectStatusChanged: original.projectStatus !== updated.projectStatus,
+    iterationChanged: original.iteration !== updated.iteration,
+    failuresChanged: original.failures !== updated.failures
+  };
+}
+
+// ../issue-state/src/project-helpers.ts
+async function getProjectFieldInfo(octokit, owner, repo, issueNumber, projectNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_PROJECT_ITEM_QUERY,
+      {
+        org: owner,
+        repo,
+        issueNumber,
+        projectNumber
+      }
+    );
+    const project = response.organization?.projectV2;
+    if (!project) {
+      return null;
+    }
+    let projectItemId = null;
+    const projectItems = response.repository?.issue?.projectItems?.nodes || [];
+    for (const item of projectItems) {
+      if (item.project?.number === projectNumber) {
+        projectItemId = item.id;
+        break;
+      }
+    }
+    let statusFieldId = null;
+    const statusOptions = /* @__PURE__ */ new Map();
+    let iterationFieldId = null;
+    let failuresFieldId = null;
+    for (const field of project.fields.nodes) {
+      if (field.name === "Status" && field.options) {
+        statusFieldId = field.id;
+        for (const option of field.options) {
+          statusOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Iteration" && field.dataType === "NUMBER") {
+        iterationFieldId = field.id;
+      } else if (field.name === "Failures" && field.dataType === "NUMBER") {
+        failuresFieldId = field.id;
+      }
+    }
+    return {
+      projectId: project.id,
+      projectItemId,
+      statusFieldId,
+      statusOptions,
+      iterationFieldId,
+      failuresFieldId
+    };
+  } catch {
+    return null;
+  }
+}
+async function updateProjectField(octokit, projectId, itemId, fieldId, value) {
+  await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+async function updateProjectFields(octokit, owner, repo, issueNumber, projectNumber, fields) {
+  const fieldInfo = await getProjectFieldInfo(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber
+  );
+  if (!fieldInfo) {
+    return;
+  }
+  const projectItemId = fieldInfo.projectItemId;
+  if (!projectItemId) {
+    return;
+  }
+  const fieldUpdates = [];
+  if (fields.status !== void 0 && fieldInfo.statusFieldId) {
+    const optionId = fields.status ? fieldInfo.statusOptions.get(fields.status) : null;
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.statusFieldId,
+          { singleSelectOptionId: optionId }
+        )
+      );
+    }
+  }
+  if (fields.iteration !== void 0 && fieldInfo.iterationFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.iterationFieldId,
+        { number: fields.iteration }
+      )
+    );
+  }
+  if (fields.failures !== void 0 && fieldInfo.failuresFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.failuresFieldId,
+        { number: fields.failures }
+      )
+    );
+  }
+  await Promise.all(fieldUpdates);
+}
+
+// ../issue-state/src/update-issue.ts
+async function updateIssue(original, updated, octokit, options = {}) {
+  const { owner, repo } = updated;
+  const diff = computeDiff(original.issue, updated.issue);
+  const { projectNumber } = options;
+  const promises = [];
+  if (diff.bodyChanged || diff.titleChanged) {
+    const updateParams = {
+      owner,
+      repo,
+      issue_number: updated.issue.number
+    };
+    if (diff.bodyChanged) {
+      updateParams.body = serializeMarkdown(updated.issue.bodyAst);
+    }
+    if (diff.titleChanged) {
+      updateParams.title = updated.issue.title;
+    }
+    promises.push(octokit.rest.issues.update(updateParams));
+  }
+  if (diff.stateChanged) {
+    const stateParams = {
+      owner,
+      repo,
+      issue_number: updated.issue.number,
+      state: updated.issue.state === "OPEN" ? "open" : "closed"
+    };
+    if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+      stateParams.state_reason = updated.issue.stateReason;
+    }
+    promises.push(octokit.rest.issues.update(stateParams));
+  }
+  if (diff.labelsAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        labels: diff.labelsAdded
+      })
+    );
+  }
+  for (const label of diff.labelsRemoved) {
+    promises.push(
+      octokit.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        name: label
+      })
+    );
+  }
+  if (diff.assigneesAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesAdded
+      })
+    );
+  }
+  if (diff.assigneesRemoved.length > 0) {
+    promises.push(
+      octokit.rest.issues.removeAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesRemoved
+      })
+    );
+  }
+  if (projectNumber && (diff.projectStatusChanged || diff.iterationChanged || diff.failuresChanged)) {
+    const fieldsToUpdate = {};
+    if (diff.projectStatusChanged) {
+      fieldsToUpdate.status = updated.issue.projectStatus;
+    }
+    if (diff.iterationChanged) {
+      fieldsToUpdate.iteration = updated.issue.iteration;
+    }
+    if (diff.failuresChanged) {
+      fieldsToUpdate.failures = updated.issue.failures;
+    }
+    promises.push(
+      updateProjectFields(
+        octokit,
+        owner,
+        repo,
+        updated.issue.number,
+        projectNumber,
+        fieldsToUpdate
+      )
+    );
+  }
+  await Promise.all(promises);
+}
+
+// ../issue-state/src/parse-issue.ts
+function buildUpdateOptions(options) {
+  return {
+    projectNumber: options.projectNumber
+  };
+}
+function parseProjectState(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      status = ProjectStatusSchema.parse(fieldValue.name);
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+function parseSubIssueStatus(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem?.fieldValues?.nodes) {
+    return null;
+  }
+  for (const fieldValue of projectItem.fieldValues.nodes) {
+    if (fieldValue.field?.name === "Status" && fieldValue.name) {
+      return ProjectStatusSchema.parse(fieldValue.name);
+    }
+  }
+  return null;
+}
+function deriveBranchName(parentIssueNumber, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber}`;
+}
+function parseIssueComments(commentNodes, botUsername) {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername
+    };
+  });
+}
+async function getLinkedPRs(octokit, owner, repo, issueNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_ISSUE_LINKED_PRS_QUERY,
+      { owner, repo, issueNumber }
+    );
+    const linkedPRs = [];
+    const timelineNodes = response.repository?.issue?.timelineItems?.nodes || [];
+    for (const node2 of timelineNodes) {
+      const pr = node2.source || node2.subject;
+      if (!pr?.number || !pr?.headRefName) continue;
+      if (linkedPRs.some((p) => p.number === pr.number)) continue;
+      linkedPRs.push({
+        number: pr.number,
+        state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+        isDraft: false,
+        // Timeline doesn't include draft status
+        title: pr.title || "",
+        headRef: pr.headRefName,
+        baseRef: "main",
+        // Timeline doesn't include base ref
+        ciStatus: null
+        // Timeline doesn't include CI status
+      });
+    }
+    return linkedPRs;
+  } catch {
+    return [];
+  }
+}
+async function getPRForBranch(octokit, owner, repo, headRef) {
+  try {
+    const response = await octokit.graphql(
+      GET_PR_FOR_BRANCH_QUERY,
+      { owner, repo, headRef }
+    );
+    const pr = response.repository?.pullRequests?.nodes?.[0];
+    if (!pr || !pr.number) {
+      return null;
+    }
+    const rawCiStatus = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
+    let ciStatus = null;
+    if (rawCiStatus) {
+      const parsed = CIStatusSchema.safeParse(rawCiStatus);
+      if (parsed.success) {
+        ciStatus = parsed.data;
+      }
+    }
+    let reviewDecision = null;
+    if (pr.reviewDecision) {
+      const parsed = ReviewDecisionSchema.safeParse(pr.reviewDecision);
+      if (parsed.success) {
+        reviewDecision = parsed.data;
+      }
+    }
+    let mergeable = null;
+    if (pr.mergeable) {
+      const parsed = MergeableStateSchema.safeParse(pr.mergeable);
+      if (parsed.success) {
+        mergeable = parsed.data;
+      }
+    }
+    return {
+      number: pr.number,
+      state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+      isDraft: pr.isDraft || false,
+      title: pr.title || "",
+      headRef: pr.headRefName || headRef,
+      baseRef: pr.baseRefName || "main",
+      ciStatus,
+      reviewDecision,
+      mergeable,
+      reviewCount: pr.reviews?.totalCount ?? 0,
+      url: pr.url || ""
+    };
+  } catch {
+    return null;
+  }
+}
+function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber) {
+  const status = parseSubIssueStatus(
+    node2.projectItems?.nodes || [],
+    projectNumber
+  );
+  const body = node2.body || "";
+  const bodyAst = parseMarkdown(body);
+  return {
+    number: node2.number || 0,
+    title: node2.title || "",
+    state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
+    bodyAst,
+    projectStatus: status,
+    branch: deriveBranchName(parentIssueNumber, phaseNumber),
+    pr: null
+    // Populated separately if fetchPRs is true
+  };
+}
+async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, botUsername, fetchPRs) {
+  const response = await octokit.graphql(
+    GET_ISSUE_WITH_PROJECT_QUERY,
+    { owner, repo, issueNumber }
+  );
+  const issue2 = response.repository?.issue;
+  if (!issue2) {
+    return null;
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  const { status, iteration, failures } = parseProjectState(
+    projectItems,
+    projectNumber
+  );
+  const subIssueNodes = issue2.subIssues?.nodes || [];
+  const sortedSubIssues = [...subIssueNodes].sort(
+    (a, b) => (a.number || 0) - (b.number || 0)
+  );
+  const subIssues = [];
+  for (let i = 0; i < sortedSubIssues.length; i++) {
+    const node2 = sortedSubIssues[i];
+    if (!node2 || !node2.number) continue;
+    const subIssue = parseSubIssueData(node2, projectNumber, i + 1, issueNumber);
+    if (fetchPRs) {
+      const linkedPRs = await getLinkedPRs(octokit, owner, repo, node2.number);
+      if (linkedPRs.length > 0) {
+        const linkedPR = linkedPRs[0];
+        if (linkedPR) {
+          subIssue.branch = linkedPR.headRef;
+          subIssue.pr = await getPRForBranch(
+            octokit,
+            owner,
+            repo,
+            linkedPR.headRef
+          );
+        }
+      }
+    }
+    subIssues.push(subIssue);
+  }
+  const body = issue2.body || "";
+  const bodyAst = parseMarkdown(body);
+  const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
+  const parentIssueNumber = issue2.parent?.number ?? null;
+  let issueBranch = null;
+  let issuePR = null;
+  if (fetchPRs) {
+    const linkedPRs = await getLinkedPRs(octokit, owner, repo, issueNumber);
+    const firstPR = linkedPRs[0];
+    if (firstPR) {
+      issueBranch = firstPR.headRef;
+      issuePR = await getPRForBranch(octokit, owner, repo, issueBranch);
+    }
+  }
+  return {
+    issue: {
+      number: issue2.number || issueNumber,
+      title: issue2.title || "",
+      state: IssueStateSchema.parse(issue2.state?.toUpperCase() || "OPEN"),
+      bodyAst,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees: issue2.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels: issue2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      comments,
+      branch: issueBranch,
+      pr: issuePR,
+      parentIssueNumber
+    },
+    parentIssueNumber
+  };
+}
+async function parseIssue(owner, repo, issueNumber, options) {
+  const {
+    octokit,
+    projectNumber = 0,
+    botUsername = "nopo-bot",
+    fetchPRs = true,
+    fetchParent = true
+  } = options;
+  const result = await fetchIssueData(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    botUsername,
+    fetchPRs
+  );
+  if (!result) {
+    throw new Error(`Issue #${issueNumber} not found`);
+  }
+  let parentIssue = null;
+  if (fetchParent && result.parentIssueNumber) {
+    const parentResult = await fetchIssueData(
+      octokit,
+      owner,
+      repo,
+      result.parentIssueNumber,
+      projectNumber,
+      botUsername,
+      fetchPRs
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
+  }
+  const data = {
+    owner,
+    repo,
+    issue: result.issue,
+    parentIssue
+  };
+  const original = structuredClone(data);
+  const updateOptions = buildUpdateOptions(options);
+  return {
+    data,
+    update: (newData) => updateIssue(original, newData, octokit, updateOptions)
+  };
+}
+
+// ../issue-state/src/create-issue.ts
+var GET_PROJECT_FIELDS_QUERY = `
+query GetProjectFields($org: String!, $projectNumber: Int!) {
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+async function getRepoId(octokit, owner, repo) {
+  const response = await octokit.graphql(GET_REPO_ID_QUERY, {
+    owner,
+    repo
+  });
+  if (!response.repository?.id) {
+    throw new Error(`Repository ${owner}/${repo} not found`);
+  }
+  return response.repository.id;
+}
+async function createIssueInRepo(octokit, repositoryId, title, body) {
+  const response = await octokit.graphql(
+    CREATE_ISSUE_MUTATION,
+    {
+      repositoryId,
+      title,
+      body
+    }
+  );
+  return {
+    id: response.createIssue.issue.id,
+    number: response.createIssue.issue.number
+  };
+}
+async function linkSubIssue(octokit, parentId, childId) {
+  await octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+    parentId,
+    childId
+  });
+}
+async function addIssueToProject(octokit, projectId, issueId) {
+  const response = await octokit.graphql(
+    ADD_ISSUE_TO_PROJECT_MUTATION,
+    {
+      projectId,
+      contentId: issueId
+    }
+  );
+  return response.addProjectV2ItemById.item.id;
+}
+async function getProjectFieldInfo2(octokit, organization, projectNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_PROJECT_FIELDS_QUERY,
+      {
+        org: organization,
+        projectNumber
+      }
+    );
+    const project = response.organization?.projectV2;
+    if (!project) {
+      return null;
+    }
+    let statusFieldId = null;
+    const statusOptions = /* @__PURE__ */ new Map();
+    let iterationFieldId = null;
+    let failuresFieldId = null;
+    for (const field of project.fields.nodes) {
+      if (field.name === "Status" && field.options) {
+        statusFieldId = field.id;
+        for (const option of field.options) {
+          statusOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Iteration" && field.dataType === "NUMBER") {
+        iterationFieldId = field.id;
+      } else if (field.name === "Failures" && field.dataType === "NUMBER") {
+        failuresFieldId = field.id;
+      }
+    }
+    return {
+      projectId: project.id,
+      statusFieldId,
+      statusOptions,
+      iterationFieldId,
+      failuresFieldId
+    };
+  } catch {
+    return null;
+  }
+}
+async function updateProjectField2(octokit, projectId, itemId, fieldId, value) {
+  await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+async function createIssue(owner, repo, input, options) {
+  const {
+    octokit,
+    projectNumber,
+    organization = owner,
+    projectFields
+  } = options;
+  const repositoryId = await getRepoId(octokit, owner, repo);
+  const parentIssue = await createIssueInRepo(
+    octokit,
+    repositoryId,
+    input.title,
+    input.body || ""
+  );
+  const subIssueNumbers = [];
+  if (input.subIssues && input.subIssues.length > 0) {
+    for (const subIssueInput of input.subIssues) {
+      const subIssue = await createIssueInRepo(
+        octokit,
+        repositoryId,
+        subIssueInput.title,
+        subIssueInput.body || ""
+      );
+      await linkSubIssue(octokit, parentIssue.id, subIssue.id);
+      subIssueNumbers.push(subIssue.number);
+      if (subIssueInput.labels && subIssueInput.labels.length > 0) {
+        await octokit.rest.issues.addLabels({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+          labels: subIssueInput.labels
+        });
+      }
+      if (subIssueInput.assignees && subIssueInput.assignees.length > 0) {
+        await octokit.rest.issues.addAssignees({
+          owner,
+          repo,
+          issue_number: subIssue.number,
+          assignees: subIssueInput.assignees
+        });
+      }
+      if (projectNumber) {
+        const fieldInfo = await getProjectFieldInfo2(
+          octokit,
+          organization,
+          projectNumber
+        );
+        if (fieldInfo) {
+          await addIssueToProject(octokit, fieldInfo.projectId, subIssue.id);
+        }
+      }
+    }
+  }
+  if (input.labels && input.labels.length > 0) {
+    await octokit.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number: parentIssue.number,
+      labels: input.labels
+    });
+  }
+  if (input.assignees && input.assignees.length > 0) {
+    await octokit.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: parentIssue.number,
+      assignees: input.assignees
+    });
+  }
+  if (projectNumber) {
+    const fieldInfo = await getProjectFieldInfo2(
+      octokit,
+      organization,
+      projectNumber
+    );
+    if (fieldInfo) {
+      const projectItemId = await addIssueToProject(
+        octokit,
+        fieldInfo.projectId,
+        parentIssue.id
+      );
+      if (projectFields) {
+        const fieldUpdates = [];
+        if (projectFields.status && fieldInfo.statusFieldId) {
+          const optionId = fieldInfo.statusOptions.get(projectFields.status);
+          if (optionId) {
+            fieldUpdates.push(
+              updateProjectField2(
+                octokit,
+                fieldInfo.projectId,
+                projectItemId,
+                fieldInfo.statusFieldId,
+                { singleSelectOptionId: optionId }
+              )
+            );
+          }
+        }
+        if (projectFields.iteration !== void 0 && fieldInfo.iterationFieldId) {
+          fieldUpdates.push(
+            updateProjectField2(
+              octokit,
+              fieldInfo.projectId,
+              projectItemId,
+              fieldInfo.iterationFieldId,
+              { number: projectFields.iteration }
+            )
+          );
+        }
+        if (projectFields.failures !== void 0 && fieldInfo.failuresFieldId) {
+          fieldUpdates.push(
+            updateProjectField2(
+              octokit,
+              fieldInfo.projectId,
+              projectItemId,
+              fieldInfo.failuresFieldId,
+              { number: projectFields.failures }
+            )
+          );
+        }
+        await Promise.all(fieldUpdates);
+      }
+    }
+  }
+  if (input.comments && input.comments.length > 0) {
+    for (const comment of input.comments) {
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: parentIssue.number,
+        body: comment.body
+      });
+    }
+  }
+  return {
+    issueNumber: parentIssue.number,
+    issueId: parentIssue.id,
+    subIssueNumbers
+  };
 }
 
 // ../issue-state/src/sections/types.ts
@@ -40339,6 +41398,36 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
+
+// ../issue-state/src/comment-ops.ts
+async function createComment(owner, repo, issueNumber, body, octokit) {
+  const result = await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    body
+  });
+  return { commentId: result.data.id };
+}
+
+// ../issue-state/src/issue-ops.ts
+async function listComments(owner, repo, issueNumber, octokit, opts) {
+  const result = await octokit.rest.issues.listComments({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    per_page: opts?.perPage
+  });
+  return result.data;
+}
+async function setLabels(owner, repo, issueNumber, labels, octokit) {
+  await octokit.rest.issues.setLabels({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    labels
+  });
+}
 
 // ../issue-state/src/create-extractor.ts
 function createExtractor(schema, transform2) {
@@ -41284,7 +42373,7 @@ var MinimalTriggerContextSchema = external_exports.object({
 });
 
 // src/parser/issue-adapter.ts
-function deriveBranchName(parentIssueNumber, phaseNumber) {
+function deriveBranchName2(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
   }
@@ -41901,7 +42990,8 @@ var STANDARD_SECTION_ORDER2 = [
 var upsertSection2 = createMutator(
   external_exports.object({
     title: external_exports.string(),
-    content: external_exports.string(),
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
+    content: external_exports.array(external_exports.record(external_exports.unknown())),
     sectionOrder: external_exports.array(external_exports.string()).optional()
   }),
   (input, data) => {
@@ -41909,7 +42999,6 @@ var upsertSection2 = createMutator(
     const newAst = structuredClone(ast);
     const sectionIdx = findHeadingIndex2(newAst, input.title);
     const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
-    const contentNode = createParagraphNode(input.content);
     if (sectionIdx !== -1) {
       let endIdx = sectionIdx + 1;
       for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
@@ -41922,7 +43011,7 @@ var upsertSection2 = createMutator(
       newAst.children.splice(
         sectionIdx + 1,
         endIdx - sectionIdx - 1,
-        contentNode
+        ...input.content
       );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
@@ -41939,10 +43028,66 @@ var upsertSection2 = createMutator(
         }
       }
       const heading2 = createHeadingNode(2, input.title);
-      newAst.children.splice(insertIdx, 0, heading2, contentNode);
+      newAst.children.splice(insertIdx, 0, heading2, ...input.content);
     }
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   }
+);
+var applyTodoModifications = createMutator(
+  external_exports.object({
+    modifications: external_exports.array(
+      external_exports.object({
+        action: external_exports.enum(["add", "modify", "remove"]),
+        index: external_exports.number(),
+        text: external_exports.string().optional()
+      })
+    )
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    if (todosIdx === -1) return data;
+    const listNode = newAst.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    for (const mod of input.modifications) {
+      if (mod.action === "add") {
+        const newItem = createListItemNode(mod.text || "", false);
+        if (mod.index < 0) {
+          listNode.children.splice(0, 0, newItem);
+        } else if (mod.index >= listNode.children.length) {
+          listNode.children.push(newItem);
+        } else {
+          listNode.children.splice(mod.index + 1, 0, newItem);
+        }
+      } else if (mod.action === "modify") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        item.children = [createParagraphNode(mod.text || "")];
+      } else if (mod.action === "remove") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        listNode.children.splice(mod.index, 1);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var replaceBody = createMutator(
+  external_exports.object({
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
+    bodyAst: external_exports.object({
+      type: external_exports.literal("root"),
+      children: external_exports.array(external_exports.record(external_exports.unknown()))
+    }).passthrough()
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
+  }),
+  (input, data) => ({
+    ...data,
+    issue: { ...data.issue, bodyAst: input.bodyAst }
+  })
 );
 
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
@@ -45622,7 +46767,7 @@ function emitLogReviewRequested({
   return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
 }
 function emitCreateBranch({ context: context2 }) {
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   return [
     {
       type: "createBranch",
@@ -45638,7 +46783,7 @@ function emitCreatePR({ context: context2 }) {
   if (context2.pr) {
     return [];
   }
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
     {
@@ -45708,7 +46853,7 @@ function emitMergePR({ context: context2 }) {
 function buildIteratePromptVars(context2, ciResultOverride) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const iteration = context2.issue.iteration;
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
@@ -50233,7 +51378,7 @@ var require_compile = __commonJS2((exports2) => {
     const schOrFunc = root22.refs[ref];
     if (schOrFunc)
       return schOrFunc;
-    let _sch = resolve.call(this, root22, ref);
+    let _sch = resolve2.call(this, root22, ref);
     if (_sch === void 0) {
       const schema = (_a = root22.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
       const { schemaId } = this.opts;
@@ -50260,7 +51405,7 @@ var require_compile = __commonJS2((exports2) => {
   function sameSchemaEnv(s1, s2) {
     return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
   }
-  function resolve(root22, ref) {
+  function resolve2(root22, ref) {
     let sch;
     while (typeof (sch = this.refs[ref]) == "string")
       ref = sch;
@@ -50644,8 +51789,8 @@ var require_schemes = __commonJS2((exports2, module2) => {
       wsComponents.secure = void 0;
     }
     if (wsComponents.resourceName) {
-      const [path2, query2] = wsComponents.resourceName.split("?");
-      wsComponents.path = path2 && path2 !== "/" ? path2 : void 0;
+      const [path3, query2] = wsComponents.resourceName.split("?");
+      wsComponents.path = path3 && path3 !== "/" ? path3 : void 0;
       wsComponents.query = query2;
       wsComponents.resourceName = void 0;
     }
@@ -50758,7 +51903,7 @@ var require_fast_uri = __commonJS2((exports2, module2) => {
     }
     return uri;
   }
-  function resolve(baseURI, relativeURI, options) {
+  function resolve2(baseURI, relativeURI, options) {
     const schemelessOptions = Object.assign({ scheme: "null" }, options);
     const resolved = resolveComponents(parse6(baseURI, schemelessOptions), parse6(relativeURI, schemelessOptions), schemelessOptions, true);
     return serialize2(resolved, { ...schemelessOptions, skipEscape: true });
@@ -50991,7 +52136,7 @@ var require_fast_uri = __commonJS2((exports2, module2) => {
   var fastUri = {
     SCHEMES,
     normalize,
-    resolve,
+    resolve: resolve2,
     resolveComponents,
     equal,
     serialize: serialize2,
@@ -53680,12 +54825,12 @@ var require_dist = __commonJS2((exports2, module2) => {
       throw new Error(`Unknown format "${name}"`);
     return f;
   };
-  function addFormats(ajv, list4, fs2, exportName) {
+  function addFormats(ajv, list4, fs22, exportName) {
     var _a;
     var _b;
     (_a = (_b = ajv.opts.code).formats) !== null && _a !== void 0 || (_b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`);
     for (const f of list4)
-      ajv.addFormat(f, fs2[f]);
+      ajv.addFormat(f, fs22[f]);
   }
   module2.exports = exports2 = formatsPlugin;
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -54347,11 +55492,11 @@ function getDebugWriter() {
   if (!debugWriter) {
     debugWriter = createBufferedWriter({
       writeFn: (content3) => {
-        const path2 = getDebugLogPath();
-        if (!getFsImplementation().existsSync((0, import_path2.dirname)(path2))) {
-          getFsImplementation().mkdirSync((0, import_path2.dirname)(path2));
+        const path3 = getDebugLogPath();
+        if (!getFsImplementation().existsSync((0, import_path2.dirname)(path3))) {
+          getFsImplementation().mkdirSync((0, import_path2.dirname)(path3));
         }
-        getFsImplementation().appendFileSync(path2, content3);
+        getFsImplementation().appendFileSync(path3, content3);
         updateLatestDebugLogSymlink();
       },
       flushIntervalMs: 1e3,
@@ -54453,40 +55598,40 @@ var NodeFsOperations = {
       }
     });
   },
-  appendFileSync(path2, data, options) {
-    return withSlowLogging2(`appendFileSync(${path2}, ${data.length} chars)`, () => {
-      if (!fs.existsSync(path2) && options?.mode !== void 0) {
-        const fd = fs.openSync(path2, "a", options.mode);
+  appendFileSync(path3, data, options) {
+    return withSlowLogging2(`appendFileSync(${path3}, ${data.length} chars)`, () => {
+      if (!fs.existsSync(path3) && options?.mode !== void 0) {
+        const fd = fs.openSync(path3, "a", options.mode);
         try {
           fs.appendFileSync(fd, data);
         } finally {
           fs.closeSync(fd);
         }
       } else {
-        fs.appendFileSync(path2, data);
+        fs.appendFileSync(path3, data);
       }
     });
   },
   copyFileSync(src, dest) {
     return withSlowLogging2(`copyFileSync(${src} \u2192 ${dest})`, () => fs.copyFileSync(src, dest));
   },
-  unlinkSync(path2) {
-    return withSlowLogging2(`unlinkSync(${path2})`, () => fs.unlinkSync(path2));
+  unlinkSync(path3) {
+    return withSlowLogging2(`unlinkSync(${path3})`, () => fs.unlinkSync(path3));
   },
   renameSync(oldPath, newPath) {
     return withSlowLogging2(`renameSync(${oldPath} \u2192 ${newPath})`, () => fs.renameSync(oldPath, newPath));
   },
-  linkSync(target, path2) {
-    return withSlowLogging2(`linkSync(${target} \u2192 ${path2})`, () => fs.linkSync(target, path2));
+  linkSync(target, path3) {
+    return withSlowLogging2(`linkSync(${target} \u2192 ${path3})`, () => fs.linkSync(target, path3));
   },
-  symlinkSync(target, path2) {
-    return withSlowLogging2(`symlinkSync(${target} \u2192 ${path2})`, () => fs.symlinkSync(target, path2));
+  symlinkSync(target, path3) {
+    return withSlowLogging2(`symlinkSync(${target} \u2192 ${path3})`, () => fs.symlinkSync(target, path3));
   },
-  readlinkSync(path2) {
-    return withSlowLogging2(`readlinkSync(${path2})`, () => fs.readlinkSync(path2));
+  readlinkSync(path3) {
+    return withSlowLogging2(`readlinkSync(${path3})`, () => fs.readlinkSync(path3));
   },
-  realpathSync(path2) {
-    return withSlowLogging2(`realpathSync(${path2})`, () => fs.realpathSync(path2));
+  realpathSync(path3) {
+    return withSlowLogging2(`realpathSync(${path3})`, () => fs.realpathSync(path3));
   },
   mkdirSync(dirPath, options) {
     return withSlowLogging2(`mkdirSync(${dirPath})`, () => {
@@ -54516,11 +55661,11 @@ var NodeFsOperations = {
   rmdirSync(dirPath) {
     return withSlowLogging2(`rmdirSync(${dirPath})`, () => fs.rmdirSync(dirPath));
   },
-  rmSync(path2, options) {
-    return withSlowLogging2(`rmSync(${path2})`, () => fs.rmSync(path2, options));
+  rmSync(path3, options) {
+    return withSlowLogging2(`rmSync(${path3})`, () => fs.rmSync(path3, options));
   },
-  createWriteStream(path2) {
-    return fs.createWriteStream(path2);
+  createWriteStream(path3) {
+    return fs.createWriteStream(path3);
   }
 };
 var activeFs = NodeFsOperations;
@@ -54876,8 +56021,8 @@ function getErrorMap2() {
   return overrideErrorMap2;
 }
 var makeIssue2 = (params) => {
-  const { data, path: path2, errorMaps, issueData } = params;
-  const fullPath = [...path2, ...issueData.path || []];
+  const { data, path: path3, errorMaps, issueData } = params;
+  const fullPath = [...path3, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -54984,11 +56129,11 @@ var errorUtil2;
   errorUtil22.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil2 || (errorUtil2 = {}));
 var ParseInputLazyPath2 = class {
-  constructor(parent, value, path2, key) {
+  constructor(parent, value, path3, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path2;
+    this._path = path3;
     this._key = key;
   }
   get path() {
@@ -58481,10 +59626,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path2) {
-  if (!path2)
+function getElementAtPath(obj, path3) {
+  if (!path3)
     return obj;
-  return path2.reduce((acc, key) => acc?.[key], obj);
+  return path3.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -58801,11 +59946,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path2, issues) {
+function prefixIssues(path3, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path2);
+    iss.path.unshift(path3);
     return iss;
   });
 }
@@ -64816,6 +65961,33 @@ var TestAnalysis = promptFactory().inputs((z) => ({
 Format as GitHub-flavored markdown.` })
 ] }));
 
+// ../prompts/src/prompts/live-issue-scout.tsx
+var LiveIssueScout = promptFactory().inputs((z) => ({
+  category: z.enum([
+    "documentation",
+    "tests",
+    "performance",
+    "readability",
+    "type-safety"
+  ])
+})).outputs((z) => ({
+  title: z.string().describe("Concise issue title, imperative mood, under 80 chars"),
+  body: z.string().describe("Unstructured paragraph, max 100 words")
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("section", { title: "Purpose", children: `You are a codebase scout. Find exactly ONE small, concrete improvement
+in the "${inputs.category}" category.` }),
+  /* @__PURE__ */ jsx("section", { title: "Constraints", children: `- XS size (under 1 hour of work), touching only 1-2 files
+- Must be a real improvement, not busywork
+- If touching production code, it must be testable
+- No changes to generated files, lock files, or dist/ directories
+- No new dependencies
+- Must be something that can pass CI` }),
+  /* @__PURE__ */ jsx("section", { title: "Output Format", children: `Return a title (imperative, under 80 chars) and a body paragraph
+(max 100 words, unstructured, no markdown headings/bullets).
+Be specific about which file(s) to change and the expected outcome.
+Scope is most important, outcome is second most important.` })
+] }));
+
 // ../prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
@@ -65625,30 +66797,29 @@ var GroomingAgentOutputSchema = external_exports.object({
   ready: external_exports.boolean(),
   questions: external_exports.array(external_exports.string()).optional()
 }).passthrough();
+var RecommendedPhaseSchema = external_exports.object({
+  phase_number: external_exports.number(),
+  title: external_exports.string(),
+  description: external_exports.string(),
+  affected_areas: external_exports.array(
+    external_exports.object({
+      path: external_exports.string(),
+      change_type: external_exports.string().optional(),
+      description: external_exports.string().optional(),
+      impact: external_exports.string().optional()
+    })
+  ).optional(),
+  todos: external_exports.array(
+    external_exports.object({
+      task: external_exports.string(),
+      manual: external_exports.boolean().optional()
+    })
+  ).optional(),
+  depends_on: external_exports.array(external_exports.number()).optional()
+});
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   scope_recommendation: external_exports.enum(["direct", "split"]).optional(),
-  recommended_phases: external_exports.array(
-    external_exports.object({
-      phase_number: external_exports.number(),
-      title: external_exports.string(),
-      description: external_exports.string(),
-      affected_areas: external_exports.array(
-        external_exports.object({
-          path: external_exports.string(),
-          change_type: external_exports.string().optional(),
-          description: external_exports.string().optional(),
-          impact: external_exports.string().optional()
-        })
-      ).optional(),
-      todos: external_exports.array(
-        external_exports.object({
-          task: external_exports.string(),
-          manual: external_exports.boolean().optional()
-        })
-      ).optional(),
-      depends_on: external_exports.array(external_exports.number()).optional()
-    })
-  ).optional()
+  recommended_phases: external_exports.array(RecommendedPhaseSchema).optional()
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
@@ -65685,7 +66856,10 @@ var LegacyTriageOutputSchema = external_exports.object({
       title: external_exports.string(),
       description: external_exports.string(),
       todos: external_exports.array(
-        external_exports.union([external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }), external_exports.string()])
+        external_exports.union([
+          external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }),
+          external_exports.string()
+        ])
       )
     })
   ).optional(),
@@ -66534,6 +67708,9 @@ function setOutputs(outputs) {
 }
 
 // actions/sm-test-helper/index.ts
+function asOctokitLike(octokit) {
+  return octokit;
+}
 var GET_PROJECT_ITEM_QUERY2 = `
 query GetProjectItem($org: String!, $projectNumber: Int!, $issueNumber: Int!, $repo: String!) {
   repository(owner: $org, name: $repo) {
@@ -66631,42 +67808,6 @@ query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
                     }
                   }
                 }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`;
-var GET_ISSUE_LINKED_PRS_QUERY2 = `
-query GetIssueLinkedPRs($org: String!, $repo: String!, $issueNumber: Int!) {
-  repository(owner: $org, name: $repo) {
-    issue(number: $issueNumber) {
-      id
-      number
-      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
-        nodes {
-          ... on CrossReferencedEvent {
-            source {
-              ... on PullRequest {
-                number
-                title
-                state
-                headRefName
-                url
-              }
-            }
-          }
-          ... on ConnectedEvent {
-            subject {
-              ... on PullRequest {
-                number
-                title
-                state
-                headRefName
-                url
               }
             }
           }
@@ -66905,16 +68046,19 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     ...fixture.parent_issue.labels || []
   ];
   core22.info(`Creating parent issue: ${parentTitle}`);
-  const { data: parentIssue } = await octokit.rest.issues.create({
+  const createResult = await createIssue(
     owner,
     repo,
-    title: parentTitle,
-    body: fixture.parent_issue.body,
-    labels: parentLabels
-  });
-  result.issue_number = parentIssue.number;
-  const issueNodeId = parentIssue.node_id;
-  core22.info(`Created parent issue #${parentIssue.number}`);
+    {
+      title: parentTitle,
+      body: fixture.parent_issue.body,
+      labels: parentLabels
+    },
+    { octokit: asOctokitLike(octokit) }
+  );
+  result.issue_number = createResult.issueNumber;
+  const issueNodeId = createResult.issueId;
+  core22.info(`Created parent issue #${createResult.issueNumber}`);
   core22.info(`Issue node_id: ${issueNodeId}`);
   let projectFields = null;
   try {
@@ -67036,46 +68180,48 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       core22.info(`Creating sub-issue: ${subTitle}`);
       const bodyWithParent = subConfig.body.replace(
         /\{PARENT_NUMBER\}/g,
-        String(parentIssue.number)
+        String(createResult.issueNumber)
       );
-      const { data: subIssue } = await octokit.rest.issues.create({
+      const subCreateResult = await createIssue(
         owner,
         repo,
-        title: subTitle,
-        body: bodyWithParent,
-        labels: ["test:automation", "triaged"]
-      });
+        {
+          title: subTitle,
+          body: bodyWithParent,
+          labels: ["test:automation", "triaged"]
+        },
+        { octokit: asOctokitLike(octokit) }
+      );
       const finalBody = bodyWithParent.replace(
         /\{ISSUE_NUMBER\}/g,
-        String(subIssue.number)
+        String(subCreateResult.issueNumber)
       );
       if (finalBody !== bodyWithParent) {
-        await octokit.rest.issues.update({
+        const { data: subState, update: updateSub } = await parseIssue(
           owner,
           repo,
-          issue_number: subIssue.number,
-          body: finalBody
-        });
+          subCreateResult.issueNumber,
+          {
+            octokit: asOctokitLike(octokit),
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const updatedSubState = replaceBody(
+          { bodyAst: parseMarkdown(finalBody) },
+          subState
+        );
+        await updateSub(updatedSubState);
       }
-      result.sub_issue_numbers.push(subIssue.number);
-      core22.info(`Created sub-issue #${subIssue.number}`);
-      const { data: parentData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: parentIssue.number
-      });
-      const { data: subData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: subIssue.number
-      });
+      result.sub_issue_numbers.push(subCreateResult.issueNumber);
+      core22.info(`Created sub-issue #${subCreateResult.issueNumber}`);
       try {
         await octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
-          parentId: parentData.node_id,
-          subIssueId: subData.node_id
+          parentId: issueNodeId,
+          subIssueId: subCreateResult.issueId
         });
         core22.info(
-          `Linked sub-issue #${subIssue.number} to parent #${parentIssue.number}`
+          `Linked sub-issue #${subCreateResult.issueNumber} to parent #${createResult.issueNumber}`
         );
       } catch (error6) {
         core22.warning(`Failed to link sub-issue: ${error6}`);
@@ -67085,7 +68231,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           ADD_ISSUE_TO_PROJECT_MUTATION2,
           {
             projectId: projectFields.projectId,
-            contentId: subData.node_id
+            contentId: subCreateResult.issueId
           }
         );
         const subItemId = addResult.addProjectV2ItemById?.item?.id;
@@ -67103,7 +68249,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
                 value: { singleSelectOptionId: optionId }
               });
               core22.info(
-                `Set sub-issue #${subIssue.number} Status to ${subStatus}`
+                `Set sub-issue #${subCreateResult.issueNumber} Status to ${subStatus}`
               );
             }
           }
@@ -67115,7 +68261,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               value: { number: subConfig.project_fields.Iteration }
             });
             core22.info(
-              `Set sub-issue #${subIssue.number} Iteration to ${subConfig.project_fields.Iteration}`
+              `Set sub-issue #${subCreateResult.issueNumber} Iteration to ${subConfig.project_fields.Iteration}`
             );
           }
           if (subConfig.project_fields?.Failures !== void 0 && projectFields.failuresFieldId) {
@@ -67126,7 +68272,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               value: { number: subConfig.project_fields.Failures }
             });
             core22.info(
-              `Set sub-issue #${subIssue.number} Failures to ${subConfig.project_fields.Failures}`
+              `Set sub-issue #${subCreateResult.issueNumber} Failures to ${subConfig.project_fields.Failures}`
             );
           }
         }
@@ -67164,10 +68310,10 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         const treeItems = [];
         const firstSubIssueNumber = result.sub_issue_numbers[0];
         for (const [rawPath, rawContent] of Object.entries(commit2.files)) {
-          let path2 = rawPath;
+          let path3 = rawPath;
           let content3 = rawContent;
           if (firstSubIssueNumber) {
-            path2 = path2.replace(
+            path3 = path3.replace(
               /\{SUB_ISSUE_NUMBER\}/g,
               String(firstSubIssueNumber)
             );
@@ -67176,7 +68322,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               String(firstSubIssueNumber)
             );
           }
-          path2 = path2.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
+          path3 = path3.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
           content3 = content3.replace(
             /\{ISSUE_NUMBER\}/g,
             String(result.issue_number)
@@ -67188,7 +68334,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             encoding: "base64"
           });
           treeItems.push({
-            path: path2,
+            path: path3,
             mode: "100644",
             type: "blob",
             sha: blob.sha
@@ -67240,12 +68386,13 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     });
     result.pr_number = pr.number;
     core22.info(`Created PR #${pr.number}`);
-    await octokit.rest.issues.addLabels({
+    await setLabels(
       owner,
       repo,
-      issue_number: pr.number,
-      labels: ["test:automation"]
-    });
+      pr.number,
+      ["test:automation"],
+      asOctokitLike(octokit)
+    );
     if (fixture.pr.request_review) {
       try {
         await octokit.rest.pulls.requestReviewers({
@@ -67262,14 +68409,15 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
   }
   if (fixture.comment && result.issue_number) {
     core22.info("Adding comment to issue");
-    const { data: comment } = await octokit.rest.issues.createComment({
+    const { commentId } = await createComment(
       owner,
       repo,
-      issue_number: result.issue_number,
-      body: fixture.comment.body
-    });
-    result.comment_id = String(comment.id);
-    core22.info(`Created comment ${comment.id}`);
+      result.issue_number,
+      fixture.comment.body,
+      asOctokitLike(octokit)
+    );
+    result.comment_id = String(commentId);
+    core22.info(`Created comment ${commentId}`);
   }
   if (fixture.review && result.pr_number) {
     if (!reviewOctokit) {
@@ -67530,14 +68678,12 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
     }
   }
   if (fixture.expected.labels && fixture.expected.labels.length > 0) {
-    const { data: issueData } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber
+    const { data: labelData } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false
     });
-    const actualLabels = issueData.labels.map(
-      (l) => typeof l === "string" ? l : l.name || ""
-    );
+    const actualLabels = labelData.issue.labels;
     for (const expectedLabel of fixture.expected.labels) {
       if (!actualLabels.includes(expectedLabel)) {
         errors.push({
@@ -67550,17 +68696,18 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
   }
   if (fixture.expected.min_comments !== void 0) {
     if (fixture.parent_issue) {
-      const { data: comments } = await octokit.rest.issues.listComments({
+      const issueComments = await listComments(
         owner,
         repo,
-        issue_number: issueNumber,
-        per_page: 100
-      });
-      if (comments.length < fixture.expected.min_comments) {
+        issueNumber,
+        asOctokitLike(octokit),
+        { perPage: 100 }
+      );
+      if (issueComments.length < fixture.expected.min_comments) {
         errors.push({
           field: "min_comments",
           expected: `>= ${fixture.expected.min_comments}`,
-          actual: String(comments.length)
+          actual: String(issueComments.length)
         });
       }
     }
@@ -67617,16 +68764,21 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
     for (let i = 0; i < subIssues.length; i++) {
       const subIssue = subIssues[i];
       if (subIssue?.number) {
-        const { data: subIssueData } = await octokit.rest.issues.get({
+        const { data: subClosedData } = await parseIssue(
           owner,
           repo,
-          issue_number: subIssue.number
-        });
-        if (subIssueData.state !== "closed") {
+          subIssue.number,
+          {
+            octokit: asOctokitLike(octokit),
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        if (subClosedData.issue.state !== "CLOSED") {
           errors.push({
             field: `sub_issue_${i + 1}_closed`,
             expected: "closed",
-            actual: subIssueData.state
+            actual: subClosedData.issue.state.toLowerCase()
           });
         }
       }
@@ -67645,12 +68797,17 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
     for (let i = 0; i < subIssues.length; i++) {
       const subIssue = subIssues[i];
       if (subIssue?.number) {
-        const { data: subIssueData } = await octokit.rest.issues.get({
+        const { data: subTodoData } = await parseIssue(
           owner,
           repo,
-          issue_number: subIssue.number
-        });
-        const body = subIssueData.body || "";
+          subIssue.number,
+          {
+            octokit: asOctokitLike(octokit),
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const body = serializeMarkdown(subTodoData.issue.bodyAst);
         const unchecked = (body.match(/- \[ \]/g) || []).length;
         if (unchecked > 0) {
           errors.push({
@@ -67663,12 +68820,12 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
     }
   }
   if (fixture.expected.history_contains) {
-    const { data: issueData } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber
+    const { data: historyData } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false
     });
-    const body = issueData.body || "";
+    const body = serializeMarkdown(historyData.issue.bodyAst);
     for (const pattern of fixture.expected.history_contains) {
       if (!body.includes(pattern)) {
         errors.push({
@@ -67767,689 +68924,167 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
     core22.warning(`Failed to check/cancel related workflows: ${error6}`);
   }
 }
-async function retryWithBackoff(operation, verify, options) {
-  const { maxRetries, baseDelayMs, maxJitterMs, operationName } = options;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const result = await operation();
-      const verified = await verify();
-      if (verified) {
-        core22.info(`\u2713 ${operationName} succeeded on attempt ${attempt}`);
-        return { success: true, result };
-      }
-      core22.warning(
-        `${operationName} completed but verification failed (attempt ${attempt}/${maxRetries})`
-      );
-    } catch (error6) {
-      const errorMsg = error6 instanceof Error ? error6.message : String(error6);
-      core22.warning(
-        `${operationName} failed (attempt ${attempt}/${maxRetries}): ${errorMsg}`
-      );
-    }
-    if (attempt < maxRetries) {
-      const jitter = Math.floor(Math.random() * maxJitterMs);
-      const delay = attempt * baseDelayMs + jitter;
-      core22.info(`Waiting ${delay}ms before retry...`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-  return {
-    success: false,
-    error: `${operationName} failed after ${maxRetries} attempts`
-  };
-}
-async function snapshotResources(octokit, owner, repo, issueNumber) {
-  const { data: issue2 } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber
-  });
-  const labels = issue2.labels.map(
-    (l) => typeof l === "string" ? l : l.name || ""
-  );
-  const subResponse = await octokit.graphql(
-    GET_SUB_ISSUES_QUERY2,
-    {
-      org: owner,
-      repo,
-      parentNumber: issueNumber
-    }
-  );
-  const subIssueNodes = subResponse.repository?.issue?.subIssues?.nodes || [];
-  const subIssues = [];
-  for (const sub of subIssueNodes) {
-    if (sub.number) {
-      const { data: subData } = await octokit.rest.issues.get({
-        owner,
-        repo,
-        issue_number: sub.number
-      });
-      subIssues.push({
-        number: subData.number,
-        title: subData.title,
-        state: subData.state,
-        url: subData.html_url
-      });
-    }
-  }
-  const relatedPRs = [];
-  const branches = [];
-  const allIssueNumbers = [issueNumber, ...subIssues.map((s) => s.number)];
-  for (const issueNum of allIssueNumbers) {
-    try {
-      const response = await octokit.graphql(
-        GET_ISSUE_LINKED_PRS_QUERY2,
-        { org: owner, repo, issueNumber: issueNum }
-      );
-      const timelineNodes = response.repository?.issue?.timelineItems?.nodes || [];
-      for (const node2 of timelineNodes) {
-        const pr = node2.source || node2.subject;
-        if (pr?.number && pr?.headRefName) {
-          if (!relatedPRs.some((p) => p.number === pr.number)) {
-            relatedPRs.push({
-              number: pr.number,
-              title: pr.title || "",
-              state: pr.state?.toLowerCase() || "open",
-              branch: pr.headRefName,
-              url: pr.url || ""
-            });
-            if (!branches.some((b) => b.name === pr.headRefName)) {
-              branches.push({
-                name: pr.headRefName,
-                ref: `refs/heads/${pr.headRefName}`
-              });
-            }
-          }
-        }
-      }
-    } catch (error6) {
-      const msg = error6 instanceof Error ? error6.message : String(error6);
-      core22.debug(`Failed to get linked PRs for issue #${issueNum}: ${msg}`);
-    }
-  }
-  const workflowRuns = [];
+async function deleteBranch(octokit, owner, repo, branch) {
   try {
-    const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
+    await octokit.rest.git.deleteRef({
       owner,
       repo,
-      status: "in_progress",
-      per_page: 50
+      ref: `heads/${branch}`
     });
-    const { data: queuedRuns } = await octokit.rest.actions.listWorkflowRunsForRepo({
+    core22.info(`Deleted branch: ${branch}`);
+  } catch (error6) {
+    if (error6 && typeof error6 === "object" && "status" in error6 && error6.status === 404) {
+      core22.info(`Branch already deleted: ${branch}`);
+      return;
+    }
+    throw error6;
+  }
+}
+async function closeIssue(octokit, owner, repo, issueNumber) {
+  try {
+    const { data: closeData, update: closeUpdate } = await parseIssue(
       owner,
       repo,
-      status: "queued",
-      per_page: 50
-    });
-    const allRuns = [...runs.workflow_runs, ...queuedRuns.workflow_runs];
-    const issuePattern = `#${issueNumber}`;
-    const currentRunId = github.context.runId;
-    for (const run2 of allRuns) {
-      if (run2.id === currentRunId) {
-        continue;
-      }
-      const runName = run2.name || "";
-      const displayTitle = run2.display_title || "";
-      const isRelated = runName.includes(issuePattern) || displayTitle.includes(issuePattern) || displayTitle.includes(`[TEST]`) || run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
-      if (isRelated) {
-        workflowRuns.push({
-          id: run2.id,
-          name: `${runName} - ${displayTitle}`,
-          status: run2.status || "unknown",
-          url: run2.html_url
-        });
-      }
-    }
-  } catch {
-  }
-  return {
-    parentIssue: {
-      number: issue2.number,
-      title: issue2.title,
-      state: issue2.state,
-      labels,
-      url: issue2.html_url
-    },
-    subIssues,
-    pullRequests: relatedPRs,
-    branches,
-    workflowRuns
-  };
-}
-function renderSnapshotMarkdown(snapshot, mode) {
-  const lines = [];
-  lines.push(`## Cleanup Summary (mode: ${mode})`);
-  lines.push("");
-  lines.push("### Resources to Clean");
-  lines.push("");
-  lines.push("#### Parent Issue");
-  lines.push(`| # | Title | State | Labels |`);
-  lines.push(`|---|-------|-------|--------|`);
-  lines.push(
-    `| [#${snapshot.parentIssue.number}](${snapshot.parentIssue.url}) | ${snapshot.parentIssue.title} | ${snapshot.parentIssue.state} | ${snapshot.parentIssue.labels.join(", ")} |`
-  );
-  lines.push("");
-  if (snapshot.subIssues.length > 0) {
-    lines.push("#### Sub-Issues");
-    lines.push(`| # | Title | State |`);
-    lines.push(`|---|-------|-------|`);
-    for (const sub of snapshot.subIssues) {
-      lines.push(
-        `| [#${sub.number}](${sub.url}) | ${sub.title} | ${sub.state} |`
-      );
-    }
-    lines.push("");
-  }
-  if (snapshot.pullRequests.length > 0) {
-    lines.push("#### Pull Requests");
-    lines.push(`| # | Title | State | Branch |`);
-    lines.push(`|---|-------|-------|--------|`);
-    for (const pr of snapshot.pullRequests) {
-      lines.push(
-        `| [#${pr.number}](${pr.url}) | ${pr.title} | ${pr.state} | \`${pr.branch}\` |`
-      );
-    }
-    lines.push("");
-  }
-  if (snapshot.branches.length > 0) {
-    lines.push("#### Branches");
-    lines.push(`| Name |`);
-    lines.push(`|------|`);
-    for (const branch of snapshot.branches) {
-      lines.push(`| \`${branch.name}\` |`);
-    }
-    lines.push("");
-  }
-  if (snapshot.workflowRuns.length > 0) {
-    lines.push("#### Active Workflow Runs");
-    lines.push(`| ID | Name | Status |`);
-    lines.push(`|---|------|--------|`);
-    for (const run2 of snapshot.workflowRuns) {
-      lines.push(`| [${run2.id}](${run2.url}) | ${run2.name} | ${run2.status} |`);
-    }
-    lines.push("");
-  }
-  return lines.join("\n");
-}
-var CleanupGraph = class {
-  octokit;
-  owner;
-  repo;
-  mode;
-  projectNumber;
-  nodes = [];
-  snapshot;
-  // Retry configuration
-  MAX_NODE_RETRIES = 10;
-  BASE_DELAY_MS = 2e3;
-  MAX_JITTER_MS = 1e3;
-  constructor(octokit, owner, repo, mode, projectNumber, snapshot) {
-    this.octokit = octokit;
-    this.owner = owner;
-    this.repo = repo;
-    this.mode = mode;
-    this.projectNumber = projectNumber;
-    this.snapshot = snapshot;
-  }
-  /**
-   * Set the project Status field to "Done" for an issue
-   */
-  async setProjectStatusDone(issueNumber) {
-    try {
-      const response = await this.octokit.graphql(
-        `query GetProjectInfo($org: String!, $repo: String!, $issueNumber: Int!) {
-          repository(owner: $org, name: $repo) {
-            issue(number: $issueNumber) {
-              projectItems(first: 10) {
-                nodes {
-                  id
-                  project {
-                    id
-                    number
-                    fields(first: 20) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          name
-                          options { id name }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }`,
-        {
-          org: this.owner,
-          repo: this.repo,
-          issueNumber
-        }
-      );
-      const projectItem = response.repository?.issue?.projectItems?.nodes?.find(
-        (item) => item.project?.number === this.projectNumber
-      );
-      if (!projectItem?.id) {
-        core22.warning(
-          `Issue #${issueNumber} not found in project ${this.projectNumber}`
-        );
-        return;
-      }
-      const projectId = projectItem.project?.id;
-      if (!projectId) {
-        core22.warning(`Project ${this.projectNumber} not found`);
-        return;
-      }
-      const statusField = projectItem.project?.fields?.nodes?.find(
-        (f) => f.name === "Status"
-      );
-      if (!statusField?.id || !statusField.options) {
-        core22.warning(`Status field not found in project ${this.projectNumber}`);
-        return;
-      }
-      const doneOption = statusField.options.find((o) => o.name === "Done");
-      if (!doneOption) {
-        core22.warning(`"Done" option not found in Status field`);
-        return;
-      }
-      await this.octokit.graphql(
-        `mutation UpdateStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-          updateProjectV2ItemFieldValue(input: {
-            projectId: $projectId
-            itemId: $itemId
-            fieldId: $fieldId
-            value: { singleSelectOptionId: $optionId }
-          }) {
-            projectV2Item { id }
-          }
-        }`,
-        {
-          projectId,
-          itemId: projectItem.id,
-          fieldId: statusField.id,
-          optionId: doneOption.id
-        }
-      );
-      core22.info(`Set issue #${issueNumber} project status to Done`);
-    } catch (error6) {
-      const errorMsg = error6 instanceof Error ? error6.message : String(error6);
-      core22.warning(
-        `Failed to set project status for issue #${issueNumber}: ${errorMsg}`
-      );
-    }
-  }
-  /**
-   * Build the cleanup graph from the snapshot
-   */
-  buildGraph() {
-    this.nodes = [];
-    for (const run2 of this.snapshot.workflowRuns) {
-      this.nodes.push({
-        type: "workflow",
-        id: String(run2.id),
-        displayName: `Workflow ${run2.id}`,
-        status: "pending"
-      });
-    }
-    for (const pr of this.snapshot.pullRequests) {
-      if (pr.state === "open") {
-        this.nodes.push({
-          type: "pr",
-          id: String(pr.number),
-          displayName: `PR #${pr.number}`,
-          status: "pending"
-        });
-      }
-    }
-    for (const branch of this.snapshot.branches) {
-      this.nodes.push({
-        type: "branch",
-        id: branch.name,
-        displayName: `Branch ${branch.name}`,
-        status: "pending"
-      });
-    }
-    for (const sub of this.snapshot.subIssues) {
-      this.nodes.push({
-        type: "sub-issue",
-        id: String(sub.number),
-        displayName: `Sub-issue #${sub.number}`,
-        status: "pending"
-      });
-    }
-    this.nodes.push({
-      type: "parent-issue",
-      id: String(this.snapshot.parentIssue.number),
-      displayName: `Parent issue #${this.snapshot.parentIssue.number}`,
-      status: "pending"
-    });
-    core22.info(`Built cleanup graph with ${this.nodes.length} nodes`);
-  }
-  /**
-   * Get nodes of a specific type that are still pending
-   */
-  getPendingByType(type) {
-    return this.nodes.filter((n) => n.type === type && n.status === "pending");
-  }
-  /**
-   * Check if all nodes of given types are verified
-   */
-  allVerified(types) {
-    return this.nodes.filter((n) => types.includes(n.type)).every((n) => n.status === "verified" || n.status === "failed");
-  }
-  /**
-   * Clean a single node with retry
-   */
-  async cleanNode(node2) {
-    node2.status = "cleaning";
-    const result = await retryWithBackoff(
-      () => this.executeCleanup(node2),
-      () => this.verifyCleanup(node2),
-      {
-        maxRetries: this.MAX_NODE_RETRIES,
-        baseDelayMs: this.BASE_DELAY_MS,
-        maxJitterMs: this.MAX_JITTER_MS,
-        operationName: node2.displayName
-      }
+      issueNumber,
+      { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false }
     );
-    if (result.success) {
-      node2.status = "verified";
-      return true;
-    } else {
-      node2.status = "failed";
-      node2.error = result.error;
-      return false;
-    }
-  }
-  /**
-   * Execute the cleanup action for a node
-   */
-  async executeCleanup(node2) {
-    switch (node2.type) {
-      case "workflow": {
-        const runId = parseInt(node2.id, 10);
-        const { data: run2 } = await this.octokit.rest.actions.getWorkflowRun({
-          owner: this.owner,
-          repo: this.repo,
-          run_id: runId
-        });
-        if (run2.status === "completed" || run2.status === "cancelled") {
-          core22.debug(
-            `Workflow ${runId} already ${run2.status}, skipping cancel`
-          );
-          break;
+    if (closeData.issue.state === "OPEN") {
+      const closedState = {
+        ...closeData,
+        issue: {
+          ...closeData.issue,
+          state: "CLOSED",
+          stateReason: "completed"
         }
-        await this.octokit.rest.actions.cancelWorkflowRun({
-          owner: this.owner,
-          repo: this.repo,
-          run_id: runId
-        });
-        break;
-      }
-      case "pr": {
-        const prNumber = parseInt(node2.id, 10);
-        await this.octokit.rest.pulls.update({
-          owner: this.owner,
-          repo: this.repo,
-          pull_number: prNumber,
+      };
+      await closeUpdate(closedState);
+      core22.info(`Closed issue #${issueNumber}`);
+    } else {
+      core22.info(`Issue #${issueNumber} already closed`);
+    }
+  } catch (error6) {
+    if (error6 && typeof error6 === "object" && "status" in error6 && (error6.status === 404 || error6.status === 410)) {
+      core22.info(`Issue #${issueNumber} already gone`);
+      return;
+    }
+    throw error6;
+  }
+}
+async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectNumber) {
+  const result = {
+    success: true,
+    cleaned: 0,
+    failed: 0,
+    skipped: 0,
+    errors: []
+  };
+  core22.info(
+    `Cleaning up test resources for issue #${issueNumber} via parseIssue`
+  );
+  const { data } = await parseIssue(owner, repo, issueNumber, {
+    octokit: asOctokitLike(octokit),
+    projectNumber,
+    fetchPRs: true,
+    fetchParent: false
+    // We ARE the parent
+  });
+  if (!data.issue.title.startsWith("[TEST]")) {
+    throw new Error(
+      `SAFETY: Issue #${issueNumber} title "${data.issue.title}" doesn't start with [TEST]. Only test issues can be cleaned up to prevent accidentally deleting real issues.`
+    );
+  }
+  core22.info(
+    `Safety check passed: Issue #${issueNumber} title starts with [TEST]`
+  );
+  const summaryLines = [
+    `## Cleanup Summary`,
+    "",
+    `### Parent: #${data.issue.number} - ${data.issue.title}`,
+    `- Sub-issues: ${data.issue.subIssues.length}`,
+    `- PR: ${data.issue.pr ? `#${data.issue.pr.number} (${data.issue.pr.state})` : "none"}`,
+    `- Branch: ${data.issue.branch || "none"}`,
+    ""
+  ];
+  if (data.issue.subIssues.length > 0) {
+    summaryLines.push("### Sub-Issues");
+    for (const sub of data.issue.subIssues) {
+      summaryLines.push(
+        `- #${sub.number}: ${sub.title} | PR: ${sub.pr ? `#${sub.pr.number}` : "none"} | Branch: ${sub.branch || "none"}`
+      );
+    }
+    summaryLines.push("");
+  }
+  await core22.summary.addRaw(summaryLines.join("\n")).write();
+  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
+  for (const sub of data.issue.subIssues) {
+    try {
+      if (sub.pr && sub.pr.state === "OPEN") {
+        await octokit.rest.pulls.update({
+          owner,
+          repo,
+          pull_number: sub.pr.number,
           state: "closed"
         });
-        break;
-      }
-      case "branch": {
-        await this.octokit.rest.git.deleteRef({
-          owner: this.owner,
-          repo: this.repo,
-          ref: `heads/${node2.id}`
-        });
-        break;
-      }
-      case "sub-issue":
-      case "parent-issue": {
-        const issueNumber = parseInt(node2.id, 10);
-        if (this.mode === "delete") {
-          const { data: issue2 } = await this.octokit.rest.issues.get({
-            owner: this.owner,
-            repo: this.repo,
-            issue_number: issueNumber
-          });
-          await this.octokit.graphql(
-            `mutation DeleteIssue($issueId: ID!) {
-              deleteIssue(input: { issueId: $issueId }) {
-                clientMutationId
-              }
-            }`,
-            { issueId: issue2.node_id }
-          );
-        } else {
-          const { data: issue2 } = await this.octokit.rest.issues.get({
-            owner: this.owner,
-            repo: this.repo,
-            issue_number: issueNumber
-          });
-          if (issue2.state === "open") {
-            await this.octokit.rest.issues.update({
-              owner: this.owner,
-              repo: this.repo,
-              issue_number: issueNumber,
-              state: "closed",
-              state_reason: "completed"
-            });
-          }
-          await this.setProjectStatusDone(issueNumber);
-        }
-        break;
-      }
-    }
-  }
-  /**
-   * Verify the cleanup action succeeded
-   */
-  async verifyCleanup(node2) {
-    try {
-      switch (node2.type) {
-        case "workflow": {
-          const runId = parseInt(node2.id, 10);
-          const { data: run2 } = await this.octokit.rest.actions.getWorkflowRun({
-            owner: this.owner,
-            repo: this.repo,
-            run_id: runId
-          });
-          return run2.status === "completed" || run2.status === "cancelled";
-        }
-        case "pr": {
-          const prNumber = parseInt(node2.id, 10);
-          const { data: pr } = await this.octokit.rest.pulls.get({
-            owner: this.owner,
-            repo: this.repo,
-            pull_number: prNumber
-          });
-          return pr.state === "closed";
-        }
-        case "branch": {
-          try {
-            await this.octokit.rest.git.getRef({
-              owner: this.owner,
-              repo: this.repo,
-              ref: `heads/${node2.id}`
-            });
-            return false;
-          } catch (error6) {
-            if (error6 && typeof error6 === "object" && "status" in error6 && error6.status === 404) {
-              return true;
-            }
-            throw error6;
-          }
-        }
-        case "sub-issue":
-        case "parent-issue": {
-          const issueNumber = parseInt(node2.id, 10);
-          if (this.mode === "delete") {
-            try {
-              await this.octokit.rest.issues.get({
-                owner: this.owner,
-                repo: this.repo,
-                issue_number: issueNumber
-              });
-              return false;
-            } catch (error6) {
-              if (error6 && typeof error6 === "object" && "status" in error6 && error6.status === 404) {
-                return true;
-              }
-              return false;
-            }
-          } else {
-            const { data: issue2 } = await this.octokit.rest.issues.get({
-              owner: this.owner,
-              repo: this.repo,
-              issue_number: issueNumber
-            });
-            return issue2.state === "closed";
-          }
-        }
-        default:
-          return false;
-      }
-    } catch (error6) {
-      core22.warning(`Verification error for ${node2.displayName}: ${error6}`);
-      return false;
-    }
-  }
-  /**
-   * Clean all nodes in dependency order
-   *
-   * Order: workflows -> PRs -> branches -> sub-issues -> parent-issue
-   */
-  async cleanAll() {
-    const result = {
-      success: true,
-      cleaned: 0,
-      failed: 0,
-      skipped: 0,
-      errors: []
-    };
-    core22.info("Phase 1: Cancelling workflow runs...");
-    const workflows = this.getPendingByType("workflow");
-    if (workflows.length > 0) {
-      await Promise.all(workflows.map((n) => this.cleanNode(n)));
-    }
-    core22.info("Phase 2: Closing PRs...");
-    for (const node2 of this.getPendingByType("pr")) {
-      await this.cleanNode(node2);
-    }
-    core22.info("Phase 3: Deleting branches...");
-    for (const node2 of this.getPendingByType("branch")) {
-      await this.cleanNode(node2);
-    }
-    core22.info("Phase 4: Closing/deleting sub-issues...");
-    for (const node2 of this.getPendingByType("sub-issue")) {
-      await this.cleanNode(node2);
-    }
-    core22.info("Phase 5: Closing/deleting parent issue...");
-    for (const node2 of this.getPendingByType("parent-issue")) {
-      await this.cleanNode(node2);
-    }
-    for (const node2 of this.nodes) {
-      if (node2.status === "verified") {
+        core22.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
         result.cleaned++;
-      } else if (node2.status === "failed") {
-        result.failed++;
-        result.success = false;
-        if (node2.error) {
-          result.errors.push(`${node2.displayName}: ${node2.error}`);
-        }
-      } else {
-        result.skipped++;
       }
-    }
-    return result;
-  }
-  /**
-   * Verify all nodes are in expected final state
-   */
-  async verifyAll() {
-    let allGood = true;
-    for (const node2 of this.nodes) {
-      if (node2.status === "verified") {
-        const stillVerified = await this.verifyCleanup(node2);
-        if (!stillVerified) {
-          core22.warning(`${node2.displayName} reverted to unclean state`);
-          node2.status = "pending";
-          allGood = false;
-        }
+      if (sub.branch) {
+        await deleteBranch(octokit, owner, repo, sub.branch);
+        result.cleaned++;
       }
+      await closeIssue(octokit, owner, repo, sub.number);
+      result.cleaned++;
+    } catch (error6) {
+      const msg = error6 instanceof Error ? error6.message : String(error6);
+      core22.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
+      result.failed++;
+      result.errors.push(`Sub-issue #${sub.number}: ${msg}`);
+      result.success = false;
     }
-    return allGood;
   }
-};
-async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, mode = "close") {
-  const MAX_TREE_RETRIES = 3;
+  try {
+    if (data.issue.pr && data.issue.pr.state === "OPEN") {
+      await octokit.rest.pulls.update({
+        owner,
+        repo,
+        pull_number: data.issue.pr.number,
+        state: "closed"
+      });
+      core22.info(`Closed parent PR #${data.issue.pr.number}`);
+      result.cleaned++;
+    }
+    if (data.issue.branch) {
+      await deleteBranch(octokit, owner, repo, data.issue.branch);
+      result.cleaned++;
+    }
+    await closeIssue(octokit, owner, repo, issueNumber);
+    result.cleaned++;
+  } catch (error6) {
+    const msg = error6 instanceof Error ? error6.message : String(error6);
+    core22.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
+    result.failed++;
+    result.errors.push(`Parent issue #${issueNumber}: ${msg}`);
+    result.success = false;
+  }
   core22.info(
-    `Cleaning up test fixture for issue #${issueNumber} (mode: ${mode})`
+    `Cleanup result: cleaned=${result.cleaned}, failed=${result.failed}`
   );
-  const { data: issue2 } = await octokit.rest.issues.get({
+  return result;
+}
+async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, _mode = "close") {
+  const result = await cleanupFromParseIssue(
+    octokit,
     owner,
     repo,
-    issue_number: issueNumber
-  });
-  const labels = issue2.labels.map(
-    (l) => typeof l === "string" ? l : l.name || ""
+    issueNumber,
+    projectNumber
   );
-  if (!labels.includes("test:automation")) {
-    throw new Error(
-      `SAFETY: Refusing to cleanup issue #${issueNumber} - it does not have the test:automation label. Labels found: [${labels.join(", ")}]. Only issues with the test:automation label can be cleaned up to prevent accidentally closing real issues.`
-    );
-  }
-  core22.info(
-    `Safety check passed: Issue #${issueNumber} has test:automation label`
-  );
-  core22.info("Step 1: Taking resource snapshot...");
-  const snapshot = await snapshotResources(octokit, owner, repo, issueNumber);
-  const summaryMarkdown = renderSnapshotMarkdown(snapshot, mode);
-  await core22.summary.addRaw(summaryMarkdown).write();
-  core22.info("Resource snapshot written to workflow summary");
-  core22.info("Step 2: Force-cancelling related workflows...");
-  await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
-  core22.info("Step 3: Building cleanup graph...");
-  let lastResult = null;
-  for (let treeAttempt = 1; treeAttempt <= MAX_TREE_RETRIES; treeAttempt++) {
-    core22.info(
-      `
-=== Tree cleanup attempt ${treeAttempt}/${MAX_TREE_RETRIES} ===`
-    );
-    const currentSnapshot = treeAttempt === 1 ? snapshot : await snapshotResources(octokit, owner, repo, issueNumber);
-    const graph = new CleanupGraph(
-      octokit,
-      owner,
-      repo,
-      mode,
-      projectNumber,
-      currentSnapshot
-    );
-    graph.buildGraph();
-    lastResult = await graph.cleanAll();
-    core22.info(
-      `Tree attempt ${treeAttempt} result: cleaned=${lastResult.cleaned}, failed=${lastResult.failed}, skipped=${lastResult.skipped}`
-    );
-    if (lastResult.success) {
-      const verified = await graph.verifyAll();
-      if (verified) {
-        core22.info("\u2713 Cleanup complete and verified");
-        return;
-      }
-      core22.warning("Cleanup completed but final verification failed");
-    }
-    if (treeAttempt < MAX_TREE_RETRIES) {
-      const treeDelay = treeAttempt * 5e3 + Math.floor(Math.random() * 2e3);
-      core22.info(`Waiting ${treeDelay}ms before tree-level retry...`);
-      await new Promise((resolve) => setTimeout(resolve, treeDelay));
-    }
-  }
-  const errorMsg = `Cleanup failed after ${MAX_TREE_RETRIES} tree-level retries. Errors: ${lastResult?.errors.join("; ") || "unknown"}`;
-  await core22.summary.addRaw("\n\n## \u274C Cleanup Failed\n\n").addRaw(`${errorMsg}
+  if (!result.success) {
+    const errorMsg = `Cleanup had failures: cleaned=${result.cleaned}, failed=${result.failed}. Errors: ${result.errors.join("; ")}`;
+    await core22.summary.addRaw("\n\n## Cleanup Warnings\n\n").addRaw(`${errorMsg}
 `).write();
-  throw new Error(errorMsg);
+    core22.warning(errorMsg);
+  }
 }
 async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
   core22.info(`Resetting issue #${issueNumber} to initial state`);
@@ -68493,19 +69128,19 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
       `Could not access project #${projectNumber}: ${error6 instanceof Error ? error6.message : String(error6)}`
     );
   }
-  const { data: issue2 } = await octokit.rest.issues.get({
+  const { data: resetData, update: resetUpdate } = await parseIssue(
     owner,
     repo,
-    issue_number: issueNumber
-  });
-  if (issue2.state === "closed") {
+    issueNumber,
+    { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false }
+  );
+  if (resetData.issue.state === "CLOSED") {
     core22.info(`Re-opening parent issue #${issueNumber}`);
-    await octokit.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      state: "open"
-    });
+    const reopenedState = {
+      ...resetData,
+      issue: { ...resetData.issue, state: "OPEN" }
+    };
+    await resetUpdate(reopenedState);
     resetCount++;
   }
   if (projectFields) {
@@ -68530,19 +69165,23 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
   const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
   for (const subIssue of subIssues) {
     if (subIssue.number) {
-      const { data: subIssueData } = await octokit.rest.issues.get({
+      const { data: subResetData, update: subResetUpdate } = await parseIssue(
         owner,
         repo,
-        issue_number: subIssue.number
-      });
-      if (subIssueData.state === "closed") {
+        subIssue.number,
+        {
+          octokit: asOctokitLike(octokit),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      if (subResetData.issue.state === "CLOSED") {
         core22.info(`Re-opening sub-issue #${subIssue.number}`);
-        await octokit.rest.issues.update({
-          owner,
-          repo,
-          issue_number: subIssue.number,
-          state: "open"
-        });
+        const subReopenedState = {
+          ...subResetData,
+          issue: { ...subResetData.issue, state: "OPEN" }
+        };
+        await subResetUpdate(subReopenedState);
         resetCount++;
       }
       if (projectFields) {
@@ -68564,18 +69203,30 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
 async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
   core22.info(`Deleting issue #${issueNumber} and all sub-issues`);
   let deleteCount = 0;
-  const { data: issue2 } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber
+  const { data: deleteCheckData } = await parseIssue(owner, repo, issueNumber, {
+    octokit: asOctokitLike(octokit),
+    fetchPRs: false,
+    fetchParent: false
   });
-  const labels = issue2.labels.map(
-    (l) => typeof l === "string" ? l : l.name || ""
-  );
+  const labels = deleteCheckData.issue.labels;
   if (!labels.includes("test:automation")) {
     throw new Error(
       `SAFETY: Refusing to delete issue #${issueNumber} - it does not have the test:automation label. Labels found: [${labels.join(", ")}]. Only issues with the test:automation label can be deleted to prevent accidentally deleting real issues.`
     );
+  }
+  const nodeIdResponse = await octokit.graphql(
+    `query GetIssueNodeId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }`,
+    { owner, repo, issueNumber }
+  );
+  const issueNodeIdForDelete = nodeIdResponse.repository?.issue?.id;
+  if (!issueNodeIdForDelete) {
+    throw new Error(`Could not get node ID for issue #${issueNumber}`);
   }
   const subResponse = await octokit.graphql(
     `query GetSubIssues($org: String!, $repo: String!, $parentNumber: Int!) {
@@ -68625,7 +69276,7 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
           clientMutationId
         }
       }`,
-      { issueId: issue2.node_id }
+      { issueId: issueNodeIdForDelete }
     );
     deleteCount++;
   } catch (error6) {
@@ -68637,12 +69288,21 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
   return { delete_count: deleteCount };
 }
 async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, projectFields) {
-  const { data: issue2 } = await octokit.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber
-  });
-  const issueNodeId = issue2.node_id;
+  const issueIdResponse = await octokit.graphql(
+    `query GetIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }`,
+    { owner, repo, issueNumber }
+  );
+  const issueNodeId = issueIdResponse.repository?.issue?.id;
+  if (!issueNodeId) {
+    core22.warning(`Could not get node ID for issue #${issueNumber}`);
+    return;
+  }
   const projectItemsResponse = await octokit.graphql(
     `query GetIssueProjectItems($owner: String!, $repo: String!, $issueNumber: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -68942,6 +69602,74 @@ async function run() {
         success: "true",
         config_path: configPath
       });
+      return;
+    }
+    if (action === "sweep") {
+      const manifestDir = path2.resolve(getRequiredInput("manifest_dir"));
+      core22.info(`Sweeping test resources from manifests in ${manifestDir}`);
+      const parentIssues = /* @__PURE__ */ new Set();
+      if (fs2.existsSync(manifestDir)) {
+        const files = fs2.readdirSync(manifestDir);
+        for (const file of files) {
+          if (!file.endsWith(".json")) continue;
+          try {
+            const content3 = fs2.readFileSync(
+              path2.join(manifestDir, file),
+              "utf-8"
+            );
+            const parsed = JSON.parse(content3);
+            if (typeof parsed.parentIssue === "number" && parsed.parentIssue > 0) {
+              parentIssues.add(parsed.parentIssue);
+            } else {
+              core22.warning(
+                `Invalid manifest in ${file}: missing or invalid parentIssue`
+              );
+            }
+          } catch (err) {
+            core22.warning(`Failed to read manifest ${file}: ${err}`);
+          }
+        }
+      }
+      core22.info(
+        `Found ${parentIssues.size} unique parent issues to sweep: ${[...parentIssues].join(", ")}`
+      );
+      let totalCleaned = 0;
+      let totalFailed = 0;
+      const sweepErrors = [];
+      for (const issueNum of parentIssues) {
+        try {
+          const result = await cleanupFromParseIssue(
+            octokit,
+            owner,
+            repo,
+            issueNum,
+            projectNumber
+          );
+          totalCleaned += result.cleaned;
+          totalFailed += result.failed;
+          sweepErrors.push(...result.errors);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          core22.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
+          sweepErrors.push(`Issue #${issueNum}: ${msg}`);
+          totalFailed++;
+        }
+      }
+      await core22.summary.addRaw(
+        `## Sweep Summary
+
+Issues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Failed: ${totalFailed}
+`
+      ).write();
+      setOutputs({
+        success: String(totalFailed === 0),
+        delete_count: String(totalCleaned)
+      });
+      if (totalFailed > 0) {
+        core22.warning(
+          `Sweep completed with ${totalFailed} failures: ${sweepErrors.join("; ")}`
+        );
+      }
       return;
     }
     core22.setFailed(`Unknown action: ${action}`);

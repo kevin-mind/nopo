@@ -9,7 +9,7 @@ import {
   getLatestHistoryEntry,
   parseAgentNotes,
   formatAgentNotesForPrompt,
-} from "../src/parser/index.js";
+} from "@more/issue-state";
 
 describe("todo-parser", () => {
   describe("parseTodoLine", () => {

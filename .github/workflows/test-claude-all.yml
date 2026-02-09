@@ -76,6 +76,35 @@ jobs:
     secrets: inherit
 
   # ============================================================================
+  # Sweep: Belt-and-suspenders cleanup of all test resources
+  # ============================================================================
+  sweep:
+    needs: [test-mock-claude, test-real-claude]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-nopo
+      - run: nopo setup-github root
+
+      - name: Download all manifests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: manifest-*
+          path: manifests
+          merge-multiple: true
+
+      - name: Sweep all test resources
+        if: hashFiles('manifests/*.json') != ''
+        uses: ./packages/statemachine/actions/sm-test-helper
+        with:
+          action: sweep
+          manifest_dir: manifests
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+  # ============================================================================
   # Claude Analysis: Analyze results and propose solutions
   # ============================================================================
   analysis:

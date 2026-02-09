@@ -1,64 +1,33 @@
 /**
- * Parser module - re-exports body section parsers from @more/issue-state
- * and provides statemachine-specific adapters.
+ * Parser module - provides statemachine-specific adapters and MDAST-based mutators/extractors.
+ *
+ * String-based section parsers from @more/issue-state are no longer re-exported.
+ * Use MDAST mutators (checkOffTodo, addHistoryEntry, etc.) with parseIssue() + update() instead.
  */
 
-// Re-export all section parsers from @more/issue-state
+// Re-export types that are still useful
+export type {
+  TodoItem,
+  TodoStats,
+  HistoryEntry,
+  AgentNotesEntry,
+  SectionContent,
+  HistoryEntryOptions,
+} from "@more/issue-state";
+
+// Re-export schema types for validation
 export {
-  // Todo parsing
-  parseTodoLine,
-  parseTodos,
-  calculateTodoStats,
-  parseTodoStats,
-  countNonManualUncheckedTodos,
-  areNonManualTodosDone,
-  parseTodosInSection,
-  parseTodoStatsInSection,
-  parseTodoSection,
-  parseTestingSection,
-  updateTodoInBody,
-  addTodoToBody,
-  checkOffTodoInBody,
-  uncheckTodoInBody,
-  // History parsing
-  HISTORY_SECTION,
-  parseHistory,
-  parseHistoryRow,
-  getLatestHistoryEntry,
-  addHistoryEntry,
-  updateHistoryEntry,
-  createHistoryRow,
-  createHistoryTable,
-  findHistoryEntries,
-  getPhaseHistory,
-  hasHistoryEntry,
-  formatHistoryCells,
-  // Agent notes parsing
-  AGENT_NOTES_SECTION,
-  parseAgentNotes,
+  TodoItemSchema,
+  TodoStatsSchema,
+  HistoryEntrySchema,
+  AgentNotesEntrySchema,
+} from "@more/issue-state";
+
+// String-based parsers still needed by callers (for prompt formatting & test state extraction)
+export {
   formatAgentNotesForPrompt,
-  appendAgentNotes,
-  removeAgentNotesSection,
-  extractAgentNotesSection,
-  // Section manipulation
-  getSection,
-  removeSection,
-  upsertSection,
-  upsertSections,
-  hasSection,
-  formatRequirements,
-  formatQuestions,
-  formatRelated,
-  STANDARD_SECTION_ORDER,
-  // Types
-  type TodoItem,
-  type TodoStats,
-  type HistoryEntry,
-  type AgentNotesEntry,
-  type SectionContent,
-  // Builders
-  HistoryEntryBuilder,
-  type HistoryEntryOptions,
+  parseTodoStats,
+  parseHistory,
 } from "@more/issue-state";
 
 // Issue adapter (statemachine-specific)
@@ -84,8 +53,10 @@ export {
   checkOffTodo,
   uncheckTodo,
   addTodo,
-  addHistoryEntry as addHistoryEntryMutator,
-  updateHistoryEntry as updateHistoryEntryMutator,
-  appendAgentNotes as appendAgentNotesMutator,
-  upsertSection as upsertSectionMutator,
+  addHistoryEntry,
+  updateHistoryEntry,
+  appendAgentNotes,
+  upsertSection,
+  applyTodoModifications,
+  replaceBody,
 } from "./mutators.js";

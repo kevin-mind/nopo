@@ -49,7 +49,9 @@ export type {
 } from "./schemas/index.js";
 
 // Markdown AST
-export { parseMarkdown, serializeMarkdown } from "./markdown/ast.js";
+export { parseMarkdown } from "./markdown/ast.js";
+/** @deprecated Use MDAST mutators instead of serialize/parse round-trips. Internal use only (diff.ts). */
+export { serializeMarkdown } from "./markdown/ast.js";
 
 // GraphQL
 export {
@@ -222,6 +224,11 @@ export {
   createDescriptionSection,
   createRequirementsSection,
 } from "./sections/index.js";
+
+// Standalone operations (not part of issue state lifecycle)
+export { createComment, updateComment } from "./comment-ops.js";
+export { listComments, listIssuesForRepo, setLabels } from "./issue-ops.js";
+export type { IssueCommentData, IssueListItem } from "./issue-ops.js";
 
 // Extractor factory
 export { createExtractor } from "./create-extractor.js";

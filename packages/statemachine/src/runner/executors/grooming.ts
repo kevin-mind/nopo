@@ -13,6 +13,9 @@ import {
   createParagraph,
   createBulletList,
   createTodoList,
+  parseIssue,
+  createComment,
+  type OctokitLike,
   type ProjectStatus,
 } from "@more/issue-state";
 import type {
@@ -20,6 +23,7 @@ import type {
   ApplyGroomingOutputAction,
 } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
+import { appendAgentNotes } from "../../parser/index.js";
 import {
   CombinedGroomingOutputSchema,
   EngineerOutputSchema,
@@ -27,6 +31,13 @@ import {
   type CombinedGroomingOutput,
   type RecommendedPhase,
 } from "./output-schemas.js";
+
+// Helper to cast RunnerContext octokit to OctokitLike
+
+function asOctokitLike(ctx: RunnerContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
+}
 
 // ============================================================================
 // Run Claude Grooming
@@ -146,11 +157,23 @@ export async function executeApplyGroomingOutput(
   if (decision === "ready") {
     // Add 'groomed' label to indicate issue is ready for implementation
     try {
-      await ctx.octokit.rest.issues.addLabels({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        labels: ["groomed"],
+      const { data, update } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        action.issueNumber,
+        {
+          octokit: asOctokitLike(ctx),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
+
+      await update({
+        ...data,
+        issue: {
+          ...data.issue,
+          labels: [...data.issue.labels, "groomed"],
+        },
       });
       core.info(`Added 'groomed' label to issue #${action.issueNumber}`);
     } catch (error) {
@@ -190,12 +213,13 @@ export async function executeApplyGroomingOutput(
 
     // Post comment with questions
     if (questions.length > 0) {
-      await ctx.octokit.rest.issues.createComment({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        body: `## Grooming Questions\n\nThe following questions need to be addressed before this issue is ready:\n\n${questions.join("\n")}`,
-      });
+      await createComment(
+        ctx.owner,
+        ctx.repo,
+        action.issueNumber,
+        `## Grooming Questions\n\nThe following questions need to be addressed before this issue is ready:\n\n${questions.join("\n")}`,
+        asOctokitLike(ctx),
+      );
     }
   }
 
@@ -260,22 +284,31 @@ async function createSubIssuesForPhases(
   // Update parent issue body with agent notes about sub-issue creation
   if (created > 0) {
     try {
-      const { data: parentIssue } = await ctx.octokit.rest.issues.get({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentIssueNumber,
-      });
+      const { data: parentData, update: parentUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber,
+        {
+          octokit: asOctokitLike(ctx),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
 
-      const existingBody = parentIssue.body || "";
-      const agentNote = `\n\n## Agent Notes\n\nGrooming complete. Sub-issues created for phased implementation.`;
-      const newBody = existingBody + agentNote;
+      const parentState = appendAgentNotes(
+        {
+          runId: `grooming-${Date.now()}`,
+          runLink: "",
+          notes: [
+            "Grooming complete. Sub-issues created for phased implementation.",
+          ],
+        },
+        parentData,
+      );
 
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentIssueNumber,
-        body: newBody,
-      });
+      if (parentState !== parentData) {
+        await parentUpdate(parentState);
+      }
       core.info(`Updated parent issue #${parentIssueNumber} with agent notes`);
     } catch (error) {
       core.warning(`Failed to update parent issue body: ${error}`);

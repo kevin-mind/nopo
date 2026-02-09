@@ -19856,8 +19856,8 @@ var require_context = __commonJS({
       }
       get repo() {
         if (process.env.GITHUB_REPOSITORY) {
-          const [owner2, repo2] = process.env.GITHUB_REPOSITORY.split("/");
-          return { owner: owner2, repo: repo2 };
+          const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+          return { owner, repo };
         }
         if (this.payload.repository) {
           return {
@@ -23310,7 +23310,7 @@ var require_dist_node9 = __commonJS({
       set(target, methodName, value) {
         return target.cache[methodName] = value;
       },
-      get({ octokit: octokit2, scope, cache: cache3 }, methodName) {
+      get({ octokit, scope, cache: cache3 }, methodName) {
         if (cache3[methodName]) {
           return cache3[methodName];
         }
@@ -23321,27 +23321,27 @@ var require_dist_node9 = __commonJS({
         const { endpointDefaults, decorations } = method;
         if (decorations) {
           cache3[methodName] = decorate(
-            octokit2,
+            octokit,
             scope,
             methodName,
             endpointDefaults,
             decorations
           );
         } else {
-          cache3[methodName] = octokit2.request.defaults(endpointDefaults);
+          cache3[methodName] = octokit.request.defaults(endpointDefaults);
         }
         return cache3[methodName];
       }
     };
-    function endpointsToMethods(octokit2) {
+    function endpointsToMethods(octokit) {
       const newMethods = {};
       for (const scope of endpointMethodsMap.keys()) {
-        newMethods[scope] = new Proxy({ octokit: octokit2, scope, cache: {} }, handler);
+        newMethods[scope] = new Proxy({ octokit, scope, cache: {} }, handler);
       }
       return newMethods;
     }
-    function decorate(octokit2, scope, methodName, defaults, decorations) {
-      const requestWithDefaults = octokit2.request.defaults(defaults);
+    function decorate(octokit, scope, methodName, defaults, decorations) {
+      const requestWithDefaults = octokit.request.defaults(defaults);
       function withDecorations(...args) {
         let options = requestWithDefaults.endpoint.merge(...args);
         if (decorations.mapToData) {
@@ -23353,12 +23353,12 @@ var require_dist_node9 = __commonJS({
         }
         if (decorations.renamed) {
           const [newScope, newMethodName] = decorations.renamed;
-          octokit2.log.warn(
+          octokit.log.warn(
             `octokit.${scope}.${methodName}() has been renamed to octokit.${newScope}.${newMethodName}()`
           );
         }
         if (decorations.deprecated) {
-          octokit2.log.warn(decorations.deprecated);
+          octokit.log.warn(decorations.deprecated);
         }
         if (decorations.renamedParameters) {
           const options2 = requestWithDefaults.endpoint.merge(...args);
@@ -23366,7 +23366,7 @@ var require_dist_node9 = __commonJS({
             decorations.renamedParameters
           )) {
             if (name in options2) {
-              octokit2.log.warn(
+              octokit.log.warn(
                 `"${name}" parameter is deprecated for "octokit.${scope}.${methodName}()". Use "${alias}" instead`
               );
               if (!(alias in options2)) {
@@ -23381,15 +23381,15 @@ var require_dist_node9 = __commonJS({
       }
       return Object.assign(withDecorations, requestWithDefaults);
     }
-    function restEndpointMethods(octokit2) {
-      const api = endpointsToMethods(octokit2);
+    function restEndpointMethods(octokit) {
+      const api = endpointsToMethods(octokit);
       return {
         rest: api
       };
     }
     restEndpointMethods.VERSION = VERSION;
-    function legacyRestEndpointMethods(octokit2) {
-      const api = endpointsToMethods(octokit2);
+    function legacyRestEndpointMethods(octokit) {
+      const api = endpointsToMethods(octokit);
       return {
         ...api,
         rest: api
@@ -23457,9 +23457,9 @@ var require_dist_node10 = __commonJS({
       response.data.total_count = totalCount;
       return response;
     }
-    function iterator(octokit2, route, parameters) {
-      const options = typeof route === "function" ? route.endpoint(parameters) : octokit2.request.endpoint(route, parameters);
-      const requestMethod = typeof route === "function" ? route : octokit2.request;
+    function iterator(octokit, route, parameters) {
+      const options = typeof route === "function" ? route.endpoint(parameters) : octokit.request.endpoint(route, parameters);
+      const requestMethod = typeof route === "function" ? route : octokit.request;
       const method = options.method;
       const headers = options.headers;
       let url = options.url;
@@ -23491,19 +23491,19 @@ var require_dist_node10 = __commonJS({
         })
       };
     }
-    function paginate(octokit2, route, parameters, mapFn) {
+    function paginate(octokit, route, parameters, mapFn) {
       if (typeof parameters === "function") {
         mapFn = parameters;
         parameters = void 0;
       }
       return gather(
-        octokit2,
+        octokit,
         [],
-        iterator(octokit2, route, parameters)[Symbol.asyncIterator](),
+        iterator(octokit, route, parameters)[Symbol.asyncIterator](),
         mapFn
       );
     }
-    function gather(octokit2, results, iterator2, mapFn) {
+    function gather(octokit, results, iterator2, mapFn) {
       return iterator2.next().then((result) => {
         if (result.done) {
           return results;
@@ -23518,7 +23518,7 @@ var require_dist_node10 = __commonJS({
         if (earlyExit) {
           return results;
         }
-        return gather(octokit2, results, iterator2, mapFn);
+        return gather(octokit, results, iterator2, mapFn);
       });
     }
     var composePaginateRest = Object.assign(paginate, {
@@ -23767,10 +23767,10 @@ var require_dist_node10 = __commonJS({
         return false;
       }
     }
-    function paginateRest(octokit2) {
+    function paginateRest(octokit) {
       return {
-        paginate: Object.assign(paginate.bind(null, octokit2), {
-          iterator: iterator.bind(null, octokit2)
+        paginate: Object.assign(paginate.bind(null, octokit), {
+          iterator: iterator.bind(null, octokit)
         })
       };
     }
@@ -28134,6 +28134,7 @@ var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
+  stateReason: external_exports.enum(["completed", "not_planned"]).optional(),
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
@@ -41901,7 +41902,8 @@ var STANDARD_SECTION_ORDER2 = [
 var upsertSection2 = createMutator(
   external_exports.object({
     title: external_exports.string(),
-    content: external_exports.string(),
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
+    content: external_exports.array(external_exports.record(external_exports.unknown())),
     sectionOrder: external_exports.array(external_exports.string()).optional()
   }),
   (input, data) => {
@@ -41909,7 +41911,6 @@ var upsertSection2 = createMutator(
     const newAst = structuredClone(ast);
     const sectionIdx = findHeadingIndex2(newAst, input.title);
     const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
-    const contentNode = createParagraphNode(input.content);
     if (sectionIdx !== -1) {
       let endIdx = sectionIdx + 1;
       for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
@@ -41922,7 +41923,7 @@ var upsertSection2 = createMutator(
       newAst.children.splice(
         sectionIdx + 1,
         endIdx - sectionIdx - 1,
-        contentNode
+        ...input.content
       );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
@@ -41939,10 +41940,66 @@ var upsertSection2 = createMutator(
         }
       }
       const heading2 = createHeadingNode(2, input.title);
-      newAst.children.splice(insertIdx, 0, heading2, contentNode);
+      newAst.children.splice(insertIdx, 0, heading2, ...input.content);
     }
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   }
+);
+var applyTodoModifications = createMutator(
+  external_exports.object({
+    modifications: external_exports.array(
+      external_exports.object({
+        action: external_exports.enum(["add", "modify", "remove"]),
+        index: external_exports.number(),
+        text: external_exports.string().optional()
+      })
+    )
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    if (todosIdx === -1) return data;
+    const listNode = newAst.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    for (const mod of input.modifications) {
+      if (mod.action === "add") {
+        const newItem = createListItemNode(mod.text || "", false);
+        if (mod.index < 0) {
+          listNode.children.splice(0, 0, newItem);
+        } else if (mod.index >= listNode.children.length) {
+          listNode.children.push(newItem);
+        } else {
+          listNode.children.splice(mod.index + 1, 0, newItem);
+        }
+      } else if (mod.action === "modify") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        item.children = [createParagraphNode(mod.text || "")];
+      } else if (mod.action === "remove") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        listNode.children.splice(mod.index, 1);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var replaceBody = createMutator(
+  external_exports.object({
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
+    bodyAst: external_exports.object({
+      type: external_exports.literal("root"),
+      children: external_exports.array(external_exports.record(external_exports.unknown()))
+    }).passthrough()
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
+  }),
+  (input, data) => ({
+    ...data,
+    issue: { ...data.issue, bodyAst: input.bodyAst }
+  })
 );
 
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
@@ -64816,6 +64873,33 @@ var TestAnalysis = promptFactory().inputs((z) => ({
 Format as GitHub-flavored markdown.` })
 ] }));
 
+// ../prompts/src/prompts/live-issue-scout.tsx
+var LiveIssueScout = promptFactory().inputs((z) => ({
+  category: z.enum([
+    "documentation",
+    "tests",
+    "performance",
+    "readability",
+    "type-safety"
+  ])
+})).outputs((z) => ({
+  title: z.string().describe("Concise issue title, imperative mood, under 80 chars"),
+  body: z.string().describe("Unstructured paragraph, max 100 words")
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("section", { title: "Purpose", children: `You are a codebase scout. Find exactly ONE small, concrete improvement
+in the "${inputs.category}" category.` }),
+  /* @__PURE__ */ jsx("section", { title: "Constraints", children: `- XS size (under 1 hour of work), touching only 1-2 files
+- Must be a real improvement, not busywork
+- If touching production code, it must be testable
+- No changes to generated files, lock files, or dist/ directories
+- No new dependencies
+- Must be something that can pass CI` }),
+  /* @__PURE__ */ jsx("section", { title: "Output Format", children: `Return a title (imperative, under 80 chars) and a body paragraph
+(max 100 words, unstructured, no markdown headings/bullets).
+Be specific about which file(s) to change and the expected outcome.
+Scope is most important, outcome is second most important.` })
+] }));
+
 // ../prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
@@ -65625,30 +65709,29 @@ var GroomingAgentOutputSchema = external_exports.object({
   ready: external_exports.boolean(),
   questions: external_exports.array(external_exports.string()).optional()
 }).passthrough();
+var RecommendedPhaseSchema = external_exports.object({
+  phase_number: external_exports.number(),
+  title: external_exports.string(),
+  description: external_exports.string(),
+  affected_areas: external_exports.array(
+    external_exports.object({
+      path: external_exports.string(),
+      change_type: external_exports.string().optional(),
+      description: external_exports.string().optional(),
+      impact: external_exports.string().optional()
+    })
+  ).optional(),
+  todos: external_exports.array(
+    external_exports.object({
+      task: external_exports.string(),
+      manual: external_exports.boolean().optional()
+    })
+  ).optional(),
+  depends_on: external_exports.array(external_exports.number()).optional()
+});
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   scope_recommendation: external_exports.enum(["direct", "split"]).optional(),
-  recommended_phases: external_exports.array(
-    external_exports.object({
-      phase_number: external_exports.number(),
-      title: external_exports.string(),
-      description: external_exports.string(),
-      affected_areas: external_exports.array(
-        external_exports.object({
-          path: external_exports.string(),
-          change_type: external_exports.string().optional(),
-          description: external_exports.string().optional(),
-          impact: external_exports.string().optional()
-        })
-      ).optional(),
-      todos: external_exports.array(
-        external_exports.object({
-          task: external_exports.string(),
-          manual: external_exports.boolean().optional()
-        })
-      ).optional(),
-      depends_on: external_exports.array(external_exports.number()).optional()
-    })
-  ).optional()
+  recommended_phases: external_exports.array(RecommendedPhaseSchema).optional()
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
@@ -65685,7 +65768,10 @@ var LegacyTriageOutputSchema = external_exports.object({
       title: external_exports.string(),
       description: external_exports.string(),
       todos: external_exports.array(
-        external_exports.union([external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }), external_exports.string()])
+        external_exports.union([
+          external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }),
+          external_exports.string()
+        ])
       )
     })
   ).optional(),
@@ -66665,11 +66751,11 @@ function emptyResult(skip = false, skipReason = "") {
     cancelInProgress: false
   };
 }
-async function addReactionToComment(octokit2, owner2, repo2, commentId, reaction) {
+async function addReactionToComment(octokit, owner, repo, commentId, reaction) {
   try {
-    await octokit2.rest.reactions.createForIssueComment({
-      owner: owner2,
-      repo: repo2,
+    await octokit.rest.reactions.createForIssueComment({
+      owner,
+      repo,
       comment_id: commentId,
       content: reaction
     });
@@ -66678,9 +66764,9 @@ async function addReactionToComment(octokit2, owner2, repo2, commentId, reaction
     core22.warning(`Failed to add reaction to comment: ${error6}`);
   }
 }
-async function addReactionToDiscussionComment(octokit2, nodeId, reaction) {
+async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
   try {
-    await octokit2.graphql(
+    await octokit.graphql(
       `
       mutation($subjectId: ID!, $content: ReactionContent!) {
         addReaction(input: {subjectId: $subjectId, content: $content}) {
@@ -66755,9 +66841,9 @@ function computeConcurrency(job, resourceNumber, parentIssue, branch) {
     cancelInProgress: false
   };
 }
-async function fetchProjectStatusForSkipCheck(octokit2, owner2, repo2, issueNumber) {
+async function fetchProjectStatusForSkipCheck(octokit, owner, repo, issueNumber) {
   try {
-    const result = await octokit2.graphql(
+    const result = await octokit.graphql(
       `
       query($owner: String!, $repo: String!, $number: Int!) {
         repository(owner: $owner, name: $repo) {
@@ -66782,7 +66868,7 @@ async function fetchProjectStatusForSkipCheck(octokit2, owner2, repo2, issueNumb
         }
       }
     `,
-      { owner: owner2, repo: repo2, number: issueNumber }
+      { owner, repo, number: issueNumber }
     );
     const items = result.repository.issue?.projectItems.nodes ?? [];
     if (items.length === 0) {
@@ -66808,8 +66894,8 @@ function shouldSkipProjectState(state) {
 function deriveBranch(parentIssueNumber, phaseNumber) {
   return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
 }
-async function fetchIssueDetails(octokit2, owner2, repo2, issueNumber) {
-  const result = await octokit2.graphql(
+async function fetchIssueDetails(octokit, owner, repo, issueNumber) {
+  const result = await octokit.graphql(
     `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -66828,8 +66914,8 @@ async function fetchIssueDetails(octokit2, owner2, repo2, issueNumber) {
     }
   `,
     {
-      owner: owner2,
-      repo: repo2,
+      owner,
+      repo,
       number: issueNumber,
       headers: {
         "GraphQL-Features": "sub_issues"
@@ -66862,14 +66948,14 @@ function extractPhaseNumber(title) {
   const match = title.match(/^\[Phase\s*(\d+)\]/i);
   return match?.[1] ? parseInt(match[1], 10) : 0;
 }
-async function fetchPrByBranch(owner2, repo2, branch) {
+async function fetchPrByBranch(owner, repo, branch) {
   const { stdout, exitCode } = await execCommand(
     "gh",
     [
       "pr",
       "list",
       "--repo",
-      `${owner2}/${repo2}`,
+      `${owner}/${repo}`,
       "--head",
       branch,
       "--json",
@@ -66979,7 +67065,7 @@ async function checkBranchExists(branch) {
   );
   return stdout.includes(branch);
 }
-async function handleIssueEvent(octokit2, owner2, repo2) {
+async function handleIssueEvent(octokit, owner, repo) {
   const { context: context2 } = github;
   const payload = context2.payload;
   const action = payload.action ?? "";
@@ -66993,9 +67079,9 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
   }
   if (isTestResource(issue2.title)) {
     const freshDetails = await fetchIssueDetails(
-      octokit2,
-      owner2,
-      repo2,
+      octokit,
+      owner,
+      repo,
       issue2.number
     );
     if (freshDetails.labels.includes("test:automation")) {
@@ -67019,7 +67105,7 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
     if (hasTriagedLabel && action !== "unlabeled") {
       return emptyResult(true, "Issue already triaged");
     }
-    const details = await fetchIssueDetails(octokit2, owner2, repo2, issue2.number);
+    const details = await fetchIssueDetails(octokit, owner, repo, issue2.number);
     const hasPhaseTitle = /^\[Phase \d+\]/.test(issue2.title);
     if (details.isSubIssue || hasPhaseTitle) {
       return emptyResult(
@@ -67058,9 +67144,9 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
     const hasNeedsInfoLabel = issue2.labels.some((l) => l.name === "needs-info");
     if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel && !isNopoBotAssigned) {
       const details = await fetchIssueDetails(
-        octokit2,
-        owner2,
-        repo2,
+        octokit,
+        owner,
+        repo,
         issue2.number
       );
       const hasPhaseTitle = /^\[Phase \d+\]/.test(issue2.title);
@@ -67082,9 +67168,9 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
     }
     if (isNopoBotAssigned) {
       const projectStatus = await fetchProjectStatusForSkipCheck(
-        octokit2,
-        owner2,
-        repo2,
+        octokit,
+        owner,
+        repo,
         issue2.number
       );
       if (shouldSkipProjectState(projectStatus)) {
@@ -67094,9 +67180,9 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
         );
       }
       const details = await fetchIssueDetails(
-        octokit2,
-        owner2,
-        repo2,
+        octokit,
+        owner,
+        repo,
         issue2.number
       );
       if (details.isSubIssue) {
@@ -67158,9 +67244,9 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
     }
     if (!hasTriagedLabel) {
       const details = await fetchIssueDetails(
-        octokit2,
-        owner2,
-        repo2,
+        octokit,
+        owner,
+        repo,
         issue2.number
       );
       const hasPhaseTitle = /^\[Phase \d+\]/.test(issue2.title);
@@ -67189,7 +67275,7 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
     );
   }
   if (action === "closed") {
-    const details = await fetchIssueDetails(octokit2, owner2, repo2, issue2.number);
+    const details = await fetchIssueDetails(octokit, owner, repo, issue2.number);
     if (!details.isSubIssue) {
       return emptyResult(true, "Closed issue is not a sub-issue");
     }
@@ -67214,9 +67300,9 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
       return emptyResult(true, "Not assigned to nopo-bot");
     }
     const projectStatus = await fetchProjectStatusForSkipCheck(
-      octokit2,
-      owner2,
-      repo2,
+      octokit,
+      owner,
+      repo,
       issue2.number
     );
     const terminalStatuses = ["Done", "Blocked", "Error"];
@@ -67226,7 +67312,7 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
         `Issue project status is '${projectStatus?.status}' - skipping iteration`
       );
     }
-    const details = await fetchIssueDetails(octokit2, owner2, repo2, issue2.number);
+    const details = await fetchIssueDetails(octokit, owner, repo, issue2.number);
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
       const branchName2 = deriveBranch(
@@ -67299,7 +67385,7 @@ async function handleIssueEvent(octokit2, owner2, repo2) {
   }
   return emptyResult(true, `Unhandled issue action: ${action}`);
 }
-async function handleIssueCommentEvent(octokit2, owner2, repo2) {
+async function handleIssueCommentEvent(octokit, owner, repo) {
   const { context: context2 } = github;
   const payload = context2.payload;
   const comment = IssueCommentPayloadSchema.parse(payload.comment);
@@ -67335,7 +67421,7 @@ async function handleIssueCommentEvent(octokit2, owner2, repo2) {
     (line) => line.startsWith("/pivot")
   );
   if (hasResetCommand && !isPr) {
-    await addReactionToComment(octokit2, owner2, repo2, comment.id, "eyes");
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
     return {
       job: "issue-reset",
       resourceType: "issue",
@@ -67351,10 +67437,10 @@ async function handleIssueCommentEvent(octokit2, owner2, repo2) {
     };
   }
   if (hasPivotCommand && !isPr) {
-    await addReactionToComment(octokit2, owner2, repo2, comment.id, "eyes");
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
     const pivotLine = comment.body.split("\n").find((l) => l.trim().startsWith("/pivot"));
     const pivotDescription = pivotLine?.replace(/^\/pivot\s*/, "").trim() || "";
-    const details = await fetchIssueDetails(octokit2, owner2, repo2, issue2.number);
+    const details = await fetchIssueDetails(octokit, owner, repo, issue2.number);
     const targetIssue = details.isSubIssue ? details.parentIssue : issue2.number;
     return {
       job: "issue-pivot",
@@ -67373,13 +67459,13 @@ async function handleIssueCommentEvent(octokit2, owner2, repo2) {
     };
   }
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && isPr) {
-    await addReactionToComment(octokit2, owner2, repo2, comment.id, "rocket");
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
     const { stdout: prJson } = await execCommand("gh", [
       "pr",
       "view",
       String(issue2.number),
       "--repo",
-      `${owner2}/${repo2}`,
+      `${owner}/${repo}`,
       "--json",
       "headRefName,reviewDecision,reviews,body,isDraft"
     ]);
@@ -67425,8 +67511,8 @@ async function handleIssueCommentEvent(octokit2, owner2, repo2) {
     };
   }
   if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
-    await addReactionToComment(octokit2, owner2, repo2, comment.id, "rocket");
-    const details = await fetchIssueDetails(octokit2, owner2, repo2, issue2.number);
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
+    const details = await fetchIssueDetails(octokit, owner, repo, issue2.number);
     if (details.isSubIssue) {
       const phaseNumber = extractPhaseNumber(details.title);
       const branchName3 = deriveBranch(
@@ -67616,9 +67702,9 @@ async function handlePushEvent() {
   if (branch.startsWith("test/")) {
     return emptyResult(true, "Push to test branch");
   }
-  const owner2 = context2.repo.owner;
-  const repo2 = context2.repo.repo;
-  const prInfo = await fetchPrByBranch(owner2, repo2, branch);
+  const owner = context2.repo.owner;
+  const repo = context2.repo.repo;
+  const prInfo = await fetchPrByBranch(owner, repo, branch);
   if (!prInfo.hasPr) {
     return emptyResult(true, "No PR found for branch");
   }
@@ -67631,11 +67717,11 @@ async function handlePushEvent() {
   const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
   const issueNumber = branchMatch?.[1] ?? "";
   if (issueNumber) {
-    const octokit2 = github.getOctokit(getRequiredInput("github_token"));
+    const octokit = github.getOctokit(getRequiredInput("github_token"));
     const details = await fetchIssueDetails(
-      octokit2,
-      owner2,
-      repo2,
+      octokit,
+      owner,
+      repo,
       Number(issueNumber)
     );
     if (details.labels.includes("test:automation")) {
@@ -67648,7 +67734,7 @@ async function handlePushEvent() {
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runId = process.env.GITHUB_RUN_ID || "";
   const commitSha = github.context.sha;
-  const runUrl = `${serverUrl}/${owner2}/${repo2}/actions/runs/${runId}`;
+  const runUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
   return {
     job: "pr-push",
     resourceType: "pr",
@@ -67678,9 +67764,9 @@ async function handleWorkflowRunEvent() {
   if (branch.startsWith("test/")) {
     return emptyResult(true, "Workflow run on test branch");
   }
-  const owner2 = context2.repo.owner;
-  const repo2 = context2.repo.repo;
-  const prInfo = await fetchPrByBranch(owner2, repo2, branch);
+  const owner = context2.repo.owner;
+  const repo = context2.repo.repo;
+  const prInfo = await fetchPrByBranch(owner, repo, branch);
   if (!prInfo.hasPr) {
     return emptyResult(true, "No PR found for workflow run branch");
   }
@@ -67693,11 +67779,11 @@ async function handleWorkflowRunEvent() {
   const issueNumber = await extractIssueNumber(prInfo.body);
   if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
   if (!issueNumber) core22.setFailed("PR has no issue number");
-  const octokit2 = github.getOctokit(getRequiredInput("github_token"));
+  const octokit = github.getOctokit(getRequiredInput("github_token"));
   const details = await fetchIssueDetails(
-    octokit2,
-    owner2,
-    repo2,
+    octokit,
+    owner,
+    repo,
     Number(issueNumber)
   );
   if (details.labels.includes("test:automation")) {
@@ -67707,7 +67793,7 @@ async function handleWorkflowRunEvent() {
     );
   }
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const ciRunUrl = `${serverUrl}/${owner2}/${repo2}/actions/runs/${runId}`;
+  const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
   return {
     job: "issue-iterate",
     resourceType: "issue",
@@ -67773,8 +67859,8 @@ async function handlePullRequestEvent(_octokit, _owner, _repo) {
 async function handlePullRequestReviewEvent() {
   const { context: context2 } = github;
   const payload = context2.payload;
-  const review = payload.review;
-  const pr = payload.pull_request;
+  const review = ReviewPayloadSchema.parse(payload.review);
+  const pr = PullRequestPayloadSchema.parse(payload.pull_request);
   if (!review?.user?.login) {
     return emptyResult(true, "Review has no user information");
   }
@@ -67875,14 +67961,14 @@ async function handlePullRequestReviewEvent() {
     skipReason: ""
   };
 }
-async function handleDiscussionEvent(octokit2, owner2, repo2) {
+async function handleDiscussionEvent(octokit, owner, repo) {
   const { context: context2 } = github;
   const payload = context2.payload;
-  const action = payload.action;
-  const discussion = payload.discussion;
+  const action = payload.action ?? "";
+  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
   let discussionLabels = [];
   try {
-    const result = await octokit2.graphql(
+    const result = await octokit.graphql(
       `
       query($owner: String!, $repo: String!, $number: Int!) {
         repository(owner: $owner, name: $repo) {
@@ -67894,7 +67980,7 @@ async function handleDiscussionEvent(octokit2, owner2, repo2) {
         }
       }
     `,
-      { owner: owner2, repo: repo2, number: discussion.number }
+      { owner, repo, number: discussion.number }
     );
     discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
   } catch (error6) {
@@ -67923,10 +68009,10 @@ async function handleDiscussionEvent(octokit2, owner2, repo2) {
   }
   return emptyResult(true, `Unhandled discussion action: ${action}`);
 }
-async function handleMergeGroupEvent(octokit2, owner2, repo2) {
+async function handleMergeGroupEvent(octokit, owner, repo) {
   const { context: context2 } = github;
   const payload = context2.payload;
-  const mergeGroup = payload.merge_group;
+  const mergeGroup = MergeGroupPayloadSchema.parse(payload.merge_group);
   const headRef = mergeGroup.head_ref;
   const prMatches = headRef.match(/pr-(\d+)/g);
   if (!prMatches || prMatches.length === 0) {
@@ -67949,7 +68035,7 @@ async function handleMergeGroupEvent(octokit2, owner2, repo2) {
       "view",
       String(prNumber),
       "--repo",
-      `${owner2}/${repo2}`,
+      `${owner}/${repo}`,
       "--json",
       "body,headRefName",
       "--jq",
@@ -67959,7 +68045,7 @@ async function handleMergeGroupEvent(octokit2, owner2, repo2) {
   );
   if (exitCode === 0 && stdout) {
     try {
-      const prData = JSON.parse(stdout);
+      const prData = GhPrBranchBodyOutputSchema.parse(JSON.parse(stdout));
       prBranch = prData.headRefName || "";
       issueNumber = await extractIssueNumber(prData.body || "");
       if (!issueNumber && prBranch) {
@@ -67975,15 +68061,15 @@ async function handleMergeGroupEvent(octokit2, owner2, repo2) {
     return emptyResult(true, "Could not find linked issue for merge queue PR");
   }
   const details = await fetchIssueDetails(
-    octokit2,
-    owner2,
-    repo2,
+    octokit,
+    owner,
+    repo,
     parseInt(issueNumber, 10)
   );
   const parentIssue = details.isSubIssue ? String(details.parentIssue) : issueNumber;
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runId = process.env.GITHUB_RUN_ID || "";
-  const ciRunUrl = `${serverUrl}/${owner2}/${repo2}/actions/runs/${runId}`;
+  const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
   return {
     job: "merge-queue-logging",
     resourceType: "issue",
@@ -68002,14 +68088,14 @@ async function handleMergeGroupEvent(octokit2, owner2, repo2) {
     skipReason: ""
   };
 }
-async function handleDiscussionCommentEvent(octokit2, owner2, repo2) {
+async function handleDiscussionCommentEvent(octokit, owner, repo) {
   const { context: context2 } = github;
   const payload = context2.payload;
-  const discussion = payload.discussion;
-  const comment = payload.comment;
+  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
+  const comment = DiscussionCommentPayloadSchema.parse(payload.comment);
   let discussionLabels = [];
   try {
-    const result = await octokit2.graphql(
+    const result = await octokit.graphql(
       `
       query($owner: String!, $repo: String!, $number: Int!) {
         repository(owner: $owner, name: $repo) {
@@ -68021,7 +68107,7 @@ async function handleDiscussionCommentEvent(octokit2, owner2, repo2) {
         }
       }
     `,
-      { owner: owner2, repo: repo2, number: discussion.number }
+      { owner, repo, number: discussion.number }
     );
     discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
   } catch (error6) {
@@ -68035,7 +68121,7 @@ async function handleDiscussionCommentEvent(octokit2, owner2, repo2) {
   const author = comment.user.login;
   const isTopLevel = !comment.parent_id;
   if (body === "/summarize") {
-    await addReactionToDiscussionComment(octokit2, comment.node_id, "EYES");
+    await addReactionToDiscussionComment(octokit, comment.node_id, "EYES");
     return {
       job: "discussion-summarize",
       resourceType: "discussion",
@@ -68052,7 +68138,7 @@ async function handleDiscussionCommentEvent(octokit2, owner2, repo2) {
     };
   }
   if (body === "/plan") {
-    await addReactionToDiscussionComment(octokit2, comment.node_id, "ROCKET");
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
     return {
       job: "discussion-plan",
       resourceType: "discussion",
@@ -68069,7 +68155,7 @@ async function handleDiscussionCommentEvent(octokit2, owner2, repo2) {
     };
   }
   if (body === "/complete") {
-    await addReactionToDiscussionComment(octokit2, comment.node_id, "THUMBS_UP");
+    await addReactionToDiscussionComment(octokit, comment.node_id, "THUMBS_UP");
     return {
       job: "discussion-complete",
       resourceType: "discussion",
@@ -68086,7 +68172,7 @@ async function handleDiscussionCommentEvent(octokit2, owner2, repo2) {
     };
   }
   if (body === "/lfg" || body === "/research") {
-    await addReactionToDiscussionComment(octokit2, comment.node_id, "ROCKET");
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
     return {
       job: "discussion-research",
       resourceType: "discussion",
@@ -68131,7 +68217,7 @@ async function handleDiscussionCommentEvent(octokit2, owner2, repo2) {
   }
   return emptyResult(true, "Bot comment - preventing infinite loop");
 }
-async function handleWorkflowDispatchEvent(octokit2, owner2, repo2, resourceNumber) {
+async function handleWorkflowDispatchEvent(octokit, owner, repo, resourceNumber) {
   if (!resourceNumber) {
     return emptyResult(
       true,
@@ -68143,11 +68229,11 @@ async function handleWorkflowDispatchEvent(octokit2, owner2, repo2, resourceNumb
     return emptyResult(true, `Invalid resource_number: ${resourceNumber}`);
   }
   core22.info(`Workflow dispatch for issue #${issueNumber}`);
-  const details = await fetchIssueDetails(octokit2, owner2, repo2, issueNumber);
+  const details = await fetchIssueDetails(octokit, owner, repo, issueNumber);
   const projectStatus = await fetchProjectStatusForSkipCheck(
-    octokit2,
-    owner2,
-    repo2,
+    octokit,
+    owner,
+    repo,
     issueNumber
   );
   if (shouldSkipProjectState(projectStatus)) {
@@ -68242,20 +68328,20 @@ async function run() {
   try {
     const token = getRequiredInput("github_token");
     const resourceNumber = getOptionalInput("resource_number") || "";
-    const octokit2 = github.getOctokit(token);
+    const octokit = github.getOctokit(token);
     const { context: context2 } = github;
     const eventName = context2.eventName;
-    const owner2 = context2.repo.owner;
-    const repo2 = context2.repo.repo;
+    const owner = context2.repo.owner;
+    const repo = context2.repo.repo;
     process.env.GH_TOKEN = token;
     core22.info(`Processing event: ${eventName}`);
     let result;
     switch (eventName) {
       case "issues":
-        result = await handleIssueEvent(octokit2, owner2, repo2);
+        result = await handleIssueEvent(octokit, owner, repo);
         break;
       case "issue_comment":
-        result = await handleIssueCommentEvent(octokit2, owner2, repo2);
+        result = await handleIssueCommentEvent(octokit, owner, repo);
         break;
       case "pull_request_review_comment":
         result = await handlePullRequestReviewCommentEvent();
@@ -68267,25 +68353,25 @@ async function run() {
         result = await handleWorkflowRunEvent();
         break;
       case "pull_request":
-        result = await handlePullRequestEvent(octokit2, owner2, repo2);
+        result = await handlePullRequestEvent(octokit, owner, repo);
         break;
       case "pull_request_review":
         result = await handlePullRequestReviewEvent();
         break;
       case "discussion":
-        result = await handleDiscussionEvent(octokit2, owner2, repo2);
+        result = await handleDiscussionEvent(octokit, owner, repo);
         break;
       case "discussion_comment":
-        result = await handleDiscussionCommentEvent(octokit2, owner2, repo2);
+        result = await handleDiscussionCommentEvent(octokit, owner, repo);
         break;
       case "merge_group":
-        result = await handleMergeGroupEvent(octokit2, owner2, repo2);
+        result = await handleMergeGroupEvent(octokit, owner, repo);
         break;
       case "workflow_dispatch":
         result = await handleWorkflowDispatchEvent(
-          octokit2,
-          owner2,
-          repo2,
+          octokit,
+          owner,
+          repo,
           resourceNumber
         );
         break;
@@ -68299,8 +68385,8 @@ async function run() {
       core22.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
     }
     const ctx = result.contextJson;
-    const parentIssue = ctx.parent_issue || "0";
-    const branch = ctx.branch_name || "";
+    const parentIssue = String(ctx.parent_issue ?? "0");
+    const branch = String(ctx.branch_name ?? "");
     const trigger = jobToTrigger(result.job, JSON.stringify(ctx));
     core22.info(`Trigger: ${trigger}`);
     const concurrency = computeConcurrency(
@@ -68314,8 +68400,7 @@ async function run() {
     const unifiedContext = {
       // Routing & control
       job: result.job,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- jobToTrigger returns string but it maps to TriggerType values
-      trigger,
+      trigger: TriggerTypeSchema.parse(trigger),
       resource_type: result.resourceType,
       resource_number: result.resourceNumber,
       parent_issue: parentIssue,

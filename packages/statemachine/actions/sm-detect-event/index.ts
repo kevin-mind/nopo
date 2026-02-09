@@ -566,38 +566,6 @@ async function checkBranchExists(branch: string): Promise<boolean> {
   return stdout.includes(branch);
 }
 
-async function _buildIssueSection(
-  _octokit: ReturnType<typeof github.getOctokit>,
-  _owner: string,
-  _repo: string,
-  prBody: string,
-): Promise<string> {
-  const issueNumber = await extractIssueNumber(prBody);
-  if (!issueNumber) {
-    return "## No Linked Issue\nPerforming standard code review.\n";
-  }
-
-  try {
-    const { data: issue } = await octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: parseInt(issueNumber, 10),
-    });
-
-    return `## Linked Issue #${issueNumber}
-
-${issue.body ?? ""}
-
-## Validation
-- CHECK ALL TODO ITEMS in the issue are addressed
-- VERIFY code follows CLAUDE.md guidelines
-- ENSURE tests cover the requirements
-`;
-  } catch {
-    return "## No Linked Issue\nPerforming standard code review.\n";
-  }
-}
-
 async function handleIssueEvent(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,

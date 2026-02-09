@@ -21,6 +21,7 @@ import {
   claudeMachine,
   buildMachineContext,
   formatAgentNotesForPrompt,
+  agentNotesExtractor,
   type TriggerType,
   // Discussion machine
   discussionMachine,
@@ -444,7 +445,13 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
     : "";
 
   // Format agent notes for prompt injection
-  const agentNotes = formatAgentNotesForPrompt(context.issue.agentNotes);
+  const agentNotesEntries = agentNotesExtractor({
+    owner,
+    repo,
+    issue: context.issue,
+    parentIssue: context.parentIssue ?? null,
+  });
+  const agentNotes = formatAgentNotesForPrompt(agentNotesEntries);
 
   // Context-only mode: return context without running state machine
   if (mode === "context") {

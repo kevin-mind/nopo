@@ -10,6 +10,9 @@ import {
   ADD_DISCUSSION_COMMENT_MUTATION,
   UPDATE_DISCUSSION_COMMENT_MUTATION,
   ADD_REACTION_MUTATION,
+  createComment,
+  updateComment,
+  type OctokitLike,
 } from "@more/issue-state";
 import type {
   Octokit,
@@ -31,6 +34,11 @@ interface SignalContext {
   job: string;
   runUrl: string;
   triggerCommentId?: string;
+}
+
+function asOctokitLike(ctx: SignalContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
 }
 
 // ============================================================================
@@ -199,15 +207,16 @@ export async function signalStart(
   }
 
   // For issues and PRs, use the issues API (PRs are issues in GitHub)
-  const { data: comment } = await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: ctx.resourceNumber,
+  const { commentId } = await createComment(
+    ctx.owner,
+    ctx.repo,
+    ctx.resourceNumber,
     body,
-  });
+    asOctokitLike(ctx),
+  );
 
-  core.info(`Created status comment: ${comment.id}`);
-  return String(comment.id);
+  core.info(`Created status comment: ${commentId}`);
+  return String(commentId);
 }
 
 /**
@@ -255,12 +264,13 @@ export async function signalEnd(
       });
     } else {
       // Use REST API for issue/PR comments
-      await ctx.octokit.rest.issues.updateComment({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        comment_id: parseInt(statusCommentId, 10),
+      await updateComment(
+        ctx.owner,
+        ctx.repo,
+        parseInt(statusCommentId, 10),
         body,
-      });
+        asOctokitLike(ctx),
+      );
     }
     core.info(`Updated status comment ${statusCommentId} to ${result}`);
   } catch (error) {

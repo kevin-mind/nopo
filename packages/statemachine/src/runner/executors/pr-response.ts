@@ -6,6 +6,7 @@
 
 import * as core from "@actions/core";
 import * as fs from "node:fs";
+import { parseIssue, createComment, type OctokitLike } from "@more/issue-state";
 import type { ApplyPRResponseOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import { appendAgentNotes } from "../../parser/index.js";
@@ -14,6 +15,13 @@ import {
   parseOutput,
   type PRResponseOutput,
 } from "./output-schemas.js";
+
+// Helper to cast RunnerContext octokit to OctokitLike
+
+function asOctokitLike(ctx: RunnerContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
+}
 
 // ============================================================================
 // Apply PR Response Output
@@ -89,12 +97,13 @@ export async function executeApplyPRResponseOutput(
   }
 
   // 1. Post the summary as a PR comment
-  await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.prNumber,
-    body: responseOutput.summary,
-  });
+  await createComment(
+    ctx.owner,
+    ctx.repo,
+    action.prNumber,
+    responseOutput.summary,
+    asOctokitLike(ctx),
+  );
 
   core.info(`Posted response comment on PR #${action.prNumber}`);
 
@@ -125,27 +134,24 @@ export async function executeApplyPRResponseOutput(
       ctx.runUrl ||
       `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
 
-    // Fetch current issue body
-    const issue = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-    });
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit: asOctokitLike(ctx),
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
 
-    const currentBody = issue.data.body || "";
-    const updatedBody = appendAgentNotes(currentBody, {
-      runId,
-      runLink,
-      notes: responseOutput.agent_notes,
-    });
+    const state = appendAgentNotes(
+      { runId, runLink, notes: responseOutput.agent_notes },
+      data,
+    );
 
-    if (updatedBody !== currentBody) {
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        body: updatedBody,
-      });
+    if (state !== data) {
+      await update(state);
 
       core.info(
         `Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`,

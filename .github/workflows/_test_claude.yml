@@ -83,12 +83,30 @@ jobs:
           reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
 
+      - name: Upload resource manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-${{ inputs.mode }}-${{ inputs.scenario_name }}
+          path: /tmp/test-resource-manifest.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Read manifest for issue number
+        if: always() && steps.run.outputs.issue_number == ''
+        id: manifest
+        run: |
+          if [ -f /tmp/test-resource-manifest.json ]; then
+            ISSUE=$(jq -r '.parentIssue // empty' /tmp/test-resource-manifest.json)
+            echo "issue_number=$ISSUE" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Cleanup
-        if: always() && steps.run.outputs.issue_number != ''
+        if: always() && (steps.run.outputs.issue_number != '' || steps.manifest.outputs.issue_number != '')
         uses: ./packages/statemachine/actions/sm-test-helper
         with:
           action: cleanup
-          issue_number: ${{ steps.run.outputs.issue_number }}
+          issue_number: ${{ steps.run.outputs.issue_number || steps.manifest.outputs.issue_number }}
           github_token: ${{ env.GH_TOKEN }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           cleanup_mode: close

@@ -2,165 +2,37 @@
  * Pivot Executor
  *
  * Applies pivot output from Claude's structured analysis.
- * TODO: Full implementation to be migrated from .github/statemachine
+ * Uses parseIssue + MDAST mutators + update pattern (no direct octokit.rest.issues calls).
  */
 
 import * as core from "@actions/core";
 import * as fs from "fs";
-import { ADD_SUB_ISSUE_MUTATION } from "@more/issue-state";
+import {
+  addSubIssueToParent,
+  parseMarkdown,
+  createComment,
+  parseIssue,
+  type OctokitLike,
+} from "@more/issue-state";
+import type { RootContent } from "mdast";
 import type { ApplyPivotOutputAction } from "../../schemas/index.js";
+import {
+  upsertSection,
+  applyTodoModifications,
+  replaceBody,
+} from "../../parser/index.js";
 import type { RunnerContext } from "../types.js";
 import {
   PivotOutputSchema,
   parseOutput,
   type PivotOutput,
-  type TodoModification,
 } from "./output-schemas.js";
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
+// Helper to cast RunnerContext octokit to OctokitLike
 
-/**
- * Upsert a section in a markdown body
- * Simple version - inserts or updates a ## section
- */
-function upsertSectionInBody(
-  body: string,
-  sectionName: string,
-  content: string,
-): string {
-  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(
-    `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
-    "i",
-  );
-
-  if (pattern.test(body)) {
-    // Section exists - replace it
-    return body.replace(pattern, `$1\n${content}\n`).trim();
-  } else {
-    // Section doesn't exist - append it
-    return `${body.trim()}\n\n## ${sectionName}\n\n${content}`;
-  }
-}
-
-/**
- * Apply todo modifications to an issue body
- *
- * Modifications are applied in order with index recalculation after each operation:
- * - add: inserts a new unchecked todo after the specified index (-1 for prepend)
- * - modify: changes the text of an unchecked todo at the index
- * - remove: deletes an unchecked todo at the index
- *
- * Safety: This function refuses to modify checked todos ([x])
- */
-function applyTodoModifications(
-  body: string,
-  modifications: TodoModification[],
-): string {
-  const lines = body.split("\n");
-
-  // Build array of todo line indices and their content
-  interface TodoEntry {
-    lineIndex: number;
-    checked: boolean;
-    text: string;
-  }
-
-  const todos: TodoEntry[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    const match = line.match(/^- \[([ x])\] (.*)$/);
-    if (match) {
-      todos.push({
-        lineIndex: i,
-        checked: match[1] === "x",
-        text: match[2] || "",
-      });
-    }
-  }
-
-  // Apply modifications in order
-  for (const mod of modifications) {
-    const todoIndex = mod.index;
-
-    if (mod.action === "add") {
-      // Add inserts AFTER the specified index (-1 means prepend)
-      const insertLineIndex =
-        todoIndex < 0
-          ? todos.length > 0
-            ? todos[0]!.lineIndex
-            : lines.length
-          : todoIndex < todos.length
-            ? todos[todoIndex]!.lineIndex + 1
-            : lines.length;
-
-      const newLine = `- [ ] ${mod.text || ""}`;
-      lines.splice(insertLineIndex, 0, newLine);
-
-      // Recalculate todos
-      todos.length = 0;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
-        const match = line.match(/^- \[([ x])\] (.*)$/);
-        if (match) {
-          todos.push({
-            lineIndex: i,
-            checked: match[1] === "x",
-            text: match[2] || "",
-          });
-        }
-      }
-    } else if (mod.action === "modify") {
-      if (todoIndex < 0 || todoIndex >= todos.length) {
-        core.warning(`Cannot modify todo at index ${todoIndex}: out of bounds`);
-        continue;
-      }
-
-      const todo = todos[todoIndex]!;
-      if (todo.checked) {
-        core.warning(
-          `Cannot modify checked todo at index ${todoIndex}: safety constraint`,
-        );
-        continue;
-      }
-
-      lines[todo.lineIndex] = `- [ ] ${mod.text || ""}`;
-      todo.text = mod.text || "";
-    } else if (mod.action === "remove") {
-      if (todoIndex < 0 || todoIndex >= todos.length) {
-        core.warning(`Cannot remove todo at index ${todoIndex}: out of bounds`);
-        continue;
-      }
-
-      const todo = todos[todoIndex]!;
-      if (todo.checked) {
-        core.warning(
-          `Cannot remove checked todo at index ${todoIndex}: safety constraint`,
-        );
-        continue;
-      }
-
-      lines.splice(todo.lineIndex, 1);
-
-      // Recalculate todos
-      todos.length = 0;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
-        const match = line.match(/^- \[([ x])\] (.*)$/);
-        if (match) {
-          todos.push({
-            lineIndex: i,
-            checked: match[1] === "x",
-            text: match[2] || "",
-          });
-        }
-      }
-    }
-  }
-
-  return lines.join("\n");
+function asOctokitLike(ctx: RunnerContext): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible types
+  return ctx.octokit as unknown as OctokitLike;
 }
 
 // ============================================================================
@@ -177,8 +49,6 @@ function applyTodoModifications(
  *
  * After applying changes, posts a summary comment explaining what changed.
  * This is a terminal action - user must review and /lfg to continue.
- *
- * TODO: Full implementation with safety validations
  */
 export async function executeApplyPivotOutput(
   action: ApplyPivotOutputAction,
@@ -213,23 +83,25 @@ export async function executeApplyPivotOutput(
   // Handle different outcomes
   if (pivotOutput.outcome === "needs_clarification") {
     core.info("Pivot needs clarification - posting comment and exiting");
-    await ctx.octokit.rest.issues.createComment({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: `## Pivot Needs Clarification\n\n${pivotOutput.clarification_needed || pivotOutput.summary_for_user}\n\n*Please provide more details and try again.*`,
-    });
+    await createComment(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      `## Pivot Needs Clarification\n\n${pivotOutput.clarification_needed || pivotOutput.summary_for_user}\n\n*Please provide more details and try again.*`,
+      asOctokitLike(ctx),
+    );
     return { applied: false, changesApplied: 0 };
   }
 
   if (pivotOutput.outcome === "no_changes_needed") {
     core.info("No changes needed");
-    await ctx.octokit.rest.issues.createComment({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: `## Pivot Analysis\n\n${pivotOutput.summary_for_user}\n\n*No changes were required.*`,
-    });
+    await createComment(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      `## Pivot Analysis\n\n${pivotOutput.summary_for_user}\n\n*No changes were required.*`,
+      asOctokitLike(ctx),
+    );
     return { applied: true, changesApplied: 0 };
   }
 
@@ -262,27 +134,33 @@ export async function executeApplyPivotOutput(
 
   // Apply parent issue section updates
   if (mods?.parent_issue?.update_sections) {
-    const { data: parentIssue } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-    });
+    const { data: parentData, update: parentUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit: asOctokitLike(ctx),
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
 
-    let updatedBody = parentIssue.body || "";
-
+    let parentState = parentData;
     for (const [section, content] of Object.entries(
       mods.parent_issue.update_sections,
     )) {
       core.info(`Updating parent issue section "${section}"`);
-      updatedBody = upsertSectionInBody(updatedBody, section, content);
+      const sectionAst = parseMarkdown(content);
+      const sectionContent: RootContent[] =
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast children are RootContent[]
+        sectionAst.children as RootContent[];
+      parentState = upsertSection(
+        { title: section, content: sectionContent },
+        parentState,
+      );
     }
 
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: updatedBody,
-    });
+    await parentUpdate(parentState);
     core.info(`Updated parent issue body`);
   }
 
@@ -293,39 +171,39 @@ export async function executeApplyPivotOutput(
 
       core.info(`Modifying sub-issue #${subIssue.issue_number}`);
 
-      // Fetch sub-issue body
-      const { data: issueData } = await ctx.octokit.rest.issues.get({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssue.issue_number,
-      });
+      const { data: subData, update: subUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        subIssue.issue_number,
+        {
+          octokit: asOctokitLike(ctx),
+          fetchPRs: false,
+          fetchParent: false,
+        },
+      );
 
-      let updatedBody = issueData.body || "";
+      let subState = subData;
 
       // Apply todo modifications
       if (
         subIssue.todo_modifications &&
         subIssue.todo_modifications.length > 0
       ) {
-        updatedBody = applyTodoModifications(
-          updatedBody,
-          subIssue.todo_modifications,
+        subState = applyTodoModifications(
+          { modifications: subIssue.todo_modifications },
+          subState,
         );
       }
 
       // Apply description update
       if (subIssue.update_description) {
-        updatedBody = subIssue.update_description;
+        subState = replaceBody(
+          { bodyAst: parseMarkdown(subIssue.update_description) },
+          subState,
+        );
       }
 
-      // Update the sub-issue
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssue.issue_number,
-        body: updatedBody,
-      });
-
+      await subUpdate(subState);
       core.info(`Updated sub-issue #${subIssue.issue_number}`);
     }
   }
@@ -337,45 +215,40 @@ export async function executeApplyPivotOutput(
     for (const newSubIssue of mods.new_sub_issues) {
       // Build body with todos
       const todoList = newSubIssue.todos.map((t) => `- [ ] ${t}`).join("\n");
-      const body = `${newSubIssue.description}\n\n## Todo\n\n${todoList}`;
+      const bodyText = `${newSubIssue.description}\n\n## Todo\n\n${todoList}`;
+      const bodyAst = parseMarkdown(bodyText);
 
-      const { data: createdIssue } = await ctx.octokit.rest.issues.create({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        title: newSubIssue.title,
-        body,
-      });
-
-      core.info(
-        `Created sub-issue #${createdIssue.number}: ${newSubIssue.title} (${newSubIssue.reason})`,
-      );
-
-      // Link to parent using GraphQL
       try {
-        const { data: parentIssue } = await ctx.octokit.rest.issues.get({
-          owner: ctx.owner,
-          repo: ctx.repo,
-          issue_number: action.issueNumber,
-        });
+        const result = await addSubIssueToParent(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          { title: newSubIssue.title, body: bodyAst },
+          {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+            octokit: asOctokitLike(ctx) as Parameters<
+              typeof addSubIssueToParent
+            >[4]["octokit"],
+          },
+        );
 
-        await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
-          parentId: parentIssue.node_id,
-          childId: createdIssue.node_id,
-        });
-        core.info(`Linked sub-issue #${createdIssue.number} to parent`);
+        core.info(
+          `Created sub-issue #${result.issueNumber}: ${newSubIssue.title} (${newSubIssue.reason})`,
+        );
       } catch (error) {
-        core.warning(`Failed to link sub-issue via GraphQL: ${error}`);
+        core.warning(`Failed to create sub-issue: ${error}`);
       }
     }
   }
 
   // Post summary comment
-  await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: `## Pivot Applied\n\n${pivotOutput.summary_for_user}\n\n*${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`,
-  });
+  await createComment(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    `## Pivot Applied\n\n${pivotOutput.summary_for_user}\n\n*${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`,
+    asOctokitLike(ctx),
+  );
 
   core.info(`Applied ${changesApplied} pivot changes`);
   return { applied: true, changesApplied };

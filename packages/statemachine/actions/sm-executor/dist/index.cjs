@@ -28134,6 +28134,7 @@ var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
   state: IssueStateSchema,
+  stateReason: external_exports.enum(["completed", "not_planned"]).optional(),
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
@@ -40310,19 +40311,171 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
   bullet: "-",
   listItemIndent: "one"
 });
+function parseMarkdown(markdown) {
+  return parser.parse(markdown);
+}
 function serializeMarkdown(ast) {
   return serializer.stringify(ast);
 }
 
 // ../issue-state/src/graphql/issue-queries.ts
-var GET_ISSUE_BODY_QUERY = `
-query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
+var GET_ISSUE_WITH_PROJECT_QUERY = `
+query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $issueNumber) {
       id
+      number
+      title
       body
+      state
+      assignees(first: 10) {
+        nodes {
+          login
+        }
+      }
+      labels(first: 20) {
+        nodes {
+          name
+        }
+      }
       parent {
         number
+      }
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      subIssues(first: 20) {
+        nodes {
+          id
+          number
+          title
+          body
+          state
+          projectItems(first: 10) {
+            nodes {
+              project {
+                number
+              }
+              fieldValues(first: 20) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                    field {
+                      ... on ProjectV2SingleSelectField {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      comments(first: 50) {
+        nodes {
+          id
+          author {
+            login
+          }
+          body
+          createdAt
+        }
+      }
+    }
+  }
+}
+`;
+var GET_PR_FOR_BRANCH_QUERY = `
+query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(first: 1, headRefName: $headRef, states: [OPEN, MERGED]) {
+      nodes {
+        number
+        title
+        state
+        isDraft
+        headRefName
+        baseRefName
+        url
+        mergeable
+        reviewDecision
+        reviews(first: 50) {
+          totalCount
+        }
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var GET_ISSUE_LINKED_PRS_QUERY = `
+query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+        nodes {
+          ... on CrossReferencedEvent {
+            source {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+          ... on ConnectedEvent {
+            subject {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -40600,6 +40753,522 @@ mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
 }
 `;
 
+// ../issue-state/src/diff.ts
+function setDifference(a, b) {
+  const bSet = new Set(b);
+  return a.filter((x) => !bSet.has(x));
+}
+function computeDiff(original, updated) {
+  const originalBody = serializeMarkdown(original.bodyAst);
+  const updatedBody = serializeMarkdown(updated.bodyAst);
+  return {
+    bodyChanged: originalBody !== updatedBody,
+    titleChanged: original.title !== updated.title,
+    stateChanged: original.state !== updated.state,
+    labelsAdded: setDifference(updated.labels, original.labels),
+    labelsRemoved: setDifference(original.labels, updated.labels),
+    assigneesAdded: setDifference(updated.assignees, original.assignees),
+    assigneesRemoved: setDifference(original.assignees, updated.assignees),
+    projectStatusChanged: original.projectStatus !== updated.projectStatus,
+    iterationChanged: original.iteration !== updated.iteration,
+    failuresChanged: original.failures !== updated.failures
+  };
+}
+
+// ../issue-state/src/project-helpers.ts
+async function getProjectFieldInfo(octokit, owner, repo, issueNumber, projectNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_PROJECT_ITEM_QUERY,
+      {
+        org: owner,
+        repo,
+        issueNumber,
+        projectNumber
+      }
+    );
+    const project = response.organization?.projectV2;
+    if (!project) {
+      return null;
+    }
+    let projectItemId = null;
+    const projectItems = response.repository?.issue?.projectItems?.nodes || [];
+    for (const item of projectItems) {
+      if (item.project?.number === projectNumber) {
+        projectItemId = item.id;
+        break;
+      }
+    }
+    let statusFieldId = null;
+    const statusOptions = /* @__PURE__ */ new Map();
+    let iterationFieldId = null;
+    let failuresFieldId = null;
+    for (const field of project.fields.nodes) {
+      if (field.name === "Status" && field.options) {
+        statusFieldId = field.id;
+        for (const option of field.options) {
+          statusOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Iteration" && field.dataType === "NUMBER") {
+        iterationFieldId = field.id;
+      } else if (field.name === "Failures" && field.dataType === "NUMBER") {
+        failuresFieldId = field.id;
+      }
+    }
+    return {
+      projectId: project.id,
+      projectItemId,
+      statusFieldId,
+      statusOptions,
+      iterationFieldId,
+      failuresFieldId
+    };
+  } catch {
+    return null;
+  }
+}
+async function updateProjectField(octokit, projectId, itemId, fieldId, value) {
+  await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+async function updateProjectFields(octokit, owner, repo, issueNumber, projectNumber, fields) {
+  const fieldInfo = await getProjectFieldInfo(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber
+  );
+  if (!fieldInfo) {
+    return;
+  }
+  const projectItemId = fieldInfo.projectItemId;
+  if (!projectItemId) {
+    return;
+  }
+  const fieldUpdates = [];
+  if (fields.status !== void 0 && fieldInfo.statusFieldId) {
+    const optionId = fields.status ? fieldInfo.statusOptions.get(fields.status) : null;
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.statusFieldId,
+          { singleSelectOptionId: optionId }
+        )
+      );
+    }
+  }
+  if (fields.iteration !== void 0 && fieldInfo.iterationFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.iterationFieldId,
+        { number: fields.iteration }
+      )
+    );
+  }
+  if (fields.failures !== void 0 && fieldInfo.failuresFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.failuresFieldId,
+        { number: fields.failures }
+      )
+    );
+  }
+  await Promise.all(fieldUpdates);
+}
+
+// ../issue-state/src/update-issue.ts
+async function updateIssue(original, updated, octokit, options = {}) {
+  const { owner, repo } = updated;
+  const diff = computeDiff(original.issue, updated.issue);
+  const { projectNumber } = options;
+  const promises = [];
+  if (diff.bodyChanged || diff.titleChanged) {
+    const updateParams = {
+      owner,
+      repo,
+      issue_number: updated.issue.number
+    };
+    if (diff.bodyChanged) {
+      updateParams.body = serializeMarkdown(updated.issue.bodyAst);
+    }
+    if (diff.titleChanged) {
+      updateParams.title = updated.issue.title;
+    }
+    promises.push(octokit.rest.issues.update(updateParams));
+  }
+  if (diff.stateChanged) {
+    const stateParams = {
+      owner,
+      repo,
+      issue_number: updated.issue.number,
+      state: updated.issue.state === "OPEN" ? "open" : "closed"
+    };
+    if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+      stateParams.state_reason = updated.issue.stateReason;
+    }
+    promises.push(octokit.rest.issues.update(stateParams));
+  }
+  if (diff.labelsAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        labels: diff.labelsAdded
+      })
+    );
+  }
+  for (const label of diff.labelsRemoved) {
+    promises.push(
+      octokit.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        name: label
+      })
+    );
+  }
+  if (diff.assigneesAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesAdded
+      })
+    );
+  }
+  if (diff.assigneesRemoved.length > 0) {
+    promises.push(
+      octokit.rest.issues.removeAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesRemoved
+      })
+    );
+  }
+  if (projectNumber && (diff.projectStatusChanged || diff.iterationChanged || diff.failuresChanged)) {
+    const fieldsToUpdate = {};
+    if (diff.projectStatusChanged) {
+      fieldsToUpdate.status = updated.issue.projectStatus;
+    }
+    if (diff.iterationChanged) {
+      fieldsToUpdate.iteration = updated.issue.iteration;
+    }
+    if (diff.failuresChanged) {
+      fieldsToUpdate.failures = updated.issue.failures;
+    }
+    promises.push(
+      updateProjectFields(
+        octokit,
+        owner,
+        repo,
+        updated.issue.number,
+        projectNumber,
+        fieldsToUpdate
+      )
+    );
+  }
+  await Promise.all(promises);
+}
+
+// ../issue-state/src/parse-issue.ts
+function buildUpdateOptions(options) {
+  return {
+    projectNumber: options.projectNumber
+  };
+}
+function parseProjectState(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      status = ProjectStatusSchema.parse(fieldValue.name);
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+function parseSubIssueStatus(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem?.fieldValues?.nodes) {
+    return null;
+  }
+  for (const fieldValue of projectItem.fieldValues.nodes) {
+    if (fieldValue.field?.name === "Status" && fieldValue.name) {
+      return ProjectStatusSchema.parse(fieldValue.name);
+    }
+  }
+  return null;
+}
+function deriveBranchName(parentIssueNumber, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber}`;
+}
+function parseIssueComments(commentNodes, botUsername) {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername
+    };
+  });
+}
+async function getLinkedPRs(octokit, owner, repo, issueNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_ISSUE_LINKED_PRS_QUERY,
+      { owner, repo, issueNumber }
+    );
+    const linkedPRs = [];
+    const timelineNodes = response.repository?.issue?.timelineItems?.nodes || [];
+    for (const node2 of timelineNodes) {
+      const pr = node2.source || node2.subject;
+      if (!pr?.number || !pr?.headRefName) continue;
+      if (linkedPRs.some((p) => p.number === pr.number)) continue;
+      linkedPRs.push({
+        number: pr.number,
+        state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+        isDraft: false,
+        // Timeline doesn't include draft status
+        title: pr.title || "",
+        headRef: pr.headRefName,
+        baseRef: "main",
+        // Timeline doesn't include base ref
+        ciStatus: null
+        // Timeline doesn't include CI status
+      });
+    }
+    return linkedPRs;
+  } catch {
+    return [];
+  }
+}
+async function getPRForBranch(octokit, owner, repo, headRef) {
+  try {
+    const response = await octokit.graphql(
+      GET_PR_FOR_BRANCH_QUERY,
+      { owner, repo, headRef }
+    );
+    const pr = response.repository?.pullRequests?.nodes?.[0];
+    if (!pr || !pr.number) {
+      return null;
+    }
+    const rawCiStatus = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
+    let ciStatus = null;
+    if (rawCiStatus) {
+      const parsed = CIStatusSchema.safeParse(rawCiStatus);
+      if (parsed.success) {
+        ciStatus = parsed.data;
+      }
+    }
+    let reviewDecision = null;
+    if (pr.reviewDecision) {
+      const parsed = ReviewDecisionSchema.safeParse(pr.reviewDecision);
+      if (parsed.success) {
+        reviewDecision = parsed.data;
+      }
+    }
+    let mergeable = null;
+    if (pr.mergeable) {
+      const parsed = MergeableStateSchema.safeParse(pr.mergeable);
+      if (parsed.success) {
+        mergeable = parsed.data;
+      }
+    }
+    return {
+      number: pr.number,
+      state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+      isDraft: pr.isDraft || false,
+      title: pr.title || "",
+      headRef: pr.headRefName || headRef,
+      baseRef: pr.baseRefName || "main",
+      ciStatus,
+      reviewDecision,
+      mergeable,
+      reviewCount: pr.reviews?.totalCount ?? 0,
+      url: pr.url || ""
+    };
+  } catch {
+    return null;
+  }
+}
+function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber) {
+  const status = parseSubIssueStatus(
+    node2.projectItems?.nodes || [],
+    projectNumber
+  );
+  const body = node2.body || "";
+  const bodyAst = parseMarkdown(body);
+  return {
+    number: node2.number || 0,
+    title: node2.title || "",
+    state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
+    bodyAst,
+    projectStatus: status,
+    branch: deriveBranchName(parentIssueNumber, phaseNumber),
+    pr: null
+    // Populated separately if fetchPRs is true
+  };
+}
+async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, botUsername, fetchPRs) {
+  const response = await octokit.graphql(
+    GET_ISSUE_WITH_PROJECT_QUERY,
+    { owner, repo, issueNumber }
+  );
+  const issue2 = response.repository?.issue;
+  if (!issue2) {
+    return null;
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  const { status, iteration, failures } = parseProjectState(
+    projectItems,
+    projectNumber
+  );
+  const subIssueNodes = issue2.subIssues?.nodes || [];
+  const sortedSubIssues = [...subIssueNodes].sort(
+    (a, b) => (a.number || 0) - (b.number || 0)
+  );
+  const subIssues = [];
+  for (let i = 0; i < sortedSubIssues.length; i++) {
+    const node2 = sortedSubIssues[i];
+    if (!node2 || !node2.number) continue;
+    const subIssue = parseSubIssueData(node2, projectNumber, i + 1, issueNumber);
+    if (fetchPRs) {
+      const linkedPRs = await getLinkedPRs(octokit, owner, repo, node2.number);
+      if (linkedPRs.length > 0) {
+        const linkedPR = linkedPRs[0];
+        if (linkedPR) {
+          subIssue.branch = linkedPR.headRef;
+          subIssue.pr = await getPRForBranch(
+            octokit,
+            owner,
+            repo,
+            linkedPR.headRef
+          );
+        }
+      }
+    }
+    subIssues.push(subIssue);
+  }
+  const body = issue2.body || "";
+  const bodyAst = parseMarkdown(body);
+  const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
+  const parentIssueNumber = issue2.parent?.number ?? null;
+  let issueBranch = null;
+  let issuePR = null;
+  if (fetchPRs) {
+    const linkedPRs = await getLinkedPRs(octokit, owner, repo, issueNumber);
+    const firstPR = linkedPRs[0];
+    if (firstPR) {
+      issueBranch = firstPR.headRef;
+      issuePR = await getPRForBranch(octokit, owner, repo, issueBranch);
+    }
+  }
+  return {
+    issue: {
+      number: issue2.number || issueNumber,
+      title: issue2.title || "",
+      state: IssueStateSchema.parse(issue2.state?.toUpperCase() || "OPEN"),
+      bodyAst,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees: issue2.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels: issue2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      comments,
+      branch: issueBranch,
+      pr: issuePR,
+      parentIssueNumber
+    },
+    parentIssueNumber
+  };
+}
+async function parseIssue(owner, repo, issueNumber, options) {
+  const {
+    octokit,
+    projectNumber = 0,
+    botUsername = "nopo-bot",
+    fetchPRs = true,
+    fetchParent = true
+  } = options;
+  const result = await fetchIssueData(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    botUsername,
+    fetchPRs
+  );
+  if (!result) {
+    throw new Error(`Issue #${issueNumber} not found`);
+  }
+  let parentIssue = null;
+  if (fetchParent && result.parentIssueNumber) {
+    const parentResult = await fetchIssueData(
+      octokit,
+      owner,
+      repo,
+      result.parentIssueNumber,
+      projectNumber,
+      botUsername,
+      fetchPRs
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
+  }
+  const data = {
+    owner,
+    repo,
+    issue: result.issue,
+    parentIssue
+  };
+  const original = structuredClone(data);
+  const updateOptions = buildUpdateOptions(options);
+  return {
+    data,
+    update: (newData) => updateIssue(original, newData, octokit, updateOptions)
+  };
+}
+
 // ../issue-state/src/create-issue.ts
 var GET_PROJECT_FIELDS_QUERY2 = `
 query GetProjectFields($org: String!, $projectNumber: Int!) {
@@ -40667,7 +41336,7 @@ async function addIssueToProject(octokit, projectId, issueId) {
   );
   return response.addProjectV2ItemById.item.id;
 }
-async function getProjectFieldInfo(octokit, organization, projectNumber) {
+async function getProjectFieldInfo2(octokit, organization, projectNumber) {
   try {
     const response = await octokit.graphql(
       GET_PROJECT_FIELDS_QUERY2,
@@ -40707,7 +41376,7 @@ async function getProjectFieldInfo(octokit, organization, projectNumber) {
     return null;
   }
 }
-async function updateProjectField(octokit, projectId, itemId, fieldId, value) {
+async function updateProjectField2(octokit, projectId, itemId, fieldId, value) {
   await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
     projectId,
     itemId,
@@ -40773,7 +41442,7 @@ async function addSubIssueToParent(owner, repo, parentIssueNumber, input, option
     });
   }
   if (projectNumber) {
-    const fieldInfo = await getProjectFieldInfo(
+    const fieldInfo = await getProjectFieldInfo2(
       octokit,
       organization,
       projectNumber
@@ -40787,7 +41456,7 @@ async function addSubIssueToParent(owner, repo, parentIssueNumber, input, option
       if (projectStatus && fieldInfo.statusFieldId) {
         const optionId = fieldInfo.statusOptions.get(projectStatus);
         if (optionId) {
-          await updateProjectField(
+          await updateProjectField2(
             octokit,
             fieldInfo.projectId,
             projectItemId,
@@ -40829,527 +41498,6 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
-
-// ../issue-state/src/sections/sections.ts
-function getSection(body, sectionName) {
-  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(
-    `## ${escapedName}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n<!-- |$)`,
-    "i"
-  );
-  const match = body.match(pattern);
-  if (match?.[1]) {
-    return match[1].trim();
-  }
-  return null;
-}
-function hasSection(body, sectionName) {
-  return getSection(body, sectionName) !== null;
-}
-function insertBeforeSection(body, sectionName, content3) {
-  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`(\\n?)(## ${escapedName})`, "i");
-  return body.replace(pattern, `
-
-${content3}
-$1$2`).trim();
-}
-function insertAtEnd(body, content3) {
-  const specialSections = ["Agent Notes", "Iteration History"];
-  for (const special of specialSections) {
-    if (hasSection(body, special)) {
-      return insertBeforeSection(body, special, content3);
-    }
-  }
-  const commentMatch = body.match(/(\n<!-- [\s\S]*)/);
-  if (commentMatch?.[1]) {
-    const insertPos = body.indexOf(commentMatch[1]);
-    return (body.slice(0, insertPos) + "\n\n" + content3 + body.slice(insertPos)).trim();
-  }
-  return (body + "\n\n" + content3).trim();
-}
-function upsertSection(body, sectionName, content3, options = {}) {
-  const existingContent = getSection(body, sectionName);
-  if (existingContent !== null) {
-    const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(
-      `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
-      "i"
-    );
-    return body.replace(pattern, `$1
-${content3}
-`).trim();
-  }
-  const newSection = `## ${sectionName}
-
-${content3}`;
-  if (options.sectionOrder) {
-    const targetIndex = options.sectionOrder.indexOf(sectionName);
-    if (targetIndex >= 0) {
-      for (let i = targetIndex + 1; i < options.sectionOrder.length; i++) {
-        const nextSection = options.sectionOrder[i];
-        if (nextSection !== void 0 && hasSection(body, nextSection)) {
-          return insertBeforeSection(body, nextSection, newSection);
-        }
-      }
-      return insertAtEnd(body, newSection);
-    }
-  }
-  if (options.insertBefore && hasSection(body, options.insertBefore)) {
-    return insertBeforeSection(body, options.insertBefore, newSection);
-  }
-  return insertAtEnd(body, newSection);
-}
-function upsertSections(body, sections, sectionOrder) {
-  let result = body;
-  for (const section of sections) {
-    result = upsertSection(result, section.name, section.content, {
-      sectionOrder
-    });
-  }
-  return result;
-}
-var STANDARD_SECTION_ORDER = [
-  "Description",
-  "Requirements",
-  "Approach",
-  "Acceptance Criteria",
-  "Testing",
-  "Related",
-  "Questions",
-  "Todo",
-  "Agent Notes",
-  "Iteration History"
-];
-function formatRequirements(requirements) {
-  if (requirements.length === 0) {
-    return "_No specific requirements identified._";
-  }
-  return requirements.map((r) => `- ${r}`).join("\n");
-}
-
-// ../issue-state/src/sections/history.ts
-var HISTORY_SECTION = "## Iteration History";
-var HEADER_COLUMNS = [
-  { key: "time", value: "Time" },
-  { key: "iteration", value: "#" },
-  { key: "phase", value: "Phase" },
-  { key: "action", value: "Action" },
-  { key: "sha", value: "SHA" },
-  { key: "run", value: "Run" }
-];
-function buildValueToKeyMap() {
-  const map4 = /* @__PURE__ */ new Map();
-  for (const col of HEADER_COLUMNS) {
-    map4.set(col.value, col.key);
-  }
-  return map4;
-}
-function parseHeaderRow(headerRow, valueToKeyMap) {
-  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
-  const keys = [];
-  const unmatched = [];
-  for (const cell of cells) {
-    const key = valueToKeyMap.get(cell);
-    if (key) {
-      keys.push(key);
-    } else {
-      keys.push(null);
-      unmatched.push(cell);
-    }
-  }
-  return { keys, unmatched };
-}
-function parseDataRow(row, columnKeys) {
-  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-  const data = {};
-  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
-    const key = columnKeys[i];
-    if (key) {
-      data[key] = cells[i];
-    }
-  }
-  return data;
-}
-function parseTable(body) {
-  const lines = body.split("\n");
-  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyIdx === -1) {
-    return null;
-  }
-  const valueToKeyMap = buildValueToKeyMap();
-  let headerKeys = [];
-  let unmatchedHeaders = [];
-  const rows = [];
-  let foundHeader = false;
-  for (let i = historyIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
-      break;
-    }
-    if (!line.startsWith("|")) {
-      continue;
-    }
-    if (line.includes("---")) {
-      continue;
-    }
-    if (!foundHeader) {
-      const parsed = parseHeaderRow(line, valueToKeyMap);
-      headerKeys = parsed.keys;
-      unmatchedHeaders = parsed.unmatched;
-      foundHeader = true;
-      continue;
-    }
-    const rowData = parseDataRow(line, headerKeys);
-    rows.push(rowData);
-  }
-  return {
-    headerKeys: headerKeys.filter((k) => k !== null),
-    rows,
-    unmatchedHeaders
-  };
-}
-function generateHeaderRow() {
-  const cells = HEADER_COLUMNS.map((col) => col.value);
-  return `| ${cells.join(" | ")} |`;
-}
-function generateSeparatorRow() {
-  const cells = HEADER_COLUMNS.map(() => "---");
-  return `|${cells.join("|")}|`;
-}
-function serializeRow(data) {
-  const cells = HEADER_COLUMNS.map((col) => data[col.key] ?? "-");
-  return `| ${cells.join(" | ")} |`;
-}
-function serializeTable(rows) {
-  const headerRow = generateHeaderRow();
-  const separatorRow = generateSeparatorRow();
-  const dataRows = rows.map(serializeRow);
-  return [headerRow, separatorRow, ...dataRows].join("\n");
-}
-function formatTimestamp(isoTimestamp) {
-  if (!isoTimestamp) return "-";
-  try {
-    const date3 = new Date(isoTimestamp);
-    if (isNaN(date3.getTime())) return "-";
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    const month = months[date3.getUTCMonth()];
-    const day = date3.getUTCDate();
-    const hours = String(date3.getUTCHours()).padStart(2, "0");
-    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
-    return `${month} ${day} ${hours}:${minutes}`;
-  } catch {
-    return "-";
-  }
-}
-function parseMarkdownLink(text5) {
-  const match = text5.match(/\[.*?\]\((.*?)\)/);
-  return match?.[1] ?? null;
-}
-function extractRunIdFromUrl(url) {
-  const match = url.match(/\/actions\/runs\/(\d+)/);
-  return match?.[1] ?? null;
-}
-function parseRunIdFromCell(cell) {
-  if (cell === "-" || cell.trim() === "") {
-    return null;
-  }
-  const linkTextMatch = cell.match(/\[(\d+)\]/);
-  if (linkTextMatch) {
-    return linkTextMatch[1] ?? null;
-  }
-  const url = parseMarkdownLink(cell);
-  if (url) {
-    return extractRunIdFromUrl(url);
-  }
-  return null;
-}
-function formatHistoryCells(sha, runLink, repoUrl, prNumber) {
-  let fullRepoUrl = repoUrl;
-  if (!fullRepoUrl) {
-    const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const repo = process.env.GITHUB_REPOSITORY || "";
-    fullRepoUrl = repo ? `${serverUrl}/${repo}` : serverUrl;
-  }
-  let shaCell = "-";
-  if (prNumber) {
-    shaCell = `[#${prNumber}](${fullRepoUrl}/pull/${prNumber})`;
-  } else if (sha) {
-    shaCell = `[\`${sha.slice(0, 7)}\`](${fullRepoUrl}/commit/${sha})`;
-  }
-  let runCell = "-";
-  if (runLink) {
-    const runId = extractRunIdFromUrl(runLink);
-    if (runId) {
-      runCell = `[${runId}](${runLink})`;
-    } else {
-      runCell = `[Run](${runLink})`;
-    }
-  }
-  return { shaCell, runCell };
-}
-function createRowData(iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
-  const { shaCell, runCell } = formatHistoryCells(
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  return {
-    time: formatTimestamp(timestamp),
-    iteration: String(iteration),
-    phase: String(phase),
-    action: message,
-    sha: shaCell,
-    run: runCell
-  };
-}
-function addHistoryEntry(body, iteration, phase, message, timestamp, sha, runLink, repoUrl, prNumber) {
-  const newRowData = createRowData(
-    iteration,
-    phase,
-    message,
-    timestamp,
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  const newRunId = runLink ? extractRunIdFromUrl(runLink) : null;
-  const historyIdx = body.indexOf(HISTORY_SECTION);
-  if (historyIdx === -1) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  const parsed = parseTable(body);
-  if (!parsed) {
-    const table = serializeTable([newRowData]);
-    return `${body}
-
-${HISTORY_SECTION}
-
-${table}`;
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during add (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  const existingRows = parsed.rows.map((row) => {
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  let allRows;
-  let matchIdx = -1;
-  if (newRunId) {
-    matchIdx = existingRows.findIndex((row) => {
-      const existingRunId = parseRunIdFromCell(row.run ?? "");
-      return existingRunId === newRunId;
-    });
-  }
-  if (matchIdx !== -1) {
-    const existingRow = existingRows[matchIdx];
-    const existingAction = existingRow.action ?? "";
-    const newAction = existingAction ? `${existingAction} -> ${message}` : message;
-    const updatedRow = {
-      ...existingRow,
-      action: newAction
-    };
-    if (sha && newRowData.sha !== "-") {
-      updatedRow.sha = newRowData.sha;
-    }
-    if (newRowData.time && newRowData.time !== "-") {
-      updatedRow.time = newRowData.time;
-    }
-    allRows = existingRows.map(
-      (row, idx) => idx === matchIdx ? updatedRow : row
-    );
-  } else {
-    allRows = [...existingRows, newRowData];
-  }
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(allRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return parts.join("\n");
-}
-function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newMessage, timestamp, sha, runLink, repoUrl, prNumber) {
-  const parsed = parseTable(body);
-  if (!parsed || parsed.rows.length === 0) {
-    return { body, updated: false };
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers during update (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  let matchIdx = -1;
-  for (let i = parsed.rows.length - 1; i >= 0; i--) {
-    const row = parsed.rows[i];
-    if (!row) continue;
-    const rowIteration = row.iteration || "";
-    const rowPhase = row.phase || "";
-    const rowAction = row.action || "";
-    if (rowIteration === String(matchIteration) && rowPhase === String(matchPhase) && rowAction.includes(matchPattern)) {
-      matchIdx = i;
-      break;
-    }
-  }
-  if (matchIdx === -1) {
-    return { body, updated: false };
-  }
-  const existingRow = parsed.rows[matchIdx];
-  const { shaCell, runCell } = formatHistoryCells(
-    sha,
-    runLink,
-    repoUrl,
-    prNumber
-  );
-  const updatedRow = {
-    time: timestamp ? formatTimestamp(timestamp) : existingRow.time ?? "-",
-    iteration: existingRow.iteration,
-    phase: existingRow.phase,
-    action: newMessage,
-    sha: sha || prNumber ? shaCell : existingRow.sha ?? "-",
-    run: runLink ? runCell : existingRow.run ?? "-"
-  };
-  const normalizedRows = parsed.rows.map((row, idx) => {
-    if (idx === matchIdx) {
-      return updatedRow;
-    }
-    const normalized = {};
-    for (const col of HEADER_COLUMNS) {
-      normalized[col.key] = row[col.key] ?? "-";
-    }
-    return normalized;
-  });
-  const lines = body.split("\n");
-  const historyLineIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  let tableEndIdx = historyLineIdx + 1;
-  for (let i = historyLineIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || line.startsWith("|")) {
-      tableEndIdx = i + 1;
-    } else if (line.trim() !== "") {
-      break;
-    }
-  }
-  const beforeHistory = lines.slice(0, historyLineIdx).join("\n");
-  const afterTable = lines.slice(tableEndIdx).join("\n");
-  const newTable = serializeTable(normalizedRows);
-  const parts = [beforeHistory, HISTORY_SECTION, "", newTable];
-  if (afterTable.trim()) {
-    parts.push("", afterTable);
-  }
-  return { body: parts.join("\n"), updated: true };
-}
-
-// ../issue-state/src/sections/agent-notes.ts
-var AGENT_NOTES_SECTION = "## Agent Notes";
-function formatTimestamp2(isoTimestamp) {
-  try {
-    const date3 = isoTimestamp instanceof Date ? isoTimestamp : isoTimestamp ? new Date(isoTimestamp) : /* @__PURE__ */ new Date();
-    if (isNaN(date3.getTime())) {
-      return (/* @__PURE__ */ new Date()).toISOString();
-    }
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    const month = months[date3.getUTCMonth()];
-    const day = date3.getUTCDate();
-    const hours = String(date3.getUTCHours()).padStart(2, "0");
-    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
-    return `${month} ${day} ${hours}:${minutes}`;
-  } catch {
-    return (/* @__PURE__ */ new Date()).toISOString();
-  }
-}
-function formatEntry(entry) {
-  const header = `### [Run ${entry.runId}](${entry.runLink}) - ${entry.timestamp}`;
-  const bullets = entry.notes.slice(0, 10).map((note) => {
-    const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
-    return `- ${truncated}`;
-  }).join("\n");
-  return `${header}
-${bullets}`;
-}
-function appendAgentNotes(body, entry) {
-  if (entry.notes.length === 0) {
-    return body;
-  }
-  const formattedTimestamp = formatTimestamp2(entry.timestamp);
-  const fullEntry = {
-    ...entry,
-    timestamp: formattedTimestamp
-  };
-  const newEntryMarkdown = formatEntry(fullEntry);
-  const sectionRegex = new RegExp(
-    `(${AGENT_NOTES_SECTION})\\s*\\n([\\s\\S]*)$`,
-    "i"
-  );
-  const sectionMatch = body.match(sectionRegex);
-  if (sectionMatch) {
-    const existingContent = sectionMatch[2]?.trim() || "";
-    const updatedSection = existingContent ? `${AGENT_NOTES_SECTION}
-
-${newEntryMarkdown}
-
-${existingContent}` : `${AGENT_NOTES_SECTION}
-
-${newEntryMarkdown}`;
-    return body.replace(sectionRegex, updatedSection);
-  }
-  const separator = body.trim().endsWith("\n") ? "\n" : "\n\n";
-  return `${body.trim()}${separator}${AGENT_NOTES_SECTION}
-
-${newEntryMarkdown}`;
-}
 
 // ../issue-state/src/sections/builders.ts
 function createText(value) {
@@ -41396,6 +41544,25 @@ function createBulletList(items) {
 }
 function createSection(title, content3, depth = 2) {
   return [createHeading(depth, title), ...content3];
+}
+
+// ../issue-state/src/comment-ops.ts
+async function createComment(owner, repo, issueNumber, body, octokit) {
+  const result = await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    body
+  });
+  return { commentId: result.data.id };
+}
+async function updateComment(owner, repo, commentId, body, octokit) {
+  await octokit.rest.issues.updateComment({
+    owner,
+    repo,
+    comment_id: commentId,
+    body
+  });
 }
 
 // ../issue-state/src/create-extractor.ts
@@ -42355,7 +42522,7 @@ var MinimalTriggerContextSchema = external_exports.object({
 });
 
 // src/parser/issue-adapter.ts
-function deriveBranchName(parentIssueNumber, phaseNumber) {
+function deriveBranchName2(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
   }
@@ -42591,7 +42758,7 @@ function createTableCell(content3) {
 function createTableRowNode(cells) {
   return { type: "tableRow", children: cells };
 }
-function formatTimestamp3(isoTimestamp) {
+function formatTimestamp(isoTimestamp) {
   if (!isoTimestamp) return "-";
   try {
     const date3 = new Date(isoTimestamp);
@@ -42619,7 +42786,7 @@ function formatTimestamp3(isoTimestamp) {
     return "-";
   }
 }
-function extractRunIdFromUrl2(url) {
+function extractRunIdFromUrl(url) {
   const match = url.match(/\/actions\/runs\/(\d+)/);
   return match?.[1] ?? null;
 }
@@ -42732,7 +42899,7 @@ function createHistoryDataRow(entry, repoUrl) {
   }
   let runCell;
   if (entry.runLink) {
-    const runId = extractRunIdFromUrl2(entry.runLink);
+    const runId = extractRunIdFromUrl(entry.runLink);
     const linkText = runId || "Run";
     runCell = [createLinkNode(entry.runLink, linkText)];
   } else {
@@ -42761,7 +42928,7 @@ function getCellRunId(row, index2) {
       if (/^\d+$/.test(linkText)) {
         return linkText;
       }
-      return extractRunIdFromUrl2(child.url);
+      return extractRunIdFromUrl(child.url);
     }
   }
   return null;
@@ -42784,12 +42951,12 @@ var addHistoryEntry2 = createMutator(
       iteration: input.iteration,
       phase: input.phase,
       action: input.action,
-      timestamp: input.timestamp ? formatTimestamp3(input.timestamp) : formatTimestamp3((/* @__PURE__ */ new Date()).toISOString()),
+      timestamp: input.timestamp ? formatTimestamp(input.timestamp) : formatTimestamp((/* @__PURE__ */ new Date()).toISOString()),
       sha: input.sha ?? null,
       runLink: input.runLink ?? null
     };
     const newRow = createHistoryDataRow(entry, input.repoUrl);
-    const runId = input.runLink ? extractRunIdFromUrl2(input.runLink) : null;
+    const runId = input.runLink ? extractRunIdFromUrl(input.runLink) : null;
     if (historyIdx === -1) {
       const heading2 = createHeadingNode(2, "Iteration History");
       const table = {
@@ -42892,7 +43059,7 @@ var updateHistoryEntry2 = createMutator(
     if (input.timestamp) {
       const timeCell = row.children[0];
       if (timeCell) {
-        timeCell.children = [createTextNode(formatTimestamp3(input.timestamp))];
+        timeCell.children = [createTextNode(formatTimestamp(input.timestamp))];
       }
     }
     if (input.sha) {
@@ -42908,7 +43075,7 @@ var updateHistoryEntry2 = createMutator(
     if (input.runLink) {
       const runCell = row.children[5];
       if (runCell) {
-        const runId = extractRunIdFromUrl2(input.runLink);
+        const runId = extractRunIdFromUrl(input.runLink);
         const linkText = runId || "Run";
         runCell.children = [createLinkNode(input.runLink, linkText)];
       }
@@ -42928,7 +43095,7 @@ var appendAgentNotes2 = createMutator(
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
     const notesIdx = findHeadingIndex2(newAst, "Agent Notes");
-    const formattedTimestamp = formatTimestamp3(
+    const formattedTimestamp = formatTimestamp(
       input.timestamp || (/* @__PURE__ */ new Date()).toISOString()
     );
     const headerLink = createLinkNode(input.runLink, `Run ${input.runId}`);
@@ -42972,7 +43139,8 @@ var STANDARD_SECTION_ORDER2 = [
 var upsertSection2 = createMutator(
   external_exports.object({
     title: external_exports.string(),
-    content: external_exports.string(),
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
+    content: external_exports.array(external_exports.record(external_exports.unknown())),
     sectionOrder: external_exports.array(external_exports.string()).optional()
   }),
   (input, data) => {
@@ -42980,7 +43148,6 @@ var upsertSection2 = createMutator(
     const newAst = structuredClone(ast);
     const sectionIdx = findHeadingIndex2(newAst, input.title);
     const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
-    const contentNode = createParagraphNode(input.content);
     if (sectionIdx !== -1) {
       let endIdx = sectionIdx + 1;
       for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
@@ -42993,7 +43160,7 @@ var upsertSection2 = createMutator(
       newAst.children.splice(
         sectionIdx + 1,
         endIdx - sectionIdx - 1,
-        contentNode
+        ...input.content
       );
     } else {
       const targetOrderIdx = sectionOrder.indexOf(input.title);
@@ -43010,10 +43177,66 @@ var upsertSection2 = createMutator(
         }
       }
       const heading2 = createHeadingNode(2, input.title);
-      newAst.children.splice(insertIdx, 0, heading2, contentNode);
+      newAst.children.splice(insertIdx, 0, heading2, ...input.content);
     }
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   }
+);
+var applyTodoModifications = createMutator(
+  external_exports.object({
+    modifications: external_exports.array(
+      external_exports.object({
+        action: external_exports.enum(["add", "modify", "remove"]),
+        index: external_exports.number(),
+        text: external_exports.string().optional()
+      })
+    )
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    if (todosIdx === -1) return data;
+    const listNode = newAst.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    for (const mod of input.modifications) {
+      if (mod.action === "add") {
+        const newItem = createListItemNode(mod.text || "", false);
+        if (mod.index < 0) {
+          listNode.children.splice(0, 0, newItem);
+        } else if (mod.index >= listNode.children.length) {
+          listNode.children.push(newItem);
+        } else {
+          listNode.children.splice(mod.index + 1, 0, newItem);
+        }
+      } else if (mod.action === "modify") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        item.children = [createParagraphNode(mod.text || "")];
+      } else if (mod.action === "remove") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        listNode.children.splice(mod.index, 1);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var replaceBody = createMutator(
+  external_exports.object({
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
+    bodyAst: external_exports.object({
+      type: external_exports.literal("root"),
+      children: external_exports.array(external_exports.record(external_exports.unknown()))
+    }).passthrough()
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
+  }),
+  (input, data) => ({
+    ...data,
+    issue: { ...data.issue, bodyAst: input.bodyAst }
+  })
 );
 
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
@@ -46693,7 +46916,7 @@ function emitLogReviewRequested({
   return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
 }
 function emitCreateBranch({ context: context2 }) {
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   return [
     {
       type: "createBranch",
@@ -46709,7 +46932,7 @@ function emitCreatePR({ context: context2 }) {
   if (context2.pr) {
     return [];
   }
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
     {
@@ -46779,7 +47002,7 @@ function emitMergePR({ context: context2 }) {
 function buildIteratePromptVars(context2, ciResultOverride) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const iteration = context2.issue.iteration;
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
@@ -67414,6 +67637,34 @@ Format as GitHub-flavored markdown.` })
 ] }));
 var test_analysis_default = TestAnalysis;
 
+// ../prompts/src/prompts/live-issue-scout.tsx
+var LiveIssueScout = promptFactory().inputs((z) => ({
+  category: z.enum([
+    "documentation",
+    "tests",
+    "performance",
+    "readability",
+    "type-safety"
+  ])
+})).outputs((z) => ({
+  title: z.string().describe("Concise issue title, imperative mood, under 80 chars"),
+  body: z.string().describe("Unstructured paragraph, max 100 words")
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("section", { title: "Purpose", children: `You are a codebase scout. Find exactly ONE small, concrete improvement
+in the "${inputs.category}" category.` }),
+  /* @__PURE__ */ jsx("section", { title: "Constraints", children: `- XS size (under 1 hour of work), touching only 1-2 files
+- Must be a real improvement, not busywork
+- If touching production code, it must be testable
+- No changes to generated files, lock files, or dist/ directories
+- No new dependencies
+- Must be something that can pass CI` }),
+  /* @__PURE__ */ jsx("section", { title: "Output Format", children: `Return a title (imperative, under 80 chars) and a body paragraph
+(max 100 words, unstructured, no markdown headings/bullets).
+Be specific about which file(s) to change and the expected outcome.
+Scope is most important, outcome is second most important.` })
+] }));
+var live_issue_scout_default = LiveIssueScout;
+
 // ../prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
@@ -68154,6 +68405,7 @@ var PROMPTS = {
   pivot: pivot_default,
   "human-review-response": human_review_response_default,
   "test-analysis": test_analysis_default,
+  "live-issue-scout": live_issue_scout_default,
   // Grooming prompts
   "grooming/engineer": engineer_default,
   "grooming/pm": pm_default,
@@ -68291,6 +68543,9 @@ function getOctokitForAction(action, ctx) {
 
 // src/runner/signaler.ts
 var core2 = __toESM(require_core(), 1);
+function asOctokitLike(ctx) {
+  return ctx.octokit;
+}
 var JOB_DESCRIPTIONS = {
   // Issue jobs
   "issue-triage": "triaging this issue",
@@ -68386,21 +68641,22 @@ async function signalStart(ctx, progress) {
       ADD_DISCUSSION_COMMENT_MUTATION,
       { discussionId, body }
     );
-    const commentId = commentResult.addDiscussionComment?.comment?.id;
-    if (!commentId) {
+    const commentId2 = commentResult.addDiscussionComment?.comment?.id;
+    if (!commentId2) {
       throw new Error("Failed to create discussion comment");
     }
-    core2.info(`Created status comment: ${commentId}`);
-    return commentId;
+    core2.info(`Created status comment: ${commentId2}`);
+    return commentId2;
   }
-  const { data: comment } = await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: ctx.resourceNumber,
-    body
-  });
-  core2.info(`Created status comment: ${comment.id}`);
-  return String(comment.id);
+  const { commentId } = await createComment(
+    ctx.owner,
+    ctx.repo,
+    ctx.resourceNumber,
+    body,
+    asOctokitLike(ctx)
+  );
+  core2.info(`Created status comment: ${commentId}`);
+  return String(commentId);
 }
 async function signalEnd(ctx, statusCommentId, result) {
   const description = JOB_DESCRIPTIONS[ctx.job] ?? ctx.job;
@@ -68434,12 +68690,13 @@ async function signalEnd(ctx, statusCommentId, result) {
         body
       });
     } else {
-      await ctx.octokit.rest.issues.updateComment({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        comment_id: parseInt(statusCommentId, 10),
-        body
-      });
+      await updateComment(
+        ctx.owner,
+        ctx.repo,
+        parseInt(statusCommentId, 10),
+        body,
+        asOctokitLike(ctx)
+      );
     }
     core2.info(`Updated status comment ${statusCommentId} to ${result}`);
   } catch (error6) {
@@ -68512,7 +68769,7 @@ function getProjectItemId(projectItems, projectNumber) {
   );
   return projectItem?.id || null;
 }
-function parseProjectState(projectItems, projectNumber) {
+function parseProjectState2(projectItems, projectNumber) {
   const projectItem = projectItems.find(
     (item) => item.project?.number === projectNumber
   );
@@ -68556,7 +68813,7 @@ async function getOrAddProjectItem(octokit, ctx, issueNumber) {
   }
   const projectItems = issue2.projectItems?.nodes || [];
   let itemId = getProjectItemId(projectItems, ctx.projectNumber);
-  const currentState = parseProjectState(projectItems, ctx.projectNumber);
+  const currentState = parseProjectState2(projectItems, ctx.projectNumber);
   if (!itemId) {
     core3.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
     const addResult = await octokit.graphql(
@@ -68669,230 +68926,265 @@ async function executeBlock(action, ctx) {
 
 // src/runner/executors/github.ts
 var core4 = __toESM(require_core(), 1);
+function asOctokitLike2(ctx) {
+  return ctx.octokit;
+}
 async function executeCloseIssue(action, ctx) {
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    state: "closed",
-    state_reason: action.reason === "not_planned" ? "not_planned" : "completed"
-  });
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit: asOctokitLike2(ctx),
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false
+    }
+  );
+  const state = {
+    ...data,
+    issue: {
+      ...data.issue,
+      state: "CLOSED",
+      stateReason: action.reason === "not_planned" ? "not_planned" : "completed"
+    }
+  };
+  await update(state);
   core4.info(`Closed issue #${action.issueNumber}`);
   return { closed: true };
 }
 async function executeAppendHistory(action, ctx) {
-  const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber
-    }
-  );
-  const currentBody = response.repository?.issue?.body || "";
-  const parentNumber = response.repository?.issue?.parent?.number;
+  const octokit = asOctokitLike2(ctx);
   const iteration = action.iteration ?? 0;
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
   const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
-  const newBody = addHistoryEntry(
-    currentBody,
-    iteration,
-    action.phase,
-    action.message,
-    timestamp,
-    action.commitSha,
-    action.runLink,
-    repoUrl,
-    action.prNumber
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false
+    }
   );
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: newBody
-  });
+  const state = addHistoryEntry2(
+    {
+      iteration,
+      phase: action.phase,
+      action: action.message,
+      timestamp,
+      sha: action.commitSha ?? null,
+      runLink: action.runLink ?? null,
+      repoUrl
+    },
+    data
+  );
+  await update(state);
   core4.info(`Appended history: Phase ${action.phase}, ${action.message}`);
-  if (parentNumber) {
-    const parentResponse = await ctx.octokit.graphql(
-      GET_ISSUE_BODY_QUERY,
+  if (data.issue.parentIssueNumber) {
+    const { data: parentData, update: parentUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      data.issue.parentIssueNumber,
       {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issueNumber: parentNumber
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
       }
     );
-    const parentBody = parentResponse.repository?.issue?.body || "";
-    const newParentBody = addHistoryEntry(
-      parentBody,
-      iteration,
-      action.phase,
-      action.message,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl,
-      action.prNumber
+    const parentState = addHistoryEntry2(
+      {
+        iteration,
+        phase: action.phase,
+        action: action.message,
+        timestamp,
+        sha: action.commitSha ?? null,
+        runLink: action.runLink ?? null,
+        repoUrl
+      },
+      parentData
     );
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: parentNumber,
-      body: newParentBody
-    });
-    core4.info(`Also appended to parent issue #${parentNumber}`);
+    await parentUpdate(parentState);
+    core4.info(`Also appended to parent issue #${data.issue.parentIssueNumber}`);
   }
   return { appended: true };
 }
 async function executeUpdateHistory(action, ctx) {
-  const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber
-    }
-  );
-  const currentBody = response.repository?.issue?.body || "";
-  const parentNumber = response.repository?.issue?.parent?.number;
+  const octokit = asOctokitLike2(ctx);
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
   const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
-  const result = updateHistoryEntry(
-    currentBody,
-    action.matchIteration,
-    action.matchPhase,
-    action.matchPattern,
-    action.newMessage,
-    timestamp,
-    action.commitSha,
-    action.runLink,
-    repoUrl,
-    action.prNumber
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false
+    }
   );
-  if (result.updated) {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: result.body
-    });
-    core4.info(
-      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
-    );
-  } else {
+  let state = updateHistoryEntry2(
+    {
+      matchIteration: action.matchIteration,
+      matchPhase: action.matchPhase,
+      matchPattern: action.matchPattern,
+      newAction: action.newMessage,
+      timestamp,
+      sha: action.commitSha ?? null,
+      runLink: action.runLink ?? null,
+      repoUrl
+    },
+    data
+  );
+  if (state === data) {
     core4.info(
       `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
     );
-    const newBody = addHistoryEntry(
-      currentBody,
-      action.matchIteration,
-      action.matchPhase,
-      action.newMessage,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl,
-      action.prNumber
+    state = addHistoryEntry2(
+      {
+        iteration: action.matchIteration,
+        phase: action.matchPhase,
+        action: action.newMessage,
+        timestamp,
+        sha: action.commitSha ?? null,
+        runLink: action.runLink ?? null,
+        repoUrl
+      },
+      data
     );
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: newBody
-    });
+  } else {
     core4.info(
-      `Added new history entry: Phase ${action.matchPhase}, ${action.newMessage}`
+      `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
     );
   }
-  if (parentNumber) {
-    const parentResponse = await ctx.octokit.graphql(
-      GET_ISSUE_BODY_QUERY,
+  await update(state);
+  if (data.issue.parentIssueNumber) {
+    const { data: parentData, update: parentUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      data.issue.parentIssueNumber,
       {
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issueNumber: parentNumber
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
       }
     );
-    const parentBody = parentResponse.repository?.issue?.body || "";
-    const parentResult = updateHistoryEntry(
-      parentBody,
-      action.matchIteration,
-      action.matchPhase,
-      action.matchPattern,
-      action.newMessage,
-      timestamp,
-      action.commitSha,
-      action.runLink,
-      repoUrl,
-      action.prNumber
-    );
-    if (parentResult.updated) {
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentNumber,
-        body: parentResult.body
-      });
-      core4.info(`Also updated parent issue #${parentNumber}`);
-    } else {
-      const newParentBody = addHistoryEntry(
-        parentBody,
-        action.matchIteration,
-        action.matchPhase,
-        action.newMessage,
+    let parentState = updateHistoryEntry2(
+      {
+        matchIteration: action.matchIteration,
+        matchPhase: action.matchPhase,
+        matchPattern: action.matchPattern,
+        newAction: action.newMessage,
         timestamp,
-        action.commitSha,
-        action.runLink,
-        repoUrl,
-        action.prNumber
+        sha: action.commitSha ?? null,
+        runLink: action.runLink ?? null,
+        repoUrl
+      },
+      parentData
+    );
+    if (parentState === parentData) {
+      parentState = addHistoryEntry2(
+        {
+          iteration: action.matchIteration,
+          phase: action.matchPhase,
+          action: action.newMessage,
+          timestamp,
+          sha: action.commitSha ?? null,
+          runLink: action.runLink ?? null,
+          repoUrl
+        },
+        parentData
       );
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentNumber,
-        body: newParentBody
-      });
-      core4.info(`Added new entry to parent issue #${parentNumber}`);
+      core4.info(
+        `Added new entry to parent issue #${data.issue.parentIssueNumber}`
+      );
+    } else {
+      core4.info(`Also updated parent issue #${data.issue.parentIssueNumber}`);
     }
+    await parentUpdate(parentState);
   }
   return { updated: true };
 }
 async function executeUpdateIssueBody(action, ctx) {
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: action.body
-  });
+  const octokit = asOctokitLike2(ctx);
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false
+    }
+  );
+  const newBodyAst = parseMarkdown(action.body);
+  const state = replaceBody({ bodyAst: newBodyAst }, data);
+  await update(state);
   core4.info(`Updated body for issue #${action.issueNumber}`);
   return { updated: true };
 }
 async function executeAddComment(action, ctx) {
-  const response = await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: action.body
-  });
+  const result = await createComment(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    action.body,
+    asOctokitLike2(ctx)
+  );
   core4.info(`Added comment to issue #${action.issueNumber}`);
-  return { commentId: response.data.id };
+  return { commentId: result.commentId };
 }
 async function executeUnassignUser(action, ctx) {
-  await ctx.octokit.rest.issues.removeAssignees({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    assignees: [action.username]
-  });
+  const octokit = asOctokitLike2(ctx);
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false
+    }
+  );
+  const state = {
+    ...data,
+    issue: {
+      ...data.issue,
+      assignees: data.issue.assignees.filter((a) => a !== action.username)
+    }
+  };
+  await update(state);
   core4.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
   return { unassigned: true };
 }
 async function executeAssignUser(action, ctx) {
-  await ctx.octokit.rest.issues.addAssignees({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    assignees: [action.username]
-  });
+  const octokit = asOctokitLike2(ctx);
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false
+    }
+  );
+  const state = {
+    ...data,
+    issue: {
+      ...data.issue,
+      assignees: [...data.issue.assignees, action.username]
+    }
+  };
+  await update(state);
   core4.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
   return { assigned: true };
 }
@@ -68908,19 +69200,26 @@ async function executeCreateSubIssues(action, ctx) {
   if (!repoId) {
     throw new Error("Repository not found");
   }
-  const parentResponse = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
-    {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.parentIssueNumber
+  const parentQuery = `
+    query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
     }
-  );
+  `;
+  const parentResponse = await ctx.octokit.graphql(parentQuery, {
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issueNumber: action.parentIssueNumber
+  });
   const parentId = parentResponse.repository?.issue?.id;
   if (!parentId) {
     throw new Error(`Parent issue #${action.parentIssueNumber} not found`);
   }
   const subIssueNumbers = [];
+  const octokit = asOctokitLike2(ctx);
   for (let i = 0; i < action.phases.length; i++) {
     const phase = action.phases[i];
     if (!phase) continue;
@@ -68942,11 +69241,23 @@ async function executeCreateSubIssues(action, ctx) {
       parentId,
       childId: issueId
     });
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      labels: ["triaged"]
+    const { data: subData, update: subUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    await subUpdate({
+      ...subData,
+      issue: {
+        ...subData.issue,
+        labels: [...subData.issue.labels, "triaged"]
+      }
     });
     subIssueNumbers.push(issueNumber);
     core4.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
@@ -69026,50 +69337,57 @@ async function executeRequestReview(action, ctx) {
   return { requested: true };
 }
 async function executeMergePR(action, ctx) {
+  const octokit = asOctokitLike2(ctx);
   const label = "ready-to-merge";
   try {
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.prNumber,
-      // PRs use issue numbers for labels
-      labels: [label]
+    const { data: prData, update: prUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.prNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    await prUpdate({
+      ...prData,
+      issue: {
+        ...prData.issue,
+        labels: [...prData.issue.labels, label]
+      }
     });
     core4.info(`Added "${label}" label to PR #${action.prNumber}`);
   } catch (error6) {
     core4.warning(`Failed to add label: ${error6}`);
   }
-  const response = await ctx.octokit.graphql(
-    GET_ISSUE_BODY_QUERY,
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
     {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issueNumber: action.issueNumber
+      octokit,
+      projectNumber: ctx.projectNumber,
+      fetchPRs: false,
+      fetchParent: false
     }
   );
-  const currentBody = response.repository?.issue?.body || "";
   const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
   const runLink = ctx.runUrl;
-  const newBody = addHistoryEntry(
-    currentBody,
-    0,
-    // iteration (0 = orchestration level)
-    "-",
-    // phase (dash = orchestration)
-    "\u{1F500} Ready for merge",
-    timestamp,
-    void 0,
-    // no SHA
-    runLink,
-    repoUrl
+  const state = addHistoryEntry2(
+    {
+      iteration: 0,
+      phase: "-",
+      action: "\u{1F500} Ready for merge",
+      timestamp,
+      runLink: runLink ?? null,
+      repoUrl
+    },
+    data
   );
-  await ctx.octokit.rest.issues.update({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: newBody
-  });
+  await update(state);
   core4.info(
     `PR #${action.prNumber} marked ready for merge (human action required)`
   );
@@ -69119,18 +69437,23 @@ async function executeRemoveReviewer(action, ctx) {
 }
 async function executeResetIssue(action, ctx) {
   let resetCount = 0;
+  const octokit = asOctokitLike2(ctx);
   try {
-    const { data: issue2 } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber
-    });
-    if (issue2.state === "closed") {
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        state: "open"
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    if (data.issue.state === "CLOSED") {
+      await update({
+        ...data,
+        issue: { ...data.issue, state: "OPEN" }
       });
       core4.info(`Reopened issue #${action.issueNumber}`);
       resetCount++;
@@ -69140,17 +69463,21 @@ async function executeResetIssue(action, ctx) {
   }
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
-      const { data: subIssue } = await ctx.octokit.rest.issues.get({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssueNumber
-      });
-      if (subIssue.state === "closed") {
-        await ctx.octokit.rest.issues.update({
-          owner: ctx.owner,
-          repo: ctx.repo,
-          issue_number: subIssueNumber,
-          state: "open"
+      const { data: subData, update: subUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        subIssueNumber,
+        {
+          octokit,
+          projectNumber: ctx.projectNumber,
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      if (subData.issue.state === "CLOSED") {
+        await subUpdate({
+          ...subData,
+          issue: { ...subData.issue, state: "OPEN" }
         });
         core4.info(`Reopened sub-issue #${subIssueNumber}`);
         resetCount++;
@@ -69160,11 +69487,23 @@ async function executeResetIssue(action, ctx) {
     }
   }
   try {
-    await ctx.octokit.rest.issues.removeAssignees({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      assignees: [action.botUsername]
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    await update({
+      ...data,
+      issue: {
+        ...data.issue,
+        assignees: data.issue.assignees.filter((a) => a !== action.botUsername)
+      }
     });
     core4.info(
       `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
@@ -69176,11 +69515,25 @@ async function executeResetIssue(action, ctx) {
   }
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
-      await ctx.octokit.rest.issues.removeAssignees({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssueNumber,
-        assignees: [action.botUsername]
+      const { data: subData, update: subUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        subIssueNumber,
+        {
+          octokit,
+          projectNumber: ctx.projectNumber,
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      await subUpdate({
+        ...subData,
+        issue: {
+          ...subData.issue,
+          assignees: subData.issue.assignees.filter(
+            (a) => a !== action.botUsername
+          )
+        }
       });
       core4.info(
         `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
@@ -69196,11 +69549,24 @@ async function executeResetIssue(action, ctx) {
 }
 async function executeAddLabel(action, ctx) {
   try {
-    await ctx.octokit.rest.issues.addLabels({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      labels: [action.label]
+    const octokit = asOctokitLike2(ctx);
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    await update({
+      ...data,
+      issue: {
+        ...data.issue,
+        labels: [...data.issue.labels, action.label]
+      }
     });
     core4.info(`Added label "${action.label}" to issue #${action.issueNumber}`);
     return { added: true };
@@ -69213,11 +69579,24 @@ async function executeAddLabel(action, ctx) {
 }
 async function executeRemoveLabel(action, ctx) {
   try {
-    await ctx.octokit.rest.issues.removeLabel({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      name: action.label
+    const octokit = asOctokitLike2(ctx);
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit,
+        projectNumber: ctx.projectNumber,
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    await update({
+      ...data,
+      issue: {
+        ...data.issue,
+        labels: data.issue.labels.filter((l) => l !== action.label)
+      }
     });
     core4.info(
       `Removed label "${action.label}" from issue #${action.issueNumber}`
@@ -69379,7 +69758,7 @@ var core6 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
 var fs4 = __toESM(require("fs"), 1);
 async function createMockCommit(action, _ctx) {
-  const branchName = deriveBranchName(action.issueNumber);
+  const branchName = deriveBranchName2(action.issueNumber);
   core6.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
   try {
     await exec5.exec("git", ["config", "user.name", "nopo-bot"]);
@@ -69603,30 +69982,29 @@ var GroomingAgentOutputSchema = external_exports.object({
   ready: external_exports.boolean(),
   questions: external_exports.array(external_exports.string()).optional()
 }).passthrough();
+var RecommendedPhaseSchema = external_exports.object({
+  phase_number: external_exports.number(),
+  title: external_exports.string(),
+  description: external_exports.string(),
+  affected_areas: external_exports.array(
+    external_exports.object({
+      path: external_exports.string(),
+      change_type: external_exports.string().optional(),
+      description: external_exports.string().optional(),
+      impact: external_exports.string().optional()
+    })
+  ).optional(),
+  todos: external_exports.array(
+    external_exports.object({
+      task: external_exports.string(),
+      manual: external_exports.boolean().optional()
+    })
+  ).optional(),
+  depends_on: external_exports.array(external_exports.number()).optional()
+});
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   scope_recommendation: external_exports.enum(["direct", "split"]).optional(),
-  recommended_phases: external_exports.array(
-    external_exports.object({
-      phase_number: external_exports.number(),
-      title: external_exports.string(),
-      description: external_exports.string(),
-      affected_areas: external_exports.array(
-        external_exports.object({
-          path: external_exports.string(),
-          change_type: external_exports.string().optional(),
-          description: external_exports.string().optional(),
-          impact: external_exports.string().optional()
-        })
-      ).optional(),
-      todos: external_exports.array(
-        external_exports.object({
-          task: external_exports.string(),
-          manual: external_exports.boolean().optional()
-        })
-      ).optional(),
-      depends_on: external_exports.array(external_exports.number()).optional()
-    })
-  ).optional()
+  recommended_phases: external_exports.array(RecommendedPhaseSchema).optional()
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
@@ -69663,7 +70041,10 @@ var LegacyTriageOutputSchema = external_exports.object({
       title: external_exports.string(),
       description: external_exports.string(),
       todos: external_exports.array(
-        external_exports.union([external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }), external_exports.string()])
+        external_exports.union([
+          external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }),
+          external_exports.string()
+        ])
       )
     })
   ).optional(),
@@ -69700,6 +70081,9 @@ var PlanOutputSchema = external_exports.object({
 });
 
 // src/runner/executors/triage.ts
+function asOctokitLike3(ctx) {
+  return ctx.octokit;
+}
 async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let rawData;
@@ -69739,7 +70123,11 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     newFormatOutput = newFormatResult.data;
     classification = newFormatOutput.triage;
   } else {
-    legacyOutput = parseOutput(LegacyTriageOutputSchema, rawData, "triage (legacy)");
+    legacyOutput = parseOutput(
+      LegacyTriageOutputSchema,
+      rawData,
+      "triage (legacy)"
+    );
     classification = {
       type: legacyOutput.type || "enhancement",
       priority: legacyOutput.priority,
@@ -69769,31 +70157,39 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   return { applied: true };
 }
 async function applyLabels(ctx, issueNumber, classification) {
-  const labels = [];
+  const newLabels = [];
   if (classification.type && classification.type !== "null") {
-    labels.push(classification.type);
+    newLabels.push(classification.type);
     core7.info(`Adding type label: ${classification.type}`);
   }
   if (classification.topics) {
     for (const topic of classification.topics) {
       if (topic) {
         const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
-        labels.push(label);
+        newLabels.push(label);
         core7.info(`Adding topic label: ${label}`);
       }
     }
   }
-  labels.push("triaged");
+  newLabels.push("triaged");
   core7.info("Adding triaged label");
-  if (labels.length > 0) {
+  if (newLabels.length > 0) {
     try {
-      await ctx.octokit.rest.issues.addLabels({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: issueNumber,
-        labels
-      });
-      core7.info(`Applied labels: ${labels.join(", ")}`);
+      const { data, update } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        issueNumber,
+        {
+          octokit: asOctokitLike3(ctx),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      const existingLabels = data.issue.labels;
+      const mergedLabels = [.../* @__PURE__ */ new Set([...existingLabels, ...newLabels])];
+      const state = { ...data, issue: { ...data.issue, labels: mergedLabels } };
+      await update(state);
+      core7.info(`Applied labels: ${newLabels.join(", ")}`);
     } catch (error6) {
       core7.warning(`Failed to apply labels: ${error6}`);
     }
@@ -69801,12 +70197,19 @@ async function applyLabels(ctx, issueNumber, classification) {
 }
 async function updateIssueBody(ctx, issueNumber, newBody) {
   try {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body: newBody
-    });
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      {
+        octokit: asOctokitLike3(ctx),
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    const bodyAst = parseMarkdown(newBody);
+    const state = replaceBody({ bodyAst }, data);
+    await update(state);
     core7.info(`Updated issue body for #${issueNumber}`);
   } catch (error6) {
     core7.warning(`Failed to update issue body: ${error6}`);
@@ -69814,44 +70217,56 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
 }
 async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
   try {
-    const { data: issue2 } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber
-    });
-    const currentBody = issue2.body || "";
-    const sections = [];
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      {
+        octokit: asOctokitLike3(ctx),
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    let state = data;
     if (requirements.length > 0) {
-      sections.push({
-        name: "Requirements",
-        content: formatRequirements(requirements)
-      });
+      const reqContent = [
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
+        createBulletList(requirements)
+      ];
+      state = upsertSection2(
+        { title: "Requirements", content: reqContent },
+        state
+      );
     }
     if (initialApproach) {
-      sections.push({
-        name: "Approach",
-        content: initialApproach
-      });
+      const approachContent = [
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
+        createParagraph(initialApproach)
+      ];
+      state = upsertSection2(
+        { title: "Approach", content: approachContent },
+        state
+      );
     }
     if (initialQuestions && initialQuestions.length > 0) {
-      const questionsContent = initialQuestions.map((q) => `- [ ] ${q}`).join("\n");
-      sections.push({
-        name: "Questions",
-        content: questionsContent
-      });
+      const todos = initialQuestions.map((q) => ({
+        text: q,
+        checked: false,
+        manual: false
+      }));
+      const questionsContent = [
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
+        createTodoList(todos)
+      ];
+      state = upsertSection2(
+        { title: "Questions", content: questionsContent },
+        state
+      );
     }
-    const newBody = upsertSections(
-      currentBody,
-      sections,
-      STANDARD_SECTION_ORDER
-    );
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body: newBody
-    });
-    core7.info(`Updated issue #${issueNumber} with structured sections`);
+    if (state !== data) {
+      await update(state);
+      core7.info(`Updated issue #${issueNumber} with structured sections`);
+    }
   } catch (error6) {
     core7.warning(`Failed to update issue structure: ${error6}`);
   }
@@ -69861,12 +70276,13 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
   const links = relatedIssues.map((num) => `#${num}`).join(", ");
   const body = `**Related issues:** ${links}`;
   try {
-    await ctx.octokit.rest.issues.createComment({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body
-    });
+    await createComment(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      body,
+      asOctokitLike3(ctx)
+    );
     core7.info(`Linked related issues: ${links}`);
   } catch (error6) {
     core7.warning(`Failed to link related issues: ${error6}`);
@@ -69992,16 +70408,27 @@ async function applyProjectFields(ctx, issueNumber, classification) {
 // src/runner/executors/iterate.ts
 var core8 = __toESM(require_core(), 1);
 var fs6 = __toESM(require("node:fs"), 1);
+function asOctokitLike4(ctx) {
+  return ctx.octokit;
+}
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let iterateOutput;
   if (structuredOutput) {
-    iterateOutput = parseOutput(IterateOutputSchema, structuredOutput, "iterate");
+    iterateOutput = parseOutput(
+      IterateOutputSchema,
+      structuredOutput,
+      "iterate"
+    );
     core8.info("Using structured output from in-process chain");
   } else if (filePath && fs6.existsSync(filePath)) {
     try {
       const content3 = fs6.readFileSync(filePath, "utf-8");
-      iterateOutput = parseOutput(IterateOutputSchema, JSON.parse(content3), "iterate file");
+      iterateOutput = parseOutput(
+        IterateOutputSchema,
+        JSON.parse(content3),
+        "iterate file"
+      );
       core8.info(`Iterate output from file: ${filePath}`);
     } catch (error6) {
       core8.warning(`Failed to parse iterate output: ${error6}`);
@@ -70021,13 +70448,12 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
     core8.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
     return { applied: true, status: iterateOutput.status };
   }
-  const issue2 = await ctx.octokit.rest.issues.get({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: issueNumber
+  const { data, update } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
+    octokit: asOctokitLike4(ctx),
+    fetchPRs: false,
+    fetchParent: false
   });
-  let body = issue2.data.body || "";
-  let bodyChanged = false;
+  let state = data;
   if (iterateOutput.status === "completed_todo") {
     const todosToCheck = [];
     if (iterateOutput.todos_completed && iterateOutput.todos_completed.length > 0) {
@@ -70036,35 +70462,29 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       todosToCheck.push(iterateOutput.todo_completed);
     }
     for (const todoText of todosToCheck) {
-      const result = checkOffTodoInBody2(body, todoText);
-      if (result.found) {
-        body = result.body;
-        bodyChanged = true;
+      const newState = checkOffTodo({ todoText }, state);
+      if (newState !== state) {
+        state = newState;
         core8.info(`Completed todo: ${todoText}`);
+      } else {
+        core8.warning(`Could not find unchecked todo matching: "${todoText}"`);
       }
     }
   }
   if (iterateOutput.agent_notes.length > 0) {
     const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
     const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
-    body = appendAgentNotes(body, {
-      runId,
-      runLink,
-      notes: iterateOutput.agent_notes
-    });
-    bodyChanged = true;
+    state = appendAgentNotes2(
+      { runId, runLink, notes: iterateOutput.agent_notes },
+      state
+    );
     core8.info("Agent notes appended to issue body:");
     for (const note of iterateOutput.agent_notes) {
       core8.info(`  - ${note}`);
     }
   }
-  if (bodyChanged) {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body
-    });
+  if (state !== data) {
+    await update(state);
   }
   switch (iterateOutput.status) {
     case "completed_todo":
@@ -70081,27 +70501,6 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   }
   return { applied: true, status: iterateOutput.status };
 }
-function checkOffTodoInBody2(body, todoText) {
-  const normalizedTodoText = todoText.trim().toLowerCase();
-  const lines = body.split("\n");
-  let found = false;
-  const updatedLines = lines.map((line) => {
-    const uncheckedMatch = line.match(/^(\s*)-\s*\[\s*\]\s*(.+)$/);
-    if (uncheckedMatch) {
-      const [, indent2, text5] = uncheckedMatch;
-      const normalizedLineText = (text5 ?? "").trim().toLowerCase();
-      if (normalizedLineText === normalizedTodoText || normalizedLineText.includes(normalizedTodoText) || normalizedTodoText.includes(normalizedLineText)) {
-        found = true;
-        return `${indent2}- [x] ${text5}`;
-      }
-    }
-    return line;
-  });
-  if (!found) {
-    core8.warning(`Could not find unchecked todo matching: "${todoText}"`);
-  }
-  return { body: updatedLines.join("\n"), found };
-}
 
 // src/runner/executors/review.ts
 var core9 = __toESM(require_core(), 1);
@@ -70114,7 +70513,11 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   } else if (action.filePath && fs7.existsSync(action.filePath)) {
     try {
       const content3 = fs7.readFileSync(action.filePath, "utf-8");
-      reviewOutput = parseOutput(ReviewOutputSchema, JSON.parse(content3), "review file");
+      reviewOutput = parseOutput(
+        ReviewOutputSchema,
+        JSON.parse(content3),
+        "review file"
+      );
       core9.info(`Review output from file: ${action.filePath}`);
     } catch (error6) {
       throw new Error(`Failed to parse review output from file: ${error6}`);
@@ -70153,15 +70556,26 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
 // src/runner/executors/pr-response.ts
 var core10 = __toESM(require_core(), 1);
 var fs8 = __toESM(require("node:fs"), 1);
+function asOctokitLike5(ctx) {
+  return ctx.octokit;
+}
 async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
   let responseOutput;
   if (structuredOutput) {
-    responseOutput = parseOutput(PRResponseOutputSchema, structuredOutput, "pr-response");
+    responseOutput = parseOutput(
+      PRResponseOutputSchema,
+      structuredOutput,
+      "pr-response"
+    );
     core10.info("Using structured output from in-process chain");
   } else if (action.filePath && fs8.existsSync(action.filePath)) {
     try {
       const content3 = fs8.readFileSync(action.filePath, "utf-8");
-      responseOutput = parseOutput(PRResponseOutputSchema, JSON.parse(content3), "pr-response file");
+      responseOutput = parseOutput(
+        PRResponseOutputSchema,
+        JSON.parse(content3),
+        "pr-response file"
+      );
       core10.info(`PR response output from file: ${action.filePath}`);
     } catch (error6) {
       throw new Error(`Failed to parse PR response output from file: ${error6}`);
@@ -70188,12 +70602,13 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
     );
     return { applied: true, hadCommits: responseOutput.had_commits };
   }
-  await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.prNumber,
-    body: responseOutput.summary
-  });
+  await createComment(
+    ctx.owner,
+    ctx.repo,
+    action.prNumber,
+    responseOutput.summary,
+    asOctokitLike5(ctx)
+  );
   core10.info(`Posted response comment on PR #${action.prNumber}`);
   if (!responseOutput.had_commits) {
     try {
@@ -70213,24 +70628,22 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
   if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
     const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
     const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
-    const issue2 = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber
-    });
-    const currentBody = issue2.data.body || "";
-    const updatedBody = appendAgentNotes(currentBody, {
-      runId,
-      runLink,
-      notes: responseOutput.agent_notes
-    });
-    if (updatedBody !== currentBody) {
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        body: updatedBody
-      });
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit: asOctokitLike5(ctx),
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    const state = appendAgentNotes2(
+      { runId, runLink, notes: responseOutput.agent_notes },
+      data
+    );
+    if (state !== data) {
+      await update(state);
       core10.info(
         `Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`
       );
@@ -70241,6 +70654,9 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
 
 // src/runner/executors/agent-notes.ts
 var core11 = __toESM(require_core(), 1);
+function asOctokitLike6(ctx) {
+  return ctx.octokit;
+}
 async function executeAppendAgentNotes(action, ctx) {
   const { issueNumber, notes, runId, runLink, timestamp } = action;
   if (notes.length === 0) {
@@ -70257,25 +70673,14 @@ async function executeAppendAgentNotes(action, ctx) {
     core11.endGroup();
     return { appended: true };
   }
-  const issue2 = await ctx.octokit.rest.issues.get({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: issueNumber
+  const { data, update } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
+    octokit: asOctokitLike6(ctx),
+    fetchPRs: false,
+    fetchParent: false
   });
-  const currentBody = issue2.data.body || "";
-  const updatedBody = appendAgentNotes(currentBody, {
-    runId,
-    runLink,
-    timestamp,
-    notes
-  });
-  if (updatedBody !== currentBody) {
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: issueNumber,
-      body: updatedBody
-    });
+  const state = appendAgentNotes2({ runId, runLink, timestamp, notes }, data);
+  if (state !== data) {
+    await update(state);
     core11.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
     core11.startGroup("Agent Notes");
     for (const note of notes) {
@@ -70426,7 +70831,11 @@ async function executeApplyDiscussionResearchOutput(action, ctx, structuredOutpu
     core13.info("Using structured output from in-process chain");
   } else if (action.filePath && fs9.existsSync(action.filePath)) {
     const content3 = fs9.readFileSync(action.filePath, "utf-8");
-    output = parseOutput(ResearchOutputSchema, JSON.parse(content3), "research file");
+    output = parseOutput(
+      ResearchOutputSchema,
+      JSON.parse(content3),
+      "research file"
+    );
     core13.info(`Research output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -70477,7 +70886,11 @@ async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput
     core13.info("Using structured output from in-process chain");
   } else if (action.filePath && fs9.existsSync(action.filePath)) {
     const content3 = fs9.readFileSync(action.filePath, "utf-8");
-    output = parseOutput(RespondOutputSchema, JSON.parse(content3), "respond file");
+    output = parseOutput(
+      RespondOutputSchema,
+      JSON.parse(content3),
+      "respond file"
+    );
     core13.info(`Respond output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -70506,7 +70919,11 @@ async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutp
     core13.info("Using structured output from in-process chain");
   } else if (action.filePath && fs9.existsSync(action.filePath)) {
     const content3 = fs9.readFileSync(action.filePath, "utf-8");
-    output = parseOutput(SummarizeOutputSchema, JSON.parse(content3), "summarize file");
+    output = parseOutput(
+      SummarizeOutputSchema,
+      JSON.parse(content3),
+      "summarize file"
+    );
     core13.info(`Summarize output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -70622,6 +71039,9 @@ async function executeUpdateDiscussionSummary(action, ctx) {
 // src/runner/executors/grooming.ts
 var core15 = __toESM(require_core(), 1);
 var fs10 = __toESM(require("fs"), 1);
+function asOctokitLike7(ctx) {
+  return ctx.octokit;
+}
 async function executeRunClaudeGrooming(action, ctx) {
   core15.info(`Running grooming agents for issue #${action.issueNumber}`);
   if (ctx.dryRun) {
@@ -70638,7 +71058,11 @@ async function executeRunClaudeGrooming(action, ctx) {
   if (ctx.mockOutputs?.grooming) {
     core15.info("[MOCK MODE] Using mock grooming output");
     return {
-      outputs: parseOutput(CombinedGroomingOutputSchema, ctx.mockOutputs.grooming, "mock grooming")
+      outputs: parseOutput(
+        CombinedGroomingOutputSchema,
+        ctx.mockOutputs.grooming,
+        "mock grooming"
+      )
     };
   }
   const outputs = {
@@ -70653,11 +71077,19 @@ async function executeRunClaudeGrooming(action, ctx) {
 async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   let groomingOutput;
   if (structuredOutput) {
-    groomingOutput = parseOutput(CombinedGroomingOutputSchema, structuredOutput, "grooming");
+    groomingOutput = parseOutput(
+      CombinedGroomingOutputSchema,
+      structuredOutput,
+      "grooming"
+    );
     core15.info("Using structured output from in-process chain");
   } else if (action.filePath && fs10.existsSync(action.filePath)) {
     const content3 = fs10.readFileSync(action.filePath, "utf-8");
-    groomingOutput = parseOutput(CombinedGroomingOutputSchema, JSON.parse(content3), "grooming file");
+    groomingOutput = parseOutput(
+      CombinedGroomingOutputSchema,
+      JSON.parse(content3),
+      "grooming file"
+    );
     core15.info(`Grooming output from file: ${action.filePath}`);
   } else {
     throw new Error(
@@ -70678,17 +71110,32 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   let subIssuesCreated = 0;
   if (decision === "ready") {
     try {
-      await ctx.octokit.rest.issues.addLabels({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        labels: ["groomed"]
+      const { data, update } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        action.issueNumber,
+        {
+          octokit: asOctokitLike7(ctx),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      await update({
+        ...data,
+        issue: {
+          ...data.issue,
+          labels: [...data.issue.labels, "groomed"]
+        }
       });
       core15.info(`Added 'groomed' label to issue #${action.issueNumber}`);
     } catch (error6) {
       core15.warning(`Failed to add 'groomed' label: ${error6}`);
     }
-    const engineerOutput = parseOutput(EngineerOutputSchema, groomingOutput.engineer, "engineer");
+    const engineerOutput = parseOutput(
+      EngineerOutputSchema,
+      groomingOutput.engineer,
+      "engineer"
+    );
     if (engineerOutput.scope_recommendation === "split" && engineerOutput.recommended_phases && engineerOutput.recommended_phases.length > 0) {
       core15.info(
         `Engineer recommends splitting into ${engineerOutput.recommended_phases.length} phases`
@@ -70709,16 +71156,17 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       }
     }
     if (questions.length > 0) {
-      await ctx.octokit.rest.issues.createComment({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        body: `## Grooming Questions
+      await createComment(
+        ctx.owner,
+        ctx.repo,
+        action.issueNumber,
+        `## Grooming Questions
 
 The following questions need to be addressed before this issue is ready:
 
-${questions.join("\n")}`
-      });
+${questions.join("\n")}`,
+        asOctokitLike7(ctx)
+      );
     }
   }
   return { applied: true, decision, subIssuesCreated };
@@ -70757,24 +71205,29 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
   }
   if (created > 0) {
     try {
-      const { data: parentIssue } = await ctx.octokit.rest.issues.get({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentIssueNumber
-      });
-      const existingBody = parentIssue.body || "";
-      const agentNote = `
-
-## Agent Notes
-
-Grooming complete. Sub-issues created for phased implementation.`;
-      const newBody = existingBody + agentNote;
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: parentIssueNumber,
-        body: newBody
-      });
+      const { data: parentData, update: parentUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber,
+        {
+          octokit: asOctokitLike7(ctx),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      const parentState = appendAgentNotes2(
+        {
+          runId: `grooming-${Date.now()}`,
+          runLink: "",
+          notes: [
+            "Grooming complete. Sub-issues created for phased implementation."
+          ]
+        },
+        parentData
+      );
+      if (parentState !== parentData) {
+        await parentUpdate(parentState);
+      }
       core15.info(`Updated parent issue #${parentIssueNumber} with agent notes`);
     } catch (error6) {
       core15.warning(`Failed to update parent issue body: ${error6}`);
@@ -70811,98 +71264,8 @@ function buildPhaseIssueBody(phase) {
 // src/runner/executors/pivot.ts
 var core16 = __toESM(require_core(), 1);
 var fs11 = __toESM(require("fs"), 1);
-function upsertSectionInBody(body, sectionName, content3) {
-  const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(
-    `(## ${escapedName}\\s*\\n)[\\s\\S]*?(?=\\n## |\\n<!-- |$)`,
-    "i"
-  );
-  if (pattern.test(body)) {
-    return body.replace(pattern, `$1
-${content3}
-`).trim();
-  } else {
-    return `${body.trim()}
-
-## ${sectionName}
-
-${content3}`;
-  }
-}
-function applyTodoModifications(body, modifications) {
-  const lines = body.split("\n");
-  const todos = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const match = line.match(/^- \[([ x])\] (.*)$/);
-    if (match) {
-      todos.push({
-        lineIndex: i,
-        checked: match[1] === "x",
-        text: match[2] || ""
-      });
-    }
-  }
-  for (const mod of modifications) {
-    const todoIndex = mod.index;
-    if (mod.action === "add") {
-      const insertLineIndex = todoIndex < 0 ? todos.length > 0 ? todos[0].lineIndex : lines.length : todoIndex < todos.length ? todos[todoIndex].lineIndex + 1 : lines.length;
-      const newLine = `- [ ] ${mod.text || ""}`;
-      lines.splice(insertLineIndex, 0, newLine);
-      todos.length = 0;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const match = line.match(/^- \[([ x])\] (.*)$/);
-        if (match) {
-          todos.push({
-            lineIndex: i,
-            checked: match[1] === "x",
-            text: match[2] || ""
-          });
-        }
-      }
-    } else if (mod.action === "modify") {
-      if (todoIndex < 0 || todoIndex >= todos.length) {
-        core16.warning(`Cannot modify todo at index ${todoIndex}: out of bounds`);
-        continue;
-      }
-      const todo = todos[todoIndex];
-      if (todo.checked) {
-        core16.warning(
-          `Cannot modify checked todo at index ${todoIndex}: safety constraint`
-        );
-        continue;
-      }
-      lines[todo.lineIndex] = `- [ ] ${mod.text || ""}`;
-      todo.text = mod.text || "";
-    } else if (mod.action === "remove") {
-      if (todoIndex < 0 || todoIndex >= todos.length) {
-        core16.warning(`Cannot remove todo at index ${todoIndex}: out of bounds`);
-        continue;
-      }
-      const todo = todos[todoIndex];
-      if (todo.checked) {
-        core16.warning(
-          `Cannot remove checked todo at index ${todoIndex}: safety constraint`
-        );
-        continue;
-      }
-      lines.splice(todo.lineIndex, 1);
-      todos.length = 0;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const match = line.match(/^- \[([ x])\] (.*)$/);
-        if (match) {
-          todos.push({
-            lineIndex: i,
-            checked: match[1] === "x",
-            text: match[2] || ""
-          });
-        }
-      }
-    }
-  }
-  return lines.join("\n");
+function asOctokitLike8(ctx) {
+  return ctx.octokit;
 }
 async function executeApplyPivotOutput(action, ctx, structuredOutput) {
   let pivotOutput;
@@ -70911,7 +71274,11 @@ async function executeApplyPivotOutput(action, ctx, structuredOutput) {
     core16.info("Using structured output from in-process chain");
   } else if (action.filePath && fs11.existsSync(action.filePath)) {
     const content3 = fs11.readFileSync(action.filePath, "utf-8");
-    pivotOutput = parseOutput(PivotOutputSchema, JSON.parse(content3), "pivot file");
+    pivotOutput = parseOutput(
+      PivotOutputSchema,
+      JSON.parse(content3),
+      "pivot file"
+    );
     core16.info(`Pivot output from file: ${action.filePath}`);
   } else {
     throw new Error(
@@ -70924,30 +71291,32 @@ async function executeApplyPivotOutput(action, ctx, structuredOutput) {
   core16.endGroup();
   if (pivotOutput.outcome === "needs_clarification") {
     core16.info("Pivot needs clarification - posting comment and exiting");
-    await ctx.octokit.rest.issues.createComment({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: `## Pivot Needs Clarification
+    await createComment(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      `## Pivot Needs Clarification
 
 ${pivotOutput.clarification_needed || pivotOutput.summary_for_user}
 
-*Please provide more details and try again.*`
-    });
+*Please provide more details and try again.*`,
+      asOctokitLike8(ctx)
+    );
     return { applied: false, changesApplied: 0 };
   }
   if (pivotOutput.outcome === "no_changes_needed") {
     core16.info("No changes needed");
-    await ctx.octokit.rest.issues.createComment({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: `## Pivot Analysis
+    await createComment(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      `## Pivot Analysis
 
 ${pivotOutput.summary_for_user}
 
-*No changes were required.*`
-    });
+*No changes were required.*`,
+      asOctokitLike8(ctx)
+    );
     return { applied: true, changesApplied: 0 };
   }
   let changesApplied = 0;
@@ -70972,51 +71341,62 @@ ${pivotOutput.summary_for_user}
     return { applied: true, changesApplied };
   }
   if (mods?.parent_issue?.update_sections) {
-    const { data: parentIssue } = await ctx.octokit.rest.issues.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber
-    });
-    let updatedBody = parentIssue.body || "";
+    const { data: parentData, update: parentUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit: asOctokitLike8(ctx),
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    let parentState = parentData;
     for (const [section, content3] of Object.entries(
       mods.parent_issue.update_sections
     )) {
       core16.info(`Updating parent issue section "${section}"`);
-      updatedBody = upsertSectionInBody(updatedBody, section, content3);
+      const sectionAst = parseMarkdown(content3);
+      const sectionContent = (
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast children are RootContent[]
+        sectionAst.children
+      );
+      parentState = upsertSection2(
+        { title: section, content: sectionContent },
+        parentState
+      );
     }
-    await ctx.octokit.rest.issues.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      issue_number: action.issueNumber,
-      body: updatedBody
-    });
+    await parentUpdate(parentState);
     core16.info(`Updated parent issue body`);
   }
   if (mods?.sub_issues) {
     for (const subIssue of mods.sub_issues) {
       if (subIssue.action === "skip") continue;
       core16.info(`Modifying sub-issue #${subIssue.issue_number}`);
-      const { data: issueData } = await ctx.octokit.rest.issues.get({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssue.issue_number
-      });
-      let updatedBody = issueData.body || "";
+      const { data: subData, update: subUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        subIssue.issue_number,
+        {
+          octokit: asOctokitLike8(ctx),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      let subState = subData;
       if (subIssue.todo_modifications && subIssue.todo_modifications.length > 0) {
-        updatedBody = applyTodoModifications(
-          updatedBody,
-          subIssue.todo_modifications
+        subState = applyTodoModifications(
+          { modifications: subIssue.todo_modifications },
+          subState
         );
       }
       if (subIssue.update_description) {
-        updatedBody = subIssue.update_description;
+        subState = replaceBody(
+          { bodyAst: parseMarkdown(subIssue.update_description) },
+          subState
+        );
       }
-      await ctx.octokit.rest.issues.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: subIssue.issue_number,
-        body: updatedBody
-      });
+      await subUpdate(subState);
       core16.info(`Updated sub-issue #${subIssue.issue_number}`);
     }
   }
@@ -71024,46 +71404,42 @@ ${pivotOutput.summary_for_user}
     core16.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
     for (const newSubIssue of mods.new_sub_issues) {
       const todoList = newSubIssue.todos.map((t) => `- [ ] ${t}`).join("\n");
-      const body = `${newSubIssue.description}
+      const bodyText = `${newSubIssue.description}
 
 ## Todo
 
 ${todoList}`;
-      const { data: createdIssue } = await ctx.octokit.rest.issues.create({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        title: newSubIssue.title,
-        body
-      });
-      core16.info(
-        `Created sub-issue #${createdIssue.number}: ${newSubIssue.title} (${newSubIssue.reason})`
-      );
+      const bodyAst = parseMarkdown(bodyText);
       try {
-        const { data: parentIssue } = await ctx.octokit.rest.issues.get({
-          owner: ctx.owner,
-          repo: ctx.repo,
-          issue_number: action.issueNumber
-        });
-        await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
-          parentId: parentIssue.node_id,
-          childId: createdIssue.node_id
-        });
-        core16.info(`Linked sub-issue #${createdIssue.number} to parent`);
+        const result = await addSubIssueToParent(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          { title: newSubIssue.title, body: bodyAst },
+          {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+            octokit: asOctokitLike8(ctx)
+          }
+        );
+        core16.info(
+          `Created sub-issue #${result.issueNumber}: ${newSubIssue.title} (${newSubIssue.reason})`
+        );
       } catch (error6) {
-        core16.warning(`Failed to link sub-issue via GraphQL: ${error6}`);
+        core16.warning(`Failed to create sub-issue: ${error6}`);
       }
     }
   }
-  await ctx.octokit.rest.issues.createComment({
-    owner: ctx.owner,
-    repo: ctx.repo,
-    issue_number: action.issueNumber,
-    body: `## Pivot Applied
+  await createComment(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    `## Pivot Applied
 
 ${pivotOutput.summary_for_user}
 
-*${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`
-  });
+*${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`,
+    asOctokitLike8(ctx)
+  );
   core16.info(`Applied ${changesApplied} pivot changes`);
   return { applied: true, changesApplied };
 }
