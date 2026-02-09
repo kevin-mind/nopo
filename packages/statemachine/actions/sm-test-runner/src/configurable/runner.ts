@@ -633,21 +633,14 @@ Issue: #${this.issueNumber}
     this.prNumber = response.data.number;
     this.logResourceCreated("PR", this.getPrUrl(this.prNumber));
 
-    // Add test label to the PR
-    const { data: prLabelData, update: prLabelUpdate } = await parseIssue(
+    // Add test label to the PR (use REST-based setLabels since parseIssue can't resolve PRs by number)
+    await setLabels(
       this.config.owner,
       this.config.repo,
       this.prNumber,
-      { octokit: this.asOctokitLike(), fetchPRs: false, fetchParent: false },
+      [TEST_LABEL],
+      this.asOctokitLike(),
     );
-    const prLabelState = {
-      ...prLabelData,
-      issue: {
-        ...prLabelData.issue,
-        labels: [...new Set([...prLabelData.issue.labels, TEST_LABEL])],
-      },
-    };
-    await prLabelUpdate(prLabelState);
 
     return this.prNumber;
   }

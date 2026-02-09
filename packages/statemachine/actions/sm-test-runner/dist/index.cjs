@@ -75627,20 +75627,13 @@ Fixes #${this.issueNumber}`;
     });
     this.prNumber = response.data.number;
     this.logResourceCreated("PR", this.getPrUrl(this.prNumber));
-    const { data: prLabelData, update: prLabelUpdate } = await parseIssue(
+    await setLabels(
       this.config.owner,
       this.config.repo,
       this.prNumber,
-      { octokit: this.asOctokitLike(), fetchPRs: false, fetchParent: false }
+      [TEST_LABEL],
+      this.asOctokitLike()
     );
-    const prLabelState = {
-      ...prLabelData,
-      issue: {
-        ...prLabelData.issue,
-        labels: [.../* @__PURE__ */ new Set([...prLabelData.issue.labels, TEST_LABEL])]
-      }
-    };
-    await prLabelUpdate(prLabelState);
     return this.prNumber;
   }
   /**
