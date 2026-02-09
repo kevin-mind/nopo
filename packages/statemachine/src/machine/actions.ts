@@ -1,9 +1,4 @@
-import type {
-  MachineContext,
-  Action,
-  ProjectStatus,
-  IssueComment,
-} from "../schemas/index.js";
+import type { MachineContext, Action, IssueComment } from "../schemas/index.js";
 import { deriveBranchName, extractTodosFromAst } from "../parser/index.js";
 import { serializeMarkdown } from "@more/issue-state";
 
@@ -45,8 +40,7 @@ export function emitSetWorking({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "In progress" as ProjectStatus,
+      status: "In progress",
     },
   ];
 }
@@ -61,8 +55,7 @@ export function emitSetReview({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "In review" as ProjectStatus,
+      status: "In review",
     },
   ];
 }
@@ -76,8 +69,7 @@ export function emitSetInProgress({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "In progress" as ProjectStatus,
+      status: "In progress",
     },
   ];
 }
@@ -91,8 +83,7 @@ export function emitSetDone({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "Done" as ProjectStatus,
+      status: "Done",
     },
   ];
 }
@@ -106,8 +97,7 @@ export function emitSetBlocked({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "Blocked" as ProjectStatus,
+      status: "Blocked",
     },
   ];
 }
@@ -121,8 +111,7 @@ export function emitSetError({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "Error" as ProjectStatus,
+      status: "Error",
     },
   ];
 }
@@ -1005,8 +994,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context.issue.number,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
-    status: "In progress" as ProjectStatus,
+    status: "In progress",
   });
 
   // Set first sub-issue to "In progress"
@@ -1016,8 +1004,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: firstSubIssue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "In progress" as ProjectStatus,
+      status: "In progress",
     });
   }
 
@@ -1051,8 +1038,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context.currentSubIssue.number,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
-    status: "Done" as ProjectStatus,
+    status: "Done",
   });
 
   // Close current sub-issue
@@ -1073,8 +1059,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: nextSubIssue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "In progress" as ProjectStatus,
+      status: "In progress",
     });
 
     // Log phase advancement
@@ -1175,8 +1160,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context.issue.number,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
-    status: "Done" as ProjectStatus,
+    status: "Done",
   });
 
   // Close parent issue
@@ -1614,8 +1598,7 @@ export function emitSetReady({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
-      status: "Ready" as ProjectStatus,
+      status: "Ready",
     },
   ];
 }

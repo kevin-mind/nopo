@@ -10,13 +10,16 @@ import {
   type IssueCommentNode,
   type IssueResponse,
 } from "@more/issue-state";
-import type { IssueState as IssueStateValue } from "@more/issue-state";
+import {
+  ProjectStatusSchema,
+  IssueStateSchema,
+  PRStateSchema,
+  type ProjectStatus,
+} from "@more/issue-state";
 import type {
   MachineContext,
   ParentIssue,
   SubIssue,
-  ProjectStatus,
-  PRState,
   LinkedPR,
   TriggerType,
   GitHubEvent,
@@ -95,8 +98,10 @@ function parseProjectState(
   for (const fieldValue of fieldValues) {
     const fieldName = fieldValue.field?.name;
     if (fieldName === "Status" && fieldValue.name) {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub project field value matches ProjectStatus union
-      status = fieldValue.name as ProjectStatus;
+      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
+      if (parsed.success) {
+        status = parsed.data;
+      }
     } else if (
       fieldName === "Iteration" &&
       typeof fieldValue.number === "number"
@@ -130,8 +135,10 @@ function parseSubIssueStatus(
 
   for (const fieldValue of projectItem.fieldValues.nodes) {
     if (fieldValue.field?.name === "Status" && fieldValue.name) {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub project field value matches ProjectStatus union
-      return fieldValue.name as ProjectStatus;
+      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
+      if (parsed.success) {
+        return parsed.data;
+      }
     }
   }
 
@@ -171,8 +178,7 @@ function parseSubIssue(
   return {
     number: node.number || 0,
     title: node.title || "",
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API returns lowercase state, .toUpperCase() produces valid IssueStateValue
-    state: (node.state?.toUpperCase() || "OPEN") as IssueStateValue,
+    state: IssueStateSchema.catch("OPEN").parse(node.state?.toUpperCase()),
     bodyAst,
     projectStatus: status,
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
@@ -243,8 +249,7 @@ async function getPRForBranch(
 
     return {
       number: pr.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API returns lowercase state, .toUpperCase() produces valid PRState
-      state: (pr.state?.toUpperCase() || "OPEN") as PRState,
+      state: PRStateSchema.catch("OPEN").parse(pr.state?.toUpperCase()),
       isDraft: pr.isDraft || false,
       title: pr.title || "",
       headRef: pr.headRefName || headRef,
@@ -339,8 +344,7 @@ async function fetchIssueState(
     issue: {
       number: issue.number || issueNumber,
       title: issue.title || "",
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API returns lowercase state, .toUpperCase() produces valid IssueStateValue
-      state: (issue.state?.toUpperCase() || "OPEN") as IssueStateValue,
+      state: IssueStateSchema.catch("OPEN").parse(issue.state?.toUpperCase()),
       bodyAst,
       projectStatus: status,
       iteration,

@@ -10,52 +10,12 @@ import * as fs from "fs";
 import { ADD_SUB_ISSUE_MUTATION } from "@more/issue-state";
 import type { ApplyPivotOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
-
-// ============================================================================
-// Types (matches @more/prompts Pivot output schema)
-// ============================================================================
-
-interface TodoModification {
-  action: "add" | "modify" | "remove";
-  index: number;
-  text?: string;
-}
-
-interface SubIssueModification {
-  issue_number: number;
-  action: "modify" | "skip";
-  todo_modifications?: TodoModification[];
-  update_description?: string;
-}
-
-interface NewSubIssue {
-  title: string;
-  description: string;
-  todos: string[];
-  reason: "reversion" | "new_scope" | "extension";
-}
-
-interface PivotOutput {
-  analysis: {
-    change_summary: string;
-    affects_completed_work: boolean;
-    completed_work_details?: Array<{
-      type: "checked_todo" | "closed_sub_issue";
-      issue_number: number;
-      description: string;
-    }>;
-  };
-  modifications?: {
-    parent_issue?: {
-      update_sections?: Record<string, string>;
-    };
-    sub_issues?: SubIssueModification[];
-    new_sub_issues?: NewSubIssue[];
-  };
-  outcome: "changes_applied" | "needs_clarification" | "no_changes_needed";
-  clarification_needed?: string;
-  summary_for_user: string;
-}
+import {
+  PivotOutputSchema,
+  parseOutput,
+  type PivotOutput,
+  type TodoModification,
+} from "./output-schemas.js";
 
 // ============================================================================
 // Helper Functions
@@ -229,13 +189,15 @@ export async function executeApplyPivotOutput(
 
   // Try structured output first, then fall back to file
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    pivotOutput = structuredOutput as PivotOutput;
+    pivotOutput = parseOutput(PivotOutputSchema, structuredOutput, "pivot");
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches PivotOutput schema
-    pivotOutput = JSON.parse(content) as PivotOutput;
+    pivotOutput = parseOutput(
+      PivotOutputSchema,
+      JSON.parse(content),
+      "pivot file",
+    );
     core.info(`Pivot output from file: ${action.filePath}`);
   } else {
     throw new Error(

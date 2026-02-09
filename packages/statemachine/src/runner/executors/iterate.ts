@@ -9,22 +9,11 @@ import * as fs from "node:fs";
 import type { ApplyIterateOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import { appendAgentNotes } from "../../parser/index.js";
-
-// ============================================================================
-// Iterate Output Types
-// ============================================================================
-
-/**
- * Structured output from the iterate prompt
- */
-interface IterateOutput {
-  status: "completed_todo" | "waiting_manual" | "blocked" | "all_done";
-  todos_completed?: string[];
-  todo_completed?: string; // Legacy: single todo (backwards compatibility)
-  manual_todo?: string;
-  blocked_reason?: string;
-  agent_notes: string[];
-}
+import {
+  IterateOutputSchema,
+  parseOutput,
+  type IterateOutput,
+} from "./output-schemas.js";
 
 // ============================================================================
 // Apply Iterate Output
@@ -48,15 +37,21 @@ export async function executeApplyIterateOutput(
 
   // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    iterateOutput = structuredOutput as IterateOutput;
+    iterateOutput = parseOutput(
+      IterateOutputSchema,
+      structuredOutput,
+      "iterate",
+    );
     core.info("Using structured output from in-process chain");
   } else if (filePath && fs.existsSync(filePath)) {
     // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(filePath, "utf-8");
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches IterateOutput schema
-      iterateOutput = JSON.parse(content) as IterateOutput;
+      iterateOutput = parseOutput(
+        IterateOutputSchema,
+        JSON.parse(content),
+        "iterate file",
+      );
       core.info(`Iterate output from file: ${filePath}`);
     } catch (error) {
       core.warning(`Failed to parse iterate output: ${error}`);

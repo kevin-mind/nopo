@@ -1081,26 +1081,27 @@ export type DiscussionAction = Extract<Action, { type: DiscussionActionType }>;
  */
 export type SharedAction = Extract<Action, { type: SharedActionType }>;
 
+const ISSUE_ACTION_SET = new Set<string>(ISSUE_ACTION_TYPES);
+const DISCUSSION_ACTION_SET = new Set<string>(DISCUSSION_ACTION_TYPES);
+const SHARED_ACTION_SET = new Set<string>(SHARED_ACTION_TYPES);
+
 /**
  * Type guard to check if an action is issue-specific
  */
 export function isIssueAction(action: Action): action is IssueAction {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening const tuple to readonly string[] for .includes() compatibility
-  return (ISSUE_ACTION_TYPES as readonly string[]).includes(action.type);
+  return ISSUE_ACTION_SET.has(action.type);
 }
 
 /**
  * Type guard to check if an action is discussion-specific
  */
 export function isDiscussionAction(action: Action): action is DiscussionAction {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening const tuple to readonly string[] for .includes() compatibility
-  return (DISCUSSION_ACTION_TYPES as readonly string[]).includes(action.type);
+  return DISCUSSION_ACTION_SET.has(action.type);
 }
 
 /**
  * Type guard to check if an action is shared
  */
 export function isSharedAction(action: Action): action is SharedAction {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening const tuple to readonly string[] for .includes() compatibility
-  return (SHARED_ACTION_TYPES as readonly string[]).includes(action.type);
+  return SHARED_ACTION_SET.has(action.type);
 }

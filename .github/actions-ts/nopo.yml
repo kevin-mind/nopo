@@ -1,0 +1,6 @@
+name: actions-ts
+description: GitHub Actions TypeScript builds
+
+commands:
+  compile:
+    command: pnpm exec tsx scripts/build.ts

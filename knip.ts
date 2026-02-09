@@ -53,7 +53,7 @@ export default {
     },
     "packages/statemachine": {
       // Actions are standalone entry points compiled by esbuild
-      entry: ["actions/*/index.ts", "actions/*/src/**/*.ts"],
+      entry: ["actions/*/index.ts", "actions/*/src/**/*.ts", "scripts/*.ts"],
       ignore: ["actions/*/dist/**"],
     },
     ".github/actions-ts": {

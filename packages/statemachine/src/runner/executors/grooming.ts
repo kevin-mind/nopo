@@ -18,66 +18,15 @@ import {
 import type {
   RunClaudeGroomingAction,
   ApplyGroomingOutputAction,
-  GroomingAgentType,
 } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface GroomingAgentOutput {
-  ready: boolean;
-  questions?: string[];
-  [key: string]: unknown;
-}
-
-interface AffectedArea {
-  path: string;
-  change_type?: string;
-  description?: string;
-  impact?: string;
-}
-
-interface PhaseTodoItem {
-  task: string;
-  manual?: boolean;
-}
-
-interface RecommendedPhase {
-  phase_number: number;
-  title: string;
-  description: string;
-  affected_areas?: AffectedArea[];
-  todos?: PhaseTodoItem[];
-  depends_on?: number[];
-}
-
-interface EngineerOutput extends GroomingAgentOutput {
-  scope_recommendation?: "direct" | "split";
-  recommended_phases?: RecommendedPhase[];
-}
-
-interface CombinedGroomingOutput {
-  pm: GroomingAgentOutput;
-  engineer: GroomingAgentOutput;
-  qa: GroomingAgentOutput;
-  research: GroomingAgentOutput;
-}
-
-interface _GroomingSummaryOutput {
-  summary: string;
-  decision: "ready" | "needs_info" | "blocked";
-  decision_rationale: string;
-  questions?: Array<{
-    question: string;
-    source: GroomingAgentType;
-    priority: "critical" | "important" | "nice-to-have";
-  }>;
-  blocker_reason?: string;
-  next_steps?: string[];
-  agent_notes?: string[];
-}
+import {
+  CombinedGroomingOutputSchema,
+  EngineerOutputSchema,
+  parseOutput,
+  type CombinedGroomingOutput,
+  type RecommendedPhase,
+} from "./output-schemas.js";
 
 // ============================================================================
 // Run Claude Grooming
@@ -111,8 +60,11 @@ export async function executeRunClaudeGrooming(
   if (ctx.mockOutputs?.grooming) {
     core.info("[MOCK MODE] Using mock grooming output");
     return {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock outputs typed as unknown, casting to expected shape
-      outputs: ctx.mockOutputs.grooming as unknown as CombinedGroomingOutput,
+      outputs: parseOutput(
+        CombinedGroomingOutputSchema,
+        ctx.mockOutputs.grooming,
+        "mock grooming",
+      ),
     };
   }
 
@@ -147,13 +99,19 @@ export async function executeApplyGroomingOutput(
 
   // Try structured output first, then fall back to file
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    groomingOutput = structuredOutput as CombinedGroomingOutput;
+    groomingOutput = parseOutput(
+      CombinedGroomingOutputSchema,
+      structuredOutput,
+      "grooming",
+    );
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches CombinedGroomingOutput schema
-    groomingOutput = JSON.parse(content) as CombinedGroomingOutput;
+    groomingOutput = parseOutput(
+      CombinedGroomingOutputSchema,
+      JSON.parse(content),
+      "grooming file",
+    );
     core.info(`Grooming output from file: ${action.filePath}`);
   } else {
     throw new Error(
@@ -200,8 +158,11 @@ export async function executeApplyGroomingOutput(
     }
 
     // Check if engineer recommends splitting into phases
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- engineer output extends GroomingAgentOutput with additional fields
-    const engineerOutput = groomingOutput.engineer as EngineerOutput;
+    const engineerOutput = parseOutput(
+      EngineerOutputSchema,
+      groomingOutput.engineer,
+      "engineer",
+    );
     if (
       engineerOutput.scope_recommendation === "split" &&
       engineerOutput.recommended_phases &&
@@ -220,8 +181,7 @@ export async function executeApplyGroomingOutput(
     // Collect questions from agents
     const questions: string[] = [];
     for (const [agentType, output] of Object.entries(groomingOutput)) {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Object.entries loses the value type
-      const agentOutput = output as GroomingAgentOutput;
+      const agentOutput = output;
       if (agentOutput.questions && agentOutput.questions.length > 0) {
         questions.push(`**${agentType}:**`);
         questions.push(...agentOutput.questions.map((q) => `- ${q}`));

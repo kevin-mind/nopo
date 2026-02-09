@@ -12,18 +12,11 @@ import type {
 } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import { executeSubmitReview } from "./github.js";
-
-// ============================================================================
-// Review Output Types
-// ============================================================================
-
-/**
- * Structured output from the review prompt
- */
-interface ReviewOutput {
-  decision: "approve" | "request_changes" | "comment";
-  body: string;
-}
+import {
+  ReviewOutputSchema,
+  parseOutput,
+  type ReviewOutput,
+} from "./output-schemas.js";
 
 // ============================================================================
 // Apply Review Output
@@ -45,15 +38,17 @@ export async function executeApplyReviewOutput(
 
   // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    reviewOutput = structuredOutput as ReviewOutput;
+    reviewOutput = parseOutput(ReviewOutputSchema, structuredOutput, "review");
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(action.filePath, "utf-8");
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches ReviewOutput schema
-      reviewOutput = JSON.parse(content) as ReviewOutput;
+      reviewOutput = parseOutput(
+        ReviewOutputSchema,
+        JSON.parse(content),
+        "review file",
+      );
       core.info(`Review output from file: ${action.filePath}`);
     } catch (error) {
       throw new Error(`Failed to parse review output from file: ${error}`);

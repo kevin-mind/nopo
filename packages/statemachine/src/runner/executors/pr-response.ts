@@ -9,20 +9,11 @@ import * as fs from "node:fs";
 import type { ApplyPRResponseOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import { appendAgentNotes } from "../../parser/index.js";
-
-// ============================================================================
-// PR Response Output Types
-// ============================================================================
-
-/**
- * Structured output from the review-response prompt
- */
-interface PRResponseOutput {
-  had_commits: boolean;
-  summary: string;
-  commits?: string[];
-  agent_notes?: string[];
-}
+import {
+  PRResponseOutputSchema,
+  parseOutput,
+  type PRResponseOutput,
+} from "./output-schemas.js";
 
 // ============================================================================
 // Apply PR Response Output
@@ -47,15 +38,21 @@ export async function executeApplyPRResponseOutput(
 
   // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    responseOutput = structuredOutput as PRResponseOutput;
+    responseOutput = parseOutput(
+      PRResponseOutputSchema,
+      structuredOutput,
+      "pr-response",
+    );
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(action.filePath, "utf-8");
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches PRResponseOutput schema
-      responseOutput = JSON.parse(content) as PRResponseOutput;
+      responseOutput = parseOutput(
+        PRResponseOutputSchema,
+        JSON.parse(content),
+        "pr-response file",
+      );
       core.info(`PR response output from file: ${action.filePath}`);
     } catch (error) {
       throw new Error(`Failed to parse PR response output from file: ${error}`);

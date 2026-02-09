@@ -16,6 +16,7 @@ services:
   dirs:
     - ./apps
     - ./packages
+    - ./.github
 
 root_name: root
 
@@ -32,6 +33,18 @@ root:
           dir: ./.github/actions-ts
         # Build all packages (for npm publishing)
         packages: pnpm run -r --filter "./packages/*" build
+    # Build prompts + all GitHub Actions (actions-ts + statemachine)
+    setup-github:
+      dependencies:
+        prompts:
+          - compile
+      commands:
+        actions-ts:
+          command: pnpm exec tsx scripts/build.ts
+          dir: ./.github/actions-ts
+        statemachine:
+          command: pnpm exec tsx scripts/build-actions.ts
+          dir: ./packages/statemachine
     # Root-level cleaning
     clean:
       commands:

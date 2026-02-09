@@ -3,8 +3,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const actionsDir = path.dirname(import.meta.dirname);
-const repoRoot = path.resolve(actionsDir, "../..");
-const packageActionsDir = path.join(repoRoot, "packages/statemachine/actions");
 const isWatch = process.argv.includes("--watch");
 
 interface ActionInfo {
@@ -58,11 +56,8 @@ function findActionsInDir(dir: string): ActionInfo[] {
   return actions;
 }
 
-// Find actions in both .github/actions-ts/ and packages/statemachine/actions/
 function findActions(): ActionInfo[] {
-  const githubActions = findActionsInDir(actionsDir);
-  const packageActions = findActionsInDir(packageActionsDir);
-  return [...githubActions, ...packageActions];
+  return findActionsInDir(actionsDir);
 }
 
 async function build() {

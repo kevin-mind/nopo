@@ -17,57 +17,14 @@ import {
   formatRequirements,
   STANDARD_SECTION_ORDER,
 } from "@more/issue-state";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Triage classification from structured output
- */
-interface TriageClassification {
-  type: string;
-  priority?: string | null;
-  size: string;
-  estimate: number;
-  topics: string[];
-  needs_info: boolean;
-}
-
-/**
- * Full triage output JSON structure (new structured output schema)
- * Note: Sub-issues are no longer created during triage - they are created during grooming
- */
-interface TriageOutput {
-  triage: TriageClassification;
-  requirements: string[];
-  initial_approach: string;
-  initial_questions?: string[];
-  related_issues?: number[];
-  agent_notes?: string[];
-}
-
-/**
- * Legacy triage output format (for backwards compatibility)
- * This format is still supported for existing workflows
- */
-interface LegacyTriageOutput {
-  type?: string;
-  priority?: string | null;
-  size?: string;
-  estimate?: number;
-  topics?: string[];
-  needs_info?: boolean;
-  // Legacy sub-issues support for backward compatibility
-  sub_issues?: Array<{
-    type: string;
-    title: string;
-    description: string;
-    todos: Array<{ task: string; manual: boolean } | string>;
-  }>;
-  issue_body?: string;
-  related_issues?: number[];
-}
+import {
+  TriageOutputSchema,
+  LegacyTriageOutputSchema,
+  parseOutput,
+  type TriageOutput,
+  type LegacyTriageOutput,
+  type TriageClassification,
+} from "./output-schemas.js";
 
 // ============================================================================
 // Main Executor
@@ -101,25 +58,22 @@ export async function executeApplyTriageOutput(
 ): Promise<{ applied: boolean }> {
   const { issueNumber, filePath } = action;
 
-  let triageOutput: TriageOutput | LegacyTriageOutput;
+  // Parse raw data from structured output or file
+  let rawData: unknown;
 
-  // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    triageOutput = structuredOutput as TriageOutput;
+    rawData = structuredOutput;
     core.info("Using structured output from in-process chain");
     core.startGroup("Triage Output (Structured)");
-    core.info(JSON.stringify(triageOutput, null, 2));
+    core.info(JSON.stringify(rawData, null, 2));
     core.endGroup();
   } else if (filePath && fs.existsSync(filePath)) {
-    // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(filePath, "utf-8");
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches triage output schemas
-      triageOutput = JSON.parse(content) as TriageOutput | LegacyTriageOutput;
+      rawData = JSON.parse(content);
       core.info(`Triage output from file: ${filePath}`);
       core.startGroup("Triage Output (File)");
-      core.info(JSON.stringify(triageOutput, null, 2));
+      core.info(JSON.stringify(rawData, null, 2));
       core.endGroup();
     } catch (error) {
       core.warning(`Failed to parse triage output: ${error}`);
@@ -137,30 +91,33 @@ export async function executeApplyTriageOutput(
     return { applied: true };
   }
 
-  // Detect output format and extract classification
-  const isNewFormat =
-    "triage" in triageOutput && "requirements" in triageOutput;
-  const isLegacyStructured =
-    "triage" in triageOutput && !("requirements" in triageOutput);
+  // Try new format first, fall back to legacy
+  const newFormatResult = TriageOutputSchema.safeParse(rawData);
+  const isNewFormat = newFormatResult.success;
 
-  const classification: TriageClassification =
-    isNewFormat || isLegacyStructured
-      ? // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to new/legacy structured format by conditional
-        (triageOutput as TriageOutput).triage
-      : {
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-          type: (triageOutput as LegacyTriageOutput).type || "enhancement",
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-          priority: (triageOutput as LegacyTriageOutput).priority,
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-          size: (triageOutput as LegacyTriageOutput).size || "m",
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-          estimate: (triageOutput as LegacyTriageOutput).estimate || 5,
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-          topics: (triageOutput as LegacyTriageOutput).topics || [],
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-          needs_info: (triageOutput as LegacyTriageOutput).needs_info || false,
-        };
+  let classification: TriageClassification;
+  let newFormatOutput: TriageOutput | null = null;
+  let legacyOutput: LegacyTriageOutput | null = null;
+
+  if (isNewFormat) {
+    newFormatOutput = newFormatResult.data;
+    classification = newFormatOutput.triage;
+  } else {
+    // Try legacy format
+    legacyOutput = parseOutput(
+      LegacyTriageOutputSchema,
+      rawData,
+      "triage (legacy)",
+    );
+    classification = {
+      type: legacyOutput.type || "enhancement",
+      priority: legacyOutput.priority,
+      size: legacyOutput.size || "m",
+      estimate: legacyOutput.estimate || 5,
+      topics: legacyOutput.topics || [],
+      needs_info: legacyOutput.needs_info || false,
+    };
+  }
 
   // 1. Apply labels
   await applyLabels(ctx, issueNumber, classification);
@@ -169,9 +126,7 @@ export async function executeApplyTriageOutput(
   await applyProjectFields(ctx, issueNumber, classification);
 
   // 3. Update issue body with structured sections (new format only)
-  if (isNewFormat) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- isNewFormat check above confirms this is TriageOutput
-    const newFormatOutput = triageOutput as TriageOutput;
+  if (newFormatOutput) {
     await updateIssueStructure(
       ctx,
       issueNumber,
@@ -179,21 +134,13 @@ export async function executeApplyTriageOutput(
       newFormatOutput.initial_approach,
       newFormatOutput.initial_questions,
     );
-  } else if (isLegacyStructured) {
-    // Legacy format with issue_body - still update the body directly
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- isLegacyStructured check above confirms this is LegacyTriageOutput
-    const legacyOutput = triageOutput as LegacyTriageOutput;
-    if (legacyOutput.issue_body) {
-      await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
-    }
+  } else if (legacyOutput?.issue_body) {
+    await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
   }
 
   // 4. Link related issues
   const relatedIssues =
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
-    (triageOutput as TriageOutput).related_issues ||
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
-    (triageOutput as LegacyTriageOutput).related_issues;
+    newFormatOutput?.related_issues || legacyOutput?.related_issues;
   if (relatedIssues && relatedIssues.length > 0) {
     await linkRelatedIssues(ctx, issueNumber, relatedIssues);
   }

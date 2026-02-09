@@ -23973,7 +23973,7 @@ var require_extend = __commonJS({
   }
 });
 
-// ../../packages/statemachine/actions/sm-executor/index.ts
+// actions/sm-executor/index.ts
 var core22 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
@@ -28018,7 +28018,7 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// ../../packages/issue-state/src/constants.ts
+// ../issue-state/src/constants.ts
 var PARENT_STATUS = {
   BACKLOG: "Backlog",
   IN_PROGRESS: "In progress",
@@ -28045,7 +28045,7 @@ var DEFAULT_SUB_ISSUE_PROJECT_FIELDS = {
   status: SUB_ISSUE_STATUS.READY
 };
 
-// ../../packages/issue-state/src/schemas/enums.ts
+// ../issue-state/src/schemas/enums.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
   "In progress",
@@ -28075,7 +28075,7 @@ var MergeableStateSchema = external_exports.enum([
   "UNKNOWN"
 ]);
 
-// ../../packages/issue-state/src/schemas/ast.ts
+// ../issue-state/src/schemas/ast.ts
 var MdastNodeSchema = external_exports.lazy(
   () => external_exports.object({
     type: external_exports.string(),
@@ -28087,7 +28087,7 @@ var MdastRootSchema = external_exports.object({
   children: external_exports.array(MdastNodeSchema)
 }).passthrough();
 
-// ../../packages/issue-state/src/schemas/comment.ts
+// ../issue-state/src/schemas/comment.ts
 var IssueCommentSchema = external_exports.object({
   id: external_exports.string(),
   author: external_exports.string(),
@@ -28096,7 +28096,7 @@ var IssueCommentSchema = external_exports.object({
   isBot: external_exports.boolean()
 });
 
-// ../../packages/issue-state/src/schemas/pr.ts
+// ../issue-state/src/schemas/pr.ts
 var LinkedPRSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   state: PRStateSchema,
@@ -28111,14 +28111,14 @@ var LinkedPRSchema = external_exports.object({
   url: external_exports.string().optional()
 });
 
-// ../../packages/issue-state/src/schemas/project.ts
+// ../issue-state/src/schemas/project.ts
 var ProjectFieldsSchema = external_exports.object({
   status: ProjectStatusSchema.nullable(),
   iteration: external_exports.number().int().min(0),
   failures: external_exports.number().int().min(0)
 });
 
-// ../../packages/issue-state/src/schemas/sub-issue.ts
+// ../issue-state/src/schemas/sub-issue.ts
 var SubIssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
@@ -28129,7 +28129,7 @@ var SubIssueDataSchema = external_exports.object({
   pr: LinkedPRSchema.nullable()
 });
 
-// ../../packages/issue-state/src/schemas/issue.ts
+// ../issue-state/src/schemas/issue.ts
 var IssueDataSchema = external_exports.object({
   number: external_exports.number().int().positive(),
   title: external_exports.string(),
@@ -28148,7 +28148,7 @@ var IssueDataSchema = external_exports.object({
   parentIssueNumber: external_exports.number().int().positive().nullable()
 });
 
-// ../../packages/issue-state/src/schemas/issue-state.ts
+// ../issue-state/src/schemas/issue-state.ts
 var IssueStateDataSchema = external_exports.object({
   owner: external_exports.string().min(1),
   repo: external_exports.string().min(1),
@@ -40304,7 +40304,7 @@ function remarkStringify(options) {
   }
 }
 
-// ../../packages/issue-state/src/markdown/ast.ts
+// ../issue-state/src/markdown/ast.ts
 var parser = unified().use(remarkParse).use(remarkGfm);
 var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, {
   bullet: "-",
@@ -40314,7 +40314,7 @@ function serializeMarkdown(ast) {
   return serializer.stringify(ast);
 }
 
-// ../../packages/issue-state/src/graphql/issue-queries.ts
+// ../issue-state/src/graphql/issue-queries.ts
 var GET_ISSUE_BODY_QUERY = `
 query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -40329,7 +40329,7 @@ query GetIssueBody($owner: String!, $repo: String!, $issueNumber: Int!) {
 }
 `;
 
-// ../../packages/issue-state/src/graphql/pr-queries.ts
+// ../issue-state/src/graphql/pr-queries.ts
 var CONVERT_PR_TO_DRAFT_MUTATION = `
 mutation ConvertPRToDraft($prId: ID!) {
   convertPullRequestToDraft(input: { pullRequestId: $prId }) {
@@ -40360,7 +40360,7 @@ query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
 }
 `;
 
-// ../../packages/issue-state/src/graphql/project-queries.ts
+// ../issue-state/src/graphql/project-queries.ts
 var GET_PROJECT_ITEM_QUERY = `
 query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
   repository(owner: $org, name: $repo) {
@@ -40473,7 +40473,7 @@ query GetProjectFields($owner: String!, $projectNumber: Int!) {
 }
 `;
 
-// ../../packages/issue-state/src/graphql/issue-mutations.ts
+// ../issue-state/src/graphql/issue-mutations.ts
 var CREATE_ISSUE_MUTATION = `
 mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
   createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
@@ -40501,7 +40501,7 @@ query GetRepoId($owner: String!, $repo: String!) {
 }
 `;
 
-// ../../packages/issue-state/src/graphql/discussion-queries.ts
+// ../issue-state/src/graphql/discussion-queries.ts
 var GET_DISCUSSION_ID_QUERY = `
 query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -40577,7 +40577,7 @@ mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
 }
 `;
 
-// ../../packages/issue-state/src/graphql/label-queries.ts
+// ../issue-state/src/graphql/label-queries.ts
 var GET_LABEL_IDS_QUERY = `
 query GetLabelIds($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
@@ -40600,7 +40600,7 @@ mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
 }
 `;
 
-// ../../packages/issue-state/src/create-issue.ts
+// ../issue-state/src/create-issue.ts
 var GET_PROJECT_FIELDS_QUERY2 = `
 query GetProjectFields($org: String!, $projectNumber: Int!) {
   organization(login: $org) {
@@ -40804,7 +40804,7 @@ async function addSubIssueToParent(owner, repo, parentIssueNumber, input, option
   };
 }
 
-// ../../packages/issue-state/src/sections/types.ts
+// ../issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
   text: external_exports.string(),
   checked: external_exports.boolean(),
@@ -40830,7 +40830,7 @@ var AgentNotesEntrySchema = external_exports.object({
   notes: external_exports.array(external_exports.string())
 });
 
-// ../../packages/issue-state/src/sections/sections.ts
+// ../issue-state/src/sections/sections.ts
 function getSection(body, sectionName) {
   const escapedName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(
@@ -40928,7 +40928,7 @@ function formatRequirements(requirements) {
   return requirements.map((r) => `- ${r}`).join("\n");
 }
 
-// ../../packages/issue-state/src/sections/history.ts
+// ../issue-state/src/sections/history.ts
 var HISTORY_SECTION = "## Iteration History";
 var HEADER_COLUMNS = [
   { key: "time", value: "Time" },
@@ -41279,7 +41279,7 @@ function updateHistoryEntry(body, matchIteration, matchPhase, matchPattern, newM
   return { body: parts.join("\n"), updated: true };
 }
 
-// ../../packages/issue-state/src/sections/agent-notes.ts
+// ../issue-state/src/sections/agent-notes.ts
 var AGENT_NOTES_SECTION = "## Agent Notes";
 function formatTimestamp2(isoTimestamp) {
   try {
@@ -41351,7 +41351,7 @@ ${newEntryMarkdown}`;
 ${newEntryMarkdown}`;
 }
 
-// ../../packages/issue-state/src/sections/builders.ts
+// ../issue-state/src/sections/builders.ts
 function createText(value) {
   return { type: "text", value };
 }
@@ -41398,7 +41398,7 @@ function createSection(title, content3, depth = 2) {
   return [createHeading(depth, title), ...content3];
 }
 
-// ../../packages/issue-state/src/create-extractor.ts
+// ../issue-state/src/create-extractor.ts
 function createExtractor(schema, transform2) {
   return (data) => {
     const raw = transform2(data);
@@ -41406,7 +41406,7 @@ function createExtractor(schema, transform2) {
   };
 }
 
-// ../../packages/issue-state/src/create-mutator.ts
+// ../issue-state/src/create-mutator.ts
 function createMutator(inputSchema, mutate) {
   return (input, data) => {
     const validated = inputSchema.parse(input);
@@ -41414,7 +41414,7 @@ function createMutator(inputSchema, mutate) {
   };
 }
 
-// ../../packages/statemachine/src/schemas/entities.ts
+// src/schemas/entities.ts
 var CIResultSchema = external_exports.enum([
   "success",
   "failure",
@@ -41431,7 +41431,7 @@ function isTerminalStatus(status) {
   return status === "Done" || status === "Blocked" || status === "Error";
 }
 
-// ../../packages/statemachine/src/schemas/state.ts
+// src/schemas/state.ts
 var TriggerTypeSchema = external_exports.enum([
   // Issue triggers
   "issue-assigned",
@@ -41534,7 +41534,7 @@ var MachineContextSchema = external_exports.object({
   botUsername: external_exports.string().default("nopo-bot")
 });
 
-// ../../packages/statemachine/src/schemas/actions.ts
+// src/schemas/actions.ts
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
 var ArtifactSchema = external_exports.object({
   /** Unique name for the artifact (used for upload/download matching) */
@@ -41983,8 +41983,74 @@ function shouldStopOnError(actionType) {
   ];
   return criticalActions.includes(actionType);
 }
+var ISSUE_ACTION_TYPES = [
+  // Project field actions
+  "updateProjectStatus",
+  "incrementIteration",
+  "recordFailure",
+  "clearFailures",
+  // Issue actions
+  "createSubIssues",
+  "closeIssue",
+  "reopenIssue",
+  "resetIssue",
+  "appendHistory",
+  "updateHistory",
+  "updateIssueBody",
+  "addComment",
+  "unassignUser",
+  "assignUser",
+  // Label actions
+  "addLabel",
+  "removeLabel",
+  // Git actions
+  "createBranch",
+  "gitPush",
+  // PR actions
+  "createPR",
+  "convertPRToDraft",
+  "markPRReady",
+  "requestReview",
+  "mergePR",
+  "submitReview",
+  "removeReviewer",
+  // Claude actions (shared but primarily issue-focused)
+  "runClaude",
+  // Grooming actions
+  "runClaudeGrooming",
+  "applyGroomingOutput",
+  // Pivot actions
+  "applyPivotOutput",
+  // Triage/iterate/review actions
+  "applyTriageOutput",
+  "applyIterateOutput",
+  "appendAgentNotes",
+  "applyReviewOutput",
+  "applyPRResponseOutput",
+  // Block action
+  "block"
+];
+var DISCUSSION_ACTION_TYPES = [
+  "addDiscussionComment",
+  "updateDiscussionBody",
+  "addDiscussionReaction",
+  "createIssuesFromDiscussion",
+  "applyDiscussionResearchOutput",
+  "applyDiscussionRespondOutput",
+  "applyDiscussionSummarizeOutput",
+  "applyDiscussionPlanOutput"
+];
+var SHARED_ACTION_TYPES = [
+  "stop",
+  "log",
+  "noop",
+  "runClaude"
+];
+var ISSUE_ACTION_SET = new Set(ISSUE_ACTION_TYPES);
+var DISCUSSION_ACTION_SET = new Set(DISCUSSION_ACTION_TYPES);
+var SHARED_ACTION_SET = new Set(SHARED_ACTION_TYPES);
 
-// ../../packages/statemachine/src/schemas/issue-triggers.ts
+// src/schemas/issue-triggers.ts
 var IssueTriggerTypeSchema = external_exports.enum([
   // Issue triggers
   "issue-assigned",
@@ -42015,7 +42081,7 @@ var IssueTriggerTypeSchema = external_exports.enum([
 ]);
 var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
 
-// ../../packages/statemachine/src/schemas/discussion-triggers.ts
+// src/schemas/discussion-triggers.ts
 var DiscussionTriggerTypeSchema = external_exports.enum([
   "discussion-created",
   "discussion-comment",
@@ -42023,7 +42089,7 @@ var DiscussionTriggerTypeSchema = external_exports.enum([
 ]);
 var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
 
-// ../../packages/statemachine/src/schemas/discussion-context.ts
+// src/schemas/discussion-context.ts
 var DiscussionCommandSchema = external_exports.enum([
   "summarize",
   "plan",
@@ -42059,7 +42125,7 @@ var DiscussionContextSchema = external_exports.object({
   botUsername: external_exports.string().default("nopo-bot")
 });
 
-// ../../packages/statemachine/src/schemas/runner-context.ts
+// src/schemas/runner-context.ts
 var TriggerTypeSchema2 = external_exports.union([
   IssueTriggerTypeSchema,
   DiscussionTriggerTypeSchema
@@ -42288,7 +42354,7 @@ var MinimalTriggerContextSchema = external_exports.object({
   head_sha: external_exports.string().optional()
 });
 
-// ../../packages/statemachine/src/parser/issue-adapter.ts
+// src/parser/issue-adapter.ts
 function deriveBranchName(parentIssueNumber, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
@@ -42296,7 +42362,18 @@ function deriveBranchName(parentIssueNumber, phaseNumber) {
   return `claude/issue/${parentIssueNumber}`;
 }
 
-// ../../packages/statemachine/src/parser/extractors.ts
+// src/parser/type-guards.ts
+function isList(node2) {
+  return node2.type === "list";
+}
+function isHeading(node2) {
+  return node2.type === "heading";
+}
+function childrenAsRootContent(node2) {
+  return node2.children ?? [];
+}
+
+// src/parser/extractors.ts
 function findHeadingIndex(ast, text5) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
@@ -42308,10 +42385,7 @@ function findHeadingIndexAny(ast, texts) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
     const firstChild = node2.children[0];
-    return (
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
-      firstChild?.type === "text" && texts.includes(firstChild.value)
-    );
+    return firstChild?.type === "text" && texts.includes(firstChild.value);
   });
 }
 function getNodeText(node2) {
@@ -42319,7 +42393,7 @@ function getNodeText(node2) {
   if (node2.type === "text") return node2.value;
   if (node2.type === "inlineCode") return node2.value;
   if ("children" in node2 && Array.isArray(node2.children)) {
-    return node2.children.map(getNodeText).join("");
+    return childrenAsRootContent(node2).map(getNodeText).join("");
   }
   return "";
 }
@@ -42327,7 +42401,7 @@ function getLinkUrl(node2) {
   if (!node2) return null;
   if (node2.type === "link") return node2.url;
   if ("children" in node2 && Array.isArray(node2.children)) {
-    for (const child of node2.children) {
+    for (const child of childrenAsRootContent(node2)) {
       const url = getLinkUrl(child);
       if (url) return url;
     }
@@ -42341,7 +42415,7 @@ var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
   const listNode = ast.children[todosIdx + 1];
-  if (!listNode || listNode.type !== "list") {
+  if (!listNode || !isList(listNode)) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
   let total = 0;
@@ -42369,7 +42443,7 @@ function extractTodosFromAst(bodyAst) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
   const listNode = bodyAst.children[todosIdx + 1];
-  if (!listNode || listNode.type !== "list") {
+  if (!listNode || !isList(listNode)) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
   let total = 0;
@@ -42394,12 +42468,12 @@ function extractTodosFromAst(bodyAst) {
 function getCellText(row, index2) {
   const cell = row.children[index2];
   if (!cell) return "";
-  return cell.children.map(getNodeText).join("");
+  return childrenAsRootContent(cell).map(getNodeText).join("");
 }
 function getCellLinkUrl(row, index2) {
   const cell = row.children[index2];
   if (!cell) return null;
-  for (const child of cell.children) {
+  for (const child of childrenAsRootContent(cell)) {
     const url = getLinkUrl(child);
     if (url) return url;
   }
@@ -42454,12 +42528,7 @@ var agentNotesExtractor = createExtractor(
         const timestampMatch = headingText.match(/-\s*(.+)$/);
         const timestamp = timestampMatch?.[1]?.trim() || "";
         const listNode = ast.children[i + 1];
-        const notes = listNode?.type === "list" ? (
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- listNode narrowed to 'list' type but TS doesn't narrow to List
-          listNode.children.map(
-            (item) => getNodeText(item)
-          )
-        ) : [];
+        const notes = listNode && isList(listNode) ? listNode.children.map((item) => getNodeText(item)) : [];
         entries.push({
           runId,
           runLink,
@@ -42472,7 +42541,7 @@ var agentNotesExtractor = createExtractor(
   }
 );
 
-// ../../packages/statemachine/src/parser/mutators.ts
+// src/parser/mutators.ts
 function findHeadingIndex2(ast, text5) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
@@ -42484,10 +42553,7 @@ function findHeadingIndexAny2(ast, texts) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
     const firstChild = node2.children[0];
-    return (
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
-      firstChild?.type === "text" && texts.includes(firstChild.value)
-    );
+    return firstChild?.type === "text" && texts.includes(firstChild.value);
   });
 }
 function getNodeText2(node2) {
@@ -42495,7 +42561,7 @@ function getNodeText2(node2) {
   if (node2.type === "text") return node2.value;
   if (node2.type === "inlineCode") return node2.value;
   if ("children" in node2 && Array.isArray(node2.children)) {
-    return node2.children.map(getNodeText2).join("");
+    return childrenAsRootContent(node2).map(getNodeText2).join("");
   }
   return "";
 }
@@ -42564,9 +42630,11 @@ var checkOffTodo = createMutator(
     const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
-    if (!listNode || listNode.type !== "list") return data;
+    if (!listNode || !isList(listNode)) return data;
     const newAst = structuredClone(ast);
-    const newList = newAst.children[todosIdx + 1];
+    const newListNode = newAst.children[todosIdx + 1];
+    if (!newListNode || !isList(newListNode)) return data;
+    const newList = newListNode;
     for (const item of newList.children) {
       if (item.checked === false) {
         const text5 = getNodeText2(item);
@@ -42586,9 +42654,11 @@ var uncheckTodo = createMutator(
     const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
-    if (!listNode || listNode.type !== "list") return data;
+    if (!listNode || !isList(listNode)) return data;
     const newAst = structuredClone(ast);
-    const newList = newAst.children[todosIdx + 1];
+    const newListNode = newAst.children[todosIdx + 1];
+    if (!newListNode || !isList(newListNode)) return data;
+    const newList = newListNode;
     for (const item of newList.children) {
       if (item.checked === true) {
         const text5 = getNodeText2(item);
@@ -42624,7 +42694,7 @@ var addTodo = createMutator(
       newAst.children.push(heading2, list4);
     } else {
       const listNode = newAst.children[todosIdx + 1];
-      if (listNode?.type === "list") {
+      if (listNode && isList(listNode)) {
         listNode.children.push(newItem);
       } else {
         const list4 = {
@@ -42680,12 +42750,12 @@ function createHistoryDataRow(entry, repoUrl) {
 function getCellText2(row, index2) {
   const cell = row.children[index2];
   if (!cell) return "";
-  return cell.children.map(getNodeText2).join("");
+  return childrenAsRootContent(cell).map(getNodeText2).join("");
 }
 function getCellRunId(row, index2) {
   const cell = row.children[index2];
   if (!cell) return null;
-  for (const child of cell.children) {
+  for (const child of childrenAsRootContent(cell)) {
     if (child.type === "link") {
       const linkText = getNodeText2(child);
       if (/^\d+$/.test(linkText)) {
@@ -42745,7 +42815,9 @@ var addHistoryEntry2 = createMutator(
         };
         newAst.children.splice(historyIdx + 1, 0, table);
       } else {
-        const table = newAst.children[tableIdx];
+        const tableNode = newAst.children[tableIdx];
+        if (!tableNode || tableNode.type !== "table") return data;
+        const table = tableNode;
         if (runId) {
           for (let i = 1; i < table.children.length; i++) {
             const row = table.children[i];
@@ -42792,10 +42864,11 @@ var updateHistoryEntry2 = createMutator(
       if (ast.children[i]?.type === "heading") break;
     }
     if (tableIdx === -1) return data;
-    const table = ast.children[tableIdx];
+    const tableNode = ast.children[tableIdx];
+    if (!tableNode || tableNode.type !== "table") return data;
     let matchRowIdx = -1;
-    for (let i = table.children.length - 1; i >= 1; i--) {
-      const row2 = table.children[i];
+    for (let i = tableNode.children.length - 1; i >= 1; i--) {
+      const row2 = tableNode.children[i];
       if (!row2) continue;
       const rowIteration = getCellText2(row2, 1);
       const rowPhase = getCellText2(row2, 2);
@@ -42807,7 +42880,9 @@ var updateHistoryEntry2 = createMutator(
     }
     if (matchRowIdx === -1) return data;
     const newAst = structuredClone(ast);
-    const newTable = newAst.children[tableIdx];
+    const newTableNode = newAst.children[tableIdx];
+    if (!newTableNode || newTableNode.type !== "table") return data;
+    const newTable = newTableNode;
     const row = newTable.children[matchRowIdx];
     if (!row) return data;
     const actionCell = row.children[3];
@@ -42910,7 +42985,7 @@ var upsertSection2 = createMutator(
       let endIdx = sectionIdx + 1;
       for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
         const node2 = newAst.children[i];
-        if (node2?.type === "heading" && node2.depth === 2) {
+        if (node2 && isHeading(node2) && node2.depth === 2) {
           break;
         }
         endIdx = i + 1;
@@ -46045,7 +46120,7 @@ function setup({
   };
 }
 
-// ../../packages/statemachine/src/machine/guards.ts
+// src/machine/guards.ts
 function isAlreadyDone({ context: context2 }) {
   if (context2.issue.projectStatus === "Done" && context2.pr?.state === "MERGED") {
     return true;
@@ -46358,7 +46433,7 @@ var guards = {
   shouldBlock
 };
 
-// ../../packages/statemachine/src/machine/actions.ts
+// src/machine/actions.ts
 function formatCommentsForPrompt(comments) {
   if (comments.length === 0) {
     return "No comments yet.";
@@ -46373,7 +46448,6 @@ function emitSetWorking({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     }
   ];
@@ -46385,7 +46459,6 @@ function emitSetReview({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In review"
     }
   ];
@@ -46396,7 +46469,6 @@ function emitSetInProgress({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     }
   ];
@@ -46407,7 +46479,6 @@ function emitSetDone({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Done"
     }
   ];
@@ -46418,7 +46489,6 @@ function emitSetBlocked({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Blocked"
     }
   ];
@@ -46429,7 +46499,6 @@ function emitSetError({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Error"
     }
   ];
@@ -47042,7 +47111,6 @@ function emitInitializeParent({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.issue.number,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "In progress"
   });
   const firstSubIssue = context2.issue.subIssues[0];
@@ -47051,7 +47119,6 @@ function emitInitializeParent({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: firstSubIssue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     });
   }
@@ -47075,7 +47142,6 @@ function emitAdvancePhase({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.currentSubIssue.number,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "Done"
   });
   actions.push({
@@ -47091,7 +47157,6 @@ function emitAdvancePhase({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: nextSubIssue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     });
     actions.push({
@@ -47158,7 +47223,6 @@ function emitAllPhasesDone({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.issue.number,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "Done"
   });
   actions.push({
@@ -47405,7 +47469,6 @@ function emitSetReady({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Ready"
     }
   ];
@@ -47465,7 +47528,7 @@ function emitRunClaudePivot({ context: context2 }) {
   ];
 }
 
-// ../../packages/statemachine/src/machine/machine.ts
+// src/machine/machine.ts
 function accumulateActions(existingActions, newActions) {
   return [...existingActions, ...newActions];
 }
@@ -48389,7 +48452,7 @@ var claudeMachine = setup({
   }
 });
 
-// ../../packages/statemachine/src/claude/executor.ts
+// src/claude/executor.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
 var fs2 = __toESM(require("fs"), 1);
@@ -64935,7 +64998,7 @@ function query({
   return queryInstance;
 }
 
-// ../../packages/statemachine/src/claude/executor.ts
+// src/claude/executor.ts
 var colors = {
   reset: "\x1B[0m",
   bold: "\x1B[1m",
@@ -65255,7 +65318,7 @@ ${colors.green}${colors.bold}[SDK]${colors.reset} Completed successfully (${numT
   }
 }
 
-// ../../packages/statemachine/src/claude/prompts.ts
+// src/claude/prompts.ts
 var fs3 = __toESM(require("fs"), 1);
 var path2 = __toESM(require("path"), 1);
 
@@ -66543,7 +66606,7 @@ var zodToJsonSchema = (schema, options) => {
   return combined;
 };
 
-// ../../packages/prompt-factory/src/schema.ts
+// ../prompt-factory/src/schema.ts
 var cache2 = /* @__PURE__ */ new WeakMap();
 function toJsonSchema(schema) {
   let result = cache2.get(schema);
@@ -66556,7 +66619,7 @@ function toJsonSchema(schema) {
   return result;
 }
 
-// ../../packages/prompt-factory/src/factory.ts
+// ../prompt-factory/src/factory.ts
 function camelToScreamingSnake(str) {
   return str.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/([A-Z])([A-Z][a-z])/g, "$1_$2").toUpperCase();
 }
@@ -66607,7 +66670,7 @@ function promptFactory() {
   };
 }
 
-// ../../packages/prompt-factory/src/components.tsx
+// ../prompt-factory/src/components.tsx
 function BulletList({ items }) {
   return items.map((item) => `- ${item}`).join("\n");
 }
@@ -66618,7 +66681,7 @@ function Conditional({
   return when ? children ?? "" : "";
 }
 
-// ../../packages/prompt-factory/src/jsx-runtime.ts
+// ../prompt-factory/src/jsx-runtime.ts
 function flattenChildren(children) {
   if (children == null || children === false || children === true) return [];
   if (typeof children === "number") return [String(children)];
@@ -66662,7 +66725,7 @@ function jsxs(type, props) {
   return render(type, props);
 }
 
-// ../../packages/prompts/src/components.tsx
+// ../prompts/src/components.tsx
 function IssueHeader({
   number: number3,
   title
@@ -66687,7 +66750,7 @@ function IssueState(props) {
   ) });
 }
 
-// ../../packages/prompts/src/prompts/iterate.tsx
+// ../prompts/src/prompts/iterate.tsx
 var Iterate = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -66814,7 +66877,7 @@ ${inputs.prCreateCommand}` }),
 ] }));
 var iterate_default = Iterate;
 
-// ../../packages/prompts/src/prompts/triage.tsx
+// ../prompts/src/prompts/triage.tsx
 var Triage = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -66895,7 +66958,7 @@ These questions will be addressed during grooming.` }),
 ] }));
 var triage_default = Triage;
 
-// ../../packages/prompts/src/prompts/review.tsx
+// ../prompts/src/prompts/review.tsx
 var Review = promptFactory().inputs((z) => ({
   prNumber: z.number(),
   issueNumber: z.number(),
@@ -66958,7 +67021,7 @@ Review the feedback history to:
 ] }));
 var review_default = Review;
 
-// ../../packages/prompts/src/prompts/review-response.tsx
+// ../prompts/src/prompts/review-response.tsx
 var ReviewResponse = promptFactory().inputs((z) => ({
   prNumber: z.number(),
   reviewer: z.string(),
@@ -67026,7 +67089,7 @@ The executor will:
 ] }));
 var review_response_default = ReviewResponse;
 
-// ../../packages/prompts/src/prompts/comment.tsx
+// ../prompts/src/prompts/comment.tsx
 var Comment = promptFactory().inputs((z) => ({
   contextType: z.enum(["issue", "pr"]),
   contextDescription: z.string(),
@@ -67082,7 +67145,7 @@ The executor will:
 ] }));
 var comment_default = Comment;
 
-// ../../packages/prompts/src/prompts/pivot.tsx
+// ../prompts/src/prompts/pivot.tsx
 var Pivot = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -67227,7 +67290,7 @@ Each modification has:
 ] }));
 var pivot_default = Pivot;
 
-// ../../packages/prompts/src/prompts/human-review-response.tsx
+// ../prompts/src/prompts/human-review-response.tsx
 var HumanReviewResponse = promptFactory().inputs((z) => ({
   prNumber: z.number(),
   reviewer: z.string(),
@@ -67302,7 +67365,7 @@ The executor will:
 ] }));
 var human_review_response_default = HumanReviewResponse;
 
-// ../../packages/prompts/src/prompts/test-analysis.tsx
+// ../prompts/src/prompts/test-analysis.tsx
 var TestAnalysis = promptFactory().inputs((z) => ({
   testResultsFile: z.string(),
   scenarioDocsFile: z.string().optional()
@@ -67351,7 +67414,7 @@ Format as GitHub-flavored markdown.` })
 ] }));
 var test_analysis_default = TestAnalysis;
 
-// ../../packages/prompts/src/prompts/grooming/engineer.tsx
+// ../prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -67455,7 +67518,7 @@ For simple issues (XS/S size), provide a single phase with all todos.` }),
 ] }));
 var engineer_default = GroomingEngineer;
 
-// ../../packages/prompts/src/prompts/grooming/pm.tsx
+// ../prompts/src/prompts/grooming/pm.tsx
 var GroomingPM = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -67502,7 +67565,7 @@ If not ready, formulate specific questions that would unblock the work.` }),
 ] }));
 var pm_default = GroomingPM;
 
-// ../../packages/prompts/src/prompts/grooming/qa.tsx
+// ../prompts/src/prompts/grooming/qa.tsx
 var GroomingQA = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -67564,7 +67627,7 @@ If not ready, specify what information is needed to write good tests.` }),
 ] }));
 var qa_default = GroomingQA;
 
-// ../../packages/prompts/src/prompts/grooming/research.tsx
+// ../prompts/src/prompts/grooming/research.tsx
 var GroomingResearch = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -67634,7 +67697,7 @@ var GroomingResearch = promptFactory().inputs((z) => ({
 ] }));
 var research_default = GroomingResearch;
 
-// ../../packages/prompts/src/prompts/grooming/summary.tsx
+// ../prompts/src/prompts/grooming/summary.tsx
 var GroomingSummary = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
   issueTitle: z.string(),
@@ -67700,7 +67763,7 @@ If decision is "blocked", clearly state what's blocking and what needs to happen
 ] }));
 var summary_default = GroomingSummary;
 
-// ../../packages/prompts/src/prompts/discussion/research.tsx
+// ../prompts/src/prompts/discussion/research.tsx
 var DiscussionResearch = promptFactory().inputs((z) => ({
   discussionTitle: z.string(),
   discussionBody: z.string(),
@@ -67764,7 +67827,7 @@ The executor will:
 ] }));
 var research_default2 = DiscussionResearch;
 
-// ../../packages/prompts/src/prompts/discussion/investigate.tsx
+// ../prompts/src/prompts/discussion/investigate.tsx
 var DiscussionInvestigate = promptFactory().inputs((z) => ({
   discussionNumber: z.number(),
   threadTitle: z.string(),
@@ -67831,7 +67894,7 @@ The executor will post your findings as a reply to the research thread.` })
 ] }));
 var investigate_default = DiscussionInvestigate;
 
-// ../../packages/prompts/src/prompts/discussion/respond.tsx
+// ../prompts/src/prompts/discussion/respond.tsx
 var DiscussionRespond = promptFactory().inputs((z) => ({
   discussionNumber: z.number(),
   commentBody: z.string(),
@@ -67913,7 +67976,7 @@ The executor will:
 ] }));
 var respond_default = DiscussionRespond;
 
-// ../../packages/prompts/src/prompts/discussion/summarize.tsx
+// ../prompts/src/prompts/discussion/summarize.tsx
 var DiscussionSummarize = promptFactory().inputs((z) => ({
   discussionNumber: z.number(),
   discussionTitle: z.string(),
@@ -67983,7 +68046,7 @@ The executor will:
 ] }));
 var summarize_default = DiscussionSummarize;
 
-// ../../packages/prompts/src/prompts/discussion/plan.tsx
+// ../prompts/src/prompts/discussion/plan.tsx
 var DiscussionPlan = promptFactory().inputs((z) => ({
   discussionNumber: z.number(),
   discussionTitle: z.string(),
@@ -68080,7 +68143,7 @@ The executor will:
 ] }));
 var plan_default = DiscussionPlan;
 
-// ../../packages/prompts/src/registry.ts
+// ../prompts/src/registry.ts
 var PROMPTS = {
   // Issue prompts
   iterate: iterate_default,
@@ -68112,7 +68175,7 @@ function hasPrompt(name) {
   return name in PROMPTS;
 }
 
-// ../../packages/statemachine/src/claude/prompts.ts
+// src/claude/prompts.ts
 function substituteVars(template, vars) {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
     const trimmedName = varName.trim();
@@ -68213,11 +68276,11 @@ function resolvePrompt(options) {
   throw new Error("Either prompt, promptFile, or promptDir must be provided");
 }
 
-// ../../packages/statemachine/src/runner/runner.ts
+// src/runner/runner.ts
 var core17 = __toESM(require_core(), 1);
 var fs12 = __toESM(require("fs"), 1);
 
-// ../../packages/statemachine/src/runner/types.ts
+// src/runner/types.ts
 function getOctokitForAction(action, ctx) {
   const tokenType = action.token || "code";
   if (tokenType === "review" && ctx.reviewOctokit) {
@@ -68226,7 +68289,7 @@ function getOctokitForAction(action, ctx) {
   return ctx.octokit;
 }
 
-// ../../packages/statemachine/src/runner/signaler.ts
+// src/runner/signaler.ts
 var core2 = __toESM(require_core(), 1);
 var JOB_DESCRIPTIONS = {
   // Issue jobs
@@ -68402,7 +68465,7 @@ async function signalEnd(ctx, statusCommentId, result) {
   }
 }
 
-// ../../packages/statemachine/src/runner/executors/project.ts
+// src/runner/executors/project.ts
 var core3 = __toESM(require_core(), 1);
 function parseProjectFields(projectData) {
   const project = projectData;
@@ -68604,7 +68667,7 @@ async function executeBlock(action, ctx) {
   return { blocked: true };
 }
 
-// ../../packages/statemachine/src/runner/executors/github.ts
+// src/runner/executors/github.ts
 var core4 = __toESM(require_core(), 1);
 async function executeCloseIssue(action, ctx) {
   await ctx.octokit.rest.issues.update({
@@ -69174,7 +69237,7 @@ async function executeRemoveLabel(action, ctx) {
   }
 }
 
-// ../../packages/statemachine/src/runner/executors/git.ts
+// src/runner/executors/git.ts
 var core5 = __toESM(require_core(), 1);
 var exec3 = __toESM(require_exec(), 1);
 async function executeCreateBranch(action, ctx) {
@@ -69311,7 +69374,7 @@ async function executeGitPush(action, _ctx) {
   return { pushed: true };
 }
 
-// ../../packages/statemachine/src/runner/executors/claude.ts
+// src/runner/executors/claude.ts
 var core6 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
 var fs4 = __toESM(require("fs"), 1);
@@ -69457,25 +69520,202 @@ async function executeRunClaude(action, ctx) {
   };
 }
 
-// ../../packages/statemachine/src/runner/executors/triage.ts
+// src/runner/executors/triage.ts
 var core7 = __toESM(require_core(), 1);
 var fs5 = __toESM(require("fs"), 1);
+
+// src/runner/executors/output-schemas.ts
+function parseOutput(schema, data, label) {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
+    throw new Error(
+      `Invalid ${label} output:
+${issues}
+Data: ${JSON.stringify(data, null, 2).slice(0, 500)}`
+    );
+  }
+  return result.data;
+}
+var IterateOutputSchema = external_exports.object({
+  status: external_exports.enum(["completed_todo", "waiting_manual", "blocked", "all_done"]),
+  todos_completed: external_exports.array(external_exports.string()).optional(),
+  todo_completed: external_exports.string().optional(),
+  agent_notes: external_exports.array(external_exports.string()),
+  manual_todo: external_exports.string().optional(),
+  blocked_reason: external_exports.string().optional()
+});
+var ReviewOutputSchema = external_exports.object({
+  decision: external_exports.enum(["approve", "request_changes", "comment"]),
+  body: external_exports.string()
+});
+var PRResponseOutputSchema = external_exports.object({
+  had_commits: external_exports.boolean(),
+  summary: external_exports.string(),
+  commits: external_exports.array(external_exports.string()).optional(),
+  agent_notes: external_exports.array(external_exports.string()).optional()
+});
+var TodoModificationSchema = external_exports.object({
+  action: external_exports.enum(["add", "modify", "remove"]),
+  index: external_exports.number(),
+  text: external_exports.string().optional()
+});
+var SubIssueModificationSchema = external_exports.object({
+  issue_number: external_exports.number(),
+  action: external_exports.enum(["modify", "skip"]),
+  todo_modifications: external_exports.array(TodoModificationSchema).optional(),
+  update_description: external_exports.string().optional()
+});
+var NewSubIssueSchema = external_exports.object({
+  title: external_exports.string(),
+  description: external_exports.string(),
+  todos: external_exports.array(external_exports.string()),
+  reason: external_exports.enum(["reversion", "new_scope", "extension"])
+});
+var PivotOutputSchema = external_exports.object({
+  analysis: external_exports.object({
+    change_summary: external_exports.string(),
+    affects_completed_work: external_exports.boolean(),
+    completed_work_details: external_exports.array(
+      external_exports.object({
+        type: external_exports.enum(["checked_todo", "closed_sub_issue"]),
+        issue_number: external_exports.number(),
+        description: external_exports.string()
+      })
+    ).optional()
+  }),
+  modifications: external_exports.object({
+    parent_issue: external_exports.object({
+      update_sections: external_exports.record(external_exports.string()).optional()
+    }).optional(),
+    sub_issues: external_exports.array(SubIssueModificationSchema).optional(),
+    new_sub_issues: external_exports.array(NewSubIssueSchema).optional()
+  }).optional(),
+  outcome: external_exports.enum([
+    "changes_applied",
+    "needs_clarification",
+    "no_changes_needed"
+  ]),
+  clarification_needed: external_exports.string().optional(),
+  summary_for_user: external_exports.string()
+});
+var GroomingAgentOutputSchema = external_exports.object({
+  ready: external_exports.boolean(),
+  questions: external_exports.array(external_exports.string()).optional()
+}).passthrough();
+var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
+  scope_recommendation: external_exports.enum(["direct", "split"]).optional(),
+  recommended_phases: external_exports.array(
+    external_exports.object({
+      phase_number: external_exports.number(),
+      title: external_exports.string(),
+      description: external_exports.string(),
+      affected_areas: external_exports.array(
+        external_exports.object({
+          path: external_exports.string(),
+          change_type: external_exports.string().optional(),
+          description: external_exports.string().optional(),
+          impact: external_exports.string().optional()
+        })
+      ).optional(),
+      todos: external_exports.array(
+        external_exports.object({
+          task: external_exports.string(),
+          manual: external_exports.boolean().optional()
+        })
+      ).optional(),
+      depends_on: external_exports.array(external_exports.number()).optional()
+    })
+  ).optional()
+});
+var CombinedGroomingOutputSchema = external_exports.object({
+  pm: GroomingAgentOutputSchema,
+  engineer: GroomingAgentOutputSchema,
+  qa: GroomingAgentOutputSchema,
+  research: GroomingAgentOutputSchema
+});
+var TriageClassificationSchema = external_exports.object({
+  type: external_exports.string(),
+  priority: external_exports.string().nullable().optional(),
+  size: external_exports.string(),
+  estimate: external_exports.number(),
+  topics: external_exports.array(external_exports.string()),
+  needs_info: external_exports.boolean()
+});
+var TriageOutputSchema = external_exports.object({
+  triage: TriageClassificationSchema,
+  requirements: external_exports.array(external_exports.string()),
+  initial_approach: external_exports.string(),
+  initial_questions: external_exports.array(external_exports.string()).optional(),
+  related_issues: external_exports.array(external_exports.number()).optional(),
+  agent_notes: external_exports.array(external_exports.string()).optional()
+});
+var LegacyTriageOutputSchema = external_exports.object({
+  type: external_exports.string().optional(),
+  priority: external_exports.string().nullable().optional(),
+  size: external_exports.string().optional(),
+  estimate: external_exports.number().optional(),
+  topics: external_exports.array(external_exports.string()).optional(),
+  needs_info: external_exports.boolean().optional(),
+  sub_issues: external_exports.array(
+    external_exports.object({
+      type: external_exports.string(),
+      title: external_exports.string(),
+      description: external_exports.string(),
+      todos: external_exports.array(
+        external_exports.union([external_exports.object({ task: external_exports.string(), manual: external_exports.boolean() }), external_exports.string()])
+      )
+    })
+  ).optional(),
+  issue_body: external_exports.string().optional(),
+  related_issues: external_exports.array(external_exports.number()).optional()
+});
+var ResearchOutputSchema = external_exports.object({
+  research_threads: external_exports.array(
+    external_exports.object({
+      title: external_exports.string(),
+      question: external_exports.string(),
+      investigation_areas: external_exports.array(external_exports.string()),
+      expected_deliverables: external_exports.array(external_exports.string())
+    })
+  ),
+  updated_description: external_exports.string().optional()
+});
+var RespondOutputSchema = external_exports.object({
+  response: external_exports.string(),
+  should_continue: external_exports.boolean()
+});
+var SummarizeOutputSchema = external_exports.object({
+  summary: external_exports.string()
+});
+var PlanOutputSchema = external_exports.object({
+  issues: external_exports.array(
+    external_exports.object({
+      title: external_exports.string(),
+      body: external_exports.string(),
+      labels: external_exports.array(external_exports.string())
+    })
+  ),
+  summary_comment: external_exports.string()
+});
+
+// src/runner/executors/triage.ts
 async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
-  let triageOutput;
+  let rawData;
   if (structuredOutput) {
-    triageOutput = structuredOutput;
+    rawData = structuredOutput;
     core7.info("Using structured output from in-process chain");
     core7.startGroup("Triage Output (Structured)");
-    core7.info(JSON.stringify(triageOutput, null, 2));
+    core7.info(JSON.stringify(rawData, null, 2));
     core7.endGroup();
   } else if (filePath && fs5.existsSync(filePath)) {
     try {
       const content3 = fs5.readFileSync(filePath, "utf-8");
-      triageOutput = JSON.parse(content3);
+      rawData = JSON.parse(content3);
       core7.info(`Triage output from file: ${filePath}`);
       core7.startGroup("Triage Output (File)");
-      core7.info(JSON.stringify(triageOutput, null, 2));
+      core7.info(JSON.stringify(rawData, null, 2));
       core7.endGroup();
     } catch (error6) {
       core7.warning(`Failed to parse triage output: ${error6}`);
@@ -69490,29 +69730,28 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     core7.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
     return { applied: true };
   }
-  const isNewFormat = "triage" in triageOutput && "requirements" in triageOutput;
-  const isLegacyStructured = "triage" in triageOutput && !("requirements" in triageOutput);
-  const classification = isNewFormat || isLegacyStructured ? (
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to new/legacy structured format by conditional
-    triageOutput.triage
-  ) : {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-    type: triageOutput.type || "enhancement",
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-    priority: triageOutput.priority,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-    size: triageOutput.size || "m",
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-    estimate: triageOutput.estimate || 5,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-    topics: triageOutput.topics || [],
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
-    needs_info: triageOutput.needs_info || false
-  };
+  const newFormatResult = TriageOutputSchema.safeParse(rawData);
+  const isNewFormat = newFormatResult.success;
+  let classification;
+  let newFormatOutput = null;
+  let legacyOutput = null;
+  if (isNewFormat) {
+    newFormatOutput = newFormatResult.data;
+    classification = newFormatOutput.triage;
+  } else {
+    legacyOutput = parseOutput(LegacyTriageOutputSchema, rawData, "triage (legacy)");
+    classification = {
+      type: legacyOutput.type || "enhancement",
+      priority: legacyOutput.priority,
+      size: legacyOutput.size || "m",
+      estimate: legacyOutput.estimate || 5,
+      topics: legacyOutput.topics || [],
+      needs_info: legacyOutput.needs_info || false
+    };
+  }
   await applyLabels(ctx, issueNumber, classification);
   await applyProjectFields(ctx, issueNumber, classification);
-  if (isNewFormat) {
-    const newFormatOutput = triageOutput;
+  if (newFormatOutput) {
     await updateIssueStructure(
       ctx,
       issueNumber,
@@ -69520,17 +69759,10 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
       newFormatOutput.initial_approach,
       newFormatOutput.initial_questions
     );
-  } else if (isLegacyStructured) {
-    const legacyOutput = triageOutput;
-    if (legacyOutput.issue_body) {
-      await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
-    }
+  } else if (legacyOutput?.issue_body) {
+    await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
   }
-  const relatedIssues = (
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
-    triageOutput.related_issues || // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
-    triageOutput.related_issues
-  );
+  const relatedIssues = newFormatOutput?.related_issues || legacyOutput?.related_issues;
   if (relatedIssues && relatedIssues.length > 0) {
     await linkRelatedIssues(ctx, issueNumber, relatedIssues);
   }
@@ -69757,19 +69989,19 @@ async function applyProjectFields(ctx, issueNumber, classification) {
   }
 }
 
-// ../../packages/statemachine/src/runner/executors/iterate.ts
+// src/runner/executors/iterate.ts
 var core8 = __toESM(require_core(), 1);
 var fs6 = __toESM(require("node:fs"), 1);
 async function executeApplyIterateOutput(action, ctx, structuredOutput) {
   const { issueNumber, filePath } = action;
   let iterateOutput;
   if (structuredOutput) {
-    iterateOutput = structuredOutput;
+    iterateOutput = parseOutput(IterateOutputSchema, structuredOutput, "iterate");
     core8.info("Using structured output from in-process chain");
   } else if (filePath && fs6.existsSync(filePath)) {
     try {
       const content3 = fs6.readFileSync(filePath, "utf-8");
-      iterateOutput = JSON.parse(content3);
+      iterateOutput = parseOutput(IterateOutputSchema, JSON.parse(content3), "iterate file");
       core8.info(`Iterate output from file: ${filePath}`);
     } catch (error6) {
       core8.warning(`Failed to parse iterate output: ${error6}`);
@@ -69871,18 +70103,18 @@ function checkOffTodoInBody2(body, todoText) {
   return { body: updatedLines.join("\n"), found };
 }
 
-// ../../packages/statemachine/src/runner/executors/review.ts
+// src/runner/executors/review.ts
 var core9 = __toESM(require_core(), 1);
 var fs7 = __toESM(require("node:fs"), 1);
 async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   let reviewOutput;
   if (structuredOutput) {
-    reviewOutput = structuredOutput;
+    reviewOutput = parseOutput(ReviewOutputSchema, structuredOutput, "review");
     core9.info("Using structured output from in-process chain");
   } else if (action.filePath && fs7.existsSync(action.filePath)) {
     try {
       const content3 = fs7.readFileSync(action.filePath, "utf-8");
-      reviewOutput = JSON.parse(content3);
+      reviewOutput = parseOutput(ReviewOutputSchema, JSON.parse(content3), "review file");
       core9.info(`Review output from file: ${action.filePath}`);
     } catch (error6) {
       throw new Error(`Failed to parse review output from file: ${error6}`);
@@ -69918,18 +70150,18 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   return executeSubmitReview(submitAction, ctx);
 }
 
-// ../../packages/statemachine/src/runner/executors/pr-response.ts
+// src/runner/executors/pr-response.ts
 var core10 = __toESM(require_core(), 1);
 var fs8 = __toESM(require("node:fs"), 1);
 async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
   let responseOutput;
   if (structuredOutput) {
-    responseOutput = structuredOutput;
+    responseOutput = parseOutput(PRResponseOutputSchema, structuredOutput, "pr-response");
     core10.info("Using structured output from in-process chain");
   } else if (action.filePath && fs8.existsSync(action.filePath)) {
     try {
       const content3 = fs8.readFileSync(action.filePath, "utf-8");
-      responseOutput = JSON.parse(content3);
+      responseOutput = parseOutput(PRResponseOutputSchema, JSON.parse(content3), "pr-response file");
       core10.info(`PR response output from file: ${action.filePath}`);
     } catch (error6) {
       throw new Error(`Failed to parse PR response output from file: ${error6}`);
@@ -70007,7 +70239,7 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
   return { applied: true, hadCommits: responseOutput.had_commits };
 }
 
-// ../../packages/statemachine/src/runner/executors/agent-notes.ts
+// src/runner/executors/agent-notes.ts
 var core11 = __toESM(require_core(), 1);
 async function executeAppendAgentNotes(action, ctx) {
   const { issueNumber, notes, runId, runLink, timestamp } = action;
@@ -70056,7 +70288,7 @@ async function executeAppendAgentNotes(action, ctx) {
   return { appended: true };
 }
 
-// ../../packages/statemachine/src/runner/executors/discussions.ts
+// src/runner/executors/discussions.ts
 var core12 = __toESM(require_core(), 1);
 async function executeAddDiscussionComment(action, ctx) {
   let response;
@@ -70184,17 +70416,17 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
   return { issueNumbers };
 }
 
-// ../../packages/statemachine/src/runner/executors/discussion-apply.ts
+// src/runner/executors/discussion-apply.ts
 var core13 = __toESM(require_core(), 1);
 var fs9 = __toESM(require("node:fs"), 1);
 async function executeApplyDiscussionResearchOutput(action, ctx, structuredOutput) {
   let output;
   if (structuredOutput) {
-    output = structuredOutput;
+    output = parseOutput(ResearchOutputSchema, structuredOutput, "research");
     core13.info("Using structured output from in-process chain");
   } else if (action.filePath && fs9.existsSync(action.filePath)) {
     const content3 = fs9.readFileSync(action.filePath, "utf-8");
-    output = JSON.parse(content3);
+    output = parseOutput(ResearchOutputSchema, JSON.parse(content3), "research file");
     core13.info(`Research output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -70241,11 +70473,11 @@ ${thread.investigation_areas.map((a) => `- ${a}`).join("\n")}`;
 async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput) {
   let output;
   if (structuredOutput) {
-    output = structuredOutput;
+    output = parseOutput(RespondOutputSchema, structuredOutput, "respond");
     core13.info("Using structured output from in-process chain");
   } else if (action.filePath && fs9.existsSync(action.filePath)) {
     const content3 = fs9.readFileSync(action.filePath, "utf-8");
-    output = JSON.parse(content3);
+    output = parseOutput(RespondOutputSchema, JSON.parse(content3), "respond file");
     core13.info(`Respond output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -70270,11 +70502,11 @@ async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput
 async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutput) {
   let output;
   if (structuredOutput) {
-    output = structuredOutput;
+    output = parseOutput(SummarizeOutputSchema, structuredOutput, "summarize");
     core13.info("Using structured output from in-process chain");
   } else if (action.filePath && fs9.existsSync(action.filePath)) {
     const content3 = fs9.readFileSync(action.filePath, "utf-8");
-    output = JSON.parse(content3);
+    output = parseOutput(SummarizeOutputSchema, JSON.parse(content3), "summarize file");
     core13.info(`Summarize output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -70298,11 +70530,11 @@ async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutp
 async function executeApplyDiscussionPlanOutput(action, ctx, structuredOutput) {
   let output;
   if (structuredOutput) {
-    output = structuredOutput;
+    output = parseOutput(PlanOutputSchema, structuredOutput, "plan");
     core13.info("Using structured output from in-process chain");
   } else if (action.filePath && fs9.existsSync(action.filePath)) {
     const content3 = fs9.readFileSync(action.filePath, "utf-8");
-    output = JSON.parse(content3);
+    output = parseOutput(PlanOutputSchema, JSON.parse(content3), "plan file");
     core13.info(`Plan output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -70337,7 +70569,7 @@ async function executeApplyDiscussionPlanOutput(action, ctx, structuredOutput) {
   return { applied: true, issueNumbers: result.issueNumbers };
 }
 
-// ../../packages/statemachine/src/runner/executors/discussion-research.ts
+// src/runner/executors/discussion-research.ts
 var core14 = __toESM(require_core(), 1);
 async function executeInvestigateResearchThreads(action, ctx) {
   core14.info(
@@ -70387,7 +70619,7 @@ async function executeUpdateDiscussionSummary(action, ctx) {
   return { updated: true };
 }
 
-// ../../packages/statemachine/src/runner/executors/grooming.ts
+// src/runner/executors/grooming.ts
 var core15 = __toESM(require_core(), 1);
 var fs10 = __toESM(require("fs"), 1);
 async function executeRunClaudeGrooming(action, ctx) {
@@ -70406,8 +70638,7 @@ async function executeRunClaudeGrooming(action, ctx) {
   if (ctx.mockOutputs?.grooming) {
     core15.info("[MOCK MODE] Using mock grooming output");
     return {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock outputs typed as unknown, casting to expected shape
-      outputs: ctx.mockOutputs.grooming
+      outputs: parseOutput(CombinedGroomingOutputSchema, ctx.mockOutputs.grooming, "mock grooming")
     };
   }
   const outputs = {
@@ -70422,11 +70653,11 @@ async function executeRunClaudeGrooming(action, ctx) {
 async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   let groomingOutput;
   if (structuredOutput) {
-    groomingOutput = structuredOutput;
+    groomingOutput = parseOutput(CombinedGroomingOutputSchema, structuredOutput, "grooming");
     core15.info("Using structured output from in-process chain");
   } else if (action.filePath && fs10.existsSync(action.filePath)) {
     const content3 = fs10.readFileSync(action.filePath, "utf-8");
-    groomingOutput = JSON.parse(content3);
+    groomingOutput = parseOutput(CombinedGroomingOutputSchema, JSON.parse(content3), "grooming file");
     core15.info(`Grooming output from file: ${action.filePath}`);
   } else {
     throw new Error(
@@ -70457,7 +70688,7 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
     } catch (error6) {
       core15.warning(`Failed to add 'groomed' label: ${error6}`);
     }
-    const engineerOutput = groomingOutput.engineer;
+    const engineerOutput = parseOutput(EngineerOutputSchema, groomingOutput.engineer, "engineer");
     if (engineerOutput.scope_recommendation === "split" && engineerOutput.recommended_phases && engineerOutput.recommended_phases.length > 0) {
       core15.info(
         `Engineer recommends splitting into ${engineerOutput.recommended_phases.length} phases`
@@ -70577,7 +70808,7 @@ function buildPhaseIssueBody(phase) {
   return { type: "root", children };
 }
 
-// ../../packages/statemachine/src/runner/executors/pivot.ts
+// src/runner/executors/pivot.ts
 var core16 = __toESM(require_core(), 1);
 var fs11 = __toESM(require("fs"), 1);
 function upsertSectionInBody(body, sectionName, content3) {
@@ -70676,11 +70907,11 @@ function applyTodoModifications(body, modifications) {
 async function executeApplyPivotOutput(action, ctx, structuredOutput) {
   let pivotOutput;
   if (structuredOutput) {
-    pivotOutput = structuredOutput;
+    pivotOutput = parseOutput(PivotOutputSchema, structuredOutput, "pivot");
     core16.info("Using structured output from in-process chain");
   } else if (action.filePath && fs11.existsSync(action.filePath)) {
     const content3 = fs11.readFileSync(action.filePath, "utf-8");
-    pivotOutput = JSON.parse(content3);
+    pivotOutput = parseOutput(PivotOutputSchema, JSON.parse(content3), "pivot file");
     core16.info(`Pivot output from file: ${action.filePath}`);
   } else {
     throw new Error(
@@ -70837,7 +71068,7 @@ ${pivotOutput.summary_for_user}
   return { applied: true, changesApplied };
 }
 
-// ../../packages/statemachine/src/runner/runner.ts
+// src/runner/runner.ts
 function getStructuredOutput(action, chainCtx) {
   if (chainCtx?.lastClaudeStructuredOutput) {
     core17.info("Using structured output from chain context");
@@ -71266,11 +71497,11 @@ function createSignaledRunnerContext(octokit, owner, repo, projectNumber, resour
   };
 }
 
-// ../../packages/statemachine/src/test-runner/poller.ts
+// src/test-runner/poller.ts
 var core18 = __toESM(require_core(), 1);
 var exec7 = __toESM(require_exec(), 1);
 
-// ../../packages/statemachine/src/test-runner/configurable/types.ts
+// src/test-runner/configurable/types.ts
 var StateNameSchema = external_exports.enum([
   // Transient states (routing decisions)
   "detecting",
@@ -71448,10 +71679,10 @@ var ConfigurableTestResultSchema = external_exports.object({
   error: external_exports.string().optional()
 });
 
-// ../../packages/statemachine/src/test-runner/configurable/loader.ts
+// src/test-runner/configurable/loader.ts
 var core19 = __toESM(require_core(), 1);
 
-// ../../packages/statemachine/src/discussion/actions.ts
+// src/discussion/actions.ts
 var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
 var BaseActionSchema2 = external_exports.object({
   type: external_exports.string(),
@@ -71553,7 +71784,7 @@ var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
   LogActionSchema2
 ]);
 
-// ../../packages/statemachine/src/discussion/guards.ts
+// src/discussion/guards.ts
 function triggeredByDiscussionCreated({ context: context2 }) {
   return context2.trigger === "discussion-created";
 }
@@ -71604,7 +71835,7 @@ var discussionGuards = {
   hasComment
 };
 
-// ../../packages/statemachine/src/discussion/action-emitters.ts
+// src/discussion/action-emitters.ts
 function emitRunClaudeResearch({
   context: context2
 }) {
@@ -71805,7 +72036,7 @@ function emitLogCompleting({ context: context2 }) {
   ];
 }
 
-// ../../packages/statemachine/src/discussion/machine.ts
+// src/discussion/machine.ts
 function accumulateActions2(existingActions, newActions) {
   return [...existingActions, ...newActions];
 }
@@ -72030,10 +72261,10 @@ var discussionMachine = setup({
   }
 });
 
-// ../../packages/statemachine/src/discussion/context-builder.ts
+// src/discussion/context-builder.ts
 var core20 = __toESM(require_core(), 1);
 
-// ../../packages/statemachine/src/action-utils.ts
+// src/action-utils.ts
 var core21 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
@@ -72051,7 +72282,7 @@ function setOutputs(outputs) {
   }
 }
 
-// ../../packages/statemachine/actions/sm-executor/index.ts
+// actions/sm-executor/index.ts
 function parseActions(json) {
   let parsed;
   try {

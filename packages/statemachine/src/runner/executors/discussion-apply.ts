@@ -19,38 +19,17 @@ import {
   executeUpdateDiscussionBody,
   executeCreateIssuesFromDiscussion,
 } from "./discussions.js";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface ResearchOutput {
-  research_threads: Array<{
-    title: string;
-    question: string;
-    investigation_areas: string[];
-    expected_deliverables: string[];
-  }>;
-  updated_description?: string;
-}
-
-interface RespondOutput {
-  response: string;
-  should_continue: boolean;
-}
-
-interface SummarizeOutput {
-  summary: string;
-}
-
-interface PlanOutput {
-  issues: Array<{
-    title: string;
-    body: string;
-    labels: string[];
-  }>;
-  summary_comment: string;
-}
+import {
+  ResearchOutputSchema,
+  RespondOutputSchema,
+  SummarizeOutputSchema,
+  PlanOutputSchema,
+  parseOutput,
+  type ResearchOutput,
+  type RespondOutput,
+  type SummarizeOutput,
+  type PlanOutput,
+} from "./output-schemas.js";
 
 // ============================================================================
 // Apply Research Output
@@ -67,13 +46,15 @@ export async function executeApplyDiscussionResearchOutput(
   let output: ResearchOutput;
 
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    output = structuredOutput as ResearchOutput;
+    output = parseOutput(ResearchOutputSchema, structuredOutput, "research");
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches ResearchOutput schema
-    output = JSON.parse(content) as ResearchOutput;
+    output = parseOutput(
+      ResearchOutputSchema,
+      JSON.parse(content),
+      "research file",
+    );
     core.info(`Research output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -135,13 +116,15 @@ export async function executeApplyDiscussionRespondOutput(
   let output: RespondOutput;
 
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    output = structuredOutput as RespondOutput;
+    output = parseOutput(RespondOutputSchema, structuredOutput, "respond");
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches RespondOutput schema
-    output = JSON.parse(content) as RespondOutput;
+    output = parseOutput(
+      RespondOutputSchema,
+      JSON.parse(content),
+      "respond file",
+    );
     core.info(`Respond output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -183,13 +166,15 @@ export async function executeApplyDiscussionSummarizeOutput(
   let output: SummarizeOutput;
 
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    output = structuredOutput as SummarizeOutput;
+    output = parseOutput(SummarizeOutputSchema, structuredOutput, "summarize");
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches SummarizeOutput schema
-    output = JSON.parse(content) as SummarizeOutput;
+    output = parseOutput(
+      SummarizeOutputSchema,
+      JSON.parse(content),
+      "summarize file",
+    );
     core.info(`Summarize output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
@@ -230,13 +215,11 @@ export async function executeApplyDiscussionPlanOutput(
   let output: PlanOutput;
 
   if (structuredOutput) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
-    output = structuredOutput as PlanOutput;
+    output = parseOutput(PlanOutputSchema, structuredOutput, "plan");
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches PlanOutput schema
-    output = JSON.parse(content) as PlanOutput;
+    output = parseOutput(PlanOutputSchema, JSON.parse(content), "plan file");
     core.info(`Plan output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");

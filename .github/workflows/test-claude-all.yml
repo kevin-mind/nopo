@@ -9,10 +9,6 @@ on:
         description: 'Include real Claude tests (in addition to mock tests)'
         type: boolean
         default: true
-      max_parallel:
-        description: 'Max parallel jobs per batch'
-        type: number
-        default: 5
 
 permissions:
   contents: write
@@ -26,10 +22,9 @@ env:
 
 jobs:
   # ============================================================================
-  # BATCH 1: Core scenarios (mock Claude)
+  # Mock Claude tests - all scenarios
   # ============================================================================
-  batch1-mock:
-    runs-on: ubuntu-latest
+  test-mock-claude:
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -40,340 +35,31 @@ jobs:
           - grooming-ready
           - pivot-simple
           - issue-comment
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @more/prompts compile
-      - name: Build actions
-        run: cd .github/actions-ts && pnpm run build
-
-      - name: Run test
-        id: run
-        continue-on-error: true
-        uses: ./packages/statemachine/actions/sm-test-runner
-        with:
-          action: run-configurable
-          scenario_name: ${{ matrix.scenario }}
-          continue: true
-          mock_claude: true
-          mock_ci: true
-          multi_issue: true
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-
-      - name: Cleanup
-        if: always() && steps.run.outputs.issue_number != ''
-        uses: ./packages/statemachine/actions/sm-test-helper
-        with:
-          action: cleanup
-          issue_number: ${{ steps.run.outputs.issue_number }}
-          github_token: ${{ env.GH_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          cleanup_mode: close
-
-      - name: Save result
-        if: always()
-        env:
-          SCENARIO: ${{ matrix.scenario }}
-          STATUS: ${{ steps.run.outputs.status || 'error' }}
-          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
-          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
-          JOB_RESULT: ${{ job.status }}
-        run: |
-          mkdir -p results
-          jq -n \
-            --arg scenario "$SCENARIO" \
-            --arg mode "mock" \
-            --arg batch "batch1-mock" \
-            --arg status "$STATUS" \
-            --arg issue_number "$ISSUE_NUMBER" \
-            --arg error "$ERROR_MSG" \
-            --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
-            > results/${{ matrix.scenario }}-mock.json
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: result-batch1-${{ matrix.scenario }}
-          path: results/
-          retention-days: 1
-
-      - name: Fail job if test failed
-        if: always() && steps.run.outputs.status != 'completed'
-        run: |
-          echo "Test failed with status: ${{ steps.run.outputs.status }}"
-          echo "Error: ${{ steps.run.outputs.error }}"
-          exit 1
-
-  # ============================================================================
-  # BATCH 2: Edge case scenarios (mock Claude only - these REQUIRE mock)
-  # ============================================================================
-  batch2-edge-cases:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 5
-      matrix:
-        scenario:
           - ci-failure-recovery
           - circuit-breaker
           - review-changes-requested
           - issue-reset
           - slash-lfg
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @more/prompts compile
-      - name: Build actions
-        run: cd .github/actions-ts && pnpm run build
-
-      - name: Run test
-        id: run
-        continue-on-error: true
-        uses: ./packages/statemachine/actions/sm-test-runner
-        with:
-          action: run-configurable
-          scenario_name: ${{ matrix.scenario }}
-          continue: true
-          mock_claude: true
-          mock_ci: true
-          multi_issue: true
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-
-      - name: Cleanup
-        if: always() && steps.run.outputs.issue_number != ''
-        uses: ./packages/statemachine/actions/sm-test-helper
-        with:
-          action: cleanup
-          issue_number: ${{ steps.run.outputs.issue_number }}
-          github_token: ${{ env.GH_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          cleanup_mode: close
-
-      - name: Save result
-        if: always()
-        env:
-          SCENARIO: ${{ matrix.scenario }}
-          STATUS: ${{ steps.run.outputs.status || 'error' }}
-          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
-          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
-          JOB_RESULT: ${{ job.status }}
-        run: |
-          mkdir -p results
-          jq -n \
-            --arg scenario "$SCENARIO" \
-            --arg mode "mock" \
-            --arg batch "batch2-edge-cases" \
-            --arg status "$STATUS" \
-            --arg issue_number "$ISSUE_NUMBER" \
-            --arg error "$ERROR_MSG" \
-            --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
-            > results/${{ matrix.scenario }}-mock.json
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: result-batch2-${{ matrix.scenario }}
-          path: results/
-          retention-days: 1
-
-      - name: Fail job if test failed
-        if: always() && steps.run.outputs.status != 'completed'
-        run: |
-          echo "Test failed with status: ${{ steps.run.outputs.status }}"
-          echo "Error: ${{ steps.run.outputs.error }}"
-          exit 1
-
-  # ============================================================================
-  # BATCH 3: PR and pivot scenarios (mock Claude)
-  # ============================================================================
-  batch3-mock:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 5
-      matrix:
-        scenario:
           - pr-review-approved
           - pr-review-comment
           - pr-push-during-review
           - pivot-add
           - pivot-remove
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @more/prompts compile
-      - name: Build actions
-        run: cd .github/actions-ts && pnpm run build
-
-      - name: Run test
-        id: run
-        continue-on-error: true
-        uses: ./packages/statemachine/actions/sm-test-runner
-        with:
-          action: run-configurable
-          scenario_name: ${{ matrix.scenario }}
-          continue: true
-          mock_claude: true
-          mock_ci: true
-          multi_issue: true
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-
-      - name: Cleanup
-        if: always() && steps.run.outputs.issue_number != ''
-        uses: ./packages/statemachine/actions/sm-test-helper
-        with:
-          action: cleanup
-          issue_number: ${{ steps.run.outputs.issue_number }}
-          github_token: ${{ env.GH_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          cleanup_mode: close
-
-      - name: Save result
-        if: always()
-        env:
-          SCENARIO: ${{ matrix.scenario }}
-          STATUS: ${{ steps.run.outputs.status || 'error' }}
-          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
-          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
-          JOB_RESULT: ${{ job.status }}
-        run: |
-          mkdir -p results
-          jq -n \
-            --arg scenario "$SCENARIO" \
-            --arg mode "mock" \
-            --arg batch "batch3-mock" \
-            --arg status "$STATUS" \
-            --arg issue_number "$ISSUE_NUMBER" \
-            --arg error "$ERROR_MSG" \
-            --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
-            > results/${{ matrix.scenario }}-mock.json
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: result-batch3-${{ matrix.scenario }}
-          path: results/
-          retention-days: 1
-
-      - name: Fail job if test failed
-        if: always() && steps.run.outputs.status != 'completed'
-        run: |
-          echo "Test failed with status: ${{ steps.run.outputs.status }}"
-          echo "Error: ${{ steps.run.outputs.error }}"
-          exit 1
-
-  # ============================================================================
-  # BATCH 4: Complex pivot scenarios (mock Claude)
-  # ============================================================================
-  batch4-mock:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 3
-      matrix:
-        scenario:
           - pivot-revert
           - pivot-complex
           - grooming-with-subissues
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @more/prompts compile
-      - name: Build actions
-        run: cd .github/actions-ts && pnpm run build
-
-      - name: Run test
-        id: run
-        continue-on-error: true
-        uses: ./packages/statemachine/actions/sm-test-runner
-        with:
-          action: run-configurable
-          scenario_name: ${{ matrix.scenario }}
-          continue: true
-          mock_claude: true
-          mock_ci: true
-          multi_issue: true
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-
-      - name: Cleanup
-        if: always() && steps.run.outputs.issue_number != ''
-        uses: ./packages/statemachine/actions/sm-test-helper
-        with:
-          action: cleanup
-          issue_number: ${{ steps.run.outputs.issue_number }}
-          github_token: ${{ env.GH_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          cleanup_mode: close
-
-      - name: Save result
-        if: always()
-        env:
-          SCENARIO: ${{ matrix.scenario }}
-          STATUS: ${{ steps.run.outputs.status || 'error' }}
-          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
-          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
-          JOB_RESULT: ${{ job.status }}
-        run: |
-          mkdir -p results
-          jq -n \
-            --arg scenario "$SCENARIO" \
-            --arg mode "mock" \
-            --arg batch "batch4-mock" \
-            --arg status "$STATUS" \
-            --arg issue_number "$ISSUE_NUMBER" \
-            --arg error "$ERROR_MSG" \
-            --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
-            > results/${{ matrix.scenario }}-mock.json
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: result-batch4-${{ matrix.scenario }}
-          path: results/
-          retention-days: 1
-
-      - name: Fail job if test failed
-        if: always() && steps.run.outputs.status != 'completed'
-        run: |
-          echo "Test failed with status: ${{ steps.run.outputs.status }}"
-          echo "Error: ${{ steps.run.outputs.error }}"
-          exit 1
+    uses: ./.github/workflows/_test_claude.yml
+    with:
+      scenario_name: ${{ matrix.scenario }}
+      mode: mock
+      mock_claude: true
+    secrets: inherit
 
   # ============================================================================
-  # BATCH 5: Real Claude tests (only if include_real_claude is true)
-  # Tests core scenarios with actual Claude to verify real behavior
+  # Real Claude tests - core scenarios only (conditional)
   # ============================================================================
-  batch5-real-claude:
+  test-real-claude:
     if: inputs.include_real_claude == true
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -382,111 +68,25 @@ jobs:
           - full-flow
           - triage
           - pivot-simple
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @more/prompts compile
-      - name: Build actions
-        run: cd .github/actions-ts && pnpm run build
-
-      - name: Install Claude Code
-        run: |
-          set -e
-          echo "Installing Claude Code..."
-          curl -fsSL https://claude.ai/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          if [ -f "$HOME/.local/bin/claude" ]; then
-            echo "✓ Claude Code installed at $HOME/.local/bin/claude"
-            "$HOME/.local/bin/claude" --version || echo "Warning: Could not get version"
-          else
-            echo "::error::Claude Code installation failed"
-            exit 1
-          fi
-
-      - name: Run test
-        id: run
-        continue-on-error: true
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          CLAUDE_CODE_PATH: /home/runner/.local/bin/claude
-        uses: ./packages/statemachine/actions/sm-test-runner
-        with:
-          action: run-configurable
-          scenario_name: ${{ matrix.scenario }}
-          continue: true
-          mock_claude: false
-          mock_ci: true
-          multi_issue: true
-          github_token: ${{ secrets.NOPO_BOT_PAT }}
-          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-
-      - name: Cleanup
-        if: always() && steps.run.outputs.issue_number != ''
-        uses: ./packages/statemachine/actions/sm-test-helper
-        with:
-          action: cleanup
-          issue_number: ${{ steps.run.outputs.issue_number }}
-          github_token: ${{ env.GH_TOKEN }}
-          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
-          cleanup_mode: close
-
-      - name: Save result
-        if: always()
-        env:
-          SCENARIO: ${{ matrix.scenario }}
-          STATUS: ${{ steps.run.outputs.status || 'error' }}
-          ISSUE_NUMBER: ${{ steps.run.outputs.issue_number || '' }}
-          ERROR_MSG: ${{ steps.run.outputs.error || '' }}
-          JOB_RESULT: ${{ job.status }}
-        run: |
-          mkdir -p results
-          jq -n \
-            --arg scenario "$SCENARIO" \
-            --arg mode "real" \
-            --arg batch "batch5-real-claude" \
-            --arg status "$STATUS" \
-            --arg issue_number "$ISSUE_NUMBER" \
-            --arg error "$ERROR_MSG" \
-            --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
-            > results/${{ matrix.scenario }}-real.json
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: result-batch5-${{ matrix.scenario }}
-          path: results/
-          retention-days: 1
-
-      - name: Fail job if test failed
-        if: always() && steps.run.outputs.status != 'completed'
-        run: |
-          echo "Test failed with status: ${{ steps.run.outputs.status }}"
-          echo "Error: ${{ steps.run.outputs.error }}"
-          exit 1
+    uses: ./.github/workflows/_test_claude.yml
+    with:
+      scenario_name: ${{ matrix.scenario }}
+      mode: real
+      mock_claude: false
+    secrets: inherit
 
   # ============================================================================
-  # CLAUDE ANALYSIS: Analyze results and propose solutions
+  # Claude Analysis: Analyze results and propose solutions
   # ============================================================================
-  claude-analysis:
-    needs: [batch1-mock, batch2-edge-cases, batch3-mock, batch4-mock, batch5-real-claude]
+  analysis:
+    needs: [test-mock-claude, test-real-claude]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @more/prompts compile
-      - name: Build actions
-        run: cd .github/actions-ts && pnpm run build
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-nopo
+      - run: nopo setup-github root
 
       - name: Download all results
         uses: actions/download-artifact@v4
@@ -498,11 +98,8 @@ jobs:
       - name: Aggregate results
         id: aggregate
         env:
-          BATCH1_RESULT: ${{ needs.batch1-mock.result }}
-          BATCH2_RESULT: ${{ needs.batch2-edge-cases.result }}
-          BATCH3_RESULT: ${{ needs.batch3-mock.result }}
-          BATCH4_RESULT: ${{ needs.batch4-mock.result }}
-          BATCH5_RESULT: ${{ needs.batch5-real-claude.result }}
+          MOCK_RESULT: ${{ needs.test-mock-claude.result }}
+          REAL_RESULT: ${{ needs.test-real-claude.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           BRANCH: ${{ github.ref_name }}
@@ -531,11 +128,8 @@ jobs:
             --arg run_url "$RUN_URL" \
             --arg branch "$BRANCH" \
             --arg commit "$COMMIT" \
-            --arg batch1 "$BATCH1_RESULT" \
-            --arg batch2 "$BATCH2_RESULT" \
-            --arg batch3 "$BATCH3_RESULT" \
-            --arg batch4 "$BATCH4_RESULT" \
-            --arg batch5 "$BATCH5_RESULT" \
+            --arg mock "$MOCK_RESULT" \
+            --arg real "$REAL_RESULT" \
             --arg summary "$SUMMARY" \
             --argjson results "$RESULTS" \
             '{
@@ -545,11 +139,8 @@ jobs:
                 branch: $branch,
                 commit: $commit,
                 batches: {
-                  "batch1-mock": $batch1,
-                  "batch2-edge-cases": $batch2,
-                  "batch3-mock": $batch3,
-                  "batch4-mock": $batch4,
-                  "batch5-real-claude": $batch5
+                  "test-mock-claude": $mock,
+                  "test-real-claude": $real
                 }
               },
               summary: $summary,
