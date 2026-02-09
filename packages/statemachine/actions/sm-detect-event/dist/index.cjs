@@ -67880,6 +67880,23 @@ async function handlePullRequestReviewEvent() {
   if (pr.draft) {
     return emptyResult(true, "PR is a draft");
   }
+  const linkedIssueNumber = await extractIssueNumber(pr.body ?? "");
+  if (linkedIssueNumber) {
+    const octokit = github.getOctokit(getRequiredInput("github_token"));
+    const { owner, repo } = github.context.repo;
+    const details = await fetchIssueDetails(
+      octokit,
+      owner,
+      repo,
+      Number(linkedIssueNumber)
+    );
+    if (details.labels.includes("test:automation")) {
+      return emptyResult(
+        true,
+        "Linked issue has test:automation label - skipping from normal automation"
+      );
+    }
+  }
   const state = review.state.toLowerCase();
   if (state === "approved" && reviewerLogin === "nopo-reviewer") {
     const prBody = pr.body ?? "";

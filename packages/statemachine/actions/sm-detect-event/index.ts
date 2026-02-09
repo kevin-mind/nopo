@@ -1669,6 +1669,26 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
     return emptyResult(true, "PR is a draft");
   }
 
+  // Check if the linked issue has test:automation label
+  // This catches test issues even when the PR doesn't have the label
+  const linkedIssueNumber = await extractIssueNumber(pr.body ?? "");
+  if (linkedIssueNumber) {
+    const octokit = github.getOctokit(getRequiredInput("github_token"));
+    const { owner, repo } = github.context.repo;
+    const details = await fetchIssueDetails(
+      octokit,
+      owner,
+      repo,
+      Number(linkedIssueNumber),
+    );
+    if (details.labels.includes("test:automation")) {
+      return emptyResult(
+        true,
+        "Linked issue has test:automation label - skipping from normal automation",
+      );
+    }
+  }
+
   const state = review.state.toLowerCase();
 
   // Handle approved state from nopo-reviewer (Claude's review account)
