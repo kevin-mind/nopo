@@ -41603,7 +41603,10 @@ function findHeadingIndexAny(ast, texts) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
     const firstChild = node2.children[0];
-    return firstChild?.type === "text" && texts.includes(firstChild.value);
+    return (
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
+      firstChild?.type === "text" && texts.includes(firstChild.value)
+    );
   });
 }
 function getNodeText(node2) {
@@ -41746,8 +41749,11 @@ var agentNotesExtractor = createExtractor(
         const timestampMatch = headingText.match(/-\s*(.+)$/);
         const timestamp = timestampMatch?.[1]?.trim() || "";
         const listNode = ast.children[i + 1];
-        const notes = listNode?.type === "list" ? listNode.children.map(
-          (item) => getNodeText(item)
+        const notes = listNode?.type === "list" ? (
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- listNode narrowed to 'list' type but TS doesn't narrow to List
+          listNode.children.map(
+            (item) => getNodeText(item)
+          )
         ) : [];
         entries.push({
           runId,
@@ -41773,7 +41779,10 @@ function findHeadingIndexAny2(ast, texts) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
     const firstChild = node2.children[0];
-    return firstChild?.type === "text" && texts.includes(firstChild.value);
+    return (
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
+      firstChild?.type === "text" && texts.includes(firstChild.value)
+    );
   });
 }
 function getNodeText2(node2) {
@@ -45659,6 +45668,7 @@ function emitSetWorking({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     }
   ];
@@ -45670,6 +45680,7 @@ function emitSetReview({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In review"
     }
   ];
@@ -45680,6 +45691,7 @@ function emitSetInProgress({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     }
   ];
@@ -45690,6 +45702,7 @@ function emitSetDone({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Done"
     }
   ];
@@ -45700,6 +45713,7 @@ function emitSetBlocked({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Blocked"
     }
   ];
@@ -45710,6 +45724,7 @@ function emitSetError({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Error"
     }
   ];
@@ -46322,6 +46337,7 @@ function emitInitializeParent({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.issue.number,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "In progress"
   });
   const firstSubIssue = context2.issue.subIssues[0];
@@ -46330,6 +46346,7 @@ function emitInitializeParent({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: firstSubIssue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     });
   }
@@ -46353,6 +46370,7 @@ function emitAdvancePhase({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.currentSubIssue.number,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "Done"
   });
   actions.push({
@@ -46368,6 +46386,7 @@ function emitAdvancePhase({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: nextSubIssue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     });
     actions.push({
@@ -46434,6 +46453,7 @@ function emitAllPhasesDone({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.issue.number,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "Done"
   });
   actions.push({
@@ -46680,6 +46700,7 @@ function emitSetReady({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Ready"
     }
   ];
@@ -46745,8 +46766,11 @@ function accumulateActions(existingActions, newActions) {
 }
 var claudeMachine = setup({
   types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     context: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     events: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     input: {}
   },
   guards: {
@@ -64300,7 +64324,7 @@ var cache2 = /* @__PURE__ */ new WeakMap();
 function toJsonSchema(schema) {
   let result = cache2.get(schema);
   if (!result) {
-    const raw = zodToJsonSchema(schema);
+    const raw = external_exports.record(external_exports.unknown()).parse(zodToJsonSchema(schema));
     delete raw.$schema;
     result = raw;
     cache2.set(schema, result);
@@ -64320,21 +64344,23 @@ function buildPlaceholderInputs(schema) {
   return placeholders;
 }
 function buildCallable(inputSchema, outputSchema, render2) {
-  const callable = (rawInputs) => {
-    const inputs = inputSchema.parse(rawInputs);
-    const prompt = render2(inputs);
-    return {
-      prompt,
-      outputs: outputSchema ? toJsonSchema(outputSchema) : void 0
-    };
-  };
-  callable.inputSchema = inputSchema;
-  callable.outputSchema = outputSchema;
-  callable.renderTemplate = () => {
-    const placeholders = buildPlaceholderInputs(inputSchema);
-    return render2(placeholders);
-  };
-  return callable;
+  return Object.assign(
+    (rawInputs) => {
+      inputSchema.parse(rawInputs);
+      return {
+        prompt: render2(rawInputs),
+        outputs: outputSchema ? toJsonSchema(outputSchema) : void 0
+      };
+    },
+    {
+      inputSchema,
+      outputSchema,
+      renderTemplate: () => {
+        const placeholders = buildPlaceholderInputs(inputSchema);
+        return render2(placeholders);
+      }
+    }
+  );
 }
 function promptFactory() {
   return {
@@ -64388,7 +64414,7 @@ var intrinsics = {
   section: (props, children) => `<section${formatAttrs(props)}>
 ${children.join("\n")}
 </section>`,
-  codeblock: (props, children) => `\`\`\`${props.lang ?? ""}
+  codeblock: (props, children) => `\`\`\`${typeof props.lang === "string" ? props.lang : ""}
 ${children.join("\n")}
 \`\`\``,
   line: (_props, children) => children.join(" ")
@@ -65043,6 +65069,54 @@ The executor will:
 - Post the summary as a PR comment
 - If had_commits=false, re-request review from the reviewer
 - If had_commits=true, CI will trigger and handle PR state` })
+] }));
+
+// ../../packages/prompts/src/prompts/test-analysis.tsx
+var TestAnalysis = promptFactory().inputs((z) => ({
+  testResultsFile: z.string(),
+  scenarioDocsFile: z.string().optional()
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("line", { children: "You are analyzing the results of an automated end-to-end test suite for a GitHub Actions state machine that automates issue management." }),
+  /* @__PURE__ */ jsxs("section", { title: "Instructions", children: [
+    `1. **Read the test results file** at \`${inputs.testResultsFile}\` using the Read tool.
+   The file contains a JSON object with:
+   - \`workflow\`: metadata (run_id, run_url, branch, commit, batch statuses)
+   - \`summary\`: pass/fail counts
+   - \`results\`: array of individual test results with scenario, mode, batch, status, error fields`,
+    /* @__PURE__ */ jsx(Conditional, { when: inputs.scenarioDocsFile, children: `
+
+2. **Read the scenario documentation** at \`${inputs.scenarioDocsFile}\` using the Read tool.
+   This contains README documentation for each failed scenario explaining expected behavior,
+   state machine mechanics, expected field values, and why those values are correct.
+   Use this to understand what SHOULD happen, then investigate why it DIDN'T.` }),
+    `
+
+3. **For failures, investigate job logs** using the \`gh\` CLI via Bash:
+   - \`gh api repos/{owner}/{repo}/actions/runs/{run_id}/jobs\` to list jobs for the run
+   - \`gh run view {run_id} --job {job_id} --log\` to get step logs
+   - Focus on the "Run test" step logs which show Claude's reasoning during test execution
+   - Look for assertion failures, unexpected state transitions, or timeout issues
+   - The run_id is in the workflow metadata from the results file`
+  ] }),
+  /* @__PURE__ */ jsx("section", { title: "Your Task", children: `Analyze the test results and provide:
+
+1. **Validity Assessment**
+   - Are these test results valid? (not infrastructure issues)
+   - Any flaky tests or timing issues?
+
+2. **For Failures (if any)**
+   - Consult the Scenario Documentation to understand what the test expects and why
+   - Compare the expected state transitions against what actually happened
+   - Root cause analysis: Is the guard wrong? Is an action not firing? Is a field not being updated?
+   - Is it a test fixture issue, state machine bug, or external dependency?
+   - Specific fix recommendation with file paths if possible
+
+3. **Overall Health**
+   - If all passing: Confirm suite health
+   - If failures: Prioritize fixes
+   - Actionable next steps
+
+Format as GitHub-flavored markdown.` })
 ] }));
 
 // ../../packages/prompts/src/prompts/grooming/engineer.tsx
@@ -66359,8 +66433,11 @@ function accumulateActions2(existingActions, newActions) {
 }
 var discussionMachine = setup({
   types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     context: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     events: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     input: {}
   },
   guards: {

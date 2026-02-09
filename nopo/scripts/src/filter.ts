@@ -152,6 +152,7 @@ export function getFieldValue(
   for (const part of parts) {
     if (current === null || current === undefined) return undefined;
     if (typeof current !== "object") return undefined;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic property access on unknown object for dot-notation field traversal
     current = (current as Record<string, unknown>)[part];
   }
 

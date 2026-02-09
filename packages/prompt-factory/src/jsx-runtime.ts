@@ -26,7 +26,7 @@ const intrinsics: Record<string, IntrinsicHandler> = {
   section: (props, children) =>
     `<section${formatAttrs(props)}>\n${children.join("\n")}\n</section>`,
   codeblock: (props, children) =>
-    `\`\`\`${(props.lang as string) ?? ""}\n${children.join("\n")}\n\`\`\``,
+    `\`\`\`${typeof props.lang === "string" ? props.lang : ""}\n${children.join("\n")}\n\`\`\``,
   line: (_props, children) => children.join(" "),
 };
 

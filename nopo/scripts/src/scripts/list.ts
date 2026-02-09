@@ -57,10 +57,9 @@ export default class ListScript extends Script {
 
   override async fn(args: ScriptArgs) {
     // Determine format: --json and --csv shortcuts take precedence
-    let format: "text" | "json" | "csv" = args.get<string>("format") as
-      | "text"
-      | "json"
-      | "csv";
+    const rawFormat = args.get<string>("format");
+    let format: "text" | "json" | "csv" =
+      rawFormat === "json" || rawFormat === "csv" ? rawFormat : "text";
     if (args.get<boolean>("json")) format = "json";
     if (args.get<boolean>("csv")) format = "csv";
 

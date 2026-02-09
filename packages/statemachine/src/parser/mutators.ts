@@ -42,6 +42,7 @@ function findHeadingIndexAny(ast: Root, texts: string[]): number {
     if (node.type !== "heading") return false;
     const firstChild = node.children[0];
     return (
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
       firstChild?.type === "text" && texts.includes(firstChild.value as string)
     );
   });
@@ -53,6 +54,7 @@ function getNodeText(node: RootContent | ListItem | undefined): string {
   if (node.type === "text") return node.value;
   if (node.type === "inlineCode") return node.value;
   if ("children" in node && Array.isArray(node.children)) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast node children are compatible with RootContent but typed differently
     return (node.children as RootContent[]).map(getNodeText).join("");
   }
   return "";
@@ -154,6 +156,7 @@ function extractRunIdFromUrl(url: string): string | null {
 export const checkOffTodo = createMutator(
   z.object({ todoText: z.string() }),
   (input, data) => {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bodyAst is typed as Root but createMutator types it more broadly
     const ast = data.issue.bodyAst as Root;
     const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
@@ -162,7 +165,9 @@ export const checkOffTodo = createMutator(
     if (!listNode || listNode.type !== "list") return data;
 
     // Deep clone
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structuredClone returns the same type but TS types it as the input type
     const newAst = structuredClone(ast) as Root;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- list type verified above by listNode.type check
     const newList = newAst.children[todosIdx + 1] as List;
 
     for (const item of newList.children) {
@@ -186,6 +191,7 @@ export const checkOffTodo = createMutator(
 export const uncheckTodo = createMutator(
   z.object({ todoText: z.string() }),
   (input, data) => {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bodyAst is typed as Root but createMutator types it more broadly
     const ast = data.issue.bodyAst as Root;
     const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
@@ -194,7 +200,9 @@ export const uncheckTodo = createMutator(
     if (!listNode || listNode.type !== "list") return data;
 
     // Deep clone
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structuredClone returns the same type but TS types it as the input type
     const newAst = structuredClone(ast) as Root;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- list type verified above by listNode.type check
     const newList = newAst.children[todosIdx + 1] as List;
 
     for (const item of newList.children) {
@@ -222,7 +230,9 @@ export const addTodo = createMutator(
     isManual: z.boolean().default(false),
   }),
   (input, data) => {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bodyAst is typed as Root but createMutator types it more broadly
     const ast = data.issue.bodyAst as Root;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structuredClone returns the same type but TS types it as the input type
     const newAst = structuredClone(ast) as Root;
     const todosIdx = findHeadingIndexAny(newAst, ["Todo", "Todos"]);
 
@@ -243,6 +253,7 @@ export const addTodo = createMutator(
       // Add to existing list
       const listNode = newAst.children[todosIdx + 1];
       if (listNode?.type === "list") {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- listNode narrowed to 'list' type above
         (listNode as List).children.push(newItem);
       } else {
         // No list after heading - create one
@@ -314,6 +325,7 @@ function createHistoryDataRow(entry: HistoryEntry, repoUrl?: string): TableRow {
 function getCellText(row: TableRow, index: number): string {
   const cell = row.children[index];
   if (!cell) return "";
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast TableCell children are PhrasingContent which is compatible with RootContent
   return (cell.children as RootContent[]).map(getNodeText).join("");
 }
 
@@ -322,6 +334,7 @@ function getCellRunId(row: TableRow, index: number): string | null {
   const cell = row.children[index];
   if (!cell) return null;
 
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast TableCell children are PhrasingContent which is compatible with RootContent
   for (const child of cell.children as RootContent[]) {
     if (child.type === "link") {
       // Check if link text is the run ID
@@ -350,7 +363,9 @@ export const addHistoryEntry = createMutator(
     repoUrl: z.string().optional(),
   }),
   (input, data) => {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bodyAst is typed as Root but createMutator types it more broadly
     const ast = data.issue.bodyAst as Root;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structuredClone returns the same type but TS types it as the input type
     const newAst = structuredClone(ast) as Root;
     const historyIdx = findHeadingIndex(newAst, "Iteration History");
 
@@ -398,6 +413,7 @@ export const addHistoryEntry = createMutator(
         };
         newAst.children.splice(historyIdx + 1, 0, table);
       } else {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- tableIdx found via type check for 'table'
         const table = newAst.children[tableIdx] as Table;
 
         // Check for deduplication by run ID
@@ -445,6 +461,7 @@ export const updateHistoryEntry = createMutator(
     repoUrl: z.string().optional(),
   }),
   (input, data) => {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bodyAst is typed as Root but createMutator types it more broadly
     const ast = data.issue.bodyAst as Root;
     const historyIdx = findHeadingIndex(ast, "Iteration History");
     if (historyIdx === -1) return data;
@@ -461,6 +478,7 @@ export const updateHistoryEntry = createMutator(
 
     if (tableIdx === -1) return data;
 
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- tableIdx found via type check for 'table'
     const table = ast.children[tableIdx] as Table;
 
     // Find matching row (search from end for most recent)
@@ -486,7 +504,9 @@ export const updateHistoryEntry = createMutator(
     if (matchRowIdx === -1) return data;
 
     // Clone and update
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structuredClone returns the same type but TS types it as the input type
     const newAst = structuredClone(ast) as Root;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- tableIdx found via type check for 'table'
     const newTable = newAst.children[tableIdx] as Table;
     const row = newTable.children[matchRowIdx];
     if (!row) return data;
@@ -551,7 +571,9 @@ export const appendAgentNotes = createMutator(
     // Skip if no notes
     if (input.notes.length === 0) return data;
 
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bodyAst is typed as Root but createMutator types it more broadly
     const ast = data.issue.bodyAst as Root;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structuredClone returns the same type but TS types it as the input type
     const newAst = structuredClone(ast) as Root;
     const notesIdx = findHeadingIndex(newAst, "Agent Notes");
 
@@ -624,7 +646,9 @@ export const upsertSection = createMutator(
     sectionOrder: z.array(z.string()).optional(),
   }),
   (input, data) => {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- bodyAst is typed as Root but createMutator types it more broadly
     const ast = data.issue.bodyAst as Root;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structuredClone returns the same type but TS types it as the input type
     const newAst = structuredClone(ast) as Root;
     const sectionIdx = findHeadingIndex(newAst, input.title);
     const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER;
@@ -639,6 +663,7 @@ export const upsertSection = createMutator(
       let endIdx = sectionIdx + 1;
       for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
         const node = newAst.children[i];
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- node narrowed to 'heading' type but TS doesn't narrow to Heading
         if (node?.type === "heading" && (node as Heading).depth === 2) {
           break;
         }

@@ -43,7 +43,9 @@ async function run(): Promise<void> {
     const token = getRequiredInput("github_token");
     const _projectNumber = parseInt(getRequiredInput("project_number"), 10);
     const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- input value matches JobResult union
     const deriveResult = getRequiredInput("derive_result") as JobResult;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- input value matches JobResult union
     const execResult = getRequiredInput("exec_result") as JobResult;
     const actionCount = parseInt(getRequiredInput("action_count"), 10);
     const transitionName = getRequiredInput("transition_name");

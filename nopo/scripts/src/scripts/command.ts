@@ -99,16 +99,19 @@ export default class CommandScript extends Script {
       type: "string",
       description: "Filter expression to select services",
       alias: ["F"],
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- undefined default for optional arg, typed as string when provided
       default: undefined as unknown as string,
     },
     since: {
       type: "string",
       description: "Date reference for changed filter",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- undefined default for optional arg, typed as string when provided
       default: undefined as unknown as string,
     },
     context: {
       type: "string",
       description: "Execution context (host or container)",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- undefined default for optional arg, typed as string when provided
       default: undefined as unknown as string,
     },
   });

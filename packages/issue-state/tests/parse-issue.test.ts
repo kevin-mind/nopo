@@ -13,6 +13,7 @@ function createMockOctokit(
   prResponse: PRResponse = { repository: { pullRequests: { nodes: [] } } },
 ): OctokitLike {
   return {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock graphql function for testing
     graphql: vi.fn(async (query: string) => {
       if (query.includes("GetIssueWithProject")) {
         return issueResponse;

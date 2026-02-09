@@ -9,6 +9,7 @@
 import { z } from "zod";
 
 // Re-export common types from @more/issue-state
+// Only export what's actually used by actions to avoid dead code
 export {
   // Schema exports
   ProjectStatusSchema,
@@ -19,10 +20,7 @@ export {
   TodoStatsSchema,
   HistoryEntrySchema,
   AgentNotesEntrySchema,
-  MdastRootSchema,
   // Issue schemas
-  IssueDataSchema,
-  SubIssueDataSchema,
   IssueCommentSchema,
   LinkedPRSchema,
   // Type exports
@@ -34,8 +32,6 @@ export {
   type TodoStats,
   type HistoryEntry,
   type AgentNotesEntry,
-  type IssueData,
-  type SubIssueData,
   type IssueComment,
   type LinkedPR,
 } from "@more/issue-state";

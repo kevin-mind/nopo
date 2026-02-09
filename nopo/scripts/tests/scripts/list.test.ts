@@ -41,12 +41,14 @@ describe("list", () => {
       });
       await runScript(ListScript, config, ["list", "--json"]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         config: unknown;
         services: unknown;
       };
       expect(parsed.config).toBeDefined();
       expect(parsed.services).toBeDefined();
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing unknown to object for Object.keys
       expect(Object.keys(parsed.services as object)).toContain("backend");
       stdoutSpy.mockRestore();
     });
@@ -66,6 +68,7 @@ describe("list", () => {
       });
       await runScript(ListScript, config, ["list", "-j"]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         config: unknown;
         services: unknown;
@@ -90,6 +93,7 @@ describe("list", () => {
       });
       await runScript(ListScript, config, ["list", "--format", "json"]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         config: unknown;
         services: unknown;
@@ -153,6 +157,7 @@ describe("list", () => {
       });
       await runScript(ListScript, config, ["list", "--json"]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         config: { name: string; services_dirs: string[] };
       };
@@ -176,6 +181,7 @@ describe("list", () => {
       });
       await runScript(ListScript, config, ["list", "--json"]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, { cpu: string }>;
       };
@@ -214,6 +220,7 @@ describe("list", () => {
         "buildable",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -246,6 +253,7 @@ describe("list", () => {
         "buildable",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -277,6 +285,7 @@ describe("list", () => {
         "image",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -309,6 +318,7 @@ describe("list", () => {
         "!image",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -341,6 +351,7 @@ describe("list", () => {
         "runtime.hasDatabase=true",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -375,6 +386,7 @@ describe("list", () => {
         "runtime.hasDatabase=true",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -403,6 +415,7 @@ describe("list", () => {
         "nonexistent.field=value",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -461,6 +474,7 @@ describe("list", () => {
         "changed",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -557,6 +571,7 @@ describe("list", () => {
         "changed",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -593,6 +608,7 @@ describe("list", () => {
         "buildable",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -753,6 +769,7 @@ describe("list", () => {
       // We expect an error, but also want to prevent EPIPE from leaking due to broken pipe when process.stdout is closed.
       // So, temporarily stub process.stdout.write to a noop for this test.
       const originalWrite = process.stdout.write;
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock process.stdout.write to prevent EPIPE errors in test
       process.stdout.write = (() => true) as typeof process.stdout.write;
 
       try {

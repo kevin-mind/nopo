@@ -28,10 +28,6 @@ export const TriggerTypeSchema = z.union([
 
 export type TriggerType = z.infer<typeof TriggerTypeSchema>;
 
-// Re-export for convenience
-export { IssueTriggerTypeSchema, DiscussionTriggerTypeSchema };
-export type { IssueTriggerType, DiscussionTriggerType };
-
 // ============================================================================
 // Job Types
 // ============================================================================

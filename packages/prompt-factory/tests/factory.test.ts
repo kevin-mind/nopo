@@ -45,6 +45,7 @@ describe("factory", () => {
       .prompt((inputs) => `${inputs.name} is ${inputs.age}`);
 
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- testing runtime validation with intentionally invalid input
       MyPrompt({ name: "test", age: "not a number" as unknown as number }),
     ).toThrow();
   });
@@ -180,11 +181,12 @@ describe("factory", () => {
       .prompt(() => "test");
 
     const result = MyPrompt({ x: 1 });
-    const schema = result.outputs as Record<string, unknown>;
+    const schema = result.outputs;
+    if (!schema) throw new Error("expected outputs to be defined");
     expect(schema).not.toHaveProperty("$schema");
-    expect(schema.type).toBe("object");
+    expect(schema["type"]).toBe("object");
 
-    const properties = schema.properties as Record<string, unknown>;
+    const properties = schema["properties"];
     expect(properties).toHaveProperty("status");
     expect(properties).toHaveProperty("items");
     expect(properties).toHaveProperty("note");

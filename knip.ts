@@ -10,8 +10,6 @@ export default {
     "test-e2e-dump/**",
     // E2E test feature directories (mock files created during multi-phase tests)
     "test-feature-*/**",
-    // Statemachine exports are used by bundled actions, which knip can't trace
-    "packages/statemachine/src/**",
   ],
   workspaces: {
     ".": {

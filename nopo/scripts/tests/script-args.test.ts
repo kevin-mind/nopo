@@ -316,6 +316,7 @@ describe("ScriptArgs", () => {
           default: 3000,
           validate: (value) => {
             validatedValue = value;
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- validate callback receives unknown, narrowing to number for range check
             const v = value as number;
             if (v < 1 || v > 65535) {
               throw new Error("Port must be between 1 and 65535");
@@ -338,6 +339,7 @@ describe("ScriptArgs", () => {
           description: "Port number",
           default: 3000,
           validate: (value) => {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- validate callback receives unknown, narrowing to number for range check
             const v = value as number;
             if (v < 1 || v > 65535) {
               throw new Error("Port must be between 1 and 65535");

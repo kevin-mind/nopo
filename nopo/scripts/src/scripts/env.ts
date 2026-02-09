@@ -30,18 +30,15 @@ export default class EnvScript extends Script {
     this.runner.logger.log(title);
     this.runner.logger.log(breakLine);
 
-    for (const key of Object.keys(this.runner.environment.diff)) {
-      const section =
-        this.runner.environment.diff[
-          key as keyof typeof this.runner.environment.diff
-        ];
+    const diffKeys = ["added", "updated", "removed", "unchanged"] as const;
+    for (const key of diffKeys) {
+      const section = this.runner.environment.diff[key];
       if (section.length === 0) continue;
-      this.runner.logger.log(
-        chalk.underline(colors[key as keyof typeof colors](key)),
-      );
+      const colorFn = colors[key];
+      this.runner.logger.log(chalk.underline(colorFn(key)));
       for (const [name, value] of section) {
         this.runner.logger.log(
-          `${colors.background(name)}: ${colors[key as keyof typeof colors](value ?? "")}`,
+          `${colors.background(name)}: ${colorFn(value ?? "")}`,
         );
       }
     }

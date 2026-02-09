@@ -127,6 +127,7 @@ describe("up", () => {
       );
 
       // Mock runner with DOCKER_BUILD set
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial Runner for testing dependency enabled check
       const forceBuilderRunner = {
         config: {
           processEnv: { DOCKER_BUILD: "true" },

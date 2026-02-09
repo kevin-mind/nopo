@@ -77,6 +77,7 @@ interface QueryResponse {
 // ============================================================================
 
 function parseProjectFields(projectData: unknown): ProjectFields | null {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GraphQL response typed as unknown, casting to known response shape
   const project = projectData as QueryResponse["organization"];
   if (!project?.projectV2?.id || !project.projectV2.fields?.nodes) {
     return null;
@@ -153,6 +154,7 @@ function parseProjectState(
   for (const fieldValue of fieldValues) {
     const fieldName = fieldValue.field?.name;
     if (fieldName === "Status" && fieldValue.name) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub project field value matches ProjectStatus union
       status = fieldValue.name as ProjectStatus;
     } else if (
       fieldName === "Iteration" &&

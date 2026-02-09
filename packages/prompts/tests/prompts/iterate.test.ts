@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import Iterate from "../../src/prompts/iterate.js";
 
 const validInputs = {
@@ -54,18 +55,22 @@ describe("Iterate prompt", () => {
 
   it("outputs JSON Schema matches expected structure", () => {
     const result = Iterate(validInputs);
-    const schema = result.outputs as Record<string, unknown>;
+    const schema = result.outputs;
+    if (!schema) throw new Error("expected outputs");
 
-    expect(schema.type).toBe("object");
+    expect(schema["type"]).toBe("object");
 
-    const properties = schema.properties as Record<string, unknown>;
+    const properties = z.record(z.unknown()).parse(schema["properties"]);
     expect(properties).toHaveProperty("status");
     expect(properties).toHaveProperty("todos_completed");
     expect(properties).toHaveProperty("manual_todo");
     expect(properties).toHaveProperty("blocked_reason");
     expect(properties).toHaveProperty("agent_notes");
 
-    const statusProp = properties.status as { type: string; enum: string[] };
+    const statusProp = z
+      .object({ type: z.string(), enum: z.array(z.string()) })
+      .passthrough()
+      .parse(properties["status"]);
     expect(statusProp.enum).toEqual([
       "completed_todo",
       "waiting_manual",
@@ -73,13 +78,14 @@ describe("Iterate prompt", () => {
       "all_done",
     ]);
 
-    const required = schema.required as string[];
+    const required = z.array(z.string()).parse(schema["required"]);
     expect(required).toContain("status");
     expect(required).toContain("agent_notes");
   });
 
   it("throws on invalid inputs", () => {
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- testing runtime validation with intentionally invalid input
       Iterate({ ...validInputs, issueNumber: "not a number" } as never),
     ).toThrow();
   });

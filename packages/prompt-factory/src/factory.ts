@@ -45,21 +45,24 @@ function buildCallable<
   outputSchema: TOutput,
   render: (inputs: z.infer<TInput>) => string,
 ): PromptCallable<TInput, TOutput> {
-  const callable = (rawInputs: z.infer<TInput>): PromptResult => {
-    const inputs = inputSchema.parse(rawInputs) as z.infer<TInput>;
-    const prompt = render(inputs);
-    return {
-      prompt,
-      outputs: outputSchema ? toJsonSchema(outputSchema) : undefined,
-    };
-  };
-  callable.inputSchema = inputSchema;
-  callable.outputSchema = outputSchema;
-  callable.renderTemplate = () => {
-    const placeholders = buildPlaceholderInputs(inputSchema);
-    return render(placeholders as z.infer<TInput>);
-  };
-  return callable as PromptCallable<TInput, TOutput>;
+  return Object.assign(
+    (rawInputs: z.infer<TInput>): PromptResult => {
+      inputSchema.parse(rawInputs);
+      return {
+        prompt: render(rawInputs),
+        outputs: outputSchema ? toJsonSchema(outputSchema) : undefined,
+      };
+    },
+    {
+      inputSchema,
+      outputSchema,
+      renderTemplate: () => {
+        const placeholders = buildPlaceholderInputs(inputSchema);
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- template rendering intentionally passes string placeholders for typed inputs
+        return render(placeholders as z.infer<TInput>);
+      },
+    },
+  );
 }
 
 export function promptFactory() {

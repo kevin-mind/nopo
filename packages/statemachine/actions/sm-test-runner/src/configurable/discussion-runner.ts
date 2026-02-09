@@ -254,6 +254,7 @@ class DiscussionConfigurableTestRunner {
       actor.stop();
 
       const pendingActions = snapshot.context.pendingActions;
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState snapshot value is a string that maps to DiscussionStateName
       const finalState = String(snapshot.value) as DiscussionStateName;
 
       core.info(`State machine produced ${pendingActions.length} actions`);

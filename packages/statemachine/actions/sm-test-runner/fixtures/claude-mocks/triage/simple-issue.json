@@ -9,8 +9,12 @@
       "topics": ["testing"],
       "needs_info": false
     },
-    "issue_body": "## Description\n\nTest scenario for complete happy path flow.\n\n## Approach\n\nImplement the feature and add tests.\n\n## Todo\n\n- [ ] Implement the feature\n- [ ] Add tests\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
-    "sub_issues": [],
+    "requirements": [
+      "Implement the feature functionality",
+      "Add comprehensive tests"
+    ],
+    "initial_approach": "Implement the feature and add tests. This is a small enhancement that can be completed in a single phase without sub-issues.",
+    "initial_questions": [],
     "related_issues": [],
     "agent_notes": ["Simple single-phase implementation - no sub-issues needed"]
   }

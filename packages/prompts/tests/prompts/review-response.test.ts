@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import ReviewResponse from "../../src/prompts/review-response.js";
 
 const validInputs = {
@@ -49,22 +50,24 @@ describe("ReviewResponse prompt", () => {
 
   it("outputs JSON Schema matches expected structure", () => {
     const result = ReviewResponse(validInputs);
-    const schema = result.outputs as Record<string, unknown>;
+    const schema = result.outputs;
+    if (!schema) throw new Error("expected outputs");
 
-    expect(schema.type).toBe("object");
+    expect(schema["type"]).toBe("object");
 
-    const properties = schema.properties as Record<string, unknown>;
+    const properties = z.record(z.unknown()).parse(schema["properties"]);
     expect(properties).toHaveProperty("had_commits");
     expect(properties).toHaveProperty("summary");
     expect(properties).toHaveProperty("commits");
 
-    const required = schema.required as string[];
+    const required = z.array(z.string()).parse(schema["required"]);
     expect(required).toContain("had_commits");
     expect(required).toContain("summary");
   });
 
   it("throws on invalid inputs", () => {
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- testing runtime validation with intentionally invalid input
       ReviewResponse({ ...validInputs, prNumber: "not a number" } as never),
     ).toThrow();
   });

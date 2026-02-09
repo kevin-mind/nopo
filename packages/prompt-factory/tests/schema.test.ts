@@ -10,11 +10,13 @@ describe("toJsonSchema", () => {
     });
     const result = toJsonSchema(schema);
     expect(result.type).toBe("object");
-    const props = result.properties as Record<string, { type: string }>;
+    const props = z
+      .record(z.object({ type: z.string() }).passthrough())
+      .parse(result.properties);
     expect(props).toHaveProperty("name");
     expect(props).toHaveProperty("age");
-    expect(props.name!.type).toBe("string");
-    expect(props.age!.type).toBe("number");
+    expect(props["name"]?.type).toBe("string");
+    expect(props["age"]?.type).toBe("number");
   });
 
   it("strips $schema key", () => {
@@ -28,8 +30,10 @@ describe("toJsonSchema", () => {
       status: z.enum(["active", "inactive", "pending"]),
     });
     const result = toJsonSchema(schema);
-    const props = result.properties as Record<string, { enum: string[] }>;
-    expect(props.status!.enum).toEqual(["active", "inactive", "pending"]);
+    const props = z
+      .record(z.object({ enum: z.array(z.string()) }).passthrough())
+      .parse(result.properties);
+    expect(props["status"]?.enum).toEqual(["active", "inactive", "pending"]);
   });
 
   it("handles arrays", () => {
@@ -37,12 +41,18 @@ describe("toJsonSchema", () => {
       items: z.array(z.string()),
     });
     const result = toJsonSchema(schema);
-    const props = result.properties as Record<
-      string,
-      { type: string; items: { type: string } }
-    >;
-    expect(props.items!.type).toBe("array");
-    expect(props.items!.items.type).toBe("string");
+    const props = z
+      .record(
+        z
+          .object({
+            type: z.string(),
+            items: z.object({ type: z.string() }).passthrough(),
+          })
+          .passthrough(),
+      )
+      .parse(result.properties);
+    expect(props["items"]?.type).toBe("array");
+    expect(props["items"]?.items.type).toBe("string");
   });
 
   it("handles nested objects", () => {
@@ -52,12 +62,18 @@ describe("toJsonSchema", () => {
       }),
     });
     const result = toJsonSchema(schema);
-    const props = result.properties as Record<
-      string,
-      { type: string; properties: Record<string, { type: string }> }
-    >;
-    expect(props.nested!.type).toBe("object");
-    expect(props.nested!.properties.value!.type).toBe("number");
+    const props = z
+      .record(
+        z
+          .object({
+            type: z.string(),
+            properties: z.record(z.object({ type: z.string() }).passthrough()),
+          })
+          .passthrough(),
+      )
+      .parse(result.properties);
+    expect(props["nested"]?.type).toBe("object");
+    expect(props["nested"]?.properties["value"]?.type).toBe("number");
   });
 
   it("handles optional fields", () => {
@@ -66,7 +82,7 @@ describe("toJsonSchema", () => {
       optional: z.string().optional(),
     });
     const result = toJsonSchema(schema);
-    const required = result.required as string[];
+    const required = z.array(z.string()).parse(result.required);
     expect(required).toContain("required");
     expect(required).not.toContain("optional");
   });

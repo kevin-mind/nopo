@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import Pivot from "../../src/prompts/pivot.js";
 
 const validInputs = {
@@ -47,23 +48,27 @@ describe("Pivot prompt", () => {
 
   it("outputs JSON Schema matches expected structure", () => {
     const result = Pivot(validInputs);
-    const schema = result.outputs as Record<string, unknown>;
+    const schema = result.outputs;
+    if (!schema) throw new Error("expected outputs");
 
-    expect(schema.type).toBe("object");
+    expect(schema["type"]).toBe("object");
 
-    const properties = schema.properties as Record<string, unknown>;
+    const properties = z.record(z.unknown()).parse(schema["properties"]);
     expect(properties).toHaveProperty("analysis");
     expect(properties).toHaveProperty("outcome");
     expect(properties).toHaveProperty("summary_for_user");
 
-    const outcomeProp = properties.outcome as { type: string; enum: string[] };
+    const outcomeProp = z
+      .object({ type: z.string(), enum: z.array(z.string()) })
+      .passthrough()
+      .parse(properties["outcome"]);
     expect(outcomeProp.enum).toEqual([
       "changes_applied",
       "needs_clarification",
       "no_changes_needed",
     ]);
 
-    const required = schema.required as string[];
+    const required = z.array(z.string()).parse(schema["required"]);
     expect(required).toContain("analysis");
     expect(required).toContain("outcome");
     expect(required).toContain("summary_for_user");
@@ -71,6 +76,7 @@ describe("Pivot prompt", () => {
 
   it("throws on invalid inputs", () => {
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- testing runtime validation with intentionally invalid input
       Pivot({ ...validInputs, issueNumber: "not a number" } as never),
     ).toThrow();
   });

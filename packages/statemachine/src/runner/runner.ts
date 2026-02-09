@@ -65,6 +65,7 @@ function getStructuredOutput(
   }
 
   // Check if action has a filePath for artifact-based execution
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Action union may have filePath on some variants; casting to access it
   const actionWithFile = action as Action & { filePath?: string };
   if (actionWithFile.filePath) {
     core.info(
@@ -305,6 +306,7 @@ async function executeAction(
       return { noop: true };
 
     default:
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- default case in exhaustive switch, action is typed as never
       throw new Error(`Unknown action type: ${(action as Action).type}`);
   }
 }
@@ -377,6 +379,7 @@ export async function executeActions(
 
       // Capture structured output from runClaude for subsequent actions
       if (validatedAction.type === "runClaude") {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- executeAction return type is a union, narrowing by action.type
         const claudeResult = result as { structuredOutput?: unknown };
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
@@ -386,6 +389,7 @@ export async function executeActions(
 
       // Capture grooming output for subsequent applyGroomingOutput action
       if (validatedAction.type === "runClaudeGrooming") {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- executeAction return type is a union, narrowing by action.type
         const groomingResult = result as { outputs?: unknown };
         if (groomingResult.outputs) {
           chainCtx.lastClaudeStructuredOutput = groomingResult.outputs;
@@ -394,6 +398,7 @@ export async function executeActions(
       }
 
       // Check if createBranch signaled to stop (rebased and pushed)
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- executeAction return type is a union, narrowing by action.type
       const branchResult = result as { shouldStop?: boolean };
       if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
         results.push({
@@ -547,6 +552,7 @@ export function filterActions<T extends ActionType>(
   actions: Action[],
   type: T,
 ): Extract<Action, { type: T }>[] {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- filter narrows by type but TS cannot infer the discriminated union member
   return actions.filter((a) => a.type === type) as Extract<
     Action,
     { type: T }
@@ -563,6 +569,7 @@ export function countActionsByType(
   for (const action of actions) {
     counts[action.type] = (counts[action.type] || 0) + 1;
   }
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Partial<Record> built from exhaustive loop, safe to cast to Record
   return counts as Record<ActionType, number>;
 }
 

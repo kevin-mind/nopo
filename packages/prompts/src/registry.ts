@@ -11,6 +11,7 @@ import ReviewResponse from "./prompts/review-response.js";
 import Comment from "./prompts/comment.js";
 import Pivot from "./prompts/pivot.js";
 import HumanReviewResponse from "./prompts/human-review-response.js";
+import TestAnalysis from "./prompts/test-analysis.js";
 
 // Grooming prompts
 import * as Grooming from "./prompts/grooming/index.js";
@@ -35,6 +36,7 @@ export const PROMPTS = {
   comment: Comment,
   pivot: Pivot,
   "human-review-response": HumanReviewResponse,
+  "test-analysis": TestAnalysis,
 
   // Grooming prompts
   "grooming/engineer": Grooming.Engineer,
@@ -59,7 +61,9 @@ export type PromptName = keyof typeof PROMPTS;
  * @returns The prompt callable or undefined if not found
  */
 export function getPrompt(name: string): AnyPromptCallable | undefined {
-  return (PROMPTS as unknown as Record<string, AnyPromptCallable>)[name];
+  if (!hasPrompt(name)) return undefined;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- dynamic dispatch requires type erasure; inputs are validated by Zod at runtime
+  return PROMPTS[name] as unknown as AnyPromptCallable;
 }
 
 /**
@@ -74,5 +78,7 @@ export function hasPrompt(name: string): name is PromptName {
  * Get all registered prompt names.
  */
 export function getPromptNames(): PromptName[] {
-  return Object.keys(PROMPTS) as PromptName[];
+  return Object.keys(PROMPTS).filter(
+    (name): name is PromptName => name in PROMPTS,
+  );
 }

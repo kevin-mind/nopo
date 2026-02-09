@@ -14,7 +14,6 @@ import {
   createBulletList,
   createTodoList,
   type ProjectStatus,
-  type TodoItem,
 } from "@more/issue-state";
 import type {
   RunClaudeGroomingAction,
@@ -40,7 +39,7 @@ interface AffectedArea {
   impact?: string;
 }
 
-interface TodoItem {
+interface PhaseTodoItem {
   task: string;
   manual?: boolean;
 }
@@ -50,7 +49,7 @@ interface RecommendedPhase {
   title: string;
   description: string;
   affected_areas?: AffectedArea[];
-  todos?: TodoItem[];
+  todos?: PhaseTodoItem[];
   depends_on?: number[];
 }
 
@@ -112,6 +111,7 @@ export async function executeRunClaudeGrooming(
   if (ctx.mockOutputs?.grooming) {
     core.info("[MOCK MODE] Using mock grooming output");
     return {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock outputs typed as unknown, casting to expected shape
       outputs: ctx.mockOutputs.grooming as unknown as CombinedGroomingOutput,
     };
   }
@@ -147,10 +147,12 @@ export async function executeApplyGroomingOutput(
 
   // Try structured output first, then fall back to file
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     groomingOutput = structuredOutput as CombinedGroomingOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches CombinedGroomingOutput schema
     groomingOutput = JSON.parse(content) as CombinedGroomingOutput;
     core.info(`Grooming output from file: ${action.filePath}`);
   } else {
@@ -198,6 +200,7 @@ export async function executeApplyGroomingOutput(
     }
 
     // Check if engineer recommends splitting into phases
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- engineer output extends GroomingAgentOutput with additional fields
     const engineerOutput = groomingOutput.engineer as EngineerOutput;
     if (
       engineerOutput.scope_recommendation === "split" &&
@@ -217,6 +220,7 @@ export async function executeApplyGroomingOutput(
     // Collect questions from agents
     const questions: string[] = [];
     for (const [agentType, output] of Object.entries(groomingOutput)) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Object.entries loses the value type
       const agentOutput = output as GroomingAgentOutput;
       if (agentOutput.questions && agentOutput.questions.length > 0) {
         questions.push(`**${agentType}:**`);
@@ -262,13 +266,17 @@ async function createSubIssuesForPhases(
 
     try {
       // Use issue-state's addSubIssueToParent to create and link the sub-issue
+      // Cast octokit to handle type differences between @actions/github and OctokitLike
       const result = await addSubIssueToParent(
         ctx.owner,
         ctx.repo,
         parentIssueNumber,
         { title, body },
         {
-          octokit: ctx.octokit,
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+          octokit: ctx.octokit as Parameters<
+            typeof addSubIssueToParent
+          >[4]["octokit"],
           projectNumber: ctx.projectNumber,
           projectStatus,
         },
@@ -321,7 +329,9 @@ async function createSubIssuesForPhases(
  * Build the body for a phase sub-issue as MDAST
  */
 function buildPhaseIssueBody(phase: RecommendedPhase): Root {
-  const children: Root["children"] = [];
+  // Use unknown[] to avoid type conflicts with MdastNode vs RootContent
+  // The MDAST nodes are structurally compatible, just typed differently
+  const children: unknown[] = [];
 
   // Description section
   children.push(
@@ -342,7 +352,7 @@ function buildPhaseIssueBody(phase: RecommendedPhase): Root {
 
   // Todo section
   if (phase.todos && phase.todos.length > 0) {
-    const todos: TodoItem[] = phase.todos.map((todo) => ({
+    const todos = phase.todos.map((todo) => ({
       text: todo.task,
       checked: false,
       manual: todo.manual || false,
@@ -350,5 +360,6 @@ function buildPhaseIssueBody(phase: RecommendedPhase): Root {
     children.push(...createSection("Todo", [createTodoList(todos)]));
   }
 
-  return { type: "root", children };
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- unknown[] contains valid RootContent nodes, cast avoids complex type conflicts
+  return { type: "root", children: children as Root["children"] };
 }

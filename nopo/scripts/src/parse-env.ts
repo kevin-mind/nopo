@@ -61,9 +61,7 @@ export class Environment {
   }
 
   #getPrevEnv(): Record<string, string> {
-    return this.hasPrevEnv
-      ? (dotenv.load(this.envFile) as Record<string, string>)
-      : {};
+    return this.hasPrevEnv ? dotenv.load(this.envFile) : {};
   }
 
   #resolveDockerTag(): DockerTag {
@@ -277,6 +275,7 @@ export class Environment {
 
     for (const key of keys) {
       const prevValue = this.prevEnv[key];
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- iterating schema keys that are valid keyof env
       const currValue = this.env[key as keyof typeof this.env];
 
       if (!prevValue && currValue) {
@@ -293,10 +292,10 @@ export class Environment {
   }
 
   save(): void {
-    const combinedEntries = {
+    const combinedEntries: Record<string, string> = {
       ...this.env,
       ...this.extraEnv,
-    } as Record<string, string>;
+    };
 
     const sortedEnv = Object.entries(combinedEntries)
       .filter(([, value]) => !!value)

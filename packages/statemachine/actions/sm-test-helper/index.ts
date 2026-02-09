@@ -329,6 +329,7 @@ function parseProjectFields(projectData: unknown): ProjectFields | null {
     fields?: { nodes?: Field[] };
   }
 
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- projectData is typed as unknown, casting to locally defined Project interface
   const project = projectData as Project;
   if (!project?.id || !project?.fields?.nodes) {
     return null;
@@ -3382,6 +3383,7 @@ async function run(): Promise<void> {
 
     if (action === "create") {
       const fixtureJson = getRequiredInput("fixture_json");
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known fixture shape
       const fixture = JSON.parse(fixtureJson) as TestFixture;
 
       core.info(`Creating test fixture: ${fixture.name}`);
@@ -3414,6 +3416,7 @@ async function run(): Promise<void> {
     if (action === "verify") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getRequiredInput("fixture_json");
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known fixture shape
       const fixture = JSON.parse(fixtureJson) as TestFixture;
 
       core.info(`Verifying fixture for issue #${issueNumber}`);
@@ -3455,6 +3458,7 @@ async function run(): Promise<void> {
 
     if (action === "cleanup") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- input value matches CleanupMode union
       const cleanupMode = (getOptionalInput("cleanup_mode") ||
         "close") as CleanupMode;
 
@@ -3519,8 +3523,10 @@ async function run(): Promise<void> {
       // Get outcomes from input or fixture
       let outcomes: E2EOutcomes = {};
       if (e2eOutcomesJson) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known E2EOutcomes shape
         outcomes = JSON.parse(e2eOutcomesJson) as E2EOutcomes;
       } else if (fixtureJson) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known fixture shape
         const fixture = JSON.parse(fixtureJson) as TestFixture;
         outcomes = fixture.e2e_outcomes || {};
       }

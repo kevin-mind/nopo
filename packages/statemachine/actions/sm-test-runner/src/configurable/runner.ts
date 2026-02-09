@@ -340,6 +340,7 @@ class ConfigurableTestRunner {
     }
 
     const index = this.scenario.orderedStates.indexOf(
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- startStep is validated to be a StateName by indexOf check below
       this.inputs.startStep as StateName,
     );
     if (index === -1) {
@@ -814,6 +815,7 @@ Issue: #${this.issueNumber}
     }
 
     // Handle sub-issues if specified
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture.issue.subIssues typed generically, narrowing to TestSubIssue[]
     for (const subIssue of fixture.issue.subIssues as TestSubIssue[]) {
       await this.createSubIssue(subIssue);
     }
@@ -891,6 +893,7 @@ Issue: #${this.issueNumber}
       for (const [mockRef, mock] of this.scenario.claudeMocks) {
         // Transform the mock output to replace placeholder issue numbers with real ones
         const transformedOutput = this.transformMockOutput(
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock output typed as z.record(z.unknown()), safe to cast
           mock.output as Record<string, unknown>,
         );
 
@@ -1016,6 +1019,7 @@ Issue: #${this.issueNumber}
         title: sub.title,
         state: sub.state,
         bodyAst: parseMarkdown(sub.body), // Convert body to MDAST
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
         projectStatus: sub.projectStatus as ProjectStatus | null,
         branch: sub.branch || null,
         pr: sub.pr || null,
@@ -1028,6 +1032,7 @@ Issue: #${this.issueNumber}
       title: fixture.issue.title,
       state: fixture.issue.state,
       bodyAst: parseMarkdown(fixture.issue.body), // Convert body to MDAST
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
       projectStatus: fixture.issue.projectStatus as ProjectStatus | null,
       iteration: fixture.issue.iteration,
       failures: fixture.issue.failures,
@@ -1059,6 +1064,7 @@ Issue: #${this.issueNumber}
         title: fixture.parentIssue.title,
         state: fixture.parentIssue.state,
         bodyAst: parseMarkdown(fixture.parentIssue.body), // Convert body to MDAST
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
         projectStatus: fixture.parentIssue
           .projectStatus as ProjectStatus | null,
         iteration: fixture.parentIssue.iteration,
@@ -1206,12 +1212,14 @@ Issue: #${this.issueNumber}
     output: Record<string, unknown>,
   ): Record<string, unknown> {
     // Deep clone to avoid mutating the original
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, deep clone preserves original shape
     const transformed = JSON.parse(JSON.stringify(output)) as Record<
       string,
       unknown
     >;
 
     // Check if this is a pivot output with sub_issues modifications
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing untyped field from Record<string, unknown>
     const modifications = transformed.modifications as
       | Record<string, unknown>
       | undefined;
@@ -1219,6 +1227,7 @@ Issue: #${this.issueNumber}
       return transformed;
     }
 
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing untyped field from Record<string, unknown>
     const subIssueMods = modifications.sub_issues as Array<{
       issue_number: number;
       [key: string]: unknown;
@@ -1226,6 +1235,7 @@ Issue: #${this.issueNumber}
 
     // Get the fixture's sub-issues to map indices to titles
     const currentFixture = this.scenario.fixtures.get(
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- array element type assertion for Map.get() lookup
       this.scenario
         .orderedStates[0] as (typeof this.scenario.orderedStates)[number],
     );
@@ -1432,6 +1442,7 @@ Issue: #${this.issueNumber}
     const diffLines: string[] = [];
 
     // Compare each field
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Object.keys returns string[], narrowing to keyof for typed access
     for (const key of Object.keys(expectedFields) as Array<
       keyof typeof expectedFields
     >) {
@@ -1486,7 +1497,8 @@ Issue: #${this.issueNumber}
         const expectedAction =
           typeof expectedEntry === "string"
             ? expectedEntry
-            : (expectedEntry as { action?: string }).action ||
+            : // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- z.unknown() array entry, accessing optional action field
+              (expectedEntry as { action?: string }).action ||
               String(expectedEntry);
 
         const found = actualActions.some((action) =>
@@ -1545,10 +1557,12 @@ Issue: #${this.issueNumber}
     _state: Record<string, unknown>, // GitHubState - we fetch sub-issues separately
   ): Promise<string[]> {
     const errors: string[] = [];
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- expected.expected is z.record(z.unknown()) parsed as unknown
     const exp = expected.expected as Record<string, unknown>;
 
     // Get the first fixture (before state) to compare counts and detect modifications
     const firstFixture = this.scenario.fixtures.get(
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- array element type assertion for Map.get() lookup
       this.scenario
         .orderedStates[0] as (typeof this.scenario.orderedStates)[number],
     );
@@ -1693,6 +1707,7 @@ Issue: #${this.issueNumber}
         typeof exp.todosAdded === "object" &&
         "min" in exp.todosAdded
       ) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- exp.todosAdded validated as object with min property above
         const minExpected = exp.todosAdded.min as number;
         if (actualAdded < minExpected) {
           errors.push(
@@ -1814,6 +1829,7 @@ Issue: #${this.issueNumber}
 
     // Check maxFailuresReached - verify failures count hit max (5)
     if (exp.maxFailuresReached === true) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- _state is Record<string, unknown>, failures is numeric
       const failures = _state.failures as number;
       if (failures !== 5) {
         errors.push(
@@ -1991,6 +2007,7 @@ Issue: #${this.issueNumber}
     // Check failuresReset - verify failures went from >0 to 0
     if (exp.failuresReset === true) {
       const beforeFailures = firstFixture?.issue.failures || 0;
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- _state is Record<string, unknown>, failures is numeric
       const afterFailures = _state.failures as number;
       if (beforeFailures <= 0) {
         errors.push(

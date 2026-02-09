@@ -89,11 +89,12 @@ jobs:
           jq -n \
             --arg scenario "$SCENARIO" \
             --arg mode "mock" \
+            --arg batch "batch1-mock" \
             --arg status "$STATUS" \
             --arg issue_number "$ISSUE_NUMBER" \
             --arg error "$ERROR_MSG" \
             --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
             > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
@@ -174,11 +175,12 @@ jobs:
           jq -n \
             --arg scenario "$SCENARIO" \
             --arg mode "mock" \
+            --arg batch "batch2-edge-cases" \
             --arg status "$STATUS" \
             --arg issue_number "$ISSUE_NUMBER" \
             --arg error "$ERROR_MSG" \
             --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
             > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
@@ -259,11 +261,12 @@ jobs:
           jq -n \
             --arg scenario "$SCENARIO" \
             --arg mode "mock" \
+            --arg batch "batch3-mock" \
             --arg status "$STATUS" \
             --arg issue_number "$ISSUE_NUMBER" \
             --arg error "$ERROR_MSG" \
             --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
             > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
@@ -342,11 +345,12 @@ jobs:
           jq -n \
             --arg scenario "$SCENARIO" \
             --arg mode "mock" \
+            --arg batch "batch4-mock" \
             --arg status "$STATUS" \
             --arg issue_number "$ISSUE_NUMBER" \
             --arg error "$ERROR_MSG" \
             --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
             > results/${{ matrix.scenario }}-mock.json
 
       - uses: actions/upload-artifact@v4
@@ -444,11 +448,12 @@ jobs:
           jq -n \
             --arg scenario "$SCENARIO" \
             --arg mode "real" \
+            --arg batch "batch5-real-claude" \
             --arg status "$STATUS" \
             --arg issue_number "$ISSUE_NUMBER" \
             --arg error "$ERROR_MSG" \
             --arg job_result "$JOB_RESULT" \
-            '{scenario: $scenario, mode: $mode, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
+            '{scenario: $scenario, mode: $mode, batch: $batch, status: $status, issue_number: $issue_number, error: $error, job_result: $job_result}' \
             > results/${{ matrix.scenario }}-real.json
 
       - uses: actions/upload-artifact@v4
@@ -492,6 +497,16 @@ jobs:
 
       - name: Aggregate results
         id: aggregate
+        env:
+          BATCH1_RESULT: ${{ needs.batch1-mock.result }}
+          BATCH2_RESULT: ${{ needs.batch2-edge-cases.result }}
+          BATCH3_RESULT: ${{ needs.batch3-mock.result }}
+          BATCH4_RESULT: ${{ needs.batch4-mock.result }}
+          BATCH5_RESULT: ${{ needs.batch5-real-claude.result }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
         run: |
           # Combine all JSON files into a single array
           RESULTS=$(find all-results -name "*.json" -exec cat {} \; | jq -s '.')
@@ -510,8 +525,36 @@ jobs:
             HAS_FAILURES="false"
           fi
 
-          # Save for Claude
-          echo "$RESULTS" > /tmp/all_results.json
+          # Build enriched results file with workflow metadata
+          jq -n \
+            --arg run_id "$RUN_ID" \
+            --arg run_url "$RUN_URL" \
+            --arg branch "$BRANCH" \
+            --arg commit "$COMMIT" \
+            --arg batch1 "$BATCH1_RESULT" \
+            --arg batch2 "$BATCH2_RESULT" \
+            --arg batch3 "$BATCH3_RESULT" \
+            --arg batch4 "$BATCH4_RESULT" \
+            --arg batch5 "$BATCH5_RESULT" \
+            --arg summary "$SUMMARY" \
+            --argjson results "$RESULTS" \
+            '{
+              workflow: {
+                run_id: $run_id,
+                run_url: $run_url,
+                branch: $branch,
+                commit: $commit,
+                batches: {
+                  "batch1-mock": $batch1,
+                  "batch2-edge-cases": $batch2,
+                  "batch3-mock": $batch3,
+                  "batch4-mock": $batch4,
+                  "batch5-real-claude": $batch5
+                }
+              },
+              summary: $summary,
+              results: $results
+            }' > /tmp/all_results.json
 
           echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
           echo "has_failures=$HAS_FAILURES" >> $GITHUB_OUTPUT
@@ -545,71 +588,41 @@ jobs:
           curl -fsSL https://claude.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Build analysis prompt
-        id: prompt
+      - name: Collect scenario context for failures
+        id: scenario-docs
+        if: steps.aggregate.outputs.has_failures == 'true'
         run: |
-          # Build the prompt with test results
-          cat > /tmp/analysis_prompt.md << 'PROMPT_EOF'
-          # State Machine Test Suite Analysis
+          DOCS=""
+          SCENARIOS_DIR="packages/statemachine/actions/sm-test-runner/fixtures/scenarios"
+          DISCUSSION_DIR="packages/statemachine/actions/sm-test-runner/fixtures/discussion/scenarios"
 
-          You are analyzing the results of an automated end-to-end test suite for a GitHub Actions state machine that automates issue management.
+          # Extract failed scenario names from results
+          FAILED=$(jq -r '.results[] | select(.status != "completed" or .job_result == "failure") | .scenario' /tmp/all_results.json | sort -u)
 
-          ## Summary
-          PROMPT_EOF
+          for scenario in $FAILED; do
+            # Check issue scenarios first, then discussion scenarios
+            if [ -f "$SCENARIOS_DIR/$scenario/README.md" ]; then
+              DOCS+="$(cat "$SCENARIOS_DIR/$scenario/README.md")"
+              DOCS+=$'\n\n---\n\n'
+            elif [ -f "$DISCUSSION_DIR/$scenario/README.md" ]; then
+              DOCS+="$(cat "$DISCUSSION_DIR/$scenario/README.md")"
+              DOCS+=$'\n\n---\n\n'
+            fi
+          done
 
-          echo "${{ steps.aggregate.outputs.summary }}" >> /tmp/analysis_prompt.md
-
-          cat >> /tmp/analysis_prompt.md << 'PROMPT_EOF'
-
-          ## Test Results
-          ```json
-          PROMPT_EOF
-
-          cat /tmp/all_results.json >> /tmp/analysis_prompt.md
-
-          cat >> /tmp/analysis_prompt.md << 'PROMPT_EOF'
-          ```
-
-          ## Job Status
-          - Batch 1 (Core Mock): ${{ needs.batch1-mock.result }}
-          - Batch 2 (Edge Cases): ${{ needs.batch2-edge-cases.result }}
-          - Batch 3 (PR/Pivot Mock): ${{ needs.batch3-mock.result }}
-          - Batch 4 (Complex Mock): ${{ needs.batch4-mock.result }}
-          - Batch 5 (Real Claude): ${{ needs.batch5-real-claude.result }}
-
-          ## Workflow Context
-          - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          - Branch: ${{ github.ref_name }}
-          - Commit: ${{ github.sha }}
-
-          ## Your Task
-
-          Analyze the test results and provide:
-
-          1. **Validity Assessment**
-             - Are these test results valid? (not infrastructure issues)
-             - Any flaky tests or timing issues?
-
-          2. **For Failures (if any)**
-             - Root cause analysis for each failure
-             - Is it a test fixture issue, state machine bug, or external dependency?
-             - Specific fix recommendation with file paths if possible
-
-          3. **Overall Health**
-             - If all passing: Confirm suite health
-             - If failures: Prioritize fixes
-             - Actionable next steps
-
-          Format as GitHub-flavored markdown.
-          PROMPT_EOF
-
-          echo "prompt_path=/tmp/analysis_prompt.md" >> $GITHUB_OUTPUT
+          echo "$DOCS" > /tmp/scenario_docs.md
 
       - name: Run Claude Analysis
         id: analysis
         uses: ./packages/statemachine/actions/sm-claude
         with:
-          prompt_file: /tmp/analysis_prompt.md
+          prompt_dir: test-analysis
+          prompt_vars: >-
+            {
+              "TEST_RESULTS_FILE": "/tmp/all_results.json",
+              "SCENARIO_DOCS_FILE": "${{ steps.aggregate.outputs.has_failures == 'true' && '/tmp/scenario_docs.md' || '' }}"
+            }
+          allowed_tools: "Read,Bash"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 

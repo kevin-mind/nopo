@@ -1,5 +1,5 @@
 {
-  "description": "Triage for a larger issue that requires multiple phases/sub-issues",
+  "description": "Triage for a larger issue that requires multiple phases/sub-issues. Note: Sub-issues are created during grooming, not triage.",
   "output": {
     "triage": {
       "type": "enhancement",
@@ -9,28 +9,16 @@
       "topics": ["architecture", "testing"],
       "needs_info": false
     },
-    "issue_body": "## Description\n\nImplement a new multi-phase feature that requires careful coordination.\n\n## Approach\n\nBreak down into phases for manageability.\n\n## Todo\n\n- [ ] Complete all phases\n\n## Iteration History\n\n<!-- iteration_history_start -->\n<!-- iteration_history_end -->",
-    "sub_issues": [
-      {
-        "type": "enhancement",
-        "title": "[Phase 1]: Design and planning",
-        "description": "Design the architecture and create a plan.",
-        "todos": ["Create architecture diagram", "Define interfaces"]
-      },
-      {
-        "type": "enhancement",
-        "title": "[Phase 2]: Core implementation",
-        "description": "Implement the core functionality.",
-        "todos": ["Implement main logic", "Add error handling"]
-      },
-      {
-        "type": "enhancement",
-        "title": "[Phase 3]: Testing and documentation",
-        "description": "Add tests and documentation.",
-        "todos": ["Write unit tests", "Write integration tests", "Update documentation"]
-      }
+    "requirements": [
+      "Design the architecture and create a plan",
+      "Implement the core functionality",
+      "Add error handling",
+      "Write comprehensive tests",
+      "Update documentation"
     ],
+    "initial_approach": "Break down into phases for manageability. This is a larger feature that will benefit from phased implementation: 1) Design and planning, 2) Core implementation, 3) Testing and documentation.",
+    "initial_questions": [],
     "related_issues": [],
-    "agent_notes": ["Large scope requires phased approach", "Estimated 8 hours total"]
+    "agent_notes": ["Large scope requires phased approach", "Estimated 8 hours total", "Consider breaking into sub-issues during grooming"]
   }
 }

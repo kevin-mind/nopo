@@ -89,6 +89,7 @@ export async function fetchGitHubState(
   botUsername: string = "nopo-bot",
 ): Promise<GitHubState> {
   const { data } = await parseIssue(owner, repo, issueNumber, {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
     octokit: octokit as Parameters<typeof parseIssue>[3]["octokit"],
     projectNumber,
     botUsername,
@@ -213,6 +214,7 @@ export async function fetchRecentWorkflowRuns(
       id: run.id,
       name: run.name || "Unknown",
       displayTitle: run.display_title || run.name || "Unknown",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API run.status is string but always one of these values
       status: run.status as "queued" | "in_progress" | "completed",
       conclusion: run.conclusion,
       url: run.html_url,

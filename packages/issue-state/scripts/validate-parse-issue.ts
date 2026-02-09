@@ -5,6 +5,7 @@
  * Usage: npx tsx validate-parse-issue.ts
  */
 
+import { z } from "zod";
 import { execSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -25,6 +26,7 @@ function createOctokit(token: string): OctokitLike {
     Accept: "application/json",
   };
 
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- read-only mock implementing OctokitLike interface partially
   return {
     async graphql<T>(
       query: string,
@@ -39,12 +41,15 @@ function createOctokit(token: string): OctokitLike {
         const text = await res.text();
         throw new Error(`GraphQL request failed (${res.status}): ${text}`);
       }
-      const json = (await res.json()) as { data?: T; errors?: unknown[] };
+      const json = z
+        .object({ data: z.unknown(), errors: z.array(z.unknown()).optional() })
+        .parse(await res.json());
       if (json.errors) {
         throw new Error(
           `GraphQL errors: ${JSON.stringify(json.errors, null, 2)}`,
         );
       }
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GraphQL response data typed via generic
       return json.data as T;
     },
     rest: {

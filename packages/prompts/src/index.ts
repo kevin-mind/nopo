@@ -6,6 +6,7 @@ export { default as ReviewResponse } from "./prompts/review-response.js";
 export { default as Comment } from "./prompts/comment.js";
 export { default as Pivot } from "./prompts/pivot.js";
 export { default as HumanReviewResponse } from "./prompts/human-review-response.js";
+export { default as TestAnalysis } from "./prompts/test-analysis.js";
 
 // Grooming prompts
 export * as Grooming from "./prompts/grooming/index.js";

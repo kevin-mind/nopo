@@ -41005,7 +41005,7 @@ function parseProjectState(projectItems, projectNumber) {
   for (const fieldValue of fieldValues) {
     const fieldName = fieldValue.field?.name;
     if (fieldName === "Status" && fieldValue.name) {
-      status = fieldValue.name;
+      status = ProjectStatusSchema.parse(fieldValue.name);
     } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
       iteration = fieldValue.number;
     } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
@@ -41023,7 +41023,7 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   for (const fieldValue of projectItem.fieldValues.nodes) {
     if (fieldValue.field?.name === "Status" && fieldValue.name) {
-      return fieldValue.name;
+      return ProjectStatusSchema.parse(fieldValue.name);
     }
   }
   return null;
@@ -41060,7 +41060,7 @@ async function getLinkedPRs(octokit, owner, repo, issueNumber) {
       if (linkedPRs.some((p) => p.number === pr.number)) continue;
       linkedPRs.push({
         number: pr.number,
-        state: pr.state?.toUpperCase() || "OPEN",
+        state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
         isDraft: false,
         // Timeline doesn't include draft status
         title: pr.title || "",
@@ -41110,7 +41110,7 @@ async function getPRForBranch(octokit, owner, repo, headRef) {
     }
     return {
       number: pr.number,
-      state: pr.state?.toUpperCase() || "OPEN",
+      state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
       isDraft: pr.isDraft || false,
       title: pr.title || "",
       headRef: pr.headRefName || headRef,
@@ -41135,7 +41135,7 @@ function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber)
   return {
     number: node2.number || 0,
     title: node2.title || "",
-    state: node2.state?.toUpperCase() || "OPEN",
+    state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
@@ -41201,7 +41201,7 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
     issue: {
       number: issue2.number || issueNumber,
       title: issue2.title || "",
-      state: issue2.state?.toUpperCase() || "OPEN",
+      state: IssueStateSchema.parse(issue2.state?.toUpperCase() || "OPEN"),
       bodyAst,
       projectStatus: status,
       iteration,
@@ -43078,7 +43078,10 @@ function findHeadingIndexAny(ast, texts) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
     const firstChild = node2.children[0];
-    return firstChild?.type === "text" && texts.includes(firstChild.value);
+    return (
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
+      firstChild?.type === "text" && texts.includes(firstChild.value)
+    );
   });
 }
 function getNodeText(node2) {
@@ -43221,8 +43224,11 @@ var agentNotesExtractor = createExtractor(
         const timestampMatch = headingText.match(/-\s*(.+)$/);
         const timestamp = timestampMatch?.[1]?.trim() || "";
         const listNode = ast.children[i + 1];
-        const notes = listNode?.type === "list" ? listNode.children.map(
-          (item) => getNodeText(item)
+        const notes = listNode?.type === "list" ? (
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- listNode narrowed to 'list' type but TS doesn't narrow to List
+          listNode.children.map(
+            (item) => getNodeText(item)
+          )
         ) : [];
         entries.push({
           runId,
@@ -43248,7 +43254,10 @@ function findHeadingIndexAny2(ast, texts) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
     const firstChild = node2.children[0];
-    return firstChild?.type === "text" && texts.includes(firstChild.value);
+    return (
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
+      firstChild?.type === "text" && texts.includes(firstChild.value)
+    );
   });
 }
 function getNodeText2(node2) {
@@ -47134,6 +47143,7 @@ function emitSetWorking({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     }
   ];
@@ -47145,6 +47155,7 @@ function emitSetReview({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In review"
     }
   ];
@@ -47155,6 +47166,7 @@ function emitSetInProgress({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     }
   ];
@@ -47165,6 +47177,7 @@ function emitSetDone({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Done"
     }
   ];
@@ -47175,6 +47188,7 @@ function emitSetBlocked({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Blocked"
     }
   ];
@@ -47185,6 +47199,7 @@ function emitSetError({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Error"
     }
   ];
@@ -47797,6 +47812,7 @@ function emitInitializeParent({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.issue.number,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "In progress"
   });
   const firstSubIssue = context2.issue.subIssues[0];
@@ -47805,6 +47821,7 @@ function emitInitializeParent({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: firstSubIssue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     });
   }
@@ -47828,6 +47845,7 @@ function emitAdvancePhase({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.currentSubIssue.number,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "Done"
   });
   actions.push({
@@ -47843,6 +47861,7 @@ function emitAdvancePhase({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: nextSubIssue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "In progress"
     });
     actions.push({
@@ -47909,6 +47928,7 @@ function emitAllPhasesDone({ context: context2 }) {
     type: "updateProjectStatus",
     token: "code",
     issueNumber: context2.issue.number,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- string literal is a valid ProjectStatus value
     status: "Done"
   });
   actions.push({
@@ -48155,6 +48175,7 @@ function emitSetReady({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.issue.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- literal matches ProjectStatus union member
       status: "Ready"
     }
   ];
@@ -48220,8 +48241,11 @@ function accumulateActions(existingActions, newActions) {
 }
 var claudeMachine = setup({
   types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     context: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     events: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     input: {}
   },
   guards: {
@@ -65841,6 +65865,7 @@ async function executeClaudeSDK(options) {
   if (outputSchema) {
     sdkOptions.outputFormat = {
       type: "json_schema",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK expects Record<string, unknown> for JSON schema
       schema: outputSchema
     };
     core.info("Using structured output mode with JSON schema");
@@ -65868,39 +65893,46 @@ async function executeClaudeSDK(options) {
           );
         }
       }
-      if (msg.type === "system" && msg.subtype === "task_notification") {
-        const statusColor = msg.status === "completed" ? colors.green : msg.status === "failed" ? colors.red : colors.yellow;
+      const anyMsg = msg;
+      if (msg.type === "system" && anyMsg.subtype === "task_notification") {
+        const status = anyMsg.status;
+        const statusColor = status === "completed" ? colors.green : status === "failed" ? colors.red : colors.yellow;
         core.info(
           `
-${colors.magenta}${colors.bold}[Subagent ${msg.task_id}]${colors.reset} ${statusColor}${msg.status}${colors.reset}`
+${colors.magenta}${colors.bold}[Subagent ${anyMsg.task_id}]${colors.reset} ${statusColor}${status}${colors.reset}`
         );
-        if (msg.summary) {
-          core.info(`${colors.dim}Summary:${colors.reset} ${msg.summary}`);
+        if (anyMsg.summary) {
+          core.info(`${colors.dim}Summary:${colors.reset} ${anyMsg.summary}`);
         }
       }
-      if (msg.type === "tool_progress") {
+      if (anyMsg.type === "tool_progress") {
+        const toolName = anyMsg.tool_name;
+        const elapsed = anyMsg.elapsed_time_seconds;
         core.info(
-          `${colors.dim}[${msg.tool_name}] Running... ${msg.elapsed_time_seconds.toFixed(1)}s${colors.reset}`
+          `${colors.dim}[${toolName}] Running... ${elapsed.toFixed(1)}s${colors.reset}`
         );
       }
-      if (msg.type === "tool_use_summary") {
-        core.info(`${colors.dim}[Tool Summary] ${msg.summary}${colors.reset}`);
-      }
-      if (msg.type === "system" && msg.subtype === "hook_started") {
+      if (anyMsg.type === "tool_use_summary") {
         core.info(
-          `${colors.blue}[Hook]${colors.reset} ${msg.hook_event}: ${msg.hook_name}`
+          `${colors.dim}[Tool Summary] ${anyMsg.summary}${colors.reset}`
+        );
+      }
+      if (msg.type === "system" && anyMsg.subtype === "hook_started") {
+        core.info(
+          `${colors.blue}[Hook]${colors.reset} ${anyMsg.hook_event}: ${anyMsg.hook_name}`
         );
       }
       if (msg.type === "system" && msg.subtype === "hook_response") {
-        const outcomeColor = msg.outcome === "success" ? colors.green : msg.outcome === "error" ? colors.red : colors.yellow;
+        const outcome = anyMsg.outcome;
+        const outcomeColor = outcome === "success" ? colors.green : outcome === "error" ? colors.red : colors.yellow;
         core.info(
-          `${colors.blue}[Hook]${colors.reset} ${msg.hook_name}: ${outcomeColor}${msg.outcome}${colors.reset}`
+          `${colors.blue}[Hook]${colors.reset} ${anyMsg.hook_name}: ${outcomeColor}${outcome}${colors.reset}`
         );
-        if (msg.output) {
-          core.info(`${colors.dim}${msg.output}${colors.reset}`);
+        if (anyMsg.output) {
+          core.info(`${colors.dim}${anyMsg.output}${colors.reset}`);
         }
-        if (msg.stderr) {
-          core.warning(`${colors.yellow}${msg.stderr}${colors.reset}`);
+        if (anyMsg.stderr) {
+          core.warning(`${colors.yellow}${anyMsg.stderr}${colors.reset}`);
         }
       }
       if (msg.type === "assistant") {
@@ -65957,7 +65989,10 @@ ${colors.green}${colors.bold}[SDK]${colors.reset} Completed successfully (${numT
           );
         } else {
           const errorSubtype = msg.subtype;
-          const errors = "errors" in msg ? msg.errors?.join("\n") : errorSubtype;
+          const errors = "errors" in msg ? (
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK error result has errors field typed differently per subtype
+            msg.errors?.join("\n")
+          ) : errorSubtype;
           core.error(
             `${colors.red}${colors.bold}[SDK Failed]${colors.reset} ${errors}`
           );
@@ -67283,7 +67318,7 @@ var cache2 = /* @__PURE__ */ new WeakMap();
 function toJsonSchema(schema) {
   let result = cache2.get(schema);
   if (!result) {
-    const raw = zodToJsonSchema(schema);
+    const raw = external_exports.record(external_exports.unknown()).parse(zodToJsonSchema(schema));
     delete raw.$schema;
     result = raw;
     cache2.set(schema, result);
@@ -67303,21 +67338,23 @@ function buildPlaceholderInputs(schema) {
   return placeholders;
 }
 function buildCallable(inputSchema, outputSchema, render2) {
-  const callable = (rawInputs) => {
-    const inputs = inputSchema.parse(rawInputs);
-    const prompt = render2(inputs);
-    return {
-      prompt,
-      outputs: outputSchema ? toJsonSchema(outputSchema) : void 0
-    };
-  };
-  callable.inputSchema = inputSchema;
-  callable.outputSchema = outputSchema;
-  callable.renderTemplate = () => {
-    const placeholders = buildPlaceholderInputs(inputSchema);
-    return render2(placeholders);
-  };
-  return callable;
+  return Object.assign(
+    (rawInputs) => {
+      inputSchema.parse(rawInputs);
+      return {
+        prompt: render2(rawInputs),
+        outputs: outputSchema ? toJsonSchema(outputSchema) : void 0
+      };
+    },
+    {
+      inputSchema,
+      outputSchema,
+      renderTemplate: () => {
+        const placeholders = buildPlaceholderInputs(inputSchema);
+        return render2(placeholders);
+      }
+    }
+  );
 }
 function promptFactory() {
   return {
@@ -67371,7 +67408,7 @@ var intrinsics = {
   section: (props, children) => `<section${formatAttrs(props)}>
 ${children.join("\n")}
 </section>`,
-  codeblock: (props, children) => `\`\`\`${props.lang ?? ""}
+  codeblock: (props, children) => `\`\`\`${typeof props.lang === "string" ? props.lang : ""}
 ${children.join("\n")}
 \`\`\``,
   line: (_props, children) => children.join(" ")
@@ -68034,6 +68071,55 @@ The executor will:
 - If had_commits=true, CI will trigger and handle PR state` })
 ] }));
 var human_review_response_default = HumanReviewResponse;
+
+// ../../packages/prompts/src/prompts/test-analysis.tsx
+var TestAnalysis = promptFactory().inputs((z) => ({
+  testResultsFile: z.string(),
+  scenarioDocsFile: z.string().optional()
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("line", { children: "You are analyzing the results of an automated end-to-end test suite for a GitHub Actions state machine that automates issue management." }),
+  /* @__PURE__ */ jsxs("section", { title: "Instructions", children: [
+    `1. **Read the test results file** at \`${inputs.testResultsFile}\` using the Read tool.
+   The file contains a JSON object with:
+   - \`workflow\`: metadata (run_id, run_url, branch, commit, batch statuses)
+   - \`summary\`: pass/fail counts
+   - \`results\`: array of individual test results with scenario, mode, batch, status, error fields`,
+    /* @__PURE__ */ jsx(Conditional, { when: inputs.scenarioDocsFile, children: `
+
+2. **Read the scenario documentation** at \`${inputs.scenarioDocsFile}\` using the Read tool.
+   This contains README documentation for each failed scenario explaining expected behavior,
+   state machine mechanics, expected field values, and why those values are correct.
+   Use this to understand what SHOULD happen, then investigate why it DIDN'T.` }),
+    `
+
+3. **For failures, investigate job logs** using the \`gh\` CLI via Bash:
+   - \`gh api repos/{owner}/{repo}/actions/runs/{run_id}/jobs\` to list jobs for the run
+   - \`gh run view {run_id} --job {job_id} --log\` to get step logs
+   - Focus on the "Run test" step logs which show Claude's reasoning during test execution
+   - Look for assertion failures, unexpected state transitions, or timeout issues
+   - The run_id is in the workflow metadata from the results file`
+  ] }),
+  /* @__PURE__ */ jsx("section", { title: "Your Task", children: `Analyze the test results and provide:
+
+1. **Validity Assessment**
+   - Are these test results valid? (not infrastructure issues)
+   - Any flaky tests or timing issues?
+
+2. **For Failures (if any)**
+   - Consult the Scenario Documentation to understand what the test expects and why
+   - Compare the expected state transitions against what actually happened
+   - Root cause analysis: Is the guard wrong? Is an action not firing? Is a field not being updated?
+   - Is it a test fixture issue, state machine bug, or external dependency?
+   - Specific fix recommendation with file paths if possible
+
+3. **Overall Health**
+   - If all passing: Confirm suite health
+   - If failures: Prioritize fixes
+   - Actionable next steps
+
+Format as GitHub-flavored markdown.` })
+] }));
+var test_analysis_default = TestAnalysis;
 
 // ../../packages/prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
@@ -68774,6 +68860,7 @@ var PROMPTS = {
   comment: comment_default,
   pivot: pivot_default,
   "human-review-response": human_review_response_default,
+  "test-analysis": test_analysis_default,
   // Grooming prompts
   "grooming/engineer": engineer_default,
   "grooming/pm": pm_default,
@@ -68788,7 +68875,11 @@ var PROMPTS = {
   "discussion/plan": plan_default
 };
 function getPrompt(name) {
+  if (!hasPrompt(name)) return void 0;
   return PROMPTS[name];
+}
+function hasPrompt(name) {
+  return name in PROMPTS;
 }
 
 // ../../packages/statemachine/src/claude/prompts.ts
@@ -69998,12 +70089,21 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   }
   const isNewFormat = "triage" in triageOutput && "requirements" in triageOutput;
   const isLegacyStructured = "triage" in triageOutput && !("requirements" in triageOutput);
-  const classification = isNewFormat || isLegacyStructured ? triageOutput.triage : {
+  const classification = isNewFormat || isLegacyStructured ? (
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to new/legacy structured format by conditional
+    triageOutput.triage
+  ) : {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
     type: triageOutput.type || "enhancement",
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
     priority: triageOutput.priority,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
     size: triageOutput.size || "m",
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
     estimate: triageOutput.estimate || 5,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
     topics: triageOutput.topics || [],
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
     needs_info: triageOutput.needs_info || false
   };
   await applyLabels(ctx, issueNumber, classification);
@@ -70023,7 +70123,11 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
       await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
     }
   }
-  const relatedIssues = triageOutput.related_issues || triageOutput.related_issues;
+  const relatedIssues = (
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
+    triageOutput.related_issues || // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
+    triageOutput.related_issues
+  );
   if (relatedIssues && relatedIssues.length > 0) {
     await linkRelatedIssues(ctx, issueNumber, relatedIssues);
   }
@@ -70899,6 +71003,7 @@ async function executeRunClaudeGrooming(action, ctx) {
   if (ctx.mockOutputs?.grooming) {
     core15.info("[MOCK MODE] Using mock grooming output");
     return {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock outputs typed as unknown, casting to expected shape
       outputs: ctx.mockOutputs.grooming
     };
   }
@@ -70997,6 +71102,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
         parentIssueNumber,
         { title, body },
         {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
           octokit: ctx.octokit,
           projectNumber: ctx.projectNumber,
           projectStatus
@@ -72210,8 +72316,11 @@ function accumulateActions2(existingActions, newActions) {
 }
 var discussionMachine = setup({
   types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     context: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     events: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     input: {}
   },
   guards: {
@@ -73070,6 +73179,7 @@ function issueStateToGitHubState(data) {
 }
 async function fetchGitHubState2(octokit, owner, repo, issueNumber, projectNumber, botUsername = "nopo-bot") {
   const { data } = await parseIssue(owner, repo, issueNumber, {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
     octokit,
     projectNumber,
     botUsername,
@@ -73148,6 +73258,7 @@ async function fetchRecentWorkflowRuns2(octokit, owner, repo, issueNumber, maxRu
       id: run2.id,
       name: run2.name || "Unknown",
       displayTitle: run2.display_title || run2.name || "Unknown",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API run.status is string but always one of these values
       status: run2.status,
       conclusion: run2.conclusion,
       url: run2.html_url,
@@ -74430,11 +74541,13 @@ async function waitForPhase(options) {
   let _prevState = {
     branchExists: false,
     prOpened: false,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- initializing typed state tracker
     prState: null,
     ciPassed: false,
     reviewApproved: false,
     prMerged: false,
     issueClosed: false,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- initializing typed state tracker
     issueStatus: null
   };
   let mergeAttempted = false;
@@ -75096,6 +75209,7 @@ ${"=".repeat(60)}`);
       return 0;
     }
     const index2 = this.scenario.orderedStates.indexOf(
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- startStep is validated to be a StateName by indexOf check below
       this.inputs.startStep
     );
     if (index2 === -1) {
@@ -75501,6 +75615,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       const groomingMocks = {};
       for (const [mockRef, mock] of this.scenario.claudeMocks) {
         const transformedOutput = this.transformMockOutput(
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock output typed as z.record(z.unknown()), safe to cast
           mock.output
         );
         mockOutputs[mockRef] = transformedOutput;
@@ -75584,6 +75699,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         state: sub.state,
         bodyAst: parseMarkdown(sub.body),
         // Convert body to MDAST
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
         projectStatus: sub.projectStatus,
         branch: sub.branch || null,
         pr: sub.pr || null
@@ -75595,6 +75711,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       state: fixture.issue.state,
       bodyAst: parseMarkdown(fixture.issue.body),
       // Convert body to MDAST
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
       projectStatus: fixture.issue.projectStatus,
       iteration: fixture.issue.iteration,
       failures: fixture.issue.failures,
@@ -75625,6 +75742,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         state: fixture.parentIssue.state,
         bodyAst: parseMarkdown(fixture.parentIssue.body),
         // Convert body to MDAST
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
         projectStatus: fixture.parentIssue.projectStatus,
         iteration: fixture.parentIssue.iteration,
         failures: fixture.parentIssue.failures,
@@ -75742,6 +75860,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     }
     const subIssueMods = modifications.sub_issues;
     const currentFixture = this.scenario.fixtures.get(
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- array element type assertion for Map.get() lookup
       this.scenario.orderedStates[0]
     );
     const fixtureSubIssues = currentFixture?.issue.subIssues || [];
@@ -75943,7 +76062,10 @@ History Verification:`);
       const actualActions = state.history.map((h) => h.action);
       const missingActions = [];
       for (const expectedEntry of expectedHistory) {
-        const expectedAction = typeof expectedEntry === "string" ? expectedEntry : expectedEntry.action || String(expectedEntry);
+        const expectedAction = typeof expectedEntry === "string" ? expectedEntry : (
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- z.unknown() array entry, accessing optional action field
+          expectedEntry.action || String(expectedEntry)
+        );
         const found = actualActions.some(
           (action) => action.includes(expectedAction)
         );
@@ -75994,6 +76116,7 @@ Pivot/Modification Verification:`);
     const errors = [];
     const exp = expected.expected;
     const firstFixture = this.scenario.fixtures.get(
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- array element type assertion for Map.get() lookup
       this.scenario.orderedStates[0]
     );
     const initialSubIssues = firstFixture?.issue.subIssues || [];

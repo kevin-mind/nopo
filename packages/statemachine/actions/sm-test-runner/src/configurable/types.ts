@@ -240,6 +240,7 @@ export const ScenarioConfigSchema = z.object({
 
 // Type inferred but kept for documentation
 type _ScenarioConfig = z.infer<typeof ScenarioConfigSchema>;
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- suppress unused type warning pattern
 void (0 as unknown as _ScenarioConfig); // Suppress unused type warning
 
 // ============================================================================

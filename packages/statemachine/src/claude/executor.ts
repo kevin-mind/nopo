@@ -158,6 +158,7 @@ function formatToolInput(
  */
 function extractTextFromMessage(msg: SDKMessage): string {
   if (msg.type !== "assistant") return "";
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK message content blocks have a known structure but typed as unknown
   return (msg.message.content as Array<{ type: string; text?: string }>)
     .filter(
       (block): block is { type: "text"; text: string } => block.type === "text",
@@ -228,6 +229,7 @@ export async function executeClaudeSDK(
   if (outputSchema) {
     sdkOptions.outputFormat = {
       type: "json_schema",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK expects Record<string, unknown> for JSON schema
       schema: outputSchema as Record<string, unknown>,
     };
     core.info("Using structured output mode with JSON schema");
@@ -261,54 +263,67 @@ export async function executeClaudeSDK(
       }
 
       // Subagent notifications
-      if (msg.type === "system" && msg.subtype === "task_notification") {
+      // Cast to unknown to handle SDK types that may not include all message variants
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK message types don't expose all variants; cast needed for extended fields
+      const anyMsg = msg as unknown as Record<string, unknown>;
+      if (msg.type === "system" && anyMsg.subtype === "task_notification") {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing untyped SDK notification field
+        const status = anyMsg.status as string;
         const statusColor =
-          msg.status === "completed"
+          status === "completed"
             ? colors.green
-            : msg.status === "failed"
+            : status === "failed"
               ? colors.red
               : colors.yellow;
         core.info(
-          `\n${colors.magenta}${colors.bold}[Subagent ${msg.task_id}]${colors.reset} ${statusColor}${msg.status}${colors.reset}`,
+          `\n${colors.magenta}${colors.bold}[Subagent ${anyMsg.task_id}]${colors.reset} ${statusColor}${status}${colors.reset}`,
         );
-        if (msg.summary) {
-          core.info(`${colors.dim}Summary:${colors.reset} ${msg.summary}`);
+        if (anyMsg.summary) {
+          core.info(`${colors.dim}Summary:${colors.reset} ${anyMsg.summary}`);
         }
       }
 
       // Tool progress - shows elapsed time for long-running tools
-      if (msg.type === "tool_progress") {
+      if (anyMsg.type === "tool_progress") {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing untyped SDK progress field
+        const toolName = anyMsg.tool_name as string;
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing untyped SDK progress field
+        const elapsed = anyMsg.elapsed_time_seconds as number;
         core.info(
-          `${colors.dim}[${msg.tool_name}] Running... ${msg.elapsed_time_seconds.toFixed(1)}s${colors.reset}`,
+          `${colors.dim}[${toolName}] Running... ${elapsed.toFixed(1)}s${colors.reset}`,
         );
       }
 
       // Tool use summary
-      if (msg.type === "tool_use_summary") {
-        core.info(`${colors.dim}[Tool Summary] ${msg.summary}${colors.reset}`);
+      if (anyMsg.type === "tool_use_summary") {
+        core.info(
+          `${colors.dim}[Tool Summary] ${anyMsg.summary}${colors.reset}`,
+        );
       }
 
       // Hook messages
-      if (msg.type === "system" && msg.subtype === "hook_started") {
+      if (msg.type === "system" && anyMsg.subtype === "hook_started") {
         core.info(
-          `${colors.blue}[Hook]${colors.reset} ${msg.hook_event}: ${msg.hook_name}`,
+          `${colors.blue}[Hook]${colors.reset} ${anyMsg.hook_event}: ${anyMsg.hook_name}`,
         );
       }
       if (msg.type === "system" && msg.subtype === "hook_response") {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing untyped SDK hook field
+        const outcome = anyMsg.outcome as string | undefined;
         const outcomeColor =
-          msg.outcome === "success"
+          outcome === "success"
             ? colors.green
-            : msg.outcome === "error"
+            : outcome === "error"
               ? colors.red
               : colors.yellow;
         core.info(
-          `${colors.blue}[Hook]${colors.reset} ${msg.hook_name}: ${outcomeColor}${msg.outcome}${colors.reset}`,
+          `${colors.blue}[Hook]${colors.reset} ${anyMsg.hook_name}: ${outcomeColor}${outcome}${colors.reset}`,
         );
-        if (msg.output) {
-          core.info(`${colors.dim}${msg.output}${colors.reset}`);
+        if (anyMsg.output) {
+          core.info(`${colors.dim}${anyMsg.output}${colors.reset}`);
         }
-        if (msg.stderr) {
-          core.warning(`${colors.yellow}${msg.stderr}${colors.reset}`);
+        if (anyMsg.stderr) {
+          core.warning(`${colors.yellow}${anyMsg.stderr}${colors.reset}`);
         }
       }
 
@@ -323,6 +338,7 @@ export async function executeClaudeSDK(
         // Log tool uses with detailed input
         for (const block of msg.message.content) {
           if (block.type === "tool_use") {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK content block narrowed by type check above but TS doesn't narrow the union
             const toolBlock = block as {
               type: "tool_use";
               name: string;
@@ -364,6 +380,7 @@ export async function executeClaudeSDK(
       if (msg.type === "user" && msg.tool_use_result !== undefined) {
         const result = msg.tool_use_result;
         if (typeof result === "object" && result !== null) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK tool result is typed as object but needs property access
           const resultObj = result as Record<string, unknown>;
           // Check for error in result
           if (resultObj.error || resultObj.is_error) {
@@ -397,7 +414,8 @@ export async function executeClaudeSDK(
           const errorSubtype = msg.subtype;
           const errors =
             "errors" in msg
-              ? (msg.errors as string[])?.join("\n")
+              ? // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK error result has errors field typed differently per subtype
+                (msg.errors as string[])?.join("\n")
               : errorSubtype;
 
           core.error(

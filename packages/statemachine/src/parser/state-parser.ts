@@ -95,6 +95,7 @@ function parseProjectState(
   for (const fieldValue of fieldValues) {
     const fieldName = fieldValue.field?.name;
     if (fieldName === "Status" && fieldValue.name) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub project field value matches ProjectStatus union
       status = fieldValue.name as ProjectStatus;
     } else if (
       fieldName === "Iteration" &&
@@ -129,6 +130,7 @@ function parseSubIssueStatus(
 
   for (const fieldValue of projectItem.fieldValues.nodes) {
     if (fieldValue.field?.name === "Status" && fieldValue.name) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub project field value matches ProjectStatus union
       return fieldValue.name as ProjectStatus;
     }
   }
@@ -138,8 +140,9 @@ function parseSubIssueStatus(
 
 /**
  * Derive branch name from issue number and phase
+ * Note: This is a local copy - the canonical version is in issue-adapter.ts
  */
-export function deriveBranchName(
+function deriveBranchName(
   parentIssueNumber: number,
   phaseNumber?: number,
 ): string {
@@ -168,6 +171,7 @@ function parseSubIssue(
   return {
     number: node.number || 0,
     title: node.title || "",
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API returns lowercase state, .toUpperCase() produces valid IssueStateValue
     state: (node.state?.toUpperCase() || "OPEN") as IssueStateValue,
     bodyAst,
     projectStatus: status,
@@ -239,6 +243,7 @@ async function getPRForBranch(
 
     return {
       number: pr.number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API returns lowercase state, .toUpperCase() produces valid PRState
       state: (pr.state?.toUpperCase() || "OPEN") as PRState,
       isDraft: pr.isDraft || false,
       title: pr.title || "",
@@ -334,6 +339,7 @@ async function fetchIssueState(
     issue: {
       number: issue.number || issueNumber,
       title: issue.title || "",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API returns lowercase state, .toUpperCase() produces valid IssueStateValue
       state: (issue.state?.toUpperCase() || "OPEN") as IssueStateValue,
       bodyAst,
       projectStatus: status,

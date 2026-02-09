@@ -35,6 +35,7 @@ async function fetchIssueContent(
       `Failed to fetch issue: ${issueResp.status} ${issueResp.statusText}`,
     );
   }
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fetch JSON response typed as unknown
   const issue = (await issueResp.json()) as { body: string | null };
   const body = issue.body || "";
 
@@ -46,6 +47,7 @@ async function fetchIssueContent(
       `Failed to fetch comments: ${commentsResp.status} ${commentsResp.statusText}`,
     );
   }
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fetch JSON response typed as unknown
   const commentsData = (await commentsResp.json()) as Array<{
     user: { login: string } | null;
     body: string;

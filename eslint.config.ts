@@ -49,6 +49,11 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
           varsIgnorePattern: "^_",
         },
       ],
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "never" },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
   {

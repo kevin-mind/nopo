@@ -101,8 +101,11 @@ function accumulateActions(
  */
 export const claudeMachine = setup({
   types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     context: {} as MachineContextWithActions,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     events: {} as MachineEvent,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     input: {} as MachineContext,
   },
   guards: {

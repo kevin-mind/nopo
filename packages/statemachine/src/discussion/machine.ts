@@ -70,8 +70,11 @@ function accumulateActions(
  */
 export const discussionMachine = setup({
   types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     context: {} as DiscussionMachineContext,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     events: {} as DiscussionMachineEvent,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
     input: {} as DiscussionContext,
   },
   guards: {

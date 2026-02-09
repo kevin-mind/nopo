@@ -146,6 +146,7 @@ async function run(): Promise<void> {
     if (checkDiscussionTrigger(trigger)) {
       await runDiscussionMachine({
         mode,
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- checkDiscussionTrigger guard confirms this is a DiscussionTriggerType
         trigger: trigger as DiscussionTriggerType,
         ctx,
         octokit,
@@ -162,6 +163,7 @@ async function run(): Promise<void> {
     // ========================================================================
     await runIssueMachine({
       mode,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- trigger confirmed as non-discussion type, safe to cast to TriggerType
       trigger: trigger as TriggerType,
       ctx,
       octokit,
@@ -332,6 +334,7 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
   const ciCommitSha = ctx.ci_commit_sha || null;
   const reviewDecision = ctx.review_decision || null;
   const reviewer = ctx.reviewer || ctx.reviewer_login || null;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- context_type is a known string enum from the detect-event action
   const commentContextType = (ctx.context_type?.toLowerCase() || null) as
     | "issue"
     | "pr"
@@ -400,6 +403,7 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
   // Build machine context
   const context = await buildMachineContext(
     octokit,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- event object built above matches buildMachineContext parameter type
     event as Parameters<typeof buildMachineContext>[1],
     projectNumber,
     {

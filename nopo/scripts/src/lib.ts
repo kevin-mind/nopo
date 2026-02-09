@@ -113,6 +113,7 @@ export function minimist(
   // Apply defaults
   if (options.default) {
     for (const [key, value] of Object.entries(options.default)) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- minimist default values are string | boolean at runtime
       result[key] = value as string | boolean;
     }
   }
@@ -305,15 +306,23 @@ class ProcessPromiseImpl implements ProcessPromise {
       // Write input to stdin if provided
       if (options.input && this.proc.stdin) {
         this.proc.stdin.on("error", (err) => {
-          if ((err as NodeJS.ErrnoException).code === "EPIPE") return;
+          if ("code" in err && err.code === "EPIPE") return;
           reject(new ProcessOutput(1, null, "", err.message));
         });
         try {
           this.proc.stdin.write(options.input);
           this.proc.stdin.end();
         } catch (err) {
-          if ((err as NodeJS.ErrnoException).code === "EPIPE") return;
-          reject(new ProcessOutput(1, null, "", (err as Error).message));
+          if (err instanceof Error && "code" in err && err.code === "EPIPE")
+            return;
+          reject(
+            new ProcessOutput(
+              1,
+              null,
+              "",
+              err instanceof Error ? err.message : String(err),
+            ),
+          );
           return;
         }
       }
@@ -508,6 +517,7 @@ interface CreateConfigOptions {
 export function createConfig(options: CreateConfigOptions = {}): Config {
   const {
     envFile = ".env",
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- filtered out undefined values but Object.fromEntries returns Record<string, string | undefined>
     processEnv = Object.fromEntries(
       Object.entries(process.env).filter(([, value]) => value !== undefined),
     ) as Record<string, string>,
@@ -714,6 +724,7 @@ export class Runner {
 
       try {
         // Check if script uses new ScriptArgs system
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing static 'args' property not declared on base class
         if ((ScriptToRun as unknown as { args: unknown }).args) {
           // New ScriptArgs system
           const args = this.prepareScriptArgs(
@@ -721,26 +732,35 @@ export class Runner {
             ScriptClass,
             isDependency,
           );
+
+          /* eslint-disable @typescript-eslint/consistent-type-assertions -- calling fn() with ScriptArgs on polymorphic script instance */
           await (
             scriptInstance as unknown as {
               fn: (args: unknown) => Promise<void>;
             }
           ).fn(args);
+          /* eslint-enable @typescript-eslint/consistent-type-assertions */
         } else if (this.isTargetScript(ScriptToRun)) {
           // Old parseArgs system for TargetScript
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing to TargetScript after runtime check
           const args = (ScriptToRun as typeof TargetScript).parseArgs(
             runnerForScript,
             isDependency,
           );
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- calling fn() on polymorphic script instance
           await (scriptInstance as TargetScript<unknown>).fn(args);
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing optional static parseArgs not on base class
         } else if ((ScriptToRun as typeof Script).parseArgs) {
           // Old parseArgs system for Script
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing to Script after checking parseArgs exists
           const args = (ScriptToRun as typeof Script).parseArgs!(
             runnerForScript,
             isDependency,
           );
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- calling fn() on polymorphic script instance
           await (scriptInstance as Script<unknown>).fn(args);
         } else {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- calling fn() on polymorphic script instance with no args
           await (scriptInstance as Script).fn();
         }
       } catch (error) {
@@ -763,11 +783,13 @@ export class Runner {
    * Get extra targets defined by a script (e.g., build script adds rootName)
    */
   private getExtraTargets(ScriptClass: typeof BaseScript): string[] {
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- accessing optional static method not declared on base class */
     const getExtraTargets = (
       ScriptClass as unknown as {
         getExtraTargets?: (runner: Runner) => string[];
       }
     ).getExtraTargets;
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
 
     if (typeof getExtraTargets === "function") {
       return getExtraTargets(this);
@@ -781,7 +803,7 @@ export class Runner {
     runner: Runner,
     isDependency: boolean,
   ): BaseScript {
-    // Use constructor directly - TypeScript will handle the typing
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- constructing script from abstract class reference
     return new (ScriptClass as unknown as new (
       runner: Runner,
       isDependency?: boolean,
@@ -841,6 +863,7 @@ export class Runner {
     isDependency: boolean,
   ): ScriptArgs {
     // Get script's arg schema
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing static 'args' property not declared on base class
     const argsTemplate = (ScriptToRun as unknown as { args?: ScriptArgs }).args;
 
     if (!argsTemplate) {
@@ -860,9 +883,11 @@ export class Runner {
           runner: Runner,
         ) => Record<string, unknown>;
       };
+      /* eslint-disable @typescript-eslint/consistent-type-assertions -- accessing typed dependencies not on base class */
       const parentDeps =
         (ParentScript as unknown as { dependencies?: DependencyDef[] })
           .dependencies || [];
+      /* eslint-enable @typescript-eslint/consistent-type-assertions */
       const depDef = parentDeps.find((d) => d.class === ScriptToRun);
 
       if (depDef?.args) {
@@ -870,6 +895,7 @@ export class Runner {
         let parentArgs: ScriptArgs;
 
         // Check if parent uses new ScriptArgs system
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing static 'args' property not on base class
         if ((ParentScript as unknown as { args?: unknown }).args) {
           parentArgs = this.prepareScriptArgs(
             ParentScript,
@@ -882,15 +908,19 @@ export class Runner {
 
           // If parent is TargetScript with old parseArgs, get its targets
           if (this.isTargetScript(ParentScript)) {
+            /* eslint-disable @typescript-eslint/consistent-type-assertions -- narrowing to TargetScript after runtime check */
             const parentParsedArgs = (
               ParentScript as typeof TargetScript
             ).parseArgs(this, false);
+            /* eslint-enable @typescript-eslint/consistent-type-assertions */
             // Inject targets from old system
-            if ((parentParsedArgs as { targets?: string[] }).targets) {
-              parentArgs.set(
-                "targets",
-                (parentParsedArgs as { targets: string[] }).targets,
-              );
+            if (
+              parentParsedArgs !== null &&
+              typeof parentParsedArgs === "object" &&
+              "targets" in parentParsedArgs &&
+              Array.isArray(parentParsedArgs.targets)
+            ) {
+              parentArgs.set("targets", parentParsedArgs.targets);
             }
           }
         }
@@ -910,6 +940,7 @@ export class Runner {
       let argvForParsing = this.argv.slice(1); // Skip command name
 
       if (this.isTargetScript(ScriptToRun)) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing to TargetScript after isTargetScript() check
         const TargetScriptClass = ScriptToRun as typeof TargetScript;
 
         // Check for extra targets (e.g., build script adds rootName)

@@ -200,5 +200,6 @@ export type GitHubEvent =
  * Map event type to trigger type
  */
 export function eventToTrigger(event: GitHubEvent): TriggerType {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHubEvent.type is a union of string literals that maps directly to TriggerType
   return event.type as TriggerType;
 }

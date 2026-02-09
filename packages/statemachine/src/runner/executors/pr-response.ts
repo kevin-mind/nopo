@@ -47,12 +47,14 @@ export async function executeApplyPRResponseOutput(
 
   // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     responseOutput = structuredOutput as PRResponseOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(action.filePath, "utf-8");
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches PRResponseOutput schema
       responseOutput = JSON.parse(content) as PRResponseOutput;
       core.info(`PR response output from file: ${action.filePath}`);
     } catch (error) {

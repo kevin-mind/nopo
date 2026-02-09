@@ -69,6 +69,7 @@ export default class BuildScript extends TargetScript {
     output: {
       type: "string",
       description: "Path to write build info JSON",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- undefined default for optional arg, typed as string when provided
       default: undefined as unknown as string,
     },
   });

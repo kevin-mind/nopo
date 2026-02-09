@@ -45,12 +45,14 @@ export async function executeApplyReviewOutput(
 
   // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     reviewOutput = structuredOutput as ReviewOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(action.filePath, "utf-8");
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches ReviewOutput schema
       reviewOutput = JSON.parse(content) as ReviewOutput;
       core.info(`Review output from file: ${action.filePath}`);
     } catch (error) {

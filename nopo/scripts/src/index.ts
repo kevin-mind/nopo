@@ -112,6 +112,7 @@ function printServiceCommandsTable(): void {
         node.services.add(serviceId);
 
         // Recursively collect sub-commands
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing dynamic config object to check for nested commands
         const cmd = command as { commands?: Record<string, unknown> };
         if (cmd.commands) {
           collectCommands(serviceId, cmd.commands, node.children);
@@ -215,9 +216,11 @@ function printCommandHelp(
   console.log(chalk.gray(`  Usage: nopo ${name} [options]\n`));
 
   // If the script uses ScriptArgs, generate help from the schema
+  /* eslint-disable @typescript-eslint/consistent-type-assertions -- accessing static 'args' property not on base class type */
   const argsTemplate = (
     ScriptClass as unknown as { args: ScriptArgs | undefined }
   ).args;
+  /* eslint-enable @typescript-eslint/consistent-type-assertions */
   if (argsTemplate) {
     const help = argsTemplate.generateHelp();
     if (help) {

@@ -105,6 +105,7 @@ export async function executeApplyTriageOutput(
 
   // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     triageOutput = structuredOutput as TriageOutput;
     core.info("Using structured output from in-process chain");
     core.startGroup("Triage Output (Structured)");
@@ -114,6 +115,7 @@ export async function executeApplyTriageOutput(
     // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(filePath, "utf-8");
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches triage output schemas
       triageOutput = JSON.parse(content) as TriageOutput | LegacyTriageOutput;
       core.info(`Triage output from file: ${filePath}`);
       core.startGroup("Triage Output (File)");
@@ -143,13 +145,20 @@ export async function executeApplyTriageOutput(
 
   const classification: TriageClassification =
     isNewFormat || isLegacyStructured
-      ? (triageOutput as TriageOutput).triage
+      ? // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to new/legacy structured format by conditional
+        (triageOutput as TriageOutput).triage
       : {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
           type: (triageOutput as LegacyTriageOutput).type || "enhancement",
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
           priority: (triageOutput as LegacyTriageOutput).priority,
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
           size: (triageOutput as LegacyTriageOutput).size || "m",
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
           estimate: (triageOutput as LegacyTriageOutput).estimate || 5,
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
           topics: (triageOutput as LegacyTriageOutput).topics || [],
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowed to legacy format by else branch
           needs_info: (triageOutput as LegacyTriageOutput).needs_info || false,
         };
 
@@ -161,6 +170,7 @@ export async function executeApplyTriageOutput(
 
   // 3. Update issue body with structured sections (new format only)
   if (isNewFormat) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- isNewFormat check above confirms this is TriageOutput
     const newFormatOutput = triageOutput as TriageOutput;
     await updateIssueStructure(
       ctx,
@@ -171,6 +181,7 @@ export async function executeApplyTriageOutput(
     );
   } else if (isLegacyStructured) {
     // Legacy format with issue_body - still update the body directly
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- isLegacyStructured check above confirms this is LegacyTriageOutput
     const legacyOutput = triageOutput as LegacyTriageOutput;
     if (legacyOutput.issue_body) {
       await updateIssueBody(ctx, issueNumber, legacyOutput.issue_body);
@@ -179,7 +190,9 @@ export async function executeApplyTriageOutput(
 
   // 4. Link related issues
   const relatedIssues =
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
     (triageOutput as TriageOutput).related_issues ||
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- accessing related_issues from either format
     (triageOutput as LegacyTriageOutput).related_issues;
   if (relatedIssues && relatedIssues.length > 0) {
     await linkRelatedIssues(ctx, issueNumber, relatedIssues);

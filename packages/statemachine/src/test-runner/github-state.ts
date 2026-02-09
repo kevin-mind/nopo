@@ -211,6 +211,7 @@ export async function fetchGitHubState(
     for (const fieldValue of projectItem.fieldValues.nodes) {
       const fieldName = fieldValue.field?.name;
       if (fieldName === "Status" && fieldValue.name) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub project field value matches ProjectStatus union
         projectStatus = fieldValue.name as ProjectStatus;
       } else if (
         fieldName === "Iteration" &&
@@ -299,6 +300,7 @@ export async function fetchGitHubState(
 
   return {
     issueNumber,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API returns lowercase state, .toUpperCase() produces "OPEN" | "CLOSED"
     issueState: (issue.state?.toUpperCase() || "OPEN") as "OPEN" | "CLOSED",
     projectStatus,
     iteration,
@@ -425,6 +427,7 @@ export async function fetchRecentWorkflowRuns(
       id: run.id,
       name: run.name || "Unknown",
       displayTitle: run.display_title || run.name || "Unknown",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub API run.status is string but always one of these values
       status: run.status as "queued" | "in_progress" | "completed",
       conclusion: run.conclusion,
       url: run.html_url,

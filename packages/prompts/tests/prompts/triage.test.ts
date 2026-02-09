@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import Triage from "../../src/prompts/triage.js";
 
 const validInputs = {
@@ -39,16 +40,17 @@ describe("Triage prompt", () => {
 
   it("outputs JSON Schema matches expected structure", () => {
     const result = Triage(validInputs);
-    const schema = result.outputs as Record<string, unknown>;
+    const schema = result.outputs;
+    if (!schema) throw new Error("expected outputs");
 
-    expect(schema.type).toBe("object");
+    expect(schema["type"]).toBe("object");
 
-    const properties = schema.properties as Record<string, unknown>;
+    const properties = z.record(z.unknown()).parse(schema["properties"]);
     expect(properties).toHaveProperty("triage");
     expect(properties).toHaveProperty("requirements");
     expect(properties).toHaveProperty("initial_approach");
 
-    const required = schema.required as string[];
+    const required = z.array(z.string()).parse(schema["required"]);
     expect(required).toContain("triage");
     expect(required).toContain("requirements");
     expect(required).toContain("initial_approach");
@@ -56,6 +58,7 @@ describe("Triage prompt", () => {
 
   it("throws on invalid inputs", () => {
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- testing runtime validation with intentionally invalid input
       Triage({ ...validInputs, issueNumber: "not a number" } as never),
     ).toThrow();
   });

@@ -229,10 +229,12 @@ export async function executeApplyPivotOutput(
 
   // Try structured output first, then fall back to file
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     pivotOutput = structuredOutput as PivotOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches PivotOutput schema
     pivotOutput = JSON.parse(content) as PivotOutput;
     core.info(`Pivot output from file: ${action.filePath}`);
   } else {

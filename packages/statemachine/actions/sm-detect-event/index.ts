@@ -438,6 +438,7 @@ async function fetchPrByBranch(
   }
 
   try {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known gh CLI output shape
     const pr = JSON.parse(stdout) as {
       number: number;
       isDraft: boolean;
@@ -594,7 +595,9 @@ async function handleIssueEvent(
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.action is typed as string | undefined
   const action = payload.action as string;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.issue has known shape but typed as generic object
   const issue = payload.issue as {
     number: number;
     title: string;
@@ -645,6 +648,7 @@ async function handleIssueEvent(
 
   // Handle triage: opened, edited (without triaged label), or unlabeled (removing triaged)
   // BUT only if nopo-bot is NOT assigned (if assigned, edited triggers iteration instead)
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.issue has assignees field
   const assignees = (payload.issue as { assignees?: Array<{ login: string }> })
     .assignees;
   const isNopoBotAssigned = assignees?.some((a) => a.login === "nopo-bot");
@@ -652,6 +656,7 @@ async function handleIssueEvent(
   if (
     action === "opened" ||
     (action === "unlabeled" &&
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.label has known shape
       (payload.label as { name: string })?.name === "triaged")
   ) {
     if (hasTriagedLabel && action !== "unlabeled") {
@@ -690,6 +695,7 @@ async function handleIssueEvent(
     // Skip if the edit was made by a bot or automated account
     // This prevents the workflow from re-triggering when the state machine updates the issue
     // Use explicit workflow dispatch (e.g., from CI completion) to continue iteration
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.sender has known shape
     const sender = (payload.sender as { login: string; type?: string })?.login;
     const botAccounts = [
       "nopo-bot",
@@ -902,6 +908,7 @@ async function handleIssueEvent(
 
   // Handle implement: assigned to nopo-bot
   if (action === "assigned") {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.assignee has known shape
     const assignee = payload.assignee as { login: string };
     if (assignee.login !== "nopo-bot") {
       return emptyResult(true, "Not assigned to nopo-bot");
@@ -1031,12 +1038,14 @@ async function handleIssueCommentEvent(
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.comment has known shape
   const comment = payload.comment as {
     id: number;
     node_id: string;
     body: string;
     user: { login: string; type: string };
   };
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.issue has known shape
   const issue = payload.issue as {
     number: number;
     title: string;
@@ -1154,6 +1163,7 @@ async function handleIssueCommentEvent(
       "headRefName,reviewDecision,reviews,body,isDraft",
     ]);
 
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known gh CLI output shape
     const prData = JSON.parse(prJson) as {
       headRefName: string;
       reviewDecision: string | null;
@@ -1339,6 +1349,7 @@ async function handleIssueCommentEvent(
       "headRefName,body",
     ]);
     try {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known gh CLI output shape
       const prData = JSON.parse(stdout) as {
         headRefName: string;
         body: string;
@@ -1392,11 +1403,13 @@ async function handleIssueCommentEvent(
 async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.comment has known shape
   const comment = payload.comment as {
     id: number;
     body: string;
     user: { login: string; type: string };
   };
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.pull_request has known shape
   const pr = payload.pull_request as {
     number: number;
     title: string;
@@ -1544,6 +1557,7 @@ async function handlePushEvent(): Promise<DetectionResult> {
 async function handleWorkflowRunEvent(): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.workflow_run has known shape
   const workflowRun = payload.workflow_run as {
     conclusion: string;
     head_branch: string;
@@ -1635,7 +1649,9 @@ async function handlePullRequestEvent(
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.action is typed as string | undefined
   const action = payload.action as string;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.pull_request has known shape
   const pr = payload.pull_request as {
     number: number;
     title: string;
@@ -1665,6 +1681,7 @@ async function handlePullRequestEvent(
   }
 
   if (action === "review_requested") {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.requested_reviewer has known shape
     const requestedReviewer = payload.requested_reviewer as { login: string };
     const validReviewers = ["nopo-bot", "nopo-reviewer"];
     if (!validReviewers.includes(requestedReviewer.login)) {
@@ -1704,12 +1721,14 @@ async function handlePullRequestEvent(
 async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.review has known shape
   const review = payload.review as {
     id: number;
     state: string;
     body: string;
     user?: { login: string };
   };
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.pull_request has known shape
   const pr = payload.pull_request as {
     number: number;
     title: string;
@@ -1868,7 +1887,9 @@ async function handleDiscussionEvent(
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.action is typed as string | undefined
   const action = payload.action as string;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.discussion has known shape
   const discussion = payload.discussion as {
     number: number;
     title: string;
@@ -1943,6 +1964,7 @@ async function handleMergeGroupEvent(
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.merge_group has known shape
   const mergeGroup = payload.merge_group as {
     head_ref: string;
     head_sha: string;
@@ -1989,6 +2011,7 @@ async function handleMergeGroupEvent(
 
   if (exitCode === 0 && stdout) {
     try {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, casting to known gh CLI output shape
       const prData = JSON.parse(stdout) as {
         body: string;
         headRefName: string;
@@ -2058,11 +2081,13 @@ async function handleDiscussionCommentEvent(
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.discussion has known shape
   const discussion = payload.discussion as {
     number: number;
     title: string;
     body: string;
   };
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub webhook payload.comment has known shape
   const comment = payload.comment as {
     id: number;
     node_id: string;
@@ -2433,7 +2458,9 @@ async function run(): Promise<void> {
 
     // Extract parent_issue and branch from context for concurrency groups
     const ctx = result.contextJson;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- context fields are typed as unknown in the generic context object
     const parentIssue = (ctx.parent_issue as string) || "0";
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- context fields are typed as unknown in the generic context object
     const branch = (ctx.branch_name as string) || "";
 
     // Compute trigger type from job
@@ -2454,6 +2481,7 @@ async function run(): Promise<void> {
     const unifiedContext: RunnerContext = {
       // Routing & control
       job: result.job,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- jobToTrigger returns string but it maps to TriggerType values
       trigger: trigger as TriggerType,
       resource_type: result.resourceType,
       resource_number: result.resourceNumber,

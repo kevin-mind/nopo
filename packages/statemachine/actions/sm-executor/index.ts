@@ -129,6 +129,7 @@ async function run(): Promise<void> {
         acc[token] = (acc[token] || 0) + 1;
         return acc;
       },
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- initializing accumulator with correct type
       {} as Record<TokenType, number>,
     );
     core.info(

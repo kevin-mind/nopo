@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import { parseMarkdown, serializeMarkdown } from "../../src/markdown/ast.js";
 import { MdastRootSchema } from "../../src/schemas/ast.js";
 
@@ -31,14 +32,11 @@ describe("parseMarkdown", () => {
     expect(ast.children).toHaveLength(1);
     const list = ast.children[0]!;
     expect(list.type).toBe("list");
-    expect(
-      (list as { children: { checked: boolean | null }[] }).children[0]!
-        .checked,
-    ).toBe(false);
-    expect(
-      (list as { children: { checked: boolean | null }[] }).children[1]!
-        .checked,
-    ).toBe(true);
+    const listItems = z
+      .array(z.object({ checked: z.boolean().nullable() }).passthrough())
+      .parse("children" in list ? list.children : []);
+    expect(listItems[0]?.checked).toBe(false);
+    expect(listItems[1]?.checked).toBe(true);
   });
 
   it("parses code blocks", () => {

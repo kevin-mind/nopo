@@ -82,7 +82,8 @@ export function getDefaultConfig(): FeatureConfig {
  * @see {@link Phase}
  */
 export function isValidPhase(phase: string): phase is Phase {
-  return PHASES.includes(phase as Phase);
+  const phases: readonly string[] = PHASES;
+  return phases.includes(phase);
 }
 
 /**

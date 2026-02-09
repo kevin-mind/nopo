@@ -34,7 +34,7 @@ export interface MockOutputs {
  * Used when running outside the workflow (e.g., test runner) where
  * GitHub API fetches aren't appropriate
  */
-export interface IssueContext {
+interface IssueContext {
   number: number;
   title: string;
   body: string;

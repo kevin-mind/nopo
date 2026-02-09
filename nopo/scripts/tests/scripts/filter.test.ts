@@ -46,6 +46,7 @@ describe("filter", () => {
         "package",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, { type: string }>;
       };
@@ -88,6 +89,7 @@ describe("filter", () => {
         "packages",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, { type: string }>;
       };
@@ -156,6 +158,7 @@ describe("filter", () => {
         "service",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, { type: string }>;
       };
@@ -198,6 +201,7 @@ describe("filter", () => {
         "services",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, { type: string }>;
       };
@@ -266,6 +270,7 @@ describe("filter", () => {
         "type=package",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -300,6 +305,7 @@ describe("filter", () => {
         "type=service",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -338,6 +344,7 @@ describe("filter", () => {
         "buildable",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -371,6 +378,7 @@ describe("filter", () => {
         "buildable",
       ]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, unknown>;
       };
@@ -402,6 +410,7 @@ describe("filter", () => {
       });
       await runScript(ListScript, config, ["list", "--json"]);
 
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- typing JSON.parse output for test assertions
       const parsed = JSON.parse(output.trim()) as {
         services: Record<string, { type: string; dependencies: string[] }>;
       };

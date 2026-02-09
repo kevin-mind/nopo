@@ -7,7 +7,6 @@ import {
   ProjectStatusSchema,
   ParentIssueSchema,
   TodoStatsSchema,
-  type Action,
 } from "../src/schemas/index.js";
 import { parseMarkdown } from "@more/issue-state";
 
@@ -49,7 +48,7 @@ describe("schemas", () => {
       const action = ActionSchema.parse({
         type: "stop",
         reason: "test",
-      }) as Action;
+      });
       expect(isTerminalAction(action)).toBe(true);
     });
 
@@ -58,7 +57,7 @@ describe("schemas", () => {
         type: "block",
         issueNumber: 123,
         reason: "test",
-      }) as Action;
+      });
       expect(isTerminalAction(action)).toBe(true);
     });
 
@@ -66,7 +65,7 @@ describe("schemas", () => {
       const action = ActionSchema.parse({
         type: "log",
         message: "test",
-      }) as Action;
+      });
       expect(isTerminalAction(action)).toBe(false);
     });
   });

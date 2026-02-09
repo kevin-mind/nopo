@@ -48,12 +48,14 @@ export async function executeApplyIterateOutput(
 
   // Try structured output first (in-process chaining), then fall back to file
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     iterateOutput = structuredOutput as IterateOutput;
     core.info("Using structured output from in-process chain");
   } else if (filePath && fs.existsSync(filePath)) {
     // Read from file (artifact passed between workflow matrix jobs)
     try {
       const content = fs.readFileSync(filePath, "utf-8");
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches IterateOutput schema
       iterateOutput = JSON.parse(content) as IterateOutput;
       core.info(`Iterate output from file: ${filePath}`);
     } catch (error) {

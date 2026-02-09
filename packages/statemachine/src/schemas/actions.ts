@@ -955,6 +955,7 @@ export function createAction<T extends ActionType>(
   type: T,
   params: Omit<Extract<Action, { type: T }>, "type">,
 ): Extract<Action, { type: T }> {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- spreading type + params produces the correct shape but TS cannot infer the discriminated union member
   return { type, ...params } as Extract<Action, { type: T }>;
 }
 
@@ -1084,6 +1085,7 @@ export type SharedAction = Extract<Action, { type: SharedActionType }>;
  * Type guard to check if an action is issue-specific
  */
 export function isIssueAction(action: Action): action is IssueAction {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening const tuple to readonly string[] for .includes() compatibility
   return (ISSUE_ACTION_TYPES as readonly string[]).includes(action.type);
 }
 
@@ -1091,6 +1093,7 @@ export function isIssueAction(action: Action): action is IssueAction {
  * Type guard to check if an action is discussion-specific
  */
 export function isDiscussionAction(action: Action): action is DiscussionAction {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening const tuple to readonly string[] for .includes() compatibility
   return (DISCUSSION_ACTION_TYPES as readonly string[]).includes(action.type);
 }
 
@@ -1098,5 +1101,6 @@ export function isDiscussionAction(action: Action): action is DiscussionAction {
  * Type guard to check if an action is shared
  */
 export function isSharedAction(action: Action): action is SharedAction {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- widening const tuple to readonly string[] for .includes() compatibility
   return (SHARED_ACTION_TYPES as readonly string[]).includes(action.type);
 }

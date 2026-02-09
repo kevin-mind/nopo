@@ -67,10 +67,12 @@ export async function executeApplyDiscussionResearchOutput(
   let output: ResearchOutput;
 
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     output = structuredOutput as ResearchOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches ResearchOutput schema
     output = JSON.parse(content) as ResearchOutput;
     core.info(`Research output from file: ${action.filePath}`);
   } else {
@@ -133,10 +135,12 @@ export async function executeApplyDiscussionRespondOutput(
   let output: RespondOutput;
 
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     output = structuredOutput as RespondOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches RespondOutput schema
     output = JSON.parse(content) as RespondOutput;
     core.info(`Respond output from file: ${action.filePath}`);
   } else {
@@ -179,10 +183,12 @@ export async function executeApplyDiscussionSummarizeOutput(
   let output: SummarizeOutput;
 
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     output = structuredOutput as SummarizeOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches SummarizeOutput schema
     output = JSON.parse(content) as SummarizeOutput;
     core.info(`Summarize output from file: ${action.filePath}`);
   } else {
@@ -224,10 +230,12 @@ export async function executeApplyDiscussionPlanOutput(
   let output: PlanOutput;
 
   if (structuredOutput) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- structured output from Claude SDK is typed as unknown
     output = structuredOutput as PlanOutput;
     core.info("Using structured output from in-process chain");
   } else if (action.filePath && fs.existsSync(action.filePath)) {
     const content = fs.readFileSync(action.filePath, "utf-8");
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON.parse returns unknown, file content matches PlanOutput schema
     output = JSON.parse(content) as PlanOutput;
     core.info(`Plan output from file: ${action.filePath}`);
   } else {

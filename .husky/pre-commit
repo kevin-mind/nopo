@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-# Run make fix to auto-fix linting issues before commit
+# Run make check to lint and type check code before commit
 # This prevents committing code that would fail CI
 
-make fix
+make check

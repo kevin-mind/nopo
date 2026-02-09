@@ -805,6 +805,7 @@ function normalizeSubCommands(
     // Check if subcommand has dependencies (not allowed)
     if (
       "dependencies" in cmd &&
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- narrowing union type that doesn't share 'dependencies' property
       (cmd as { dependencies?: unknown }).dependencies
     ) {
       throw new Error(
@@ -822,6 +823,7 @@ function normalizeSubCommands(
     } else if (cmd.commands) {
       // Recursive for sub-sub-commands
       result[name] = {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- command is optional when subcommands exist, but interface requires string
         command: undefined as unknown as string, // Will be populated with subcommands
         env: cmd.env,
         dir: cmd.dir,

@@ -137,6 +137,7 @@ export class ScriptArgs {
    * Returns the parsed value or the default if not set
    */
   get<T = unknown>(key: string): T {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- generic return type for type-safe access by callers
     return (this.values[key] ?? this.schema[key]?.default) as T;
   }
 

@@ -8,8 +8,6 @@ import type {
   SubIssueData,
   IssueStateData,
   ProjectStatus,
-  IssueState,
-  PRState,
   CIStatus,
   LinkedPR,
   IssueComment,
@@ -18,6 +16,9 @@ import {
   CIStatusSchema,
   ReviewDecisionSchema,
   MergeableStateSchema,
+  ProjectStatusSchema,
+  PRStateSchema,
+  IssueStateSchema,
 } from "./schemas/index.js";
 import type { ReviewDecision, MergeableState } from "./schemas/index.js";
 import type {
@@ -77,7 +78,7 @@ function parseProjectState(
   for (const fieldValue of fieldValues) {
     const fieldName = fieldValue.field?.name;
     if (fieldName === "Status" && fieldValue.name) {
-      status = fieldValue.name as ProjectStatus;
+      status = ProjectStatusSchema.parse(fieldValue.name);
     } else if (
       fieldName === "Iteration" &&
       typeof fieldValue.number === "number"
@@ -108,7 +109,7 @@ function parseSubIssueStatus(
 
   for (const fieldValue of projectItem.fieldValues.nodes) {
     if (fieldValue.field?.name === "Status" && fieldValue.name) {
-      return fieldValue.name as ProjectStatus;
+      return ProjectStatusSchema.parse(fieldValue.name);
     }
   }
 
@@ -192,7 +193,7 @@ async function getLinkedPRs(
 
       linkedPRs.push({
         number: pr.number,
-        state: (pr.state?.toUpperCase() || "OPEN") as PRState,
+        state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
         isDraft: false, // Timeline doesn't include draft status
         title: pr.title || "",
         headRef: pr.headRefName,
@@ -253,7 +254,7 @@ async function getPRForBranch(
 
     return {
       number: pr.number,
-      state: (pr.state?.toUpperCase() || "OPEN") as PRState,
+      state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
       isDraft: pr.isDraft || false,
       title: pr.title || "",
       headRef: pr.headRefName || headRef,
@@ -285,7 +286,7 @@ function parseSubIssueData(
   return {
     number: node.number || 0,
     title: node.title || "",
-    state: (node.state?.toUpperCase() || "OPEN") as IssueState,
+    state: IssueStateSchema.parse(node.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
@@ -378,7 +379,7 @@ async function fetchIssueData(
     issue: {
       number: issue.number || issueNumber,
       title: issue.title || "",
-      state: (issue.state?.toUpperCase() || "OPEN") as IssueState,
+      state: IssueStateSchema.parse(issue.state?.toUpperCase() || "OPEN"),
       bodyAst,
       projectStatus: status,
       iteration,

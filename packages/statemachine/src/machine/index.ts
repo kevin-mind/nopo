@@ -10,6 +10,7 @@ export {
   isError,
   isTerminal,
   hasSubIssues,
+  isSubIssue,
   needsSubIssues,
   allPhasesDone,
   needsParentInit,

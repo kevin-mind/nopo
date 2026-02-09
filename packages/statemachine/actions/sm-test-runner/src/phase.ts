@@ -779,11 +779,13 @@ export async function waitForPhase(
   let _prevState = {
     branchExists: false,
     prOpened: false,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- initializing typed state tracker
     prState: null as string | null,
     ciPassed: false,
     reviewApproved: false,
     prMerged: false,
     issueClosed: false,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- initializing typed state tracker
     issueStatus: null as string | null,
   };
 

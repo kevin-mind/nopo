@@ -55,6 +55,7 @@ describe("CLI Routing", () => {
   beforeEach(() => {
     consoleOutput = [];
     consoleErrorOutput = [];
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock process.exit for testing
     process.exit = mockExit as never;
     console.log = (...args: unknown[]) => {
       consoleOutput.push(args.map(String).join(" "));

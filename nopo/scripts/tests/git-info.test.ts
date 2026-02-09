@@ -17,6 +17,7 @@ describe("GitInfo", () => {
 
   describe("getDefaultBranch", () => {
     it("returns branch from symbolic-ref when available", () => {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
       vi.mocked($.sync).mockReturnValueOnce({
         stdout: "refs/remotes/origin/main\n",
       } as ReturnType<typeof $.sync>);
@@ -25,6 +26,7 @@ describe("GitInfo", () => {
     });
 
     it("returns master when symbolic-ref shows origin/master", () => {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
       vi.mocked($.sync).mockReturnValueOnce({
         stdout: "refs/remotes/origin/master\n",
       } as ReturnType<typeof $.sync>);
@@ -40,7 +42,7 @@ describe("GitInfo", () => {
             "fatal: ref refs/remotes/origin/HEAD is not a symbolic ref",
           );
         })
-        // Second call: rev-parse origin/main succeeds
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "abc123\n",
         } as ReturnType<typeof $.sync>);
@@ -60,7 +62,7 @@ describe("GitInfo", () => {
         .mockImplementationOnce(() => {
           throw new Error("fatal: Needed a single revision");
         })
-        // Third call: rev-parse origin/master succeeds
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "def456\n",
         } as ReturnType<typeof $.sync>);
@@ -82,11 +84,11 @@ describe("GitInfo", () => {
   describe("getChangedFiles", () => {
     it("returns list of changed files using merge-base", () => {
       vi.mocked($.sync)
-        // First call: merge-base
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "abc123\n",
         } as ReturnType<typeof $.sync>)
-        // Second call: diff --name-only
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "apps/backend/src/index.ts\napps/backend/src/lib.ts\n",
         } as ReturnType<typeof $.sync>);
@@ -101,11 +103,11 @@ describe("GitInfo", () => {
 
     it("returns empty array when no files changed", () => {
       vi.mocked($.sync)
-        // First call: merge-base
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "abc123\n",
         } as ReturnType<typeof $.sync>)
-        // Second call: diff --name-only returns empty
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "",
         } as ReturnType<typeof $.sync>);
@@ -117,9 +119,11 @@ describe("GitInfo", () => {
 
     it("filters out empty lines from diff output", () => {
       vi.mocked($.sync)
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "abc123\n",
         } as ReturnType<typeof $.sync>)
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "file1.ts\n\nfile2.ts\n\n",
         } as ReturnType<typeof $.sync>);
@@ -135,7 +139,7 @@ describe("GitInfo", () => {
         .mockImplementationOnce(() => {
           throw new Error("fatal: Not a valid object name");
         })
-        // Second call: direct diff succeeds
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
         .mockReturnValueOnce({
           stdout: "apps/web/src/App.tsx\n",
         } as ReturnType<typeof $.sync>);
@@ -158,6 +162,7 @@ describe("GitInfo", () => {
 
   describe("exists", () => {
     it("returns true when git is available", () => {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock partial return value for testing
       vi.mocked($.sync).mockReturnValueOnce({
         stdout: "git version 2.39.0\n",
       } as ReturnType<typeof $.sync>);

@@ -24,6 +24,13 @@ export default function createEslintConfig(
           console: "readonly",
         },
       },
+      rules: {
+        "@typescript-eslint/consistent-type-assertions": [
+          "error",
+          { assertionStyle: "never" },
+        ],
+        "@typescript-eslint/no-explicit-any": "error",
+      },
     },
     ...config,
   );

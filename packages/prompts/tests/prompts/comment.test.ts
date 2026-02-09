@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import Comment from "../../src/prompts/comment.js";
 
 const validInputs = {
@@ -33,28 +34,30 @@ describe("Comment prompt", () => {
 
   it("outputs JSON Schema matches expected structure", () => {
     const result = Comment(validInputs);
-    const schema = result.outputs as Record<string, unknown>;
+    const schema = result.outputs;
+    if (!schema) throw new Error("expected outputs");
 
-    expect(schema.type).toBe("object");
+    expect(schema["type"]).toBe("object");
 
-    const properties = schema.properties as Record<string, unknown>;
+    const properties = z.record(z.unknown()).parse(schema["properties"]);
     expect(properties).toHaveProperty("action_type");
     expect(properties).toHaveProperty("response_body");
     expect(properties).toHaveProperty("commits");
 
-    const actionTypeProp = properties.action_type as {
-      type: string;
-      enum: string[];
-    };
+    const actionTypeProp = z
+      .object({ type: z.string(), enum: z.array(z.string()) })
+      .passthrough()
+      .parse(properties["action_type"]);
     expect(actionTypeProp.enum).toEqual(["response", "implementation"]);
 
-    const required = schema.required as string[];
+    const required = z.array(z.string()).parse(schema["required"]);
     expect(required).toContain("action_type");
     expect(required).toContain("response_body");
   });
 
   it("throws on invalid inputs", () => {
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- testing runtime validation with intentionally invalid input
       Comment({ ...validInputs, contextType: "invalid" } as never),
     ).toThrow();
   });

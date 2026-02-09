@@ -42,6 +42,7 @@ function findHeadingIndexAny(ast: Root, texts: string[]): number {
     if (node.type !== "heading") return false;
     const firstChild = node.children[0];
     return (
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Text node value is string but typed as PhrasingContent
       firstChild?.type === "text" && texts.includes(firstChild.value as string)
     );
   });
@@ -53,6 +54,7 @@ function getNodeText(node: RootContent | ListItem | undefined): string {
   if (node.type === "text") return node.value;
   if (node.type === "inlineCode") return node.value;
   if ("children" in node && Array.isArray(node.children)) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast node children are compatible with RootContent but typed differently
     return (node.children as RootContent[]).map(getNodeText).join("");
   }
   return "";
@@ -63,6 +65,7 @@ function getLinkUrl(node: RootContent | undefined): string | null {
   if (!node) return null;
   if (node.type === "link") return node.url;
   if ("children" in node && Array.isArray(node.children)) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast node children are compatible with RootContent but typed differently
     for (const child of node.children as RootContent[]) {
       const url = getLinkUrl(child);
       if (url) return url;
@@ -97,6 +100,7 @@ export const todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   let completed = 0;
   let uncheckedNonManual = 0;
 
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- listNode type-narrowed to 'list' above but TS doesn't narrow to List
   for (const item of (listNode as List).children) {
     if (item.type === "listItem" && item.checked !== undefined) {
       total++;
@@ -139,6 +143,7 @@ export function extractTodosFromAst(bodyAst: Root): TodoStats {
   let completed = 0;
   let uncheckedNonManual = 0;
 
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- listNode type-narrowed to 'list' above but TS doesn't narrow to List
   for (const item of (listNode as List).children) {
     if (item.type === "listItem" && item.checked !== undefined) {
       total++;
@@ -161,6 +166,7 @@ export function extractTodosFromAst(bodyAst: Root): TodoStats {
 function getCellText(row: TableRow, index: number): string {
   const cell = row.children[index];
   if (!cell) return "";
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast TableCell children are PhrasingContent which is compatible with RootContent
   return (cell.children as RootContent[]).map(getNodeText).join("");
 }
 
@@ -168,6 +174,7 @@ function getCellText(row: TableRow, index: number): string {
 function getCellLinkUrl(row: TableRow, index: number): string | null {
   const cell = row.children[index];
   if (!cell) return null;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast TableCell children are PhrasingContent which is compatible with RootContent
   for (const child of cell.children as RootContent[]) {
     const url = getLinkUrl(child);
     if (url) return url;
@@ -242,6 +249,7 @@ export const agentNotesExtractor = createExtractor(
         const linkNode = node.children[0];
         if (!linkNode || linkNode.type !== "link") continue;
 
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Heading children are PhrasingContent, compatible with RootContent for getNodeText
         const linkText = getNodeText(linkNode as RootContent);
         const runMatch = linkText.match(/Run\s+(\d+)/);
         if (!runMatch || !runMatch[1]) continue;
@@ -258,7 +266,8 @@ export const agentNotesExtractor = createExtractor(
         const listNode = ast.children[i + 1];
         const notes =
           listNode?.type === "list"
-            ? (listNode as List).children.map((item: ListItem) =>
+            ? // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- listNode narrowed to 'list' type but TS doesn't narrow to List
+              (listNode as List).children.map((item: ListItem) =>
                 getNodeText(item),
               )
             : [];
