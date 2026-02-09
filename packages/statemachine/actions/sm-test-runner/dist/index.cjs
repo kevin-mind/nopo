@@ -75794,22 +75794,17 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
           fetchParent: false
         }
       );
+      const targetLabels = [.../* @__PURE__ */ new Set([...fixture.issue.labels, TEST_LABEL])];
       const bodyState = {
         ...bodyData,
         issue: {
           ...bodyData.issue,
-          bodyAst: parseMarkdown(fixture.issue.body)
+          bodyAst: parseMarkdown(fixture.issue.body),
+          labels: targetLabels
         }
       };
       await bodyUpdate(bodyState);
     }
-    await setLabels(
-      this.config.owner,
-      this.config.repo,
-      this.issueNumber,
-      [...fixture.issue.labels, TEST_LABEL],
-      this.asOctokitLike()
-    );
     if (fixture.issue.assignees.includes("nopo-bot")) {
       core27.info("  \u2192 Assigning nopo-bot (via setupGitHubState)");
       const { data: setupAssignData, update: setupAssignUpdate } = await parseIssue(

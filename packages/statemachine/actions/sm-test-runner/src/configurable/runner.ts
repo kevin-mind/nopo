@@ -852,7 +852,7 @@ Issue: #${this.issueNumber}
       fixture.issue.failures,
     );
 
-    // Update issue body if different
+    // Update issue body and labels
     {
       const { data: bodyData, update: bodyUpdate } = await parseIssue(
         this.config.owner,
@@ -864,24 +864,17 @@ Issue: #${this.issueNumber}
           fetchParent: false,
         },
       );
+      const targetLabels = [...new Set([...fixture.issue.labels, TEST_LABEL])];
       const bodyState = {
         ...bodyData,
         issue: {
           ...bodyData.issue,
           bodyAst: parseMarkdown(fixture.issue.body),
+          labels: targetLabels,
         },
       };
       await bodyUpdate(bodyState);
     }
-
-    // Update labels
-    await setLabels(
-      this.config.owner,
-      this.config.repo,
-      this.issueNumber,
-      [...fixture.issue.labels, TEST_LABEL],
-      this.asOctokitLike(),
-    );
 
     // Update assignees - assign nopo-bot if specified in fixture
     if (fixture.issue.assignees.includes("nopo-bot")) {
