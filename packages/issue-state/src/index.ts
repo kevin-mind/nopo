@@ -70,6 +70,8 @@ export {
   MARK_PR_READY_MUTATION,
   GET_PR_ID_QUERY,
   GET_PR_REVIEWS_QUERY,
+  GET_PR_CLOSING_ISSUES_QUERY,
+  GET_BRANCH_CLOSING_ISSUES_QUERY,
 } from "./graphql/pr-queries.js";
 
 export {
@@ -113,6 +115,9 @@ export type {
   PRResponse,
   BranchResponse,
   LinkedPRsResponse,
+  PRClosingIssuesResponse,
+  BranchClosingIssuesResponse,
+  IssueParentResponse,
 } from "./graphql/types.js";
 
 // Client
@@ -229,6 +234,13 @@ export {
 export { createComment, updateComment } from "./comment-ops.js";
 export { listComments, listIssuesForRepo, setLabels } from "./issue-ops.js";
 export type { IssueCommentData, IssueListItem } from "./issue-ops.js";
+
+// Issue number resolvers
+export {
+  issueNumberFromPR,
+  issueNumberFromBranch,
+  parentIssueNumber,
+} from "./resolve-issue.js";
 
 // Extractor factory
 export { createExtractor } from "./create-extractor.js";

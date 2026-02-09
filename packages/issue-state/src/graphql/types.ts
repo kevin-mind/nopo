@@ -109,3 +109,35 @@ export interface LinkedPRsResponse {
     };
   };
 }
+
+export interface PRClosingIssuesResponse {
+  repository?: {
+    pullRequest?: {
+      closingIssuesReferences?: {
+        nodes?: Array<{ number?: number }>;
+      };
+    };
+  };
+}
+
+export interface BranchClosingIssuesResponse {
+  repository?: {
+    pullRequests?: {
+      nodes?: Array<{
+        closingIssuesReferences?: {
+          nodes?: Array<{ number?: number }>;
+        };
+      }>;
+    };
+  };
+}
+
+export interface IssueParentResponse {
+  repository?: {
+    issue?: {
+      id?: string;
+      body?: string;
+      parent?: { number?: number } | null;
+    };
+  };
+}
