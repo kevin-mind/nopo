@@ -199,6 +199,8 @@ async function getLinkedPRs(
         headRef: pr.headRefName,
         baseRef: "main", // Timeline doesn't include base ref
         ciStatus: null, // Timeline doesn't include CI status
+        labels: [], // Timeline doesn't include labels
+        reviews: [], // Timeline doesn't include reviews
       });
     }
 
@@ -264,6 +266,17 @@ async function getPRForBranch(
       mergeable,
       reviewCount: pr.reviews?.totalCount ?? 0,
       url: pr.url || "",
+      author: pr.author?.login ?? null,
+      labels:
+        pr.labels?.nodes
+          ?.map((l) => l.name)
+          .filter((name): name is string => Boolean(name)) ?? [],
+      reviews:
+        pr.reviews?.nodes?.map((r) => ({
+          state: r.state ?? "",
+          author: r.author?.login ?? "",
+          body: r.body ?? "",
+        })) ?? [],
     };
   } catch {
     return null;

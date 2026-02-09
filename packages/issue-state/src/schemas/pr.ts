@@ -18,6 +18,17 @@ export const LinkedPRSchema = z.object({
   mergeable: MergeableStateSchema.nullable().optional(),
   reviewCount: z.number().int().nonnegative().optional(),
   url: z.string().optional(),
+  author: z.string().nullable().optional(),
+  labels: z.array(z.string()).default([]),
+  reviews: z
+    .array(
+      z.object({
+        state: z.string(),
+        author: z.string(),
+        body: z.string(),
+      }),
+    )
+    .default([]),
 });
 
 export type LinkedPR = z.infer<typeof LinkedPRSchema>;

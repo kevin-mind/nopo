@@ -108,8 +108,15 @@ query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
         url
         mergeable
         reviewDecision
+        author { login }
+        labels(first: 20) { nodes { name } }
         reviews(first: 50) {
           totalCount
+          nodes {
+            state
+            author { login }
+            body
+          }
         }
         commits(last: 1) {
           nodes {

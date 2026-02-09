@@ -12,6 +12,12 @@ import {
 } from "@more/statemachine";
 import { TriggerTypeSchema } from "@more/statemachine/schemas";
 import {
+  parseIssue,
+  issueNumberFromPR,
+  issueNumberFromBranch,
+} from "@more/issue-state";
+import type { IssueStateData } from "@more/issue-state";
+import {
   LabelSchema,
   UserLoginSchema,
   IssuePayloadSchema,
@@ -25,9 +31,6 @@ import {
   MergeGroupPayloadSchema,
   DiscussionPayloadSchema,
   DiscussionCommentPayloadSchema,
-  GhPrListOutputSchema,
-  GhPrViewOutputSchema,
-  GhPrBranchBodyOutputSchema,
 } from "./payload-schemas.js";
 
 type Job = JobType;
@@ -216,190 +219,176 @@ function computeConcurrency(
 }
 
 /**
- * Project state from GitHub Project custom fields
- * Note: Project state is now fetched by parseIssue in the state machine.
- * This minimal interface is kept for skip logic checks only.
- */
-interface ProjectState {
-  status: string | null;
-}
-
-/**
- * Fetch ONLY the project status for skip logic
- * Note: Full project state (iteration, failures) is fetched by parseIssue
- */
-async function fetchProjectStatusForSkipCheck(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
-  issueNumber: number,
-): Promise<ProjectState | null> {
-  try {
-    const result = await octokit.graphql<{
-      repository: {
-        issue: {
-          projectItems: {
-            nodes: Array<{
-              fieldValues: {
-                nodes: Array<{
-                  name?: string;
-                  field?: { name?: string };
-                }>;
-              };
-            }>;
-          };
-        } | null;
-      };
-    }>(
-      `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) {
-            projectItems(first: 10) {
-              nodes {
-                fieldValues(first: 10) {
-                  nodes {
-                    ... on ProjectV2ItemFieldSingleSelectValue {
-                      name
-                      field {
-                        ... on ProjectV2SingleSelectField {
-                          name
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-      { owner, repo, number: issueNumber },
-    );
-
-    const items = result.repository.issue?.projectItems.nodes ?? [];
-    if (items.length === 0) {
-      return null;
-    }
-
-    // Only parse Status field for skip check
-    const fieldValues = items[0]?.fieldValues?.nodes ?? [];
-    for (const fieldValue of fieldValues) {
-      if (fieldValue.field?.name === "Status" && fieldValue.name) {
-        return { status: fieldValue.name };
-      }
-    }
-
-    return { status: null };
-  } catch (error) {
-    core.warning(`Failed to fetch project status: ${error}`);
-    return null;
-  }
-}
-
-/**
- * Check if project state indicates the issue should be skipped
- * Note: "Backlog" is NOT a skip status - it's a valid initial state
- * that allows the state machine to start
- */
-function shouldSkipProjectState(state: ProjectState | null): boolean {
-  if (!state || !state.status) return false;
-  // Only skip for terminal/blocked states
-  // "Backlog" is allowed as it's the initial state before state machine starts
-  const skipStatuses = ["Done", "Blocked", "Error"];
-  return skipStatuses.includes(state.status);
-}
-
-/**
  * Derive branch name from parent issue and phase number
  */
 function deriveBranch(parentIssueNumber: number, phaseNumber: number): string {
   return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
 }
 
-interface IssueDetails {
-  title: string;
-  body: string;
-  isSubIssue: boolean;
-  parentIssue: number; // 0 if not a sub-issue
-  subIssues: number[]; // Empty array if no sub-issues
-  labels: string[]; // Label names
+interface ResolvedEvent {
+  handler: string;
+  issueNumber: number | null;
+  prNumber?: number; // For merge_group (parsed from branch name)
 }
 
-async function fetchIssueDetails(
+/**
+ * Resolve the GitHub event to a handler name, issue number, and optional PR number.
+ * Uses GraphQL-based resolvers for PR/branch → issue mapping.
+ */
+async function resolveEvent(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
-  issueNumber: number,
-): Promise<IssueDetails> {
-  // Use GraphQL to check for parent and sub-issues
-  const result = await octokit.graphql<{
-    repository: {
-      issue: {
-        title: string;
-        body: string;
-        parent?: { number: number };
-        subIssues?: {
-          nodes: Array<{ number: number }>;
+  resourceNumber: string,
+): Promise<ResolvedEvent> {
+  const eventName = github.context.eventName;
+  const payload = github.context.payload;
+
+  switch (eventName) {
+    case "issues":
+      return {
+        handler: "issues",
+        issueNumber: payload.issue?.number ?? null,
+      };
+
+    case "issue_comment": {
+      const issuePayload = payload.issue;
+      const isPr = !!issuePayload?.pull_request;
+      if (isPr && issuePayload?.number) {
+        // Comment is on a PR — resolve to the issue the PR closes
+        const resolved = await issueNumberFromPR(
+          octokit,
+          owner,
+          repo,
+          issuePayload.number,
+        );
+        return {
+          handler: "issue_comment",
+          // Fall back to payload issue number if no closing issue found
+          issueNumber: resolved ?? issuePayload.number,
         };
-        labels?: {
-          nodes: Array<{ name: string }>;
-        };
-      } | null;
-    };
-  }>(
-    `
-    query($owner: String!, $repo: String!, $number: Int!) {
-      repository(owner: $owner, name: $repo) {
-        issue(number: $number) {
-          title
-          body
-          parent { number }
-          subIssues(first: 50) {
-            nodes { number }
-          }
-          labels(first: 50) {
-            nodes { name }
-          }
-        }
       }
+      return {
+        handler: "issue_comment",
+        issueNumber: issuePayload?.number ?? null,
+      };
     }
-  `,
-    {
-      owner,
-      repo,
-      number: issueNumber,
-      headers: {
-        "GraphQL-Features": "sub_issues",
-      },
-    },
-  );
 
-  const issue = result.repository.issue;
-  if (!issue) {
-    return {
-      title: "",
-      body: "",
-      isSubIssue: false,
-      parentIssue: 0,
-      subIssues: [],
-      labels: [],
-    };
+    case "workflow_dispatch": {
+      const num = parseInt(resourceNumber, 10);
+      return {
+        handler: "workflow_dispatch",
+        issueNumber: isNaN(num) ? null : num,
+      };
+    }
+
+    case "push": {
+      const branch = github.context.ref.replace("refs/heads/", "");
+      const resolved = await issueNumberFromBranch(
+        octokit,
+        owner,
+        repo,
+        branch,
+      );
+      return {
+        handler: "push",
+        issueNumber: resolved,
+      };
+    }
+
+    case "pull_request": {
+      const prNum = payload.pull_request?.number;
+      if (prNum) {
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "pull_request",
+          issueNumber: resolved,
+        };
+      }
+      return { handler: "pull_request", issueNumber: null };
+    }
+
+    case "pull_request_review": {
+      const prNum = payload.pull_request?.number;
+      if (prNum) {
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "pull_request_review",
+          issueNumber: resolved,
+        };
+      }
+      return { handler: "pull_request_review", issueNumber: null };
+    }
+
+    case "pull_request_review_comment": {
+      const prNum = payload.pull_request?.number;
+      if (prNum) {
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "pull_request_review_comment",
+          issueNumber: resolved,
+        };
+      }
+      return { handler: "pull_request_review_comment", issueNumber: null };
+    }
+
+    case "workflow_run": {
+      const workflowRun =
+        "workflow_run" in payload ? payload.workflow_run : null;
+      const branch =
+        workflowRun &&
+        typeof workflowRun === "object" &&
+        workflowRun !== null &&
+        "head_branch" in workflowRun &&
+        typeof workflowRun.head_branch === "string"
+          ? workflowRun.head_branch
+          : "";
+      if (branch) {
+        const resolved = await issueNumberFromBranch(
+          octokit,
+          owner,
+          repo,
+          branch,
+        );
+        return {
+          handler: "workflow_run",
+          issueNumber: resolved,
+        };
+      }
+      return { handler: "workflow_run", issueNumber: null };
+    }
+
+    case "merge_group": {
+      const mergeGroup = "merge_group" in payload ? payload.merge_group : null;
+      const headRef =
+        mergeGroup &&
+        typeof mergeGroup === "object" &&
+        mergeGroup !== null &&
+        "head_ref" in mergeGroup &&
+        typeof mergeGroup.head_ref === "string"
+          ? mergeGroup.head_ref
+          : "";
+      // Parse PR number from merge queue branch: gh-readonly-queue/main/pr-123-abc123
+      const prMatch = headRef.match(/pr-(\d+)/);
+      if (prMatch?.[1]) {
+        const prNum = parseInt(prMatch[1], 10);
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "merge_group",
+          issueNumber: resolved,
+          prNumber: prNum,
+        };
+      }
+      return { handler: "merge_group", issueNumber: null };
+    }
+
+    case "discussion":
+      return { handler: "discussion", issueNumber: null };
+    case "discussion_comment":
+      return { handler: "discussion_comment", issueNumber: null };
+    default:
+      return { handler: eventName, issueNumber: null };
   }
-
-  const subIssues =
-    issue.subIssues?.nodes?.map((n) => n.number).filter((n) => n > 0) ?? [];
-  const labels = issue.labels?.nodes?.map((l) => l.name) ?? [];
-
-  return {
-    title: issue.title,
-    body: issue.body ?? "",
-    isSubIssue: !!issue.parent,
-    parentIssue: issue.parent?.number ?? 0,
-    subIssues,
-    labels,
-  };
 }
 
 /**
@@ -409,78 +398,6 @@ async function fetchIssueDetails(
 function extractPhaseNumber(title: string): number {
   const match = title.match(/^\[Phase\s*(\d+)\]/i);
   return match?.[1] ? parseInt(match[1], 10) : 0;
-}
-
-async function fetchPrByBranch(
-  owner: string,
-  repo: string,
-  branch: string,
-): Promise<{
-  hasPr: boolean;
-  prNumber: string;
-  isDraft: boolean;
-  isClaudePr: boolean;
-  author: string;
-  body: string;
-  title: string;
-  labels: string[];
-}> {
-  const { stdout, exitCode } = await execCommand(
-    "gh",
-    [
-      "pr",
-      "list",
-      "--repo",
-      `${owner}/${repo}`,
-      "--head",
-      branch,
-      "--json",
-      "number,isDraft,author,body,title,labels",
-      "--jq",
-      ".[0]",
-    ],
-    { ignoreReturnCode: true },
-  );
-
-  if (exitCode !== 0 || !stdout || stdout === "null") {
-    return {
-      hasPr: false,
-      prNumber: "",
-      isDraft: false,
-      isClaudePr: false,
-      author: "",
-      body: "",
-      title: "",
-      labels: [],
-    };
-  }
-
-  try {
-    const pr = GhPrListOutputSchema.parse(JSON.parse(stdout));
-    const author = pr.author.login;
-    const isClaudePr = author === "claude[bot]" || branch.startsWith("claude/");
-    return {
-      hasPr: true,
-      prNumber: String(pr.number),
-      isDraft: pr.isDraft,
-      isClaudePr,
-      author,
-      body: pr.body ?? "",
-      title: pr.title ?? "",
-      labels: (pr.labels ?? []).map((l) => l.name),
-    };
-  } catch {
-    return {
-      hasPr: false,
-      prNumber: "",
-      isDraft: false,
-      isClaudePr: false,
-      author: "",
-      body: "",
-      title: "",
-      labels: [],
-    };
-  }
 }
 
 function hasSkipLabel(labels: string[]): boolean {
@@ -510,11 +427,6 @@ function shouldSkipTestResource(
     return false;
   }
   return isTestResource(title);
-}
-
-async function extractIssueNumber(body: string): Promise<string> {
-  const match = body.match(/(?:Fixes|Closes|Resolves)\s+#(\d+)/i);
-  return match?.[1] ?? "";
 }
 
 async function ensureBranchExists(branch: string): Promise<boolean> {
@@ -566,10 +478,56 @@ async function checkBranchExists(branch: string): Promise<boolean> {
   return stdout.includes(branch);
 }
 
+/**
+ * Check if project status indicates the issue should be skipped.
+ * Uses issueState.issue.projectStatus from parseIssue instead of a separate query.
+ */
+function shouldSkipProjectStatus(issueState: IssueStateData | null): boolean {
+  const status = issueState?.issue.projectStatus;
+  if (!status) return false;
+  const skipStatuses = ["Done", "Blocked", "Error"];
+  return skipStatuses.includes(status);
+}
+
+/**
+ * Derive isClaudePr from issueState PR data
+ */
+function isClaudePr(issueState: IssueStateData | null): boolean {
+  const pr = issueState?.issue.pr;
+  if (!pr) return false;
+  const claudeAuthors = ["nopo-bot", "claude[bot]"];
+  return (
+    claudeAuthors.includes(pr.author ?? "") || pr.headRef.startsWith("claude/")
+  );
+}
+
+// ── Helpers for reading IssueStateData in place of old IssueDetails ──
+
+function isSubIssue(issueState: IssueStateData | null): boolean {
+  return !!issueState?.issue.parentIssueNumber;
+}
+
+function parentIssue(issueState: IssueStateData | null): number {
+  return issueState?.issue.parentIssueNumber ?? 0;
+}
+
+function subIssueNumbers(issueState: IssueStateData | null): number[] {
+  return issueState?.issue.subIssues.map((s) => s.number) ?? [];
+}
+
+function issueLabels(issueState: IssueStateData | null): string[] {
+  return issueState?.issue.labels ?? [];
+}
+
+function issueTitle(issueState: IssueStateData | null): string {
+  return issueState?.issue.title ?? "";
+}
+
 async function handleIssueEvent(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
+  issueState: IssueStateData,
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
@@ -589,16 +547,10 @@ async function handleIssueEvent(
 
   // Check for [TEST] in title (circuit breaker for test automation)
   if (isTestResource(issue.title)) {
-    // Double-check by fetching fresh labels from API
+    // Double-check using pre-fetched issue details from API
     // This handles race condition where webhook payload has stale label data
     // when an issue is created with labels (GitHub eventual consistency)
-    const freshDetails = await fetchIssueDetails(
-      octokit,
-      owner,
-      repo,
-      issue.number,
-    );
-    if (freshDetails.labels.includes("test:automation")) {
+    if (issueLabels(issueState).includes("test:automation")) {
       return emptyResult(
         true,
         "Issue has test:automation label (verified via API) - skipping from normal automation",
@@ -633,12 +585,11 @@ async function handleIssueEvent(
 
     // Check if sub-issue - either by parent relationship OR by title pattern
     // Title pattern check handles race condition when parent relationship isn't set yet
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
     const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
-    if (details.isSubIssue || hasPhaseTitle) {
+    if (isSubIssue(issueState) || hasPhaseTitle) {
       return emptyResult(
         true,
-        details.isSubIssue
+        isSubIssue(issueState)
           ? "Issue is a sub-issue"
           : "Issue has phase title pattern",
       );
@@ -689,14 +640,8 @@ async function handleIssueEvent(
       !isNopoBotAssigned
     ) {
       // Check if sub-issue - sub-issues don't go through grooming
-      const details = await fetchIssueDetails(
-        octokit,
-        owner,
-        repo,
-        issue.number,
-      );
       const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
-      if (!details.isSubIssue && !hasPhaseTitle) {
+      if (!isSubIssue(issueState) && !hasPhaseTitle) {
         return {
           job: "issue-groom",
           resourceType: "issue",
@@ -716,29 +661,15 @@ async function handleIssueEvent(
     // If nopo-bot is assigned, edited triggers iteration (issue-edit-based loop)
     if (isNopoBotAssigned) {
       // Check project status - skip if in terminal/blocked state
-      // Note: Full project state is fetched by parseIssue in the state machine
-      const projectStatus = await fetchProjectStatusForSkipCheck(
-        octokit,
-        owner,
-        repo,
-        issue.number,
-      );
-      if (shouldSkipProjectState(projectStatus)) {
+      if (shouldSkipProjectStatus(issueState)) {
         return emptyResult(
           true,
-          `Issue project status is '${projectStatus?.status}' - skipping iteration`,
+          `Issue project status is '${issueState.issue.projectStatus}' - skipping iteration`,
         );
       }
 
-      const details = await fetchIssueDetails(
-        octokit,
-        owner,
-        repo,
-        issue.number,
-      );
-
       // Check if this is a sub-issue (has parent) - route to iterate with parent context
-      if (details.isSubIssue) {
+      if (isSubIssue(issueState)) {
         return {
           job: "issue-iterate",
           resourceType: "issue",
@@ -747,7 +678,7 @@ async function handleIssueEvent(
           contextJson: {
             issue_number: String(issue.number),
             trigger_type: "issue-edited",
-            parent_issue: String(details.parentIssue),
+            parent_issue: String(parentIssue(issueState)),
             // Note: branch_name, project_* fields removed - fetched by parseIssue
           },
           skip: false,
@@ -756,25 +687,8 @@ async function handleIssueEvent(
       }
 
       // Check if this is a main issue with sub-issues - route to orchestrate
-      // First try GraphQL sub-issues, then fall back to parsing CLAUDE_MAIN_STATE
-      // (GraphQL may not have propagated sub-issues yet after triage creates them)
-      const hasMainState = details.body.includes("<!-- CLAUDE_MAIN_STATE");
-      let subIssueNumbers = details.subIssues;
-      if (subIssueNumbers.length === 0 && hasMainState) {
-        // Parse sub_issues from CLAUDE_MAIN_STATE: sub_issues: [123, 456]
-        const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
-        if (match?.[1]) {
-          subIssueNumbers = match[1]
-            .split(",")
-            .map((s) => parseInt(s.trim(), 10))
-            .filter((n) => !isNaN(n) && n > 0);
-          core.info(
-            `Parsed sub-issues from CLAUDE_MAIN_STATE: ${subIssueNumbers.join(",")}`,
-          );
-        }
-      }
-
-      if (subIssueNumbers.length > 0) {
+      const subs = subIssueNumbers(issueState);
+      if (subs.length > 0) {
         return {
           job: "issue-orchestrate",
           resourceType: "issue",
@@ -782,7 +696,7 @@ async function handleIssueEvent(
           commentId: "",
           contextJson: {
             issue_number: String(issue.number),
-            sub_issues: subIssueNumbers.join(","),
+            sub_issues: subs.join(","),
             trigger_type: "issue-edited",
             // Note: project_* fields removed - fetched by parseIssue
           },
@@ -809,18 +723,12 @@ async function handleIssueEvent(
 
     // Not assigned to nopo-bot - check if needs triage
     if (!hasTriagedLabel) {
-      const details = await fetchIssueDetails(
-        octokit,
-        owner,
-        repo,
-        issue.number,
-      );
       // Check for sub-issue or phase title pattern
       const hasPhaseTitle = /^\[Phase \d+\]/.test(issue.title);
-      if (details.isSubIssue || hasPhaseTitle) {
+      if (isSubIssue(issueState) || hasPhaseTitle) {
         return emptyResult(
           true,
-          details.isSubIssue
+          isSubIssue(issueState)
             ? "Issue is a sub-issue"
             : "Issue has phase title pattern",
         );
@@ -848,10 +756,8 @@ async function handleIssueEvent(
 
   // Handle closed: if sub-issue is closed, trigger parent orchestration
   if (action === "closed") {
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-
     // Only handle sub-issues being closed
-    if (!details.isSubIssue) {
+    if (!isSubIssue(issueState)) {
       return emptyResult(true, "Closed issue is not a sub-issue");
     }
 
@@ -860,10 +766,10 @@ async function handleIssueEvent(
     return {
       job: "issue-orchestrate",
       resourceType: "issue",
-      resourceNumber: String(details.parentIssue),
+      resourceNumber: String(parentIssue(issueState)),
       commentId: "",
       contextJson: {
-        issue_number: String(details.parentIssue),
+        issue_number: String(parentIssue(issueState)),
         trigger_type: "issue-orchestrate",
         closed_sub_issue: String(issue.number),
         // Note: project_* fields removed - fetched by parseIssue
@@ -882,31 +788,23 @@ async function handleIssueEvent(
 
     // Check project status - skip if in terminal/blocked state
     // Note: "Backlog" is allowed for assigned events (it's the initial state before state machine starts)
-    const projectStatus = await fetchProjectStatusForSkipCheck(
-      octokit,
-      owner,
-      repo,
-      issue.number,
-    );
     const terminalStatuses = ["Done", "Blocked", "Error"];
     if (
-      projectStatus?.status &&
-      terminalStatuses.includes(projectStatus.status)
+      issueState.issue.projectStatus &&
+      terminalStatuses.includes(issueState.issue.projectStatus)
     ) {
       return emptyResult(
         true,
-        `Issue project status is '${projectStatus?.status}' - skipping iteration`,
+        `Issue project status is '${issueState.issue.projectStatus}' - skipping iteration`,
       );
     }
 
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-
     // Check if this is a sub-issue (has parent) - route to iterate with parent context
     // Sub-issues don't need triaged label - they're created by triage
-    if (details.isSubIssue) {
-      const phaseNumber = extractPhaseNumber(details.title);
+    if (isSubIssue(issueState)) {
+      const phaseNumber = extractPhaseNumber(issueTitle(issueState));
       const branchName = deriveBranch(
-        details.parentIssue,
+        parentIssue(issueState),
         phaseNumber || issue.number,
       );
 
@@ -922,7 +820,7 @@ async function handleIssueEvent(
           issue_number: String(issue.number),
           branch_name: branchName,
           trigger_type: "issue-assigned",
-          parent_issue: String(details.parentIssue),
+          parent_issue: String(parentIssue(issueState)),
           // Note: project_* fields removed - fetched by parseIssue
         },
         skip: false,
@@ -930,11 +828,10 @@ async function handleIssueEvent(
       };
     }
 
-    // For parent issues: require triaged label OR sub-issues OR CLAUDE_MAIN_STATE before work can start
-    // CLAUDE_MAIN_STATE indicates triage has written the body (sub-issues may still be propagating via GraphQL)
+    // For parent issues: require triaged label OR sub-issues before work can start
     // This prevents iterate from running before triage completes
-    const hasMainState = details.body.includes("<!-- CLAUDE_MAIN_STATE");
-    if (!hasTriagedLabel && details.subIssues.length === 0 && !hasMainState) {
+    const subs = subIssueNumbers(issueState);
+    if (!hasTriagedLabel && subs.length === 0) {
       return emptyResult(
         true,
         "Issue not triaged yet - waiting for triage to complete and create sub-issues",
@@ -942,20 +839,7 @@ async function handleIssueEvent(
     }
 
     // Check if this is a main issue with sub-issues - route to orchestrate
-    // First try GraphQL sub-issues, then fall back to parsing CLAUDE_MAIN_STATE
-    let subIssueNumbers = details.subIssues;
-    if (subIssueNumbers.length === 0 && hasMainState) {
-      // Parse sub_issues from CLAUDE_MAIN_STATE: sub_issues: [123, 456]
-      const match = details.body.match(/sub_issues:\s*\[([^\]]+)\]/);
-      if (match?.[1]) {
-        subIssueNumbers = match[1]
-          .split(",")
-          .map((s) => parseInt(s.trim(), 10))
-          .filter((n) => !isNaN(n) && n > 0);
-      }
-    }
-
-    if (subIssueNumbers.length > 0) {
+    if (subs.length > 0) {
       return {
         job: "issue-orchestrate",
         resourceType: "issue",
@@ -963,7 +847,7 @@ async function handleIssueEvent(
         commentId: "",
         contextJson: {
           issue_number: String(issue.number),
-          sub_issues: subIssueNumbers.join(","),
+          sub_issues: subs.join(","),
           trigger_type: "issue-assigned",
           // Note: project_* fields removed - fetched by parseIssue
         },
@@ -1001,6 +885,8 @@ async function handleIssueCommentEvent(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
+  resolvedIssueNumber: number,
+  issueState: IssueStateData,
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
@@ -1078,10 +964,10 @@ async function handleIssueCommentEvent(
       .find((l) => l.trim().startsWith("/pivot"));
     const pivotDescription = pivotLine?.replace(/^\/pivot\s*/, "").trim() || "";
 
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-
     // If triggered on sub-issue, redirect to parent
-    const targetIssue = details.isSubIssue ? details.parentIssue : issue.number;
+    const targetIssue = isSubIssue(issueState)
+      ? parentIssue(issueState)
+      : issue.number;
 
     return {
       job: "issue-pivot",
@@ -1105,38 +991,24 @@ async function handleIssueCommentEvent(
     // Add rocket reaction to acknowledge the command
     await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
 
-    // Fetch PR details including review decision
-    const { stdout: prJson } = await execCommand("gh", [
-      "pr",
-      "view",
-      String(issue.number),
-      "--repo",
-      `${owner}/${repo}`,
-      "--json",
-      "headRefName,reviewDecision,reviews,body,isDraft",
-    ]);
-
-    const prData = GhPrViewOutputSchema.parse(JSON.parse(prJson));
+    const pr = issueState.issue.pr;
 
     // Skip if PR is a draft
-    if (prData.isDraft) {
+    if (pr?.isDraft) {
       return emptyResult(
         true,
         "PR is a draft - convert to ready for review first",
       );
     }
 
-    // Extract issue number from PR body
-    const issueNumber = await extractIssueNumber(prData.body ?? "");
-
     // Find the most recent non-dismissed review with changes requested
-    const pendingReview = prData.reviews
+    const pendingReview = pr?.reviews
       ?.filter((r) => r.state === "CHANGES_REQUESTED")
       .pop();
 
     if (!pendingReview) {
       // No pending changes requested - check if there's any review decision
-      if (prData.reviewDecision === "APPROVED") {
+      if (pr?.reviewDecision === "APPROVED") {
         return emptyResult(true, "PR is already approved");
       }
       return emptyResult(true, "No pending changes requested on this PR");
@@ -1144,9 +1016,7 @@ async function handleIssueCommentEvent(
 
     // Determine if reviewer is Claude or human
     const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
-    const isClaudeReviewer = claudeReviewers.includes(
-      pendingReview.author.login,
-    );
+    const isClaudeReviewer = claudeReviewers.includes(pendingReview.author);
     const job = isClaudeReviewer ? "pr-response" : "pr-human-response";
     // Use the job name as trigger type to match schema expectations
     const triggerType = job;
@@ -1158,13 +1028,13 @@ async function handleIssueCommentEvent(
       commentId: String(comment.id),
       contextJson: {
         pr_number: String(issue.number),
-        branch_name: prData.headRefName,
+        branch_name: pr?.headRef ?? "main",
         review_state: "changes_requested",
         review_decision: "CHANGES_REQUESTED",
         review_body: pendingReview.body ?? "",
-        reviewer: pendingReview.author.login,
-        reviewer_login: pendingReview.author.login,
-        issue_number: issueNumber,
+        reviewer: pendingReview.author,
+        reviewer_login: pendingReview.author,
+        issue_number: String(resolvedIssueNumber),
         trigger_type: triggerType,
       },
       skip: false,
@@ -1176,13 +1046,11 @@ async function handleIssueCommentEvent(
     // Add rocket reaction to acknowledge the command
     await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
 
-    const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
-
     // Check if this is a sub-issue
-    if (details.isSubIssue) {
-      const phaseNumber = extractPhaseNumber(details.title);
+    if (isSubIssue(issueState)) {
+      const phaseNumber = extractPhaseNumber(issueTitle(issueState));
       const branchName = deriveBranch(
-        details.parentIssue,
+        parentIssue(issueState),
         phaseNumber || issue.number,
       );
       const branchExists = await checkBranchExists(branchName);
@@ -1201,7 +1069,7 @@ async function handleIssueCommentEvent(
           issue_number: String(issue.number),
           branch_name: branchName,
           trigger_type: "issue-assigned", // Routes to iterating state, not commenting
-          parent_issue: String(details.parentIssue),
+          parent_issue: String(parentIssue(issueState)),
         },
         skip: false,
         skipReason: "",
@@ -1231,7 +1099,8 @@ async function handleIssueCommentEvent(
     }
 
     // Check if this is a parent issue with sub-issues - route to orchestrate
-    if (details.subIssues.length > 0) {
+    const subs = subIssueNumbers(issueState);
+    if (subs.length > 0) {
       // /lfg on parent with sub-issues -> orchestrate
       return {
         job: "issue-orchestrate",
@@ -1240,7 +1109,7 @@ async function handleIssueCommentEvent(
         commentId: String(comment.id),
         contextJson: {
           issue_number: String(issue.number),
-          sub_issues: details.subIssues.join(","),
+          sub_issues: subs.join(","),
           trigger_type: "issue-orchestrate", // Routes to orchestrating state
         },
         skip: false,
@@ -1276,38 +1145,15 @@ async function handleIssueCommentEvent(
 
   let contextType = "issue";
   let branchName = "main";
-  let linkedIssueNumber = String(issue.number);
+  let linkedIssueNumber = String(resolvedIssueNumber);
   let prNumber = "";
 
   if (isPr) {
-    // Fetch PR branch and body to get linked issue
-    const { stdout } = await execCommand("gh", [
-      "pr",
-      "view",
-      String(issue.number),
-      "--repo",
-      process.env.GITHUB_REPOSITORY ?? "",
-      "--json",
-      "headRefName,body",
-    ]);
-    try {
-      const prData = GhPrBranchBodyOutputSchema.parse(JSON.parse(stdout));
-      branchName = prData.headRefName || "main";
-      const prBody = prData.body || "";
-      contextType = "pr";
-      prNumber = String(issue.number);
-
-      // Extract linked issue from PR body (e.g., "Fixes #4603")
-      const linkedIssue = await extractIssueNumber(prBody);
-      if (linkedIssue) {
-        linkedIssueNumber = linkedIssue;
-      }
-    } catch {
-      // If parsing fails, use defaults
-      branchName = "main";
-      contextType = "pr";
-      prNumber = String(issue.number);
-    }
+    const pr = issueState.issue.pr;
+    branchName = pr?.headRef ?? "main";
+    contextType = "pr";
+    prNumber = String(issue.number);
+    linkedIssueNumber = String(resolvedIssueNumber);
   } else {
     // Check if issue has a branch
     const issueBranch = `claude/issue/${issue.number}`;
@@ -1338,7 +1184,9 @@ async function handleIssueCommentEvent(
   };
 }
 
-async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
+async function handlePullRequestReviewCommentEvent(
+  _issueState: IssueStateData | null,
+): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
   const comment = ReviewCommentPayloadSchema.parse(payload.comment);
@@ -1397,7 +1245,9 @@ async function handlePullRequestReviewCommentEvent(): Promise<DetectionResult> {
   };
 }
 
-async function handlePushEvent(): Promise<DetectionResult> {
+async function handlePushEvent(
+  issueState: IssueStateData | null,
+): Promise<DetectionResult> {
   const { context } = github;
   const ref = context.ref;
   const branch = ref.replace("refs/heads/", "");
@@ -1417,45 +1267,33 @@ async function handlePushEvent(): Promise<DetectionResult> {
     return emptyResult(true, "Push to test branch");
   }
 
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
-  const prInfo = await fetchPrByBranch(owner, repo, branch);
+  const pr = issueState?.issue.pr;
 
-  if (!prInfo.hasPr) {
+  if (!pr) {
     return emptyResult(true, "No PR found for branch");
   }
 
   // Check for skip labels on PR (circuit breaker for test automation)
-  if (hasSkipLabel(prInfo.labels)) {
+  if (hasSkipLabel(pr.labels)) {
     return emptyResult(true, "PR has skip-dispatch or test:automation label");
   }
 
   // Check for [TEST] in PR title (circuit breaker for test automation)
   // Skip unless test:automation label is present
-  if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
-  // Extract issue number from branch name (claude/issue/N or claude/issue/N/phase-M)
-  const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
-  const issueNumber = branchMatch?.[1] ?? "";
-
   // Check if the linked issue has test:automation label
-  if (issueNumber) {
-    const octokit = github.getOctokit(getRequiredInput("github_token"));
-    const details = await fetchIssueDetails(
-      octokit,
-      owner,
-      repo,
-      Number(issueNumber),
+  if (issueLabels(issueState).includes("test:automation")) {
+    return emptyResult(
+      true,
+      "Linked issue has test:automation label - skipping from normal automation",
     );
-    if (details.labels.includes("test:automation")) {
-      return emptyResult(
-        true,
-        "Linked issue has test:automation label - skipping from normal automation",
-      );
-    }
   }
+
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
 
   // Construct run URL for history entry
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
@@ -1463,16 +1301,20 @@ async function handlePushEvent(): Promise<DetectionResult> {
   const commitSha = github.context.sha;
   const runUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
 
+  // Extract issue number from branch name for context
+  const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
+  const issueNumber = branchMatch?.[1] ?? "";
+
   // PR push converts PR to draft and logs history
   return {
     job: "pr-push",
     resourceType: "pr",
-    resourceNumber: prInfo.prNumber,
+    resourceNumber: String(pr.number),
     commentId: "",
     contextJson: {
-      pr_number: prInfo.prNumber,
+      pr_number: String(pr.number),
       branch_name: branch,
-      is_draft: prInfo.isDraft,
+      is_draft: pr.isDraft,
       issue_number: issueNumber,
       // Include commit SHA and run URL for history entry
       ci_commit_sha: commitSha,
@@ -1483,7 +1325,10 @@ async function handlePushEvent(): Promise<DetectionResult> {
   };
 }
 
-async function handleWorkflowRunEvent(): Promise<DetectionResult> {
+async function handleWorkflowRunEvent(
+  issueState: IssueStateData | null,
+  resolvedIssueNumber: number | null,
+): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
   const workflowRun = WorkflowRunPayloadSchema.parse(payload.workflow_run);
@@ -1498,48 +1343,41 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
     return emptyResult(true, "Workflow run on test branch");
   }
 
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
-  const prInfo = await fetchPrByBranch(owner, repo, branch);
+  const pr = issueState?.issue.pr;
 
-  if (!prInfo.hasPr) {
+  if (!pr) {
     return emptyResult(true, "No PR found for workflow run branch");
   }
 
   // Check for skip labels on PR (circuit breaker for test automation)
-  if (hasSkipLabel(prInfo.labels)) {
+  if (hasSkipLabel(pr.labels)) {
     return emptyResult(true, "PR has skip-dispatch or test:automation label");
   }
 
   // Check for [TEST] in PR title (circuit breaker for test automation)
   // Skip unless test:automation label is present
-  if (shouldSkipTestResource(prInfo.title, prInfo.labels)) {
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
     return emptyResult(true, "PR title starts with [TEST]");
   }
 
-  const issueNumber = await extractIssueNumber(prInfo.body);
+  if (!isClaudePr(issueState))
+    return emptyResult(true, "PR is not a Claude PR");
 
-  if (!prInfo.isClaudePr) return emptyResult(true, "PR is not a Claude PR");
+  if (!resolvedIssueNumber) core.setFailed("PR has no issue number");
 
-  if (!issueNumber) core.setFailed("PR has no issue number");
-
-  // Fetch issue details to check if it's a sub-issue
-  const octokit = github.getOctokit(getRequiredInput("github_token"));
-  const details = await fetchIssueDetails(
-    octokit,
-    owner,
-    repo,
-    Number(issueNumber),
-  );
+  const issueNumber = String(resolvedIssueNumber ?? "");
 
   // Check if the linked issue has test:automation label
   // This catches test issues even when the PR doesn't have the label
-  if (details.labels.includes("test:automation")) {
+  if (issueLabels(issueState).includes("test:automation")) {
     return emptyResult(
       true,
       "Linked issue has test:automation label - skipping from normal automation",
     );
   }
+
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
 
   // Construct CI run URL
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
@@ -1552,13 +1390,13 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
     commentId: "",
     contextJson: {
       issue_number: issueNumber,
-      pr_number: prInfo.prNumber,
+      pr_number: String(pr.number),
       branch_name: branch,
       ci_run_url: ciRunUrl,
       ci_result: conclusion,
       ci_commit_sha: headSha,
       trigger_type: "workflow-run-completed",
-      parent_issue: String(details.parentIssue),
+      parent_issue: String(parentIssue(issueState)),
     },
     skip: false,
     skipReason: "",
@@ -1566,9 +1404,7 @@ async function handleWorkflowRunEvent(): Promise<DetectionResult> {
 }
 
 async function handlePullRequestEvent(
-  _octokit: ReturnType<typeof github.getOctokit>,
-  _owner: string,
-  _repo: string,
+  resolvedIssueNumber: number | null,
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
@@ -1605,14 +1441,6 @@ async function handlePullRequestEvent(
       return emptyResult(true, "PR is a draft");
     }
 
-    // Extract issue number for logging review events to iteration history
-    // Note: We don't include issue_section here to avoid GitHub's secret masking
-    // when issue body contains patterns like ${VAR_NAME}. The review prompt
-    // can fetch issue content at runtime if needed via the issue_number.
-    const issueNumber = await extractIssueNumber(pr.body ?? "");
-
-    // Use pr-review-requested (not pr-review) since this is a review REQUEST,
-    // not a review SUBMISSION. pr-review expects reviewDecision/reviewer fields.
     return {
       job: "pr-review-requested",
       resourceType: "pr",
@@ -1621,7 +1449,7 @@ async function handlePullRequestEvent(
       contextJson: {
         pr_number: String(pr.number),
         branch_name: pr.head.ref,
-        issue_number: issueNumber,
+        issue_number: String(resolvedIssueNumber ?? ""),
       },
       skip: false,
       skipReason: "",
@@ -1631,7 +1459,10 @@ async function handlePullRequestEvent(
   return emptyResult(true, `Unhandled PR action: ${action}`);
 }
 
-async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
+async function handlePullRequestReviewEvent(
+  resolvedIssueNumber: number | null,
+  issueState: IssueStateData | null,
+): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
   const review = ReviewPayloadSchema.parse(payload.review);
@@ -1671,40 +1502,21 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
 
   // Check if the linked issue has test:automation label
   // This catches test issues even when the PR doesn't have the label
-  const linkedIssueNumber = await extractIssueNumber(pr.body ?? "");
-  if (linkedIssueNumber) {
-    const octokit = github.getOctokit(getRequiredInput("github_token"));
-    const { owner, repo } = github.context.repo;
-    const details = await fetchIssueDetails(
-      octokit,
-      owner,
-      repo,
-      Number(linkedIssueNumber),
+  if (issueLabels(issueState).includes("test:automation")) {
+    return emptyResult(
+      true,
+      "Linked issue has test:automation label - skipping from normal automation",
     );
-    if (details.labels.includes("test:automation")) {
-      return emptyResult(
-        true,
-        "Linked issue has test:automation label - skipping from normal automation",
-      );
-    }
   }
 
   const state = review.state.toLowerCase();
+  const issueNumber = String(resolvedIssueNumber ?? "");
 
   // Handle approved state from nopo-reviewer (Claude's review account)
   // This triggers orchestration to merge the PR
   if (state === "approved" && reviewerLogin === "nopo-reviewer") {
-    // Extract linked issue number from PR body (Fixes #N, Closes #N, Resolves #N)
-    // This is more reliable than branch name for sub-issues
-    const prBody = pr.body ?? "";
-    const linkedIssueMatch = prBody.match(
-      /(?:fixes|closes|resolves)\s+#(\d+)/i,
-    );
-    const issueNumber = linkedIssueMatch?.[1] ?? "";
-
-    // Also extract parent issue from branch name for context
-    const branchMatch = pr.head.ref.match(/^claude\/issue\/(\d+)/);
-    const parentIssue = branchMatch?.[1] ?? "";
+    // Use parentIssueNumber from issueState instead of branch regex
+    const parentIssueStr = String(parentIssue(issueState));
 
     return {
       job: "pr-review-approved",
@@ -1718,7 +1530,7 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
         review_decision: "APPROVED", // Uppercase for state machine
         review_id: String(review.id),
         issue_number: issueNumber,
-        parent_issue: parentIssue,
+        parent_issue: parentIssueStr,
       },
       skip: false,
       skipReason: "",
@@ -1729,11 +1541,6 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   if (state !== "changes_requested" && state !== "commented") {
     return emptyResult(true, `Review state is ${state}`);
   }
-
-  // Extract issue number from PR body (e.g., "Fixes #4603")
-  // This is more reliable than branch parsing since sub-issue branches use
-  // phase numbers (claude/issue/4545/phase-1) not sub-issue numbers
-  const issueNumber = await extractIssueNumber(pr.body ?? "");
 
   // Check if review is from Claude reviewer (pr-response) or human (pr-human-response)
   // nopo-reviewer is Claude's review account, claude[bot] is the direct API account
@@ -1767,9 +1574,9 @@ async function handlePullRequestReviewEvent(): Promise<DetectionResult> {
   const claudeAuthors = ["nopo-bot", "claude[bot]"];
   // PR author can be in 'author' or 'user' field depending on event type
   const prAuthorLogin = pr.author?.login ?? pr.user?.login ?? "";
-  const isClaudePr =
+  const isClaudePrForReview =
     claudeAuthors.includes(prAuthorLogin) || pr.head.ref.startsWith("claude/");
-  if (!isClaudePr) {
+  if (!isClaudePrForReview) {
     return emptyResult(true, "Human review on non-Claude PR");
   }
 
@@ -1869,88 +1676,28 @@ async function handleDiscussionEvent(
 }
 
 async function handleMergeGroupEvent(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
+  resolvedIssueNumber: number | null,
+  prNumber: number | undefined,
+  issueState: IssueStateData | null,
 ): Promise<DetectionResult> {
   const { context } = github;
   const payload = context.payload;
   const mergeGroup = MergeGroupPayloadSchema.parse(payload.merge_group);
-
   const headRef = mergeGroup.head_ref;
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
 
-  // Parse PR numbers from branch: gh-readonly-queue/main/pr-123-abc123
-  // Can also be batched: pr-123-abc123-pr-456-def456
-  const prMatches = headRef.match(/pr-(\d+)/g);
-  if (!prMatches || prMatches.length === 0) {
+  if (!prNumber) {
     return emptyResult(true, "No PR found in merge queue branch");
   }
 
-  // Get the first PR number (for non-batched, this is the only one)
-  const prMatch = prMatches[0].match(/pr-(\d+)/);
-  if (!prMatch || !prMatch[1]) {
-    return emptyResult(
-      true,
-      "Could not parse PR number from merge queue branch",
-    );
-  }
-
-  const prNumber = parseInt(prMatch[1], 10);
-
-  // Fetch PR directly by number to find linked issue and branch
-  let issueNumber = "";
-  let prBranch = "";
-  const { stdout, exitCode } = await execCommand(
-    "gh",
-    [
-      "pr",
-      "view",
-      String(prNumber),
-      "--repo",
-      `${owner}/${repo}`,
-      "--json",
-      "body,headRefName",
-      "--jq",
-      ".",
-    ],
-    { ignoreReturnCode: true },
-  );
-
-  if (exitCode === 0 && stdout) {
-    try {
-      const prData = GhPrBranchBodyOutputSchema.parse(JSON.parse(stdout));
-      prBranch = prData.headRefName || "";
-
-      // Try to extract issue from PR body via "Fixes #N" pattern
-      issueNumber = await extractIssueNumber(prData.body || "");
-
-      // If no issue found from PR body, try the branch pattern
-      if (!issueNumber && prBranch) {
-        // Check for claude/issue/N or claude/issue/N/phase-M
-        const match = prBranch.match(/^claude\/issue\/(\d+)/);
-        if (match?.[1]) {
-          issueNumber = match[1];
-        }
-      }
-    } catch {
-      // Ignore parse errors
-    }
-  }
-
-  if (!issueNumber) {
+  if (!resolvedIssueNumber) {
     return emptyResult(true, "Could not find linked issue for merge queue PR");
   }
 
-  // Check if this is a sub-issue
-  const details = await fetchIssueDetails(
-    octokit,
-    owner,
-    repo,
-    parseInt(issueNumber, 10),
-  );
-
-  const parentIssue = details.isSubIssue
-    ? String(details.parentIssue)
+  const issueNumber = String(resolvedIssueNumber);
+  const parentIssueStr = isSubIssue(issueState)
+    ? String(parentIssue(issueState))
     : issueNumber;
 
   // Construct run URL
@@ -1965,7 +1712,7 @@ async function handleMergeGroupEvent(
     commentId: "",
     contextJson: {
       issue_number: issueNumber,
-      parent_issue: parentIssue,
+      parent_issue: parentIssueStr,
       pr_number: String(prNumber),
       trigger_type: "merge-queue-entered",
       ci_run_url: ciRunUrl,
@@ -2146,10 +1893,8 @@ async function handleDiscussionCommentEvent(
 }
 
 async function handleWorkflowDispatchEvent(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
   resourceNumber: string,
+  issueState: IssueStateData,
 ): Promise<DetectionResult> {
   if (!resourceNumber) {
     return emptyResult(
@@ -2165,35 +1910,28 @@ async function handleWorkflowDispatchEvent(
 
   core.info(`Workflow dispatch for issue #${issueNumber}`);
 
-  // Fetch issue details
-  const details = await fetchIssueDetails(octokit, owner, repo, issueNumber);
-
   // Check project status - skip if in terminal/blocked state
-  // Note: Full project state is fetched by parseIssue in the state machine
-  const projectStatus = await fetchProjectStatusForSkipCheck(
-    octokit,
-    owner,
-    repo,
-    issueNumber,
-  );
-  if (shouldSkipProjectState(projectStatus)) {
+  if (shouldSkipProjectStatus(issueState)) {
     return emptyResult(
       true,
-      `Issue project status is '${projectStatus?.status}' - skipping iteration`,
+      `Issue project status is '${issueState.issue.projectStatus}' - skipping iteration`,
     );
   }
 
   // Determine parent issue
-  let parentIssue = "0";
-  if (details.isSubIssue && details.parentIssue > 0) {
-    parentIssue = String(details.parentIssue);
-    core.info(`Issue #${issueNumber} is a sub-issue of parent #${parentIssue}`);
+  let parentIssueStr = "0";
+  if (isSubIssue(issueState) && parentIssue(issueState) > 0) {
+    parentIssueStr = String(parentIssue(issueState));
+    core.info(
+      `Issue #${issueNumber} is a sub-issue of parent #${parentIssueStr}`,
+    );
   }
 
   // Check if grooming is needed BEFORE orchestration
   // Grooming needed: has "triaged" label but NOT "groomed" label
-  const hasTriaged = details.labels.includes("triaged");
-  const hasGroomed = details.labels.includes("groomed");
+  const labels = issueLabels(issueState);
+  const hasTriaged = labels.includes("triaged");
+  const hasGroomed = labels.includes("groomed");
 
   if (hasTriaged && !hasGroomed) {
     core.info(
@@ -2207,7 +1945,7 @@ async function handleWorkflowDispatchEvent(
       contextJson: {
         issue_number: String(issueNumber),
         trigger_type: "issue-groom",
-        parent_issue: parentIssue,
+        parent_issue: parentIssueStr,
         // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
@@ -2216,7 +1954,8 @@ async function handleWorkflowDispatchEvent(
   }
 
   // Check if this is a parent issue with sub-issues - route to orchestrate
-  if (details.subIssues.length > 0) {
+  const subs = subIssueNumbers(issueState);
+  if (subs.length > 0) {
     return {
       job: "issue-orchestrate",
       resourceType: "issue",
@@ -2224,9 +1963,9 @@ async function handleWorkflowDispatchEvent(
       commentId: "",
       contextJson: {
         issue_number: String(issueNumber),
-        sub_issues: details.subIssues.join(","),
+        sub_issues: subs.join(","),
         trigger_type: "issue-assigned",
-        parent_issue: parentIssue,
+        parent_issue: parentIssueStr,
         // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
@@ -2235,10 +1974,10 @@ async function handleWorkflowDispatchEvent(
   }
 
   // Check if this is a sub-issue - determine branch from parent and phase
-  if (details.isSubIssue) {
-    const phaseNumber = extractPhaseNumber(details.title);
+  if (isSubIssue(issueState)) {
+    const phaseNumber = extractPhaseNumber(issueTitle(issueState));
     const branchName = deriveBranch(
-      details.parentIssue,
+      parentIssue(issueState),
       phaseNumber || issueNumber,
     );
 
@@ -2251,7 +1990,7 @@ async function handleWorkflowDispatchEvent(
         issue_number: String(issueNumber),
         branch_name: branchName,
         trigger_type: "issue-assigned",
-        parent_issue: parentIssue,
+        parent_issue: parentIssueStr,
         // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
@@ -2271,7 +2010,7 @@ async function handleWorkflowDispatchEvent(
       issue_number: String(issueNumber),
       branch_name: branchName,
       trigger_type: "issue-assigned",
-      parent_issue: parentIssue,
+      parent_issue: parentIssueStr,
       // Note: project_* fields removed - fetched by parseIssue
     },
     skip: false,
@@ -2284,59 +2023,118 @@ async function run(): Promise<void> {
     const token = getRequiredInput("github_token");
     const resourceNumber = getOptionalInput("resource_number") || "";
     const octokit = github.getOctokit(token);
-    const { context } = github;
-    const eventName = context.eventName;
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
+    const owner = github.context.repo.owner;
+    const repo = github.context.repo.repo;
 
     // Set GH_TOKEN for CLI commands
     process.env.GH_TOKEN = token;
 
-    core.info(`Processing event: ${eventName}`);
+    // Step 1: Resolve event → handler + issue number (async, uses GraphQL resolvers)
+    const resolved = await resolveEvent(octokit, owner, repo, resourceNumber);
+    core.info(
+      `Processing event: ${github.context.eventName} (handler=${resolved.handler}, issueNumber=${resolved.issueNumber ?? "none"})`,
+    );
+
+    // Step 2: If we have an issue number, call parseIssue once to get all state
+    let issueState: IssueStateData | null = null;
+    if (resolved.issueNumber) {
+      try {
+        const { data } = await parseIssue(owner, repo, resolved.issueNumber, {
+          octokit,
+          fetchPRs: true,
+          fetchParent: false, // Handlers use parentIssueNumber from issue data
+        });
+        issueState = data;
+      } catch (error) {
+        core.warning(
+          `Failed to parse issue #${resolved.issueNumber}: ${error}`,
+        );
+        // issueState remains null — handlers must handle this
+      }
+    }
 
     let result: DetectionResult;
 
-    switch (eventName) {
-      case "issues":
-        result = await handleIssueEvent(octokit, owner, repo);
-        break;
-      case "issue_comment":
-        result = await handleIssueCommentEvent(octokit, owner, repo);
-        break;
-      case "pull_request_review_comment":
-        result = await handlePullRequestReviewCommentEvent();
-        break;
-      case "push":
-        result = await handlePushEvent();
-        break;
-      case "workflow_run":
-        result = await handleWorkflowRunEvent();
-        break;
-      case "pull_request":
-        result = await handlePullRequestEvent(octokit, owner, repo);
-        break;
-      case "pull_request_review":
-        result = await handlePullRequestReviewEvent();
-        break;
+    // Step 3: Route to handler
+    switch (resolved.handler) {
+      // ── Discussion events (no issue resolution needed) ──
       case "discussion":
         result = await handleDiscussionEvent(octokit, owner, repo);
         break;
       case "discussion_comment":
         result = await handleDiscussionCommentEvent(octokit, owner, repo);
         break;
-      case "merge_group":
-        result = await handleMergeGroupEvent(octokit, owner, repo);
+
+      // ── Issue events (guaranteed issue number + non-null issueState) ──
+      case "issues":
+        if (!resolved.issueNumber || !issueState) {
+          result = emptyResult(
+            true,
+            `No issue number resolved for ${resolved.handler}`,
+          );
+        } else {
+          result = await handleIssueEvent(octokit, owner, repo, issueState);
+        }
+        break;
+      case "issue_comment":
+        if (!resolved.issueNumber || !issueState) {
+          result = emptyResult(
+            true,
+            `No issue number resolved for ${resolved.handler}`,
+          );
+        } else {
+          result = await handleIssueCommentEvent(
+            octokit,
+            owner,
+            repo,
+            resolved.issueNumber,
+            issueState,
+          );
+        }
         break;
       case "workflow_dispatch":
-        result = await handleWorkflowDispatchEvent(
-          octokit,
-          owner,
-          repo,
-          resourceNumber,
+        if (!resolved.issueNumber || !issueState) {
+          result = emptyResult(
+            true,
+            `No issue number resolved for ${resolved.handler}`,
+          );
+        } else {
+          result = await handleWorkflowDispatchEvent(
+            resourceNumber,
+            issueState,
+          );
+        }
+        break;
+
+      // ── Events with optional issue number ──
+      case "push":
+        result = await handlePushEvent(issueState);
+        break;
+      case "pull_request":
+        result = await handlePullRequestEvent(resolved.issueNumber);
+        break;
+      case "pull_request_review":
+        result = await handlePullRequestReviewEvent(
+          resolved.issueNumber,
+          issueState,
         );
         break;
+      case "pull_request_review_comment":
+        result = await handlePullRequestReviewCommentEvent(issueState);
+        break;
+      case "workflow_run":
+        result = await handleWorkflowRunEvent(issueState, resolved.issueNumber);
+        break;
+      case "merge_group":
+        result = await handleMergeGroupEvent(
+          resolved.issueNumber,
+          resolved.prNumber,
+          issueState,
+        );
+        break;
+
       default:
-        result = emptyResult(true, `Unhandled event: ${eventName}`);
+        result = emptyResult(true, `Unhandled event: ${resolved.handler}`);
     }
 
     // Log result
@@ -2349,7 +2147,7 @@ async function run(): Promise<void> {
 
     // Extract parent_issue and branch from context for concurrency groups
     const ctx = result.contextJson;
-    const parentIssue = String(ctx.parent_issue ?? "0");
+    const ctxParentIssue = String(ctx.parent_issue ?? "0");
     const branch = String(ctx.branch_name ?? "");
 
     // Compute trigger type from job
@@ -2360,7 +2158,7 @@ async function run(): Promise<void> {
     const concurrency = computeConcurrency(
       result.job,
       result.resourceNumber,
-      parentIssue,
+      ctxParentIssue,
       branch,
     );
     core.info(`Concurrency group: ${concurrency.group}`);
@@ -2373,7 +2171,7 @@ async function run(): Promise<void> {
       trigger: TriggerTypeSchema.parse(trigger),
       resource_type: result.resourceType,
       resource_number: result.resourceNumber,
-      parent_issue: parentIssue,
+      parent_issue: ctxParentIssue,
       comment_id: result.commentId,
       concurrency_group: concurrency.group,
       cancel_in_progress: concurrency.cancelInProgress,

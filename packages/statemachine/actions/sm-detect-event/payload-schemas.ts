@@ -133,37 +133,3 @@ export const DiscussionCommentPayloadSchema = z.object({
   parent_id: z.number().nullable().optional(),
   user: z.object({ login: z.string() }),
 });
-
-// ============================================================================
-// gh CLI output schemas
-// ============================================================================
-
-export const GhPrListOutputSchema = z.object({
-  number: z.number(),
-  isDraft: z.boolean(),
-  author: z.object({ login: z.string() }),
-  body: z.string().nullable().default(""),
-  title: z.string(),
-  labels: z.array(LabelSchema),
-});
-
-export const GhPrViewOutputSchema = z.object({
-  headRefName: z.string(),
-  reviewDecision: z.string().nullable().optional(),
-  reviews: z
-    .array(
-      z.object({
-        author: z.object({ login: z.string() }),
-        state: z.string(),
-        body: z.string().nullable().default(""),
-      }),
-    )
-    .optional(),
-  body: z.string().nullable().default(""),
-  isDraft: z.boolean().optional(),
-});
-
-export const GhPrBranchBodyOutputSchema = z.object({
-  headRefName: z.string(),
-  body: z.string().nullable().default(""),
-});

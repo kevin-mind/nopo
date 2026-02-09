@@ -255,6 +255,8 @@ async function getPRForBranch(
       headRef: pr.headRefName || headRef,
       baseRef: pr.baseRefName || "main",
       ciStatus,
+      labels: [],
+      reviews: [],
     };
   } catch {
     return null;

@@ -7,6 +7,7 @@ import {
   getOptionalInput,
   setOutputs,
   replaceBody,
+  extractTodosFromAst,
 } from "@more/statemachine";
 import {
   parseIssue,
@@ -15,7 +16,6 @@ import {
   listComments,
   setLabels,
   parseMarkdown,
-  serializeMarkdown,
   type OctokitLike,
 } from "@more/issue-state";
 import type {
@@ -1624,13 +1624,12 @@ async function verifyFixture(
             fetchParent: false,
           },
         );
-        const body = serializeMarkdown(subTodoData.issue.bodyAst);
-        const unchecked = (body.match(/- \[ \]/g) || []).length;
-        if (unchecked > 0) {
+        const todos = extractTodosFromAst(subTodoData.issue.bodyAst);
+        if (todos.uncheckedNonManual > 0) {
           errors.push({
             field: `sub_issue_${i + 1}_todos`,
             expected: "all checked",
-            actual: `${unchecked} unchecked`,
+            actual: `${todos.uncheckedNonManual} unchecked`,
           });
         }
       }
@@ -1644,9 +1643,9 @@ async function verifyFixture(
       fetchPRs: false,
       fetchParent: false,
     });
-    const body = serializeMarkdown(historyData.issue.bodyAst);
+    const bodyJson = JSON.stringify(historyData.issue.bodyAst);
     for (const pattern of fixture.expected.history_contains) {
-      if (!body.includes(pattern)) {
+      if (!bodyJson.includes(pattern)) {
         errors.push({
           field: "iteration_history",
           expected: `contains "${pattern}"`,

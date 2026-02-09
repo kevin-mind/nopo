@@ -28108,7 +28108,16 @@ var LinkedPRSchema = external_exports.object({
   reviewDecision: ReviewDecisionSchema.nullable().optional(),
   mergeable: MergeableStateSchema.nullable().optional(),
   reviewCount: external_exports.number().int().nonnegative().optional(),
-  url: external_exports.string().optional()
+  url: external_exports.string().optional(),
+  author: external_exports.string().nullable().optional(),
+  labels: external_exports.array(external_exports.string()).default([]),
+  reviews: external_exports.array(
+    external_exports.object({
+      state: external_exports.string(),
+      author: external_exports.string(),
+      body: external_exports.string()
+    })
+  ).default([])
 });
 
 // ../issue-state/src/schemas/project.ts
@@ -40428,8 +40437,15 @@ query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
         url
         mergeable
         reviewDecision
+        author { login }
+        labels(first: 20) { nodes { name } }
         reviews(first: 50) {
           totalCount
+          nodes {
+            state
+            author { login }
+            body
+          }
         }
         commits(last: 1) {
           nodes {
@@ -41012,11 +41028,11 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   return null;
 }
-function deriveBranchName(parentIssueNumber, phaseNumber) {
+function deriveBranchName(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber}`;
+  return `claude/issue/${parentIssueNumber2}`;
 }
 function parseIssueComments(commentNodes, botUsername) {
   return commentNodes.map((c) => {
@@ -41051,8 +41067,12 @@ async function getLinkedPRs(octokit, owner, repo, issueNumber) {
         headRef: pr.headRefName,
         baseRef: "main",
         // Timeline doesn't include base ref
-        ciStatus: null
+        ciStatus: null,
         // Timeline doesn't include CI status
+        labels: [],
+        // Timeline doesn't include labels
+        reviews: []
+        // Timeline doesn't include reviews
       });
     }
     return linkedPRs;
@@ -41103,13 +41123,20 @@ async function getPRForBranch(octokit, owner, repo, headRef) {
       reviewDecision,
       mergeable,
       reviewCount: pr.reviews?.totalCount ?? 0,
-      url: pr.url || ""
+      url: pr.url || "",
+      author: pr.author?.login ?? null,
+      labels: pr.labels?.nodes?.map((l) => l.name).filter((name) => Boolean(name)) ?? [],
+      reviews: pr.reviews?.nodes?.map((r) => ({
+        state: r.state ?? "",
+        author: r.author?.login ?? "",
+        body: r.body ?? ""
+      })) ?? []
     };
   } catch {
     return null;
   }
 }
-function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber) {
+function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber2) {
   const status = parseSubIssueStatus(
     node2.projectItems?.nodes || [],
     projectNumber
@@ -41122,7 +41149,7 @@ function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber)
     state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
-    branch: deriveBranchName(parentIssueNumber, phaseNumber),
+    branch: deriveBranchName(parentIssueNumber2, phaseNumber),
     pr: null
     // Populated separately if fetchPRs is true
   };
@@ -41170,7 +41197,7 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
   const body = issue2.body || "";
   const bodyAst = parseMarkdown(body);
   const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
-  const parentIssueNumber = issue2.parent?.number ?? null;
+  const parentIssueNumber2 = issue2.parent?.number ?? null;
   let issueBranch = null;
   let issuePR = null;
   if (fetchPRs) {
@@ -41197,9 +41224,9 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
       comments,
       branch: issueBranch,
       pr: issuePR,
-      parentIssueNumber
+      parentIssueNumber: parentIssueNumber2
     },
-    parentIssueNumber
+    parentIssueNumber: parentIssueNumber2
   };
 }
 async function parseIssue(owner, repo, issueNumber, options) {
@@ -41505,7 +41532,7 @@ async function createIssue(owner, repo, input, options) {
     subIssueNumbers
   };
 }
-async function addSubIssueToParent(owner, repo, parentIssueNumber, input, options) {
+async function addSubIssueToParent(owner, repo, parentIssueNumber2, input, options) {
   const {
     octokit,
     projectNumber,
@@ -41525,10 +41552,10 @@ async function addSubIssueToParent(owner, repo, parentIssueNumber, input, option
   const parentResult = await octokit.graphql(parentQuery, {
     owner,
     repo,
-    issueNumber: parentIssueNumber
+    issueNumber: parentIssueNumber2
   });
   if (!parentResult.repository?.issue?.id) {
-    throw new Error(`Parent issue #${parentIssueNumber} not found`);
+    throw new Error(`Parent issue #${parentIssueNumber2} not found`);
   }
   const parentIssueId = parentResult.repository.issue.id;
   let bodyString = "";
@@ -41619,196 +41646,6 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
-
-// ../issue-state/src/sections/todos.ts
-var TODO_PATTERNS = {
-  // Matches: - [ ] text or - [x] text or - [X] text
-  checkbox: /^(\s*)-\s*\[([ xX])\]\s*(.+)$/,
-  // Matches: [Manual] prefix or *(manual)* anywhere in the line
-  // [Manual] is the preferred format, *(manual)* is legacy
-  manual: /\[Manual\]|\*\(manual\)\*/i
-};
-function parseTodoLine(line) {
-  const match = line.match(TODO_PATTERNS.checkbox);
-  if (!match) {
-    return null;
-  }
-  const checkMark = match[2];
-  const text5 = match[3]?.trim() || "";
-  return {
-    text: text5,
-    checked: checkMark?.toLowerCase() === "x",
-    isManual: TODO_PATTERNS.manual.test(line)
-  };
-}
-function parseTodos(body) {
-  const lines = body.split("\n");
-  const todos = [];
-  for (const line of lines) {
-    const todo = parseTodoLine(line);
-    if (todo) {
-      todos.push(todo);
-    }
-  }
-  return todos;
-}
-function calculateTodoStats(todos) {
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const todo of todos) {
-    total++;
-    if (todo.checked) {
-      completed++;
-    } else if (!todo.isManual) {
-      uncheckedNonManual++;
-    }
-  }
-  return {
-    total,
-    completed,
-    uncheckedNonManual
-  };
-}
-function parseTodoStats(body) {
-  const todos = parseTodos(body);
-  return calculateTodoStats(todos);
-}
-
-// ../issue-state/src/sections/history.ts
-var HISTORY_SECTION = "## Iteration History";
-var HEADER_COLUMNS = [
-  { key: "time", value: "Time" },
-  { key: "iteration", value: "#" },
-  { key: "phase", value: "Phase" },
-  { key: "action", value: "Action" },
-  { key: "sha", value: "SHA" },
-  { key: "run", value: "Run" }
-];
-function buildValueToKeyMap() {
-  const map4 = /* @__PURE__ */ new Map();
-  for (const col of HEADER_COLUMNS) {
-    map4.set(col.value, col.key);
-  }
-  return map4;
-}
-function parseHeaderRow(headerRow, valueToKeyMap) {
-  const cells = headerRow.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 && c !== "");
-  const keys = [];
-  const unmatched = [];
-  for (const cell of cells) {
-    const key = valueToKeyMap.get(cell);
-    if (key) {
-      keys.push(key);
-    } else {
-      keys.push(null);
-      unmatched.push(cell);
-    }
-  }
-  return { keys, unmatched };
-}
-function parseDataRow(row, columnKeys) {
-  const cells = row.split("|").map((c) => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1);
-  const data = {};
-  for (let i = 0; i < columnKeys.length && i < cells.length; i++) {
-    const key = columnKeys[i];
-    if (key) {
-      data[key] = cells[i];
-    }
-  }
-  return data;
-}
-function parseTable(body) {
-  const lines = body.split("\n");
-  const historyIdx = lines.findIndex((l) => l.includes(HISTORY_SECTION));
-  if (historyIdx === -1) {
-    return null;
-  }
-  const valueToKeyMap = buildValueToKeyMap();
-  let headerKeys = [];
-  let unmatchedHeaders = [];
-  const rows = [];
-  let foundHeader = false;
-  for (let i = historyIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    if (line.startsWith("##") && !line.includes(HISTORY_SECTION)) {
-      break;
-    }
-    if (!line.startsWith("|")) {
-      continue;
-    }
-    if (line.includes("---")) {
-      continue;
-    }
-    if (!foundHeader) {
-      const parsed = parseHeaderRow(line, valueToKeyMap);
-      headerKeys = parsed.keys;
-      unmatchedHeaders = parsed.unmatched;
-      foundHeader = true;
-      continue;
-    }
-    const rowData = parseDataRow(line, headerKeys);
-    rows.push(rowData);
-  }
-  return {
-    headerKeys: headerKeys.filter((k) => k !== null),
-    rows,
-    unmatchedHeaders
-  };
-}
-function parseMarkdownLink(text5) {
-  const match = text5.match(/\[.*?\]\((.*?)\)/);
-  return match?.[1] ?? null;
-}
-function parseShaCell(cell) {
-  if (cell === "-" || cell.trim() === "") {
-    return null;
-  }
-  const linkMatch = cell.match(/\[`?([a-f0-9]+)`?\]/i);
-  if (linkMatch) {
-    return linkMatch[1] ?? null;
-  }
-  const shaMatch = cell.match(/^[a-f0-9]+$/i);
-  if (shaMatch) {
-    return cell;
-  }
-  return null;
-}
-function rowDataToHistoryEntry(data) {
-  const iterationStr = data.iteration;
-  if (!iterationStr) return null;
-  const iteration = parseInt(iterationStr, 10);
-  if (isNaN(iteration)) return null;
-  const timestamp = data.time && data.time !== "-" ? data.time : null;
-  return {
-    iteration,
-    phase: data.phase || "",
-    action: data.action || "",
-    timestamp,
-    sha: data.sha ? parseShaCell(data.sha) : null,
-    runLink: data.run ? parseMarkdownLink(data.run) : null
-  };
-}
-function parseHistory(body) {
-  const parsed = parseTable(body);
-  if (!parsed) {
-    return [];
-  }
-  if (parsed.unmatchedHeaders.length > 0) {
-    console.warn(
-      `[history-parser] Unmatched table headers (will be dropped): ${parsed.unmatchedHeaders.join(", ")}`
-    );
-  }
-  const entries = [];
-  for (const row of parsed.rows) {
-    const entry = rowDataToHistoryEntry(row);
-    if (entry) {
-      entries.push(entry);
-    }
-  }
-  return entries;
-}
 
 // ../issue-state/src/sections/builders.ts
 function createText(value) {
@@ -42854,11 +42691,11 @@ var MinimalTriggerContextSchema = external_exports.object({
 });
 
 // src/parser/issue-adapter.ts
-function deriveBranchName2(parentIssueNumber, phaseNumber) {
+function deriveBranchName2(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber}`;
+  return `claude/issue/${parentIssueNumber2}`;
 }
 
 // src/parser/type-guards.ts
@@ -47339,9 +47176,9 @@ function buildIteratePromptVars(context2, ciResultOverride) {
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
   const isSubIssue2 = context2.parentIssue !== null && context2.currentPhase !== null;
-  const parentIssueNumber = context2.parentIssue?.number;
+  const parentIssueNumber2 = context2.parentIssue?.number;
   const phaseNumber = context2.currentPhase;
-  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber}
+  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber2}
 - **Phase**: ${phaseNumber}
 
 > This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
@@ -47349,7 +47186,7 @@ function buildIteratePromptVars(context2, ciResultOverride) {
 gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle}" \\
   --body "Fixes #${issueNumber}
-Related to #${parentIssueNumber}
+Related to #${parentIssueNumber2}
 
 Phase ${phaseNumber} of parent issue."
 \`\`\`` : `\`\`\`bash
@@ -48034,7 +47871,7 @@ function emitRunClaudePivot({ context: context2 }) {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: serializeMarkdown(s.bodyAst),
+    body: JSON.stringify(s.bodyAst),
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst)
   }));
@@ -48042,7 +47879,7 @@ function emitRunClaudePivot({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
@@ -71325,7 +71162,7 @@ ${questions.join("\n")}`,
   }
   return { applied: true, decision, subIssuesCreated };
 }
-async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
+async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
   let created = 0;
   for (const phase of phases) {
     const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
@@ -71335,7 +71172,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
       const result = await addSubIssueToParent(
         ctx.owner,
         ctx.repo,
-        parentIssueNumber,
+        parentIssueNumber2,
         { title, body },
         {
           // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
@@ -71362,7 +71199,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
       const { data: parentData, update: parentUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
-        parentIssueNumber,
+        parentIssueNumber2,
         {
           octokit: asOctokitLike6(ctx),
           fetchPRs: false,
@@ -71382,7 +71219,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
       if (parentState !== parentData) {
         await parentUpdate(parentState);
       }
-      core15.info(`Updated parent issue #${parentIssueNumber} with agent notes`);
+      core15.info(`Updated parent issue #${parentIssueNumber2} with agent notes`);
     } catch (error10) {
       core15.warning(`Failed to update parent issue body: ${error10}`);
     }
@@ -73303,9 +73140,8 @@ function deriveBranchName4(issueNumber, phase) {
 }
 function issueStateToGitHubState(data) {
   const { issue: issue2 } = data;
-  const body = serializeMarkdown(issue2.bodyAst);
-  const todos = parseTodoStats(body);
-  const history = parseHistory(body);
+  const todos = todosExtractor(data);
+  const history = historyExtractor(data);
   let prState = null;
   if (issue2.pr) {
     if (issue2.pr.isDraft) {
@@ -73337,7 +73173,7 @@ function issueStateToGitHubState(data) {
     // TODO: Could be extracted from PR if needed
     context: null,
     // Will be populated separately if needed
-    body,
+    body: JSON.stringify(issue2.bodyAst),
     history
   };
 }
@@ -75487,9 +75323,9 @@ ${"=".repeat(60)}`);
   /**
    * Create sub-issues from fixture data and link them to parent
    */
-  async createSubIssuesFromFixture(parentIssueNumber, subIssues) {
+  async createSubIssuesFromFixture(parentIssueNumber2, subIssues) {
     core27.info(
-      `Creating ${subIssues.length} sub-issues for parent #${parentIssueNumber}`
+      `Creating ${subIssues.length} sub-issues for parent #${parentIssueNumber2}`
     );
     for (const subIssue of subIssues) {
       const subIssueNumber = await this.createSubIssue(subIssue);
@@ -75905,8 +75741,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     const issueContext = {
       number: context2.issue.number,
       title: context2.issue.title,
-      body: serializeMarkdown(context2.issue.bodyAst),
-      // Convert MDAST back to string
+      body: JSON.stringify(context2.issue.bodyAst),
       comments: context2.issue.comments?.map((c) => `${c.author}: ${c.body}`).join("\n\n---\n\n")
     };
     const runnerCtx = createRunnerContext(
@@ -76549,10 +76384,15 @@ Pivot/Modification Verification:`);
           fetchParent: false
         }
       );
-      const parentBody = serializeMarkdown(reqParentData.issue.bodyAst);
       const originalBody = firstFixture?.issue.body || "";
-      const getBodyWithoutHistory = (body) => body.split("## Iteration History")[0].trim();
-      if (getBodyWithoutHistory(parentBody) === getBodyWithoutHistory(originalBody)) {
+      const getBodyWithoutHistory = (ast) => {
+        const historyIdx = ast.children.findIndex(
+          (n) => n.type === "heading" && n.children[0]?.type === "text" && n.children[0].value === "Iteration History"
+        );
+        const nodes = historyIdx === -1 ? ast.children : ast.children.slice(0, historyIdx);
+        return JSON.stringify(nodes);
+      };
+      if (getBodyWithoutHistory(reqParentData.issue.bodyAst) === getBodyWithoutHistory(parseMarkdown(originalBody))) {
         errors.push(
           `requirementsUpdated: expected parent body to change, but it didn't`
         );
@@ -76571,10 +76411,15 @@ Pivot/Modification Verification:`);
           fetchParent: false
         }
       );
-      const parentBody = serializeMarkdown(modParentData.issue.bodyAst);
       const originalBody = firstFixture?.issue.body || "";
-      const getBodyWithoutHistory = (body) => body.split("## Iteration History")[0].trim();
-      if (getBodyWithoutHistory(parentBody) === getBodyWithoutHistory(originalBody)) {
+      const getBodyWithoutHistory = (ast) => {
+        const historyIdx = ast.children.findIndex(
+          (n) => n.type === "heading" && n.children[0]?.type === "text" && n.children[0].value === "Iteration History"
+        );
+        const nodes = historyIdx === -1 ? ast.children : ast.children.slice(0, historyIdx);
+        return JSON.stringify(nodes);
+      };
+      if (getBodyWithoutHistory(modParentData.issue.bodyAst) === getBodyWithoutHistory(parseMarkdown(originalBody))) {
         errors.push(
           `parentIssueModified: expected parent body to change, but it didn't`
         );
@@ -76675,11 +76520,10 @@ Pivot/Modification Verification:`);
           fetchParent: false
         }
       );
-      const body = serializeMarkdown(todosData.issue.bodyAst);
-      const uncheckedCount = (body.match(/- \[ \]/g) || []).length;
-      if (uncheckedCount > 0) {
+      const todos = extractTodosFromAst(todosData.issue.bodyAst);
+      if (todos.uncheckedNonManual > 0) {
         errors.push(
-          `allTodosComplete: expected all todos complete, but found ${uncheckedCount} unchecked`
+          `allTodosComplete: expected all todos complete, but found ${todos.uncheckedNonManual} unchecked`
         );
       } else {
         core27.info(`  \u2713 allTodosComplete: all todos are checked`);
@@ -77049,15 +76893,20 @@ Sub-issue PR for test scenario.`
           fetchParent: false
         }
       );
-      const fallbackBody = serializeMarkdown(fallbackData.issue.bodyAst);
-      if (!fallbackBody.includes(parentRef)) {
+      const astJson = JSON.stringify(fallbackData.issue.bodyAst);
+      if (!astJson.includes(`Parent: #${this.issueNumber}`)) {
+        const parentRefAst = parseMarkdown(parentRef);
         const fallbackState = {
           ...fallbackData,
           issue: {
             ...fallbackData.issue,
-            bodyAst: parseMarkdown(`${parentRef}
-
-${fallbackBody}`)
+            bodyAst: {
+              ...fallbackData.issue.bodyAst,
+              children: [
+                ...parentRefAst.children,
+                ...fallbackData.issue.bodyAst.children
+              ]
+            }
           }
         };
         await fallbackUpdate(fallbackState);

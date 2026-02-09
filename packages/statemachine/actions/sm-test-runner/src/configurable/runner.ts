@@ -31,6 +31,7 @@ import {
   claudeMachine,
   executeActions,
   createRunnerContext,
+  extractTodosFromAst,
 } from "@more/statemachine";
 import { fetchGitHubState } from "../github-state.js";
 import {
@@ -38,7 +39,6 @@ import {
   UPDATE_PROJECT_FIELD_MUTATION,
   ADD_ISSUE_TO_PROJECT_MUTATION,
   parseMarkdown,
-  serializeMarkdown,
   parseIssue,
   createIssue,
   listComments,
@@ -1041,7 +1041,7 @@ Issue: #${this.issueNumber}
     const issueContext = {
       number: context.issue.number,
       title: context.issue.title,
-      body: serializeMarkdown(context.issue.bodyAst), // Convert MDAST back to string
+      body: JSON.stringify(context.issue.bodyAst),
       comments: context.issue.comments
         ?.map((c) => `${c.author}: ${c.body}`)
         .join("\n\n---\n\n"),
@@ -1886,16 +1886,24 @@ Issue: #${this.issueNumber}
           fetchParent: false,
         },
       );
-      const parentBody = serializeMarkdown(reqParentData.issue.bodyAst);
       const originalBody = firstFixture?.issue.body || "";
 
-      // Check if body changed (ignoring iteration history section)
-      const getBodyWithoutHistory = (body: string) =>
-        body.split("## Iteration History")[0].trim();
+      // Compare body content ignoring iteration history section using AST
+      const getBodyWithoutHistory = (ast: import("mdast").Root): string => {
+        const historyIdx = ast.children.findIndex(
+          (n) =>
+            n.type === "heading" &&
+            n.children[0]?.type === "text" &&
+            n.children[0].value === "Iteration History",
+        );
+        const nodes =
+          historyIdx === -1 ? ast.children : ast.children.slice(0, historyIdx);
+        return JSON.stringify(nodes);
+      };
 
       if (
-        getBodyWithoutHistory(parentBody) ===
-        getBodyWithoutHistory(originalBody)
+        getBodyWithoutHistory(reqParentData.issue.bodyAst) ===
+        getBodyWithoutHistory(parseMarkdown(originalBody))
       ) {
         errors.push(
           `requirementsUpdated: expected parent body to change, but it didn't`,
@@ -1917,15 +1925,23 @@ Issue: #${this.issueNumber}
           fetchParent: false,
         },
       );
-      const parentBody = serializeMarkdown(modParentData.issue.bodyAst);
       const originalBody = firstFixture?.issue.body || "";
 
-      const getBodyWithoutHistory = (body: string) =>
-        body.split("## Iteration History")[0].trim();
+      const getBodyWithoutHistory = (ast: import("mdast").Root): string => {
+        const historyIdx = ast.children.findIndex(
+          (n) =>
+            n.type === "heading" &&
+            n.children[0]?.type === "text" &&
+            n.children[0].value === "Iteration History",
+        );
+        const nodes =
+          historyIdx === -1 ? ast.children : ast.children.slice(0, historyIdx);
+        return JSON.stringify(nodes);
+      };
 
       if (
-        getBodyWithoutHistory(parentBody) ===
-        getBodyWithoutHistory(originalBody)
+        getBodyWithoutHistory(modParentData.issue.bodyAst) ===
+        getBodyWithoutHistory(parseMarkdown(originalBody))
       ) {
         errors.push(
           `parentIssueModified: expected parent body to change, but it didn't`,
@@ -2041,11 +2057,10 @@ Issue: #${this.issueNumber}
           fetchParent: false,
         },
       );
-      const body = serializeMarkdown(todosData.issue.bodyAst);
-      const uncheckedCount = (body.match(/- \[ \]/g) || []).length;
-      if (uncheckedCount > 0) {
+      const todos = extractTodosFromAst(todosData.issue.bodyAst);
+      if (todos.uncheckedNonManual > 0) {
         errors.push(
-          `allTodosComplete: expected all todos complete, but found ${uncheckedCount} unchecked`,
+          `allTodosComplete: expected all todos complete, but found ${todos.uncheckedNonManual} unchecked`,
         );
       } else {
         core.info(`  ✓ allTodosComplete: all todos are checked`);
@@ -2495,13 +2510,20 @@ Issue: #${this.issueNumber}
           fetchParent: false,
         },
       );
-      const fallbackBody = serializeMarkdown(fallbackData.issue.bodyAst);
-      if (!fallbackBody.includes(parentRef)) {
+      const astJson = JSON.stringify(fallbackData.issue.bodyAst);
+      if (!astJson.includes(`Parent: #${this.issueNumber}`)) {
+        const parentRefAst = parseMarkdown(parentRef);
         const fallbackState = {
           ...fallbackData,
           issue: {
             ...fallbackData.issue,
-            bodyAst: parseMarkdown(`${parentRef}\n\n${fallbackBody}`),
+            bodyAst: {
+              ...fallbackData.issue.bodyAst,
+              children: [
+                ...parentRefAst.children,
+                ...fallbackData.issue.bodyAst.children,
+              ],
+            },
           },
         };
         await fallbackUpdate(fallbackState);

@@ -31212,7 +31212,16 @@ var LinkedPRSchema = external_exports.object({
   reviewDecision: ReviewDecisionSchema.nullable().optional(),
   mergeable: MergeableStateSchema.nullable().optional(),
   reviewCount: external_exports.number().int().nonnegative().optional(),
-  url: external_exports.string().optional()
+  url: external_exports.string().optional(),
+  author: external_exports.string().nullable().optional(),
+  labels: external_exports.array(external_exports.string()).default([]),
+  reviews: external_exports.array(
+    external_exports.object({
+      state: external_exports.string(),
+      author: external_exports.string(),
+      body: external_exports.string()
+    })
+  ).default([])
 });
 
 // ../issue-state/src/schemas/project.ts
@@ -43418,9 +43427,6 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
 function parseMarkdown(markdown) {
   return parser.parse(markdown);
 }
-function serializeMarkdown(ast) {
-  return serializer.stringify(ast);
-}
 
 // ../issue-state/src/graphql/issue-queries.ts
 var GET_ISSUE_WITH_PROJECT_QUERY = `
@@ -43532,8 +43538,15 @@ query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
         url
         mergeable
         reviewDecision
+        author { login }
+        labels(first: 20) { nodes { name } }
         reviews(first: 50) {
           totalCount
+          nodes {
+            state
+            author { login }
+            body
+          }
         }
         commits(last: 1) {
           nodes {
@@ -44626,11 +44639,11 @@ function isDiscussionTrigger(trigger) {
 }
 
 // src/parser/issue-adapter.ts
-function deriveBranchName(parentIssueNumber, phaseNumber) {
+function deriveBranchName(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber}`;
+  return `claude/issue/${parentIssueNumber2}`;
 }
 
 // src/parser/state-parser.ts
@@ -44677,13 +44690,13 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   return null;
 }
-function deriveBranchName2(parentIssueNumber, phaseNumber) {
+function deriveBranchName2(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber}`;
+  return `claude/issue/${parentIssueNumber2}`;
 }
-function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber) {
+function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber2) {
   const status = parseSubIssueStatus(
     node2.projectItems?.nodes || [],
     projectNumber
@@ -44696,7 +44709,7 @@ function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber) {
     state: IssueStateSchema.catch("OPEN").parse(node2.state?.toUpperCase()),
     bodyAst,
     projectStatus: status,
-    branch: deriveBranchName2(parentIssueNumber, phaseNumber),
+    branch: deriveBranchName2(parentIssueNumber2, phaseNumber),
     pr: null
     // Will be populated separately
   };
@@ -44745,7 +44758,9 @@ async function getPRForBranch(octokit, owner, repo, headRef) {
       title: pr.title || "",
       headRef: pr.headRefName || headRef,
       baseRef: pr.baseRefName || "main",
-      ciStatus
+      ciStatus,
+      labels: [],
+      reviews: []
     };
   } catch {
     return null;
@@ -44794,7 +44809,7 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber,
   const body = issue2.body || "";
   const bodyAst = parseMarkdown(body);
   const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
-  const parentIssueNumber = issue2.parent?.number ?? null;
+  const parentIssueNumber2 = issue2.parent?.number ?? null;
   return {
     issue: {
       number: issue2.number || issueNumber,
@@ -44813,9 +44828,9 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber,
       // Will be populated separately
       pr: null,
       // Will be populated separately
-      parentIssueNumber
+      parentIssueNumber: parentIssueNumber2
     },
-    parentIssueNumber
+    parentIssueNumber: parentIssueNumber2
   };
 }
 function findCurrentPhase(subIssues) {
@@ -44828,12 +44843,12 @@ function findCurrentPhase(subIssues) {
   }
   return null;
 }
-async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber, subIssues) {
+async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber2, subIssues) {
   const enriched = [];
   for (let i = 0; i < subIssues.length; i++) {
     const subIssue = subIssues[i];
     if (!subIssue) continue;
-    const branchName = deriveBranchName2(parentIssueNumber, i + 1);
+    const branchName = deriveBranchName2(parentIssueNumber2, i + 1);
     const pr = await getPRForBranch(octokit, owner, repo, branchName);
     enriched.push({
       ...subIssue,
@@ -44867,14 +44882,14 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   if (!issueResult) {
     return null;
   }
-  const { issue: issue2, parentIssueNumber } = issueResult;
+  const { issue: issue2, parentIssueNumber: parentIssueNumber2 } = issueResult;
   let parentIssue = null;
-  if (parentIssueNumber) {
+  if (parentIssueNumber2) {
     const parentResult = await fetchIssueState(
       octokit,
       owner,
       repo,
-      parentIssueNumber,
+      parentIssueNumber2,
       projectNumber,
       botUsername
     );
@@ -46351,9 +46366,9 @@ function buildIteratePromptVars(context2, ciResultOverride) {
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
   const isSubIssue2 = context2.parentIssue !== null && context2.currentPhase !== null;
-  const parentIssueNumber = context2.parentIssue?.number;
+  const parentIssueNumber2 = context2.parentIssue?.number;
   const phaseNumber = context2.currentPhase;
-  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber}
+  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber2}
 - **Phase**: ${phaseNumber}
 
 > This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
@@ -46361,7 +46376,7 @@ function buildIteratePromptVars(context2, ciResultOverride) {
 gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle}" \\
   --body "Fixes #${issueNumber}
-Related to #${parentIssueNumber}
+Related to #${parentIssueNumber2}
 
 Phase ${phaseNumber} of parent issue."
 \`\`\`` : `\`\`\`bash
@@ -47046,7 +47061,7 @@ function emitRunClaudePivot({ context: context2 }) {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: serializeMarkdown(s.bodyAst),
+    body: JSON.stringify(s.bodyAst),
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst)
   }));
@@ -47054,7 +47069,7 @@ function emitRunClaudePivot({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
@@ -67544,7 +67559,7 @@ async function runIssueMachine(options) {
   core22.info(`Iteration: ${context2.issue.iteration}`);
   const iteration = String(context2.issue.iteration ?? 0);
   const phase = context2.currentPhase !== null ? String(context2.currentPhase) : "-";
-  const parentIssueNumber = String(
+  const parentIssueNumber2 = String(
     context2.parentIssue?.number || context2.issue.number
   );
   const subIssueNumber = context2.currentSubIssue?.number ? String(context2.currentSubIssue.number) : "";
@@ -67568,7 +67583,7 @@ async function runIssueMachine(options) {
       action_count: "0",
       iteration,
       phase,
-      parent_issue_number: parentIssueNumber,
+      parent_issue_number: parentIssueNumber2,
       pr_number: context2.pr?.number ? String(context2.pr.number) : "",
       commit_sha: context2.ciCommitSha || "",
       sub_issue_number: subIssueNumber,
@@ -67600,7 +67615,7 @@ async function runIssueMachine(options) {
     action_count: String(pendingActions.length),
     iteration,
     phase,
-    parent_issue_number: parentIssueNumber,
+    parent_issue_number: parentIssueNumber2,
     pr_number: prNumber,
     commit_sha: commitSha,
     sub_issue_number: subIssueNumber,

@@ -50,8 +50,6 @@ export type {
 
 // Markdown AST
 export { parseMarkdown } from "./markdown/ast.js";
-/** @deprecated Use MDAST mutators instead of serialize/parse round-trips. Internal use only (diff.ts). */
-export { serializeMarkdown } from "./markdown/ast.js";
 
 // GraphQL
 export {

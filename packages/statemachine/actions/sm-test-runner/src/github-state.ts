@@ -7,14 +7,10 @@
 import type * as github from "@actions/github";
 import {
   type MachineContext,
-  parseTodoStats,
-  parseHistory,
+  todosExtractor,
+  historyExtractor,
 } from "@more/statemachine";
-import {
-  parseIssue,
-  serializeMarkdown,
-  type IssueStateData,
-} from "@more/issue-state";
+import { parseIssue, type IssueStateData } from "@more/issue-state";
 import type { GitHubState, WorkflowRun } from "./types.js";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
@@ -34,11 +30,10 @@ export function deriveBranchName(issueNumber: number, phase?: number): string {
  */
 function issueStateToGitHubState(data: IssueStateData): GitHubState {
   const { issue } = data;
-  const body = serializeMarkdown(issue.bodyAst);
 
-  // Parse todos and history from body
-  const todos = parseTodoStats(body);
-  const history = parseHistory(body);
+  // Extract todos and history directly from AST
+  const todos = todosExtractor(data);
+  const history = historyExtractor(data);
 
   // Determine PR state
   let prState: GitHubState["prState"] = null;
@@ -70,7 +65,7 @@ function issueStateToGitHubState(data: IssueStateData): GitHubState {
     branchExists: issue.branch !== null,
     latestSha: null, // TODO: Could be extracted from PR if needed
     context: null, // Will be populated separately if needed
-    body,
+    body: JSON.stringify(issue.bodyAst),
     history,
   };
 }

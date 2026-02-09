@@ -23,12 +23,8 @@ export {
   AgentNotesEntrySchema,
 } from "@more/issue-state";
 
-// String-based parsers still needed by callers (for prompt formatting & test state extraction)
-export {
-  formatAgentNotesForPrompt,
-  parseTodoStats,
-  parseHistory,
-} from "@more/issue-state";
+// String-based parsers still needed by callers (for prompt formatting)
+export { formatAgentNotesForPrompt } from "@more/issue-state";
 
 // Issue adapter (statemachine-specific)
 export {

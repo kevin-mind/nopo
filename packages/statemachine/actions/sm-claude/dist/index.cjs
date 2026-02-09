@@ -24039,7 +24039,16 @@ var LinkedPRSchema = external_exports.object({
   reviewDecision: ReviewDecisionSchema.nullable().optional(),
   mergeable: MergeableStateSchema.nullable().optional(),
   reviewCount: external_exports.number().int().nonnegative().optional(),
-  url: external_exports.string().optional()
+  url: external_exports.string().optional(),
+  author: external_exports.string().nullable().optional(),
+  labels: external_exports.array(external_exports.string()).default([]),
+  reviews: external_exports.array(
+    external_exports.object({
+      state: external_exports.string(),
+      author: external_exports.string(),
+      body: external_exports.string()
+    })
+  ).default([])
 });
 
 // ../issue-state/src/schemas/project.ts
@@ -36242,9 +36251,6 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
   bullet: "-",
   listItemIndent: "one"
 });
-function serializeMarkdown(ast) {
-  return serializer.stringify(ast);
-}
 
 // ../issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
@@ -37216,11 +37222,11 @@ var MinimalTriggerContextSchema = external_exports.object({
 });
 
 // src/parser/issue-adapter.ts
-function deriveBranchName(parentIssueNumber, phaseNumber) {
+function deriveBranchName(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber}`;
+  return `claude/issue/${parentIssueNumber2}`;
 }
 
 // src/parser/type-guards.ts
@@ -41701,9 +41707,9 @@ function buildIteratePromptVars(context, ciResultOverride) {
   const failures = context.issue.failures;
   const ciResult = ciResultOverride ?? context.ciResult ?? "first";
   const isSubIssue2 = context.parentIssue !== null && context.currentPhase !== null;
-  const parentIssueNumber = context.parentIssue?.number;
+  const parentIssueNumber2 = context.parentIssue?.number;
   const phaseNumber = context.currentPhase;
-  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber}
+  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber2}
 - **Phase**: ${phaseNumber}
 
 > This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
@@ -41711,7 +41717,7 @@ function buildIteratePromptVars(context, ciResultOverride) {
 gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle}" \\
   --body "Fixes #${issueNumber}
-Related to #${parentIssueNumber}
+Related to #${parentIssueNumber2}
 
 Phase ${phaseNumber} of parent issue."
 \`\`\`` : `\`\`\`bash
@@ -42396,7 +42402,7 @@ function emitRunClaudePivot({ context }) {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: serializeMarkdown(s.bodyAst),
+    body: JSON.stringify(s.bodyAst),
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst)
   }));
@@ -42404,7 +42410,7 @@ function emitRunClaudePivot({ context }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: serializeMarkdown(context.issue.bodyAst),
+    ISSUE_BODY: JSON.stringify(context.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION: context.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)

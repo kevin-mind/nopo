@@ -520,6 +520,8 @@ export function buildContextFromState(
             title: "",
             headRef: state.branch || "",
             baseRef: "main",
+            labels: [],
+            reviews: [],
           }
         : null,
       parentIssueNumber: null,
@@ -551,6 +553,8 @@ export function buildContextFromState(
           title: "",
           headRef: state.branch || "",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         }
       : null,
     hasPR: state.prNumber !== null,

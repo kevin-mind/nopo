@@ -28108,7 +28108,16 @@ var LinkedPRSchema = external_exports.object({
   reviewDecision: ReviewDecisionSchema.nullable().optional(),
   mergeable: MergeableStateSchema.nullable().optional(),
   reviewCount: external_exports.number().int().nonnegative().optional(),
-  url: external_exports.string().optional()
+  url: external_exports.string().optional(),
+  author: external_exports.string().nullable().optional(),
+  labels: external_exports.array(external_exports.string()).default([]),
+  reviews: external_exports.array(
+    external_exports.object({
+      state: external_exports.string(),
+      author: external_exports.string(),
+      body: external_exports.string()
+    })
+  ).default([])
 });
 
 // ../issue-state/src/schemas/project.ts
@@ -40428,8 +40437,15 @@ query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
         url
         mergeable
         reviewDecision
+        author { login }
+        labels(first: 20) { nodes { name } }
         reviews(first: 50) {
           totalCount
+          nodes {
+            state
+            author { login }
+            body
+          }
         }
         commits(last: 1) {
           nodes {
@@ -41024,11 +41040,11 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   return null;
 }
-function deriveBranchName(parentIssueNumber, phaseNumber) {
+function deriveBranchName(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber}`;
+  return `claude/issue/${parentIssueNumber2}`;
 }
 function parseIssueComments(commentNodes, botUsername) {
   return commentNodes.map((c) => {
@@ -41063,8 +41079,12 @@ async function getLinkedPRs(octokit, owner, repo, issueNumber) {
         headRef: pr.headRefName,
         baseRef: "main",
         // Timeline doesn't include base ref
-        ciStatus: null
+        ciStatus: null,
         // Timeline doesn't include CI status
+        labels: [],
+        // Timeline doesn't include labels
+        reviews: []
+        // Timeline doesn't include reviews
       });
     }
     return linkedPRs;
@@ -41115,13 +41135,20 @@ async function getPRForBranch(octokit, owner, repo, headRef) {
       reviewDecision,
       mergeable,
       reviewCount: pr.reviews?.totalCount ?? 0,
-      url: pr.url || ""
+      url: pr.url || "",
+      author: pr.author?.login ?? null,
+      labels: pr.labels?.nodes?.map((l) => l.name).filter((name) => Boolean(name)) ?? [],
+      reviews: pr.reviews?.nodes?.map((r) => ({
+        state: r.state ?? "",
+        author: r.author?.login ?? "",
+        body: r.body ?? ""
+      })) ?? []
     };
   } catch {
     return null;
   }
 }
-function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber) {
+function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber2) {
   const status = parseSubIssueStatus(
     node2.projectItems?.nodes || [],
     projectNumber
@@ -41134,7 +41161,7 @@ function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber)
     state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
-    branch: deriveBranchName(parentIssueNumber, phaseNumber),
+    branch: deriveBranchName(parentIssueNumber2, phaseNumber),
     pr: null
     // Populated separately if fetchPRs is true
   };
@@ -41182,7 +41209,7 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
   const body = issue2.body || "";
   const bodyAst = parseMarkdown(body);
   const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
-  const parentIssueNumber = issue2.parent?.number ?? null;
+  const parentIssueNumber2 = issue2.parent?.number ?? null;
   let issueBranch = null;
   let issuePR = null;
   if (fetchPRs) {
@@ -41209,9 +41236,9 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
       comments,
       branch: issueBranch,
       pr: issuePR,
-      parentIssueNumber
+      parentIssueNumber: parentIssueNumber2
     },
-    parentIssueNumber
+    parentIssueNumber: parentIssueNumber2
   };
 }
 async function parseIssue(owner, repo, issueNumber, options) {
@@ -41378,7 +41405,7 @@ async function updateProjectField2(octokit, projectId, itemId, fieldId, value) {
     value
   });
 }
-async function addSubIssueToParent(owner, repo, parentIssueNumber, input, options) {
+async function addSubIssueToParent(owner, repo, parentIssueNumber2, input, options) {
   const {
     octokit,
     projectNumber,
@@ -41398,10 +41425,10 @@ async function addSubIssueToParent(owner, repo, parentIssueNumber, input, option
   const parentResult = await octokit.graphql(parentQuery, {
     owner,
     repo,
-    issueNumber: parentIssueNumber
+    issueNumber: parentIssueNumber2
   });
   if (!parentResult.repository?.issue?.id) {
-    throw new Error(`Parent issue #${parentIssueNumber} not found`);
+    throw new Error(`Parent issue #${parentIssueNumber2} not found`);
   }
   const parentIssueId = parentResult.repository.issue.id;
   let bodyString = "";
@@ -42516,11 +42543,11 @@ var MinimalTriggerContextSchema = external_exports.object({
 });
 
 // src/parser/issue-adapter.ts
-function deriveBranchName2(parentIssueNumber, phaseNumber) {
+function deriveBranchName2(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber}`;
+  return `claude/issue/${parentIssueNumber2}`;
 }
 
 // src/parser/type-guards.ts
@@ -47001,9 +47028,9 @@ function buildIteratePromptVars(context2, ciResultOverride) {
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
   const isSubIssue2 = context2.parentIssue !== null && context2.currentPhase !== null;
-  const parentIssueNumber = context2.parentIssue?.number;
+  const parentIssueNumber2 = context2.parentIssue?.number;
   const phaseNumber = context2.currentPhase;
-  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber}
+  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber2}
 - **Phase**: ${phaseNumber}
 
 > This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
@@ -47011,7 +47038,7 @@ function buildIteratePromptVars(context2, ciResultOverride) {
 gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle}" \\
   --body "Fixes #${issueNumber}
-Related to #${parentIssueNumber}
+Related to #${parentIssueNumber2}
 
 Phase ${phaseNumber} of parent issue."
 \`\`\`` : `\`\`\`bash
@@ -47696,7 +47723,7 @@ function emitRunClaudePivot({ context: context2 }) {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: serializeMarkdown(s.bodyAst),
+    body: JSON.stringify(s.bodyAst),
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst)
   }));
@@ -47704,7 +47731,7 @@ function emitRunClaudePivot({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
@@ -71165,7 +71192,7 @@ ${questions.join("\n")}`,
   }
   return { applied: true, decision, subIssuesCreated };
 }
-async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
+async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
   let created = 0;
   for (const phase of phases) {
     const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
@@ -71175,7 +71202,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
       const result = await addSubIssueToParent(
         ctx.owner,
         ctx.repo,
-        parentIssueNumber,
+        parentIssueNumber2,
         { title, body },
         {
           // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
@@ -71202,7 +71229,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
       const { data: parentData, update: parentUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
-        parentIssueNumber,
+        parentIssueNumber2,
         {
           octokit: asOctokitLike7(ctx),
           fetchPRs: false,
@@ -71222,7 +71249,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber, phases) {
       if (parentState !== parentData) {
         await parentUpdate(parentState);
       }
-      core15.info(`Updated parent issue #${parentIssueNumber} with agent notes`);
+      core15.info(`Updated parent issue #${parentIssueNumber2} with agent notes`);
     } catch (error6) {
       core15.warning(`Failed to update parent issue body: ${error6}`);
     }

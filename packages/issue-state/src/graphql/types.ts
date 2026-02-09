@@ -59,8 +59,15 @@ interface PRNode {
   url?: string;
   mergeable?: string;
   reviewDecision?: string;
+  author?: { login?: string };
+  labels?: { nodes?: Array<{ name?: string }> };
   reviews?: {
     totalCount?: number;
+    nodes?: Array<{
+      state?: string;
+      author?: { login?: string };
+      body?: string;
+    }>;
   };
   commits?: {
     nodes?: Array<{

@@ -1,6 +1,5 @@
 import type { MachineContext, Action, IssueComment } from "../schemas/index.js";
 import { deriveBranchName, extractTodosFromAst } from "../parser/index.js";
-import { serializeMarkdown } from "@more/issue-state";
 
 /**
  * Format issue comments for inclusion in prompts
@@ -1622,7 +1621,7 @@ export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: serializeMarkdown(s.bodyAst),
+    body: JSON.stringify(s.bodyAst),
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst),
   }));
@@ -1635,7 +1634,7 @@ export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: serializeMarkdown(context.issue.bodyAst),
+    ISSUE_BODY: JSON.stringify(context.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION:
       context.pivotDescription ?? "(No pivot description provided)",
