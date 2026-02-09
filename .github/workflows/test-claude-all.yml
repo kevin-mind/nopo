@@ -539,6 +539,12 @@ jobs:
           echo "$RESULTS" | jq '.' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: Install Claude Code
+        run: |
+          set -e
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Build analysis prompt
         id: prompt
         run: |
