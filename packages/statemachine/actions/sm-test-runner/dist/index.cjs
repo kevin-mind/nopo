@@ -43074,6 +43074,13 @@ function findHeadingIndex(ast, text5) {
     return firstChild?.type === "text" && firstChild.value === text5;
   });
 }
+function findHeadingIndexAny(ast, texts) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && texts.includes(firstChild.value);
+  });
+}
 function getNodeText(node2) {
   if (!node2) return "";
   if (node2.type === "text") return node2.value;
@@ -43096,7 +43103,7 @@ function getLinkUrl(node2) {
 }
 var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   const ast = data.issue.bodyAst;
-  const todosIdx = findHeadingIndex(ast, "Todos");
+  const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
@@ -43124,7 +43131,7 @@ var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   return { total, completed, uncheckedNonManual };
 });
 function extractTodosFromAst(bodyAst) {
-  const todosIdx = findHeadingIndex(bodyAst, "Todos");
+  const todosIdx = findHeadingIndexAny(bodyAst, ["Todo", "Todos"]);
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
@@ -43237,6 +43244,13 @@ function findHeadingIndex2(ast, text5) {
     return firstChild?.type === "text" && firstChild.value === text5;
   });
 }
+function findHeadingIndexAny2(ast, texts) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && texts.includes(firstChild.value);
+  });
+}
 function getNodeText2(node2) {
   if (!node2) return "";
   if (node2.type === "text") return node2.value;
@@ -43308,7 +43322,7 @@ var checkOffTodo = createMutator(
   external_exports.object({ todoText: external_exports.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndex2(ast, "Todos");
+    const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
     if (!listNode || listNode.type !== "list") return data;
@@ -43330,7 +43344,7 @@ var uncheckTodo = createMutator(
   external_exports.object({ todoText: external_exports.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndex2(ast, "Todos");
+    const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
     if (!listNode || listNode.type !== "list") return data;
@@ -43357,7 +43371,7 @@ var addTodo = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const todosIdx = findHeadingIndex2(newAst, "Todos");
+    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
     const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
     const newItem = createListItemNode(todoText, input.checked);
     if (todosIdx === -1) {

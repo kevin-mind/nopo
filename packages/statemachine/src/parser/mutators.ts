@@ -36,6 +36,17 @@ function findHeadingIndex(ast: Root, text: string): number {
   });
 }
 
+/** Find index of a heading matching any of the given texts */
+function findHeadingIndexAny(ast: Root, texts: string[]): number {
+  return ast.children.findIndex((node): node is Heading => {
+    if (node.type !== "heading") return false;
+    const firstChild = node.children[0];
+    return (
+      firstChild?.type === "text" && texts.includes(firstChild.value as string)
+    );
+  });
+}
+
 /** Get text content from a node (recursive) */
 function getNodeText(node: RootContent | ListItem | undefined): string {
   if (!node) return "";
@@ -138,12 +149,13 @@ function extractRunIdFromUrl(url: string): string | null {
 
 /**
  * Check off a todo by matching text
+ * Supports both "Todo" (singular) and "Todos" (plural) headings
  */
 export const checkOffTodo = createMutator(
   z.object({ todoText: z.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst as Root;
-    const todosIdx = findHeadingIndex(ast, "Todos");
+    const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
 
     const listNode = ast.children[todosIdx + 1];
@@ -169,12 +181,13 @@ export const checkOffTodo = createMutator(
 
 /**
  * Uncheck a todo by matching text
+ * Supports both "Todo" (singular) and "Todos" (plural) headings
  */
 export const uncheckTodo = createMutator(
   z.object({ todoText: z.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst as Root;
-    const todosIdx = findHeadingIndex(ast, "Todos");
+    const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
     if (todosIdx === -1) return data;
 
     const listNode = ast.children[todosIdx + 1];
@@ -200,6 +213,7 @@ export const uncheckTodo = createMutator(
 
 /**
  * Add a todo item to the Todos section
+ * Supports both "Todo" (singular) and "Todos" (plural) headings
  */
 export const addTodo = createMutator(
   z.object({
@@ -210,7 +224,7 @@ export const addTodo = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst as Root;
     const newAst = structuredClone(ast) as Root;
-    const todosIdx = findHeadingIndex(newAst, "Todos");
+    const todosIdx = findHeadingIndexAny(newAst, ["Todo", "Todos"]);
 
     const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
     const newItem = createListItemNode(todoText, input.checked);

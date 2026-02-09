@@ -36,6 +36,17 @@ function findHeadingIndex(ast: Root, text: string): number {
   });
 }
 
+/** Find index of a heading matching any of the given texts */
+function findHeadingIndexAny(ast: Root, texts: string[]): number {
+  return ast.children.findIndex((node): node is Heading => {
+    if (node.type !== "heading") return false;
+    const firstChild = node.children[0];
+    return (
+      firstChild?.type === "text" && texts.includes(firstChild.value as string)
+    );
+  });
+}
+
 /** Get text content from a node (recursive) */
 function getNodeText(node: RootContent | ListItem | undefined): string {
   if (!node) return "";
@@ -66,10 +77,11 @@ function getLinkUrl(node: RootContent | undefined): string | null {
 
 /**
  * Extract todo statistics directly from MDAST
+ * Supports both "Todo" (singular) and "Todos" (plural) headings
  */
 export const todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   const ast = data.issue.bodyAst;
-  const todosIdx = findHeadingIndex(ast, "Todos");
+  const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
 
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
@@ -108,9 +120,10 @@ export const todosExtractor = createExtractor(TodoStatsSchema, (data) => {
  *
  * This is a simpler helper for guards that need to check todos
  * on either an issue or a sub-issue without building a full IssueStateData.
+ * Supports both "Todo" (singular) and "Todos" (plural) headings.
  */
 export function extractTodosFromAst(bodyAst: Root): TodoStats {
-  const todosIdx = findHeadingIndex(bodyAst, "Todos");
+  const todosIdx = findHeadingIndexAny(bodyAst, ["Todo", "Todos"]);
 
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };

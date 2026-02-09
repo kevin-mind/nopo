@@ -539,18 +539,10 @@ jobs:
           echo "$RESULTS" | jq '.' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Install Claude Code
+      - name: Build analysis prompt
+        id: prompt
         run: |
-          set -e
-          curl -fsSL https://claude.ai/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Run Claude Analysis
-        id: analysis
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          # Create context file
+          # Build the prompt with test results
           cat > /tmp/analysis_prompt.md << 'PROMPT_EOF'
           # State Machine Test Suite Analysis
 
@@ -605,17 +597,27 @@ jobs:
           Format as GitHub-flavored markdown.
           PROMPT_EOF
 
-          # Run Claude
-          echo "Running Claude analysis..."
-          ANALYSIS=$(~/.local/bin/claude --print --dangerously-skip-permissions -p "$(cat /tmp/analysis_prompt.md)" 2>&1 || echo "Claude analysis failed")
+          echo "prompt_path=/tmp/analysis_prompt.md" >> $GITHUB_OUTPUT
 
-          # Output
+      - name: Run Claude Analysis
+        id: analysis
+        uses: ./packages/statemachine/actions/sm-claude
+        with:
+          prompt_file: /tmp/analysis_prompt.md
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Write analysis to summary
+        run: |
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Claude Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "$ANALYSIS" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.analysis.outputs.output }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "**Stats:** ${{ steps.analysis.outputs.num_turns }} turns | \$${{ steps.analysis.outputs.cost_usd }} cost" >> $GITHUB_STEP_SUMMARY
 
       - name: Final Status
         if: always()
