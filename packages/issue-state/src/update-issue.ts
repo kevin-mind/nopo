@@ -25,14 +25,17 @@ export async function updateIssue(
 
   const promises: Promise<unknown>[] = [];
 
-  // Body or title changed
-  if (diff.bodyChanged || diff.titleChanged) {
+  // Body, title, or state changed — combine into a single update call
+  // to avoid GitHub "Validation Failed" from concurrent updates on the same issue
+  if (diff.bodyChanged || diff.titleChanged || diff.stateChanged) {
     const updateParams: {
       owner: string;
       repo: string;
       issue_number: number;
       body?: string;
       title?: string;
+      state?: string;
+      state_reason?: string;
     } = {
       owner,
       repo,
@@ -47,29 +50,14 @@ export async function updateIssue(
       updateParams.title = updated.issue.title;
     }
 
-    promises.push(octokit.rest.issues.update(updateParams));
-  }
-
-  // State changed (open/closed)
-  if (diff.stateChanged) {
-    const stateParams: {
-      owner: string;
-      repo: string;
-      issue_number: number;
-      state: string;
-      state_reason?: string;
-    } = {
-      owner,
-      repo,
-      issue_number: updated.issue.number,
-      state: updated.issue.state === "OPEN" ? "open" : "closed",
-    };
-
-    if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
-      stateParams.state_reason = updated.issue.stateReason;
+    if (diff.stateChanged) {
+      updateParams.state = updated.issue.state === "OPEN" ? "open" : "closed";
+      if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+        updateParams.state_reason = updated.issue.stateReason;
+      }
     }
 
-    promises.push(octokit.rest.issues.update(stateParams));
+    promises.push(octokit.rest.issues.update(updateParams));
   }
 
   // Labels added

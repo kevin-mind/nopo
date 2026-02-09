@@ -40703,7 +40703,7 @@ async function updateIssue(original, updated, octokit, options = {}) {
   const diff = computeDiff(original.issue, updated.issue);
   const { projectNumber } = options;
   const promises = [];
-  if (diff.bodyChanged || diff.titleChanged) {
+  if (diff.bodyChanged || diff.titleChanged || diff.stateChanged) {
     const updateParams = {
       owner,
       repo,
@@ -40715,19 +40715,13 @@ async function updateIssue(original, updated, octokit, options = {}) {
     if (diff.titleChanged) {
       updateParams.title = updated.issue.title;
     }
-    promises.push(octokit.rest.issues.update(updateParams));
-  }
-  if (diff.stateChanged) {
-    const stateParams = {
-      owner,
-      repo,
-      issue_number: updated.issue.number,
-      state: updated.issue.state === "OPEN" ? "open" : "closed"
-    };
-    if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
-      stateParams.state_reason = updated.issue.stateReason;
+    if (diff.stateChanged) {
+      updateParams.state = updated.issue.state === "OPEN" ? "open" : "closed";
+      if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+        updateParams.state_reason = updated.issue.stateReason;
+      }
     }
-    promises.push(octokit.rest.issues.update(stateParams));
+    promises.push(octokit.rest.issues.update(updateParams));
   }
   if (diff.labelsAdded.length > 0) {
     promises.push(

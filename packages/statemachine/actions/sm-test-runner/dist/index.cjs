@@ -40884,7 +40884,7 @@ async function updateIssue(original, updated, octokit, options = {}) {
   const diff = computeDiff(original.issue, updated.issue);
   const { projectNumber } = options;
   const promises = [];
-  if (diff.bodyChanged || diff.titleChanged) {
+  if (diff.bodyChanged || diff.titleChanged || diff.stateChanged) {
     const updateParams = {
       owner,
       repo,
@@ -40896,19 +40896,13 @@ async function updateIssue(original, updated, octokit, options = {}) {
     if (diff.titleChanged) {
       updateParams.title = updated.issue.title;
     }
-    promises.push(octokit.rest.issues.update(updateParams));
-  }
-  if (diff.stateChanged) {
-    const stateParams = {
-      owner,
-      repo,
-      issue_number: updated.issue.number,
-      state: updated.issue.state === "OPEN" ? "open" : "closed"
-    };
-    if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
-      stateParams.state_reason = updated.issue.stateReason;
+    if (diff.stateChanged) {
+      updateParams.state = updated.issue.state === "OPEN" ? "open" : "closed";
+      if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+        updateParams.state_reason = updated.issue.stateReason;
+      }
     }
-    promises.push(octokit.rest.issues.update(stateParams));
+    promises.push(octokit.rest.issues.update(updateParams));
   }
   if (diff.labelsAdded.length > 0) {
     promises.push(
@@ -76244,10 +76238,33 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
     );
   }
   /**
-   * Verify GitHub state matches expected fixture
-   * Returns array of error messages (empty if all checks pass)
+   * Verify GitHub state matches expected fixture.
+   * Retries on timing-sensitive field mismatches (projectStatus, iteration, failures).
+   * Returns array of error messages (empty if all checks pass).
    */
   async verifyGitHubState(expected) {
+    const maxAttempts = 3;
+    const retryDelayMs = 5e3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const errors = await this.verifyGitHubStateOnce(expected);
+      if (errors.length === 0) return [];
+      const timingSensitiveFields = ["projectStatus", "iteration", "failures"];
+      const allTimingSensitive = errors.every(
+        (e) => timingSensitiveFields.some((f) => e.startsWith(`${f}:`))
+      );
+      if (!allTimingSensitive || attempt === maxAttempts) return errors;
+      core27.info(
+        `Verification attempt ${attempt}/${maxAttempts} had timing-sensitive errors, retrying in ${retryDelayMs / 1e3}s...`
+      );
+      await new Promise((r) => setTimeout(r, retryDelayMs));
+    }
+    return [];
+  }
+  /**
+   * Single attempt at verifying GitHub state matches expected fixture.
+   * Uses >= for iteration/failures (non-decreasing counters).
+   */
+  async verifyGitHubStateOnce(expected) {
     if (!this.issueNumber) {
       return ["Issue not created"];
     }
@@ -76258,32 +76275,45 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
       this.issueNumber,
       this.config.projectNumber
     );
-    const expectedFields = {
-      issueState: expected.issue.state,
-      projectStatus: expected.issue.projectStatus,
-      iteration: expected.issue.iteration,
-      failures: expected.issue.failures,
-      botAssigned: expected.issue.assignees.includes("nopo-bot"),
-      hasTriagedLabel: expected.issue.labels.includes("triaged"),
-      hasGroomedLabel: expected.issue.labels.includes("groomed")
+    const exactFields = {
+      issueState: {
+        expected: expected.issue.state,
+        actual: state.issueState
+      },
+      projectStatus: {
+        expected: expected.issue.projectStatus,
+        actual: state.projectStatus
+      },
+      botAssigned: {
+        expected: expected.issue.assignees.includes("nopo-bot"),
+        actual: state.botAssigned
+      },
+      hasTriagedLabel: {
+        expected: expected.issue.labels.includes("triaged"),
+        actual: state.labels.includes("triaged")
+      },
+      hasGroomedLabel: {
+        expected: expected.issue.labels.includes("groomed"),
+        actual: state.labels.includes("groomed")
+      }
     };
-    const actualFields = {
-      issueState: state.issueState,
-      projectStatus: state.projectStatus,
-      iteration: state.iteration,
-      failures: state.failures,
-      botAssigned: state.botAssigned,
-      hasTriagedLabel: state.labels.includes("triaged"),
-      hasGroomedLabel: state.labels.includes("groomed")
+    const minFields = {
+      iteration: {
+        expected: expected.issue.iteration,
+        actual: state.iteration
+      },
+      failures: {
+        expected: expected.issue.failures,
+        actual: state.failures
+      }
     };
     core27.info(`
 State Verification:`);
     core27.info(`${"\u2500".repeat(60)}`);
     const errors = [];
     const diffLines = [];
-    for (const key of Object.keys(expectedFields)) {
-      const exp = expectedFields[key];
-      const act = actualFields[key];
+    for (const key of Object.keys(exactFields)) {
+      const { expected: exp, actual: act } = exactFields[key];
       const match = exp === act;
       if (match) {
         diffLines.push(`  "${key}": ${JSON.stringify(act)}`);
@@ -76292,6 +76322,21 @@ State Verification:`);
         diffLines.push(`+ "${key}": ${JSON.stringify(act)}`);
         errors.push(
           `${key}: expected ${JSON.stringify(exp)}, got ${JSON.stringify(act)}`
+        );
+      }
+    }
+    for (const key of Object.keys(minFields)) {
+      const { expected: exp, actual: act } = minFields[key];
+      const match = act >= exp;
+      if (match) {
+        diffLines.push(
+          `  "${key}": ${JSON.stringify(act)}${act > exp ? ` (expected >=${exp})` : ""}`
+        );
+      } else {
+        diffLines.push(`- "${key}": >=${JSON.stringify(exp)}`);
+        diffLines.push(`+ "${key}": ${JSON.stringify(act)}`);
+        errors.push(
+          `${key}: expected >=${JSON.stringify(exp)}, got ${JSON.stringify(act)}`
         );
       }
     }

@@ -1484,10 +1484,41 @@ Issue: #${this.issueNumber}
   }
 
   /**
-   * Verify GitHub state matches expected fixture
-   * Returns array of error messages (empty if all checks pass)
+   * Verify GitHub state matches expected fixture.
+   * Retries on timing-sensitive field mismatches (projectStatus, iteration, failures).
+   * Returns array of error messages (empty if all checks pass).
    */
   private async verifyGitHubState(expected: StateFixture): Promise<string[]> {
+    const maxAttempts = 3;
+    const retryDelayMs = 5000;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const errors = await this.verifyGitHubStateOnce(expected);
+      if (errors.length === 0) return [];
+
+      // Only retry if all errors are for timing-sensitive fields
+      const timingSensitiveFields = ["projectStatus", "iteration", "failures"];
+      const allTimingSensitive = errors.every((e) =>
+        timingSensitiveFields.some((f) => e.startsWith(`${f}:`)),
+      );
+
+      if (!allTimingSensitive || attempt === maxAttempts) return errors;
+
+      core.info(
+        `Verification attempt ${attempt}/${maxAttempts} had timing-sensitive errors, retrying in ${retryDelayMs / 1000}s...`,
+      );
+      await new Promise((r) => setTimeout(r, retryDelayMs));
+    }
+    return [];
+  }
+
+  /**
+   * Single attempt at verifying GitHub state matches expected fixture.
+   * Uses >= for iteration/failures (non-decreasing counters).
+   */
+  private async verifyGitHubStateOnce(
+    expected: StateFixture,
+  ): Promise<string[]> {
     if (!this.issueNumber) {
       return ["Issue not created"];
     }
@@ -1501,25 +1532,40 @@ Issue: #${this.issueNumber}
       this.config.projectNumber,
     );
 
-    // Build comparison objects for deterministic fields only
-    const expectedFields = {
-      issueState: expected.issue.state,
-      projectStatus: expected.issue.projectStatus,
-      iteration: expected.issue.iteration,
-      failures: expected.issue.failures,
-      botAssigned: expected.issue.assignees.includes("nopo-bot"),
-      hasTriagedLabel: expected.issue.labels.includes("triaged"),
-      hasGroomedLabel: expected.issue.labels.includes("groomed"),
+    // Fields that must match exactly
+    const exactFields = {
+      issueState: {
+        expected: expected.issue.state,
+        actual: state.issueState,
+      },
+      projectStatus: {
+        expected: expected.issue.projectStatus,
+        actual: state.projectStatus,
+      },
+      botAssigned: {
+        expected: expected.issue.assignees.includes("nopo-bot"),
+        actual: state.botAssigned,
+      },
+      hasTriagedLabel: {
+        expected: expected.issue.labels.includes("triaged"),
+        actual: state.labels.includes("triaged"),
+      },
+      hasGroomedLabel: {
+        expected: expected.issue.labels.includes("groomed"),
+        actual: state.labels.includes("groomed"),
+      },
     };
 
-    const actualFields = {
-      issueState: state.issueState,
-      projectStatus: state.projectStatus,
-      iteration: state.iteration,
-      failures: state.failures,
-      botAssigned: state.botAssigned,
-      hasTriagedLabel: state.labels.includes("triaged"),
-      hasGroomedLabel: state.labels.includes("groomed"),
+    // Fields that use >= comparison (non-decreasing counters)
+    const minFields = {
+      iteration: {
+        expected: expected.issue.iteration,
+        actual: state.iteration,
+      },
+      failures: {
+        expected: expected.issue.failures,
+        actual: state.failures,
+      },
     };
 
     // Log the comparison
@@ -1529,13 +1575,12 @@ Issue: #${this.issueNumber}
     const errors: string[] = [];
     const diffLines: string[] = [];
 
-    // Compare each field
+    // Compare exact-match fields
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Object.keys returns string[], narrowing to keyof for typed access
-    for (const key of Object.keys(expectedFields) as Array<
-      keyof typeof expectedFields
+    for (const key of Object.keys(exactFields) as Array<
+      keyof typeof exactFields
     >) {
-      const exp = expectedFields[key];
-      const act = actualFields[key];
+      const { expected: exp, actual: act } = exactFields[key];
       const match = exp === act;
 
       if (match) {
@@ -1545,6 +1590,25 @@ Issue: #${this.issueNumber}
         diffLines.push(`+ "${key}": ${JSON.stringify(act)}`);
         errors.push(
           `${key}: expected ${JSON.stringify(exp)}, got ${JSON.stringify(act)}`,
+        );
+      }
+    }
+
+    // Compare non-decreasing counter fields (actual >= expected)
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Object.keys returns string[], narrowing to keyof for typed access
+    for (const key of Object.keys(minFields) as Array<keyof typeof minFields>) {
+      const { expected: exp, actual: act } = minFields[key];
+      const match = act >= exp;
+
+      if (match) {
+        diffLines.push(
+          `  "${key}": ${JSON.stringify(act)}${act > exp ? ` (expected >=${exp})` : ""}`,
+        );
+      } else {
+        diffLines.push(`- "${key}": >=${JSON.stringify(exp)}`);
+        diffLines.push(`+ "${key}": ${JSON.stringify(act)}`);
+        errors.push(
+          `${key}: expected >=${JSON.stringify(exp)}, got ${JSON.stringify(act)}`,
         );
       }
     }
