@@ -205,24 +205,6 @@ const ServiceFileSchema = z
       message:
         "Cannot specify both 'dockerfile' and 'image', or 'dockerfile' at both top-level and in 'build'",
     },
-  )
-  .refine(
-    (data) => {
-      const hasTopLevelDeps = data.dependencies && data.dependencies.length > 0;
-      const hasBuildDeps = data.build?.depends_on !== undefined;
-      const hasRuntimeDeps = data.runtime?.depends_on !== undefined;
-
-      // Error if top-level dependencies exists alongside build.depends_on or runtime.depends_on
-      if (hasTopLevelDeps && (hasBuildDeps || hasRuntimeDeps)) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message:
-        "Cannot specify both top-level 'dependencies' and 'build.depends_on' or 'runtime.depends_on'. " +
-        "Move dependencies to the appropriate section.",
-    },
   );
 
 const ServicesSchema = z
