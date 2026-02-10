@@ -210,7 +210,10 @@ export async function executeApplyGroomingOutput(
     },
   );
 
-  // Determine the decision based on agent readiness AND question state
+  // Decision is based on agent readiness. Agents have full context (body +
+  // comments) and their determination is authoritative. Body question
+  // checkboxes are tracking state that may be stale (e.g. triage questions
+  // answered in comments but never checked off).
   const allAgentsReady =
     groomingOutput.pm.ready &&
     groomingOutput.engineer.ready &&
@@ -218,82 +221,62 @@ export async function executeApplyGroomingOutput(
     groomingOutput.research.ready;
 
   const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
-  const allReady = allAgentsReady && questionStats.unanswered === 0;
-
-  let decision: string = allReady ? "ready" : "needs_info";
+  const decision = allAgentsReady ? "ready" : "needs_info";
   core.info(
-    `Initial grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`,
+    `Grooming decision: ${decision} (agents=${allAgentsReady}, bodyQuestions=${questionStats.unanswered} unanswered)`,
   );
 
   // Track sub-issues created
   let subIssuesCreated = 0;
 
-  // When agents are ready but body has unanswered questions, run the summary
-  // to check if questions were answered in comments. The summary may upgrade
-  // the decision to "ready".
-  if (decision === "needs_info") {
-    // Extract existing questions from body for context
-    const existingQuestions = extractQuestionItems(data.issue.bodyAst);
+  // Always run the summary to consolidate questions and update the body,
+  // regardless of the decision. This keeps the Questions section current.
+  const existingQuestions = extractQuestionItems(data.issue.bodyAst);
 
-    // Build previous questions text for summary prompt context
-    const previousQuestionsText =
-      existingQuestions.length > 0
-        ? existingQuestions
-            .map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`)
-            .join("\n")
-        : undefined;
+  const previousQuestionsText =
+    existingQuestions.length > 0
+      ? existingQuestions
+          .map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`)
+          .join("\n")
+      : undefined;
 
-    // Run summary prompt with consolidated question logic
-    const summaryOutput = await runGroomingSummary(
-      action,
-      groomingOutput,
-      data,
-      previousQuestionsText,
+  const summaryOutput = await runGroomingSummary(
+    action,
+    groomingOutput,
+    data,
+    previousQuestionsText,
+  );
+
+  // Update the Questions section in the body
+  const content = buildQuestionsContent(summaryOutput, existingQuestions);
+
+  if (content.length > 0) {
+    let updatedData = upsertSection({ title: "Questions", content }, data);
+
+    const questionCount = (summaryOutput.consolidated_questions ?? []).length;
+    const answeredCount = (summaryOutput.answered_questions ?? []).length;
+    const notes = [
+      `Grooming decision: ${decision}`,
+      `Summary: ${questionCount} pending question(s), ${answeredCount} answered`,
+      summaryOutput.decision_rationale,
+    ];
+    updatedData = appendAgentNotes(
+      {
+        runId: `grooming-${Date.now()}`,
+        runLink: "",
+        notes,
+      },
+      updatedData,
     );
 
-    // Build questions content as MDAST and upsert into body
-    const content = buildQuestionsContent(summaryOutput, existingQuestions);
-
-    if (content.length > 0) {
-      let updatedData = upsertSection({ title: "Questions", content }, data);
-
-      // Log agent notes for the grooming decision
-      const questionCount = (summaryOutput.consolidated_questions ?? []).length;
-      const answeredCount = (summaryOutput.answered_questions ?? []).length;
-      const notes = [
-        `Grooming decision: ${summaryOutput.decision}`,
-        `${questionCount} pending question(s), ${answeredCount} answered`,
-        summaryOutput.decision_rationale,
-      ];
-      updatedData = appendAgentNotes(
-        {
-          runId: `grooming-${Date.now()}`,
-          runLink: "",
-          notes,
-        },
-        updatedData,
-      );
-
-      await update(updatedData);
-      core.info(
-        `Updated Questions section and agent notes in issue #${action.issueNumber} body`,
-      );
-    }
-
-    // If the summary determined everything is ready (e.g. questions were
-    // answered in comments), upgrade the decision so we proceed to create
-    // sub-issues and add the groomed label.
-    if (allAgentsReady && summaryOutput.decision === "ready") {
-      core.info(
-        `Summary upgraded decision to "ready" — all agents ready and questions resolved`,
-      );
-      decision = "ready";
-    }
+    await update(updatedData);
+    core.info(
+      `Updated Questions section and agent notes in issue #${action.issueNumber} body`,
+    );
   }
 
-  // Apply the "ready" decision (either initially or upgraded by summary)
   if (decision === "ready") {
-    // Re-parse the issue to get fresh state (body may have been updated above)
+    // Re-parse to get fresh state after body update above
     const { data: readyData, update: readyUpdate } = await parseIssue(
       ctx.owner,
       ctx.repo,
@@ -305,7 +288,7 @@ export async function executeApplyGroomingOutput(
       },
     );
 
-    // Add 'groomed' label to indicate issue is ready for implementation
+    // Add 'groomed' label
     try {
       await readyUpdate({
         ...readyData,
@@ -320,7 +303,6 @@ export async function executeApplyGroomingOutput(
     }
 
     // Create sub-issues from engineer's recommended phases
-    // Phases are always required - work happens on sub-issues, not parent issues
     const engineerOutput = parseOutput(
       EngineerOutputSchema,
       groomingOutput.engineer,
@@ -446,7 +428,8 @@ function parseMarkdownLine(markdown: string): RootContent[] {
  *
  * - New pending questions → unchecked, with `id:slug` inline code
  * - Answered questions → checked with strikethrough, with `id:slug` inline code
- * - Existing triage questions (no ID) → preserved as-is
+ * - Existing triage questions (no ID) → dropped when summary has answered/pending
+ *   versions (the summary supersedes them)
  * - Existing grooming questions not in new output → preserved with current checked state
  * - User-checked questions → respected (not unchecked by re-run)
  */
@@ -476,17 +459,25 @@ export function buildQuestionsContent(
     if (q.id) existingById.set(q.id, q);
   }
 
+  // When the summary has output, triage questions (no ID) are superseded —
+  // the summary consolidates and re-identifies them with proper IDs.
+  const hasSummaryOutput = pending.length > 0 || answered.length > 0;
+
   // Build list items as MDAST nodes with proper formatting
   const listItems: unknown[] = [];
 
-  // 1. Preserve existing triage questions (no ID) as-is
-  for (const q of existingQuestions) {
-    if (!q.id) {
-      listItems.push({
-        type: "listItem",
-        checked: q.checked,
-        children: [{ type: "paragraph", children: parseMarkdownLine(q.text) }],
-      });
+  // 1. Preserve existing triage questions (no ID) only if summary has no output
+  if (!hasSummaryOutput) {
+    for (const q of existingQuestions) {
+      if (!q.id) {
+        listItems.push({
+          type: "listItem",
+          checked: q.checked,
+          children: [
+            { type: "paragraph", children: parseMarkdownLine(q.text) },
+          ],
+        });
+      }
     }
   }
 

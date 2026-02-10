@@ -71450,10 +71450,10 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
     );
     core16.info("Using structured output from in-process chain");
   } else if (action.filePath && fs11.existsSync(action.filePath)) {
-    const content3 = fs11.readFileSync(action.filePath, "utf-8");
+    const content4 = fs11.readFileSync(action.filePath, "utf-8");
     groomingOutput = parseOutput(
       CombinedGroomingOutputSchema,
-      JSON.parse(content3),
+      JSON.parse(content4),
       "grooming file"
     );
     core16.info(`Grooming output from file: ${action.filePath}`);
@@ -71482,50 +71482,41 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   );
   const allAgentsReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
   const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
-  const allReady = allAgentsReady && questionStats.unanswered === 0;
-  let decision = allReady ? "ready" : "needs_info";
+  const decision = allAgentsReady ? "ready" : "needs_info";
   core16.info(
-    `Initial grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`
+    `Grooming decision: ${decision} (agents=${allAgentsReady}, bodyQuestions=${questionStats.unanswered} unanswered)`
   );
   let subIssuesCreated = 0;
-  if (decision === "needs_info") {
-    const existingQuestions = extractQuestionItems(data.issue.bodyAst);
-    const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
-    const summaryOutput = await runGroomingSummary(
-      action,
-      groomingOutput,
-      data,
-      previousQuestionsText
+  const existingQuestions = extractQuestionItems(data.issue.bodyAst);
+  const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
+  const summaryOutput = await runGroomingSummary(
+    action,
+    groomingOutput,
+    data,
+    previousQuestionsText
+  );
+  const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
+  if (content3.length > 0) {
+    let updatedData = upsertSection2({ title: "Questions", content: content3 }, data);
+    const questionCount = (summaryOutput.consolidated_questions ?? []).length;
+    const answeredCount = (summaryOutput.answered_questions ?? []).length;
+    const notes = [
+      `Grooming decision: ${decision}`,
+      `Summary: ${questionCount} pending question(s), ${answeredCount} answered`,
+      summaryOutput.decision_rationale
+    ];
+    updatedData = appendAgentNotes2(
+      {
+        runId: `grooming-${Date.now()}`,
+        runLink: "",
+        notes
+      },
+      updatedData
     );
-    const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
-    if (content3.length > 0) {
-      let updatedData = upsertSection2({ title: "Questions", content: content3 }, data);
-      const questionCount = (summaryOutput.consolidated_questions ?? []).length;
-      const answeredCount = (summaryOutput.answered_questions ?? []).length;
-      const notes = [
-        `Grooming decision: ${summaryOutput.decision}`,
-        `${questionCount} pending question(s), ${answeredCount} answered`,
-        summaryOutput.decision_rationale
-      ];
-      updatedData = appendAgentNotes2(
-        {
-          runId: `grooming-${Date.now()}`,
-          runLink: "",
-          notes
-        },
-        updatedData
-      );
-      await update(updatedData);
-      core16.info(
-        `Updated Questions section and agent notes in issue #${action.issueNumber} body`
-      );
-    }
-    if (allAgentsReady && summaryOutput.decision === "ready") {
-      core16.info(
-        `Summary upgraded decision to "ready" \u2014 all agents ready and questions resolved`
-      );
-      decision = "ready";
-    }
+    await update(updatedData);
+    core16.info(
+      `Updated Questions section and agent notes in issue #${action.issueNumber} body`
+    );
   }
   if (decision === "ready") {
     const { data: readyData, update: readyUpdate } = await parseIssue(
@@ -71645,14 +71636,19 @@ function buildQuestionsContent(summary2, existingQuestions) {
   for (const q of existingQuestions) {
     if (q.id) existingById.set(q.id, q);
   }
+  const hasSummaryOutput = pending.length > 0 || answered.length > 0;
   const listItems = [];
-  for (const q of existingQuestions) {
-    if (!q.id) {
-      listItems.push({
-        type: "listItem",
-        checked: q.checked,
-        children: [{ type: "paragraph", children: parseMarkdownLine(q.text) }]
-      });
+  if (!hasSummaryOutput) {
+    for (const q of existingQuestions) {
+      if (!q.id) {
+        listItems.push({
+          type: "listItem",
+          checked: q.checked,
+          children: [
+            { type: "paragraph", children: parseMarkdownLine(q.text) }
+          ]
+        });
+      }
     }
   }
   for (const q of pending) {

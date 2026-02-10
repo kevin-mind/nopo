@@ -344,7 +344,7 @@ describe("buildQuestionsContent", () => {
     expect(md).toContain("`id:resolved`");
   });
 
-  it("preserves existing triage questions (no ID)", () => {
+  it("drops triage questions (no ID) when summary has output", () => {
     const summary: GroomingSummaryOutput = {
       summary: "Questions remain.",
       decision: "needs_info",
@@ -367,10 +367,29 @@ describe("buildQuestionsContent", () => {
     const result = buildQuestionsContent(summary, existingQuestions);
     const md = contentToMarkdown(result);
 
-    // Triage question preserved
-    expect(md).toContain("What about performance?");
-    // New grooming question also present
+    // Triage question dropped (superseded by summary)
+    expect(md).not.toContain("What about performance?");
+    // New grooming question present
     expect(md).toContain("New question");
+  });
+
+  it("preserves triage questions (no ID) when summary has no output", () => {
+    const summary: GroomingSummaryOutput = {
+      summary: "No questions.",
+      decision: "ready",
+      decision_rationale: "All clear.",
+      consolidated_questions: [],
+    };
+
+    const existingQuestions = [
+      { id: null, text: "What about performance?", checked: false },
+    ];
+
+    const result = buildQuestionsContent(summary, existingQuestions);
+    const md = contentToMarkdown(result);
+
+    // Triage question preserved when summary has no output
+    expect(md).toContain("What about performance?");
   });
 
   it("respects user-checked state on re-run", () => {
