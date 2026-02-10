@@ -40803,13 +40803,13 @@ function executeEmit(actorScope, {
   actorScope.defer(() => actorScope.emit(event));
 }
 function emit(eventOrExpr) {
-  function emit2(_args, _params) {
+  function emit3(_args, _params) {
   }
-  emit2.type = "xstate.emit";
-  emit2.event = eventOrExpr;
-  emit2.resolve = resolveEmit;
-  emit2.execute = executeEmit;
-  return emit2;
+  emit3.type = "xstate.emit";
+  emit3.event = eventOrExpr;
+  emit3.resolve = resolveEmit;
+  emit3.execute = executeEmit;
+  return emit3;
 }
 var SpecialTargets = /* @__PURE__ */ function(SpecialTargets2) {
   SpecialTargets2["Parent"] = "#_parent";
@@ -41355,6 +41355,16 @@ var guards = {
   shouldContinueIterating,
   shouldBlock
 };
+
+// src/machine/emit-helper.ts
+function accumulateFromEmitter(existingActions, context, emitter) {
+  return [...existingActions, ...emitter({ context })];
+}
+function emit2(emitter) {
+  return assign({
+    pendingActions: ({ context }) => accumulateFromEmitter(context.pendingActions, context, emitter)
+  });
+}
 
 // src/machine/actions.ts
 function formatCommentsForPrompt(comments) {
@@ -42452,9 +42462,6 @@ function emitRunClaudePivot({ context }) {
 }
 
 // src/machine/machine.ts
-function accumulateActions(existingActions, newActions) {
-  return [...existingActions, ...newActions];
-}
 var claudeMachine = setup({
   types: {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
@@ -42514,342 +42521,128 @@ var claudeMachine = setup({
   },
   actions: {
     // Log actions
-    logDetecting: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog({ context }, "Detecting initial state")
+    logDetecting: emit2(
+      (ctx) => emitLog(ctx, "Detecting initial state")
+    ),
+    logIterating: emit2(
+      (ctx) => emitLog(ctx, `Starting iteration ${ctx.context.issue.iteration + 1}`)
+    ),
+    logFixingCI: emit2(
+      (ctx) => emitLog(ctx, `Fixing CI (iteration ${ctx.context.issue.iteration + 1})`)
+    ),
+    logReviewing: emit2(
+      (ctx) => emitLog(ctx, "PR is under review")
+    ),
+    logTriaging: emit2(
+      (ctx) => emitLog(ctx, `Triaging issue #${ctx.context.issue.number}`)
+    ),
+    logCommenting: emit2(
+      (ctx) => emitLog(ctx, `Responding to comment on #${ctx.context.issue.number}`)
+    ),
+    logWaitingForReview: emit2(
+      (ctx) => emitLog(ctx, "Waiting for review on current phase")
+    ),
+    logAwaitingMerge: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `PR #${ctx.context.pr?.number} marked ready for merge - awaiting human action`
       )
-    }),
-    logIterating: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `Starting iteration ${context.issue.iteration + 1}`
-        )
-      )
-    }),
-    logFixingCI: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `Fixing CI (iteration ${context.issue.iteration + 1})`
-        )
-      )
-    }),
-    logReviewing: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog({ context }, "PR is under review")
-      )
-    }),
-    logTriaging: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog({ context }, `Triaging issue #${context.issue.number}`)
-      )
-    }),
-    logCommenting: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `Responding to comment on #${context.issue.number}`
-        )
-      )
-    }),
-    logWaitingForReview: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog({ context }, "Waiting for review on current phase")
-      )
-    }),
-    logAwaitingMerge: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `PR #${context.pr?.number} marked ready for merge - awaiting human action`
-        )
-      )
-    }),
+    ),
     // Iteration history logging (writes to issue body)
-    historyIterationStarted: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLogIterationStarted({ context })
-      )
-    }),
-    historyCISuccess: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLogCISuccess({ context })
-      )
-    }),
-    historyReviewRequested: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLogReviewRequested({ context })
-      )
-    }),
+    historyIterationStarted: emit2(emitLogIterationStarted),
+    historyCISuccess: emit2(emitLogCISuccess),
+    historyReviewRequested: emit2(emitLogReviewRequested),
     // Status actions
-    setWorking: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetWorking({ context }))
-    }),
-    setReview: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetReview({ context }))
-    }),
-    setInProgress: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitSetInProgress({ context })
-      )
-    }),
-    setDone: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetDone({ context }))
-    }),
-    setBlocked: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetBlocked({ context }))
-    }),
-    setError: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetError({ context }))
-    }),
-    logInvalidIteration: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLogInvalidIteration({ context })
-      )
-    }),
+    setWorking: emit2(emitSetWorking),
+    setReview: emit2(emitSetReview),
+    setInProgress: emit2(emitSetInProgress),
+    setDone: emit2(emitSetDone),
+    setBlocked: emit2(emitSetBlocked),
+    setError: emit2(emitSetError),
+    logInvalidIteration: emit2(emitLogInvalidIteration),
     // Iteration actions
-    incrementIteration: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitIncrementIteration({ context })
-      )
-    }),
-    recordFailure: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRecordFailure({ context })
-      )
-    }),
-    clearFailures: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitClearFailures({ context })
-      )
-    }),
+    incrementIteration: emit2(emitIncrementIteration),
+    recordFailure: emit2(emitRecordFailure),
+    clearFailures: emit2(emitClearFailures),
     // Issue actions
-    closeIssue: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitCloseIssue({ context }))
-    }),
-    unassign: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitUnassign({ context }))
-    }),
+    closeIssue: emit2(emitCloseIssue),
+    unassign: emit2(emitUnassign),
     // Git actions
-    createBranch: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitCreateBranch({ context })
-      )
-    }),
+    createBranch: emit2(emitCreateBranch),
     // Claude actions
-    runClaude: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitRunClaude({ context }))
-    }),
-    runClaudeFixCI: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudeFixCI({ context })
-      )
-    }),
-    runClaudeTriage: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudeTriage({ context })
-      )
-    }),
-    runClaudeComment: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudeComment({ context })
-      )
-    }),
+    runClaude: emit2(emitRunClaude),
+    runClaudeFixCI: emit2(emitRunClaudeFixCI),
+    runClaudeTriage: emit2(emitRunClaudeTriage),
+    runClaudeComment: emit2(emitRunClaudeComment),
     // PR actions
-    createPR: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitCreatePR({ context }))
-    }),
-    markPRReady: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitMarkReady({ context }))
-    }),
-    requestReview: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRequestReview({ context })
+    createPR: emit2(emitCreatePR),
+    markPRReady: emit2(emitMarkReady),
+    requestReview: emit2(emitRequestReview),
+    convertToDraft: emit2(emitConvertToDraft),
+    mergePR: emit2(emitMergePR),
+    runClaudePRReview: emit2(emitRunClaudePRReview),
+    runClaudePRResponse: emit2(emitRunClaudePRResponse),
+    runClaudePRHumanResponse: emit2(emitRunClaudePRHumanResponse),
+    logPRReviewing: emit2(
+      (ctx) => emitLog(ctx, `Reviewing PR #${ctx.context.pr?.number ?? "unknown"}`)
+    ),
+    logPRResponding: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `Responding to review on PR #${ctx.context.pr?.number ?? "unknown"}`
       )
-    }),
-    convertToDraft: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitConvertToDraft({ context })
-      )
-    }),
-    mergePR: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitMergePR({ context }))
-    }),
-    runClaudePRReview: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudePRReview({ context })
-      )
-    }),
-    runClaudePRResponse: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudePRResponse({ context })
-      )
-    }),
-    runClaudePRHumanResponse: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudePRHumanResponse({ context })
-      )
-    }),
-    logPRReviewing: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `Reviewing PR #${context.pr?.number ?? "unknown"}`
-        )
-      )
-    }),
-    logPRResponding: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `Responding to review on PR #${context.pr?.number ?? "unknown"}`
-        )
-      )
-    }),
+    ),
     // Compound actions
-    transitionToReview: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitTransitionToReview({ context })
-      )
-    }),
-    handleCIFailure: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitHandleCIFailure({ context })
-      )
-    }),
-    blockIssue: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitBlockIssue({ context }))
-    }),
+    transitionToReview: emit2(emitTransitionToReview),
+    handleCIFailure: emit2(emitHandleCIFailure),
+    blockIssue: emit2(emitBlockIssue),
     // Orchestration actions
-    orchestrate: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitOrchestrate({ context }))
-    }),
-    allPhasesDone: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitAllPhasesDone({ context })
+    orchestrate: emit2(emitOrchestrate),
+    allPhasesDone: emit2(emitAllPhasesDone),
+    logOrchestrating: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `Orchestrating issue #${ctx.context.issue.number} (phase ${ctx.context.currentPhase}/${ctx.context.totalPhases})`
       )
-    }),
-    logOrchestrating: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `Orchestrating issue #${context.issue.number} (phase ${context.currentPhase}/${context.totalPhases})`
-        )
-      )
-    }),
-    // Stop action
+    ),
+    // Stop action (needs event.reason - inline assign)
     stopWithReason: assign({
-      pendingActions: ({ context }, params) => accumulateActions(
-        context.pendingActions,
-        emitStop({ context }, params.reason)
-      )
+      pendingActions: ({ context, event }) => {
+        const reason = "reason" in event && typeof event.reason === "string" ? event.reason : "unknown";
+        return accumulateFromEmitter(
+          context.pendingActions,
+          context,
+          (ctx) => emitStop(ctx, reason)
+        );
+      }
     }),
     // Merge queue logging actions
-    logMergeQueueEntry: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitMergeQueueEntry({ context })
-      )
-    }),
-    logMergeQueueFailure: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitMergeQueueFailure({ context })
-      )
-    }),
-    logMerged: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitMerged({ context }))
-    }),
-    logDeployedStage: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitDeployedStage({ context })
-      )
-    }),
-    logDeployedProd: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitDeployedProd({ context })
-      )
-    }),
+    logMergeQueueEntry: emit2(emitMergeQueueEntry),
+    logMergeQueueFailure: emit2(emitMergeQueueFailure),
+    logMerged: emit2(emitMerged),
+    logDeployedStage: emit2(emitDeployedStage),
+    logDeployedProd: emit2(emitDeployedProd),
     // Push to draft action
-    pushToDraft: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitPushToDraft({ context }))
-    }),
+    pushToDraft: emit2(emitPushToDraft),
     // Reset action
-    resetIssue: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitResetIssue({ context }))
-    }),
-    logResetting: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog(
-          { context },
-          `Resetting issue #${context.issue.number} to initial state`
-        )
+    resetIssue: emit2(emitResetIssue),
+    logResetting: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `Resetting issue #${ctx.context.issue.number} to initial state`
       )
-    }),
+    ),
     // Grooming actions
-    runClaudeGrooming: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudeGrooming({ context })
-      )
-    }),
-    logGrooming: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog({ context }, `Grooming issue #${context.issue.number}`)
-      )
-    }),
-    setReady: assign({
-      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitSetReady({ context }))
-    }),
+    runClaudeGrooming: emit2(emitRunClaudeGrooming),
+    logGrooming: emit2(
+      (ctx) => emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`)
+    ),
+    setReady: emit2(emitSetReady),
     // Pivot actions
-    runClaudePivot: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitRunClaudePivot({ context })
-      )
-    }),
-    logPivoting: assign({
-      pendingActions: ({ context }) => accumulateActions(
-        context.pendingActions,
-        emitLog({ context }, `Pivoting issue #${context.issue.number}`)
-      )
-    })
+    runClaudePivot: emit2(emitRunClaudePivot),
+    logPivoting: emit2(
+      (ctx) => emitLog(ctx, `Pivoting issue #${ctx.context.issue.number}`)
+    )
   }
 }).createMachine({
   id: "claude-automation",
@@ -63983,7 +63776,7 @@ function emitLogCompleting({ context }) {
 }
 
 // src/discussion/machine.ts
-function accumulateActions2(existingActions, newActions) {
+function accumulateActions(existingActions, newActions) {
   return [...existingActions, ...newActions];
 }
 var discussionMachine = setup({
@@ -64015,7 +63808,7 @@ var discussionMachine = setup({
   actions: {
     // Logging actions
     logDetecting: assign({
-      pendingActions: ({ context }) => accumulateActions2(context.pendingActions, [
+      pendingActions: ({ context }) => accumulateActions(context.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -64025,34 +63818,34 @@ var discussionMachine = setup({
       ])
     }),
     logResearching: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitLogResearching({ context })
       )
     }),
     logResponding: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitLogResponding({ context })
       )
     }),
     logSummarizing: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitLogSummarizing({ context })
       )
     }),
     logPlanning: assign({
-      pendingActions: ({ context }) => accumulateActions2(context.pendingActions, emitLogPlanning({ context }))
+      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitLogPlanning({ context }))
     }),
     logCompleting: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitLogCompleting({ context })
       )
     }),
     logSkipped: assign({
-      pendingActions: ({ context }) => accumulateActions2(context.pendingActions, [
+      pendingActions: ({ context }) => accumulateActions(context.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -64062,7 +63855,7 @@ var discussionMachine = setup({
       ])
     }),
     logNoContext: assign({
-      pendingActions: ({ context }) => accumulateActions2(context.pendingActions, [
+      pendingActions: ({ context }) => accumulateActions(context.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -64073,35 +63866,35 @@ var discussionMachine = setup({
     }),
     // Research actions
     runClaudeResearch: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitRunClaudeResearch({ context })
       )
     }),
     // Respond actions
     runClaudeRespond: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitRunClaudeRespond({ context })
       )
     }),
     // Summarize actions
     runClaudeSummarize: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitRunClaudeSummarize({ context })
       )
     }),
     // Plan actions
     runClaudePlan: assign({
-      pendingActions: ({ context }) => accumulateActions2(
+      pendingActions: ({ context }) => accumulateActions(
         context.pendingActions,
         emitRunClaudePlan({ context })
       )
     }),
     // Complete actions
     complete: assign({
-      pendingActions: ({ context }) => accumulateActions2(context.pendingActions, emitComplete({ context }))
+      pendingActions: ({ context }) => accumulateActions(context.pendingActions, emitComplete({ context }))
     })
   }
 }).createMachine({

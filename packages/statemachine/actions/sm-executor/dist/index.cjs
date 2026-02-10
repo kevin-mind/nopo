@@ -46124,13 +46124,13 @@ function executeEmit(actorScope, {
   actorScope.defer(() => actorScope.emit(event));
 }
 function emit(eventOrExpr) {
-  function emit2(_args, _params) {
+  function emit3(_args, _params) {
   }
-  emit2.type = "xstate.emit";
-  emit2.event = eventOrExpr;
-  emit2.resolve = resolveEmit;
-  emit2.execute = executeEmit;
-  return emit2;
+  emit3.type = "xstate.emit";
+  emit3.event = eventOrExpr;
+  emit3.resolve = resolveEmit;
+  emit3.execute = executeEmit;
+  return emit3;
 }
 var SpecialTargets = /* @__PURE__ */ function(SpecialTargets2) {
   SpecialTargets2["Parent"] = "#_parent";
@@ -46676,6 +46676,16 @@ var guards = {
   shouldContinueIterating,
   shouldBlock
 };
+
+// src/machine/emit-helper.ts
+function accumulateFromEmitter(existingActions, context2, emitter) {
+  return [...existingActions, ...emitter({ context: context2 })];
+}
+function emit2(emitter) {
+  return assign({
+    pendingActions: ({ context: context2 }) => accumulateFromEmitter(context2.pendingActions, context2, emitter)
+  });
+}
 
 // src/machine/actions.ts
 function formatCommentsForPrompt(comments) {
@@ -47773,9 +47783,6 @@ function emitRunClaudePivot({ context: context2 }) {
 }
 
 // src/machine/machine.ts
-function accumulateActions(existingActions, newActions) {
-  return [...existingActions, ...newActions];
-}
 var claudeMachine = setup({
   types: {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
@@ -47835,342 +47842,128 @@ var claudeMachine = setup({
   },
   actions: {
     // Log actions
-    logDetecting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog({ context: context2 }, "Detecting initial state")
+    logDetecting: emit2(
+      (ctx) => emitLog(ctx, "Detecting initial state")
+    ),
+    logIterating: emit2(
+      (ctx) => emitLog(ctx, `Starting iteration ${ctx.context.issue.iteration + 1}`)
+    ),
+    logFixingCI: emit2(
+      (ctx) => emitLog(ctx, `Fixing CI (iteration ${ctx.context.issue.iteration + 1})`)
+    ),
+    logReviewing: emit2(
+      (ctx) => emitLog(ctx, "PR is under review")
+    ),
+    logTriaging: emit2(
+      (ctx) => emitLog(ctx, `Triaging issue #${ctx.context.issue.number}`)
+    ),
+    logCommenting: emit2(
+      (ctx) => emitLog(ctx, `Responding to comment on #${ctx.context.issue.number}`)
+    ),
+    logWaitingForReview: emit2(
+      (ctx) => emitLog(ctx, "Waiting for review on current phase")
+    ),
+    logAwaitingMerge: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `PR #${ctx.context.pr?.number} marked ready for merge - awaiting human action`
       )
-    }),
-    logIterating: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `Starting iteration ${context2.issue.iteration + 1}`
-        )
-      )
-    }),
-    logFixingCI: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `Fixing CI (iteration ${context2.issue.iteration + 1})`
-        )
-      )
-    }),
-    logReviewing: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog({ context: context2 }, "PR is under review")
-      )
-    }),
-    logTriaging: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog({ context: context2 }, `Triaging issue #${context2.issue.number}`)
-      )
-    }),
-    logCommenting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `Responding to comment on #${context2.issue.number}`
-        )
-      )
-    }),
-    logWaitingForReview: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog({ context: context2 }, "Waiting for review on current phase")
-      )
-    }),
-    logAwaitingMerge: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `PR #${context2.pr?.number} marked ready for merge - awaiting human action`
-        )
-      )
-    }),
+    ),
     // Iteration history logging (writes to issue body)
-    historyIterationStarted: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogIterationStarted({ context: context2 })
-      )
-    }),
-    historyCISuccess: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogCISuccess({ context: context2 })
-      )
-    }),
-    historyReviewRequested: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogReviewRequested({ context: context2 })
-      )
-    }),
+    historyIterationStarted: emit2(emitLogIterationStarted),
+    historyCISuccess: emit2(emitLogCISuccess),
+    historyReviewRequested: emit2(emitLogReviewRequested),
     // Status actions
-    setWorking: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetWorking({ context: context2 }))
-    }),
-    setReview: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetReview({ context: context2 }))
-    }),
-    setInProgress: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitSetInProgress({ context: context2 })
-      )
-    }),
-    setDone: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetDone({ context: context2 }))
-    }),
-    setBlocked: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetBlocked({ context: context2 }))
-    }),
-    setError: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetError({ context: context2 }))
-    }),
-    logInvalidIteration: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogInvalidIteration({ context: context2 })
-      )
-    }),
+    setWorking: emit2(emitSetWorking),
+    setReview: emit2(emitSetReview),
+    setInProgress: emit2(emitSetInProgress),
+    setDone: emit2(emitSetDone),
+    setBlocked: emit2(emitSetBlocked),
+    setError: emit2(emitSetError),
+    logInvalidIteration: emit2(emitLogInvalidIteration),
     // Iteration actions
-    incrementIteration: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitIncrementIteration({ context: context2 })
-      )
-    }),
-    recordFailure: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRecordFailure({ context: context2 })
-      )
-    }),
-    clearFailures: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitClearFailures({ context: context2 })
-      )
-    }),
+    incrementIteration: emit2(emitIncrementIteration),
+    recordFailure: emit2(emitRecordFailure),
+    clearFailures: emit2(emitClearFailures),
     // Issue actions
-    closeIssue: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitCloseIssue({ context: context2 }))
-    }),
-    unassign: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitUnassign({ context: context2 }))
-    }),
+    closeIssue: emit2(emitCloseIssue),
+    unassign: emit2(emitUnassign),
     // Git actions
-    createBranch: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitCreateBranch({ context: context2 })
-      )
-    }),
+    createBranch: emit2(emitCreateBranch),
     // Claude actions
-    runClaude: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitRunClaude({ context: context2 }))
-    }),
-    runClaudeFixCI: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudeFixCI({ context: context2 })
-      )
-    }),
-    runClaudeTriage: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudeTriage({ context: context2 })
-      )
-    }),
-    runClaudeComment: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudeComment({ context: context2 })
-      )
-    }),
+    runClaude: emit2(emitRunClaude),
+    runClaudeFixCI: emit2(emitRunClaudeFixCI),
+    runClaudeTriage: emit2(emitRunClaudeTriage),
+    runClaudeComment: emit2(emitRunClaudeComment),
     // PR actions
-    createPR: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitCreatePR({ context: context2 }))
-    }),
-    markPRReady: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMarkReady({ context: context2 }))
-    }),
-    requestReview: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRequestReview({ context: context2 })
+    createPR: emit2(emitCreatePR),
+    markPRReady: emit2(emitMarkReady),
+    requestReview: emit2(emitRequestReview),
+    convertToDraft: emit2(emitConvertToDraft),
+    mergePR: emit2(emitMergePR),
+    runClaudePRReview: emit2(emitRunClaudePRReview),
+    runClaudePRResponse: emit2(emitRunClaudePRResponse),
+    runClaudePRHumanResponse: emit2(emitRunClaudePRHumanResponse),
+    logPRReviewing: emit2(
+      (ctx) => emitLog(ctx, `Reviewing PR #${ctx.context.pr?.number ?? "unknown"}`)
+    ),
+    logPRResponding: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `Responding to review on PR #${ctx.context.pr?.number ?? "unknown"}`
       )
-    }),
-    convertToDraft: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitConvertToDraft({ context: context2 })
-      )
-    }),
-    mergePR: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMergePR({ context: context2 }))
-    }),
-    runClaudePRReview: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudePRReview({ context: context2 })
-      )
-    }),
-    runClaudePRResponse: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudePRResponse({ context: context2 })
-      )
-    }),
-    runClaudePRHumanResponse: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudePRHumanResponse({ context: context2 })
-      )
-    }),
-    logPRReviewing: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `Reviewing PR #${context2.pr?.number ?? "unknown"}`
-        )
-      )
-    }),
-    logPRResponding: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `Responding to review on PR #${context2.pr?.number ?? "unknown"}`
-        )
-      )
-    }),
+    ),
     // Compound actions
-    transitionToReview: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitTransitionToReview({ context: context2 })
-      )
-    }),
-    handleCIFailure: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitHandleCIFailure({ context: context2 })
-      )
-    }),
-    blockIssue: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitBlockIssue({ context: context2 }))
-    }),
+    transitionToReview: emit2(emitTransitionToReview),
+    handleCIFailure: emit2(emitHandleCIFailure),
+    blockIssue: emit2(emitBlockIssue),
     // Orchestration actions
-    orchestrate: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitOrchestrate({ context: context2 }))
-    }),
-    allPhasesDone: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitAllPhasesDone({ context: context2 })
+    orchestrate: emit2(emitOrchestrate),
+    allPhasesDone: emit2(emitAllPhasesDone),
+    logOrchestrating: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `Orchestrating issue #${ctx.context.issue.number} (phase ${ctx.context.currentPhase}/${ctx.context.totalPhases})`
       )
-    }),
-    logOrchestrating: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `Orchestrating issue #${context2.issue.number} (phase ${context2.currentPhase}/${context2.totalPhases})`
-        )
-      )
-    }),
-    // Stop action
+    ),
+    // Stop action (needs event.reason - inline assign)
     stopWithReason: assign({
-      pendingActions: ({ context: context2 }, params) => accumulateActions(
-        context2.pendingActions,
-        emitStop({ context: context2 }, params.reason)
-      )
+      pendingActions: ({ context: context2, event }) => {
+        const reason = "reason" in event && typeof event.reason === "string" ? event.reason : "unknown";
+        return accumulateFromEmitter(
+          context2.pendingActions,
+          context2,
+          (ctx) => emitStop(ctx, reason)
+        );
+      }
     }),
     // Merge queue logging actions
-    logMergeQueueEntry: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitMergeQueueEntry({ context: context2 })
-      )
-    }),
-    logMergeQueueFailure: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitMergeQueueFailure({ context: context2 })
-      )
-    }),
-    logMerged: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitMerged({ context: context2 }))
-    }),
-    logDeployedStage: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitDeployedStage({ context: context2 })
-      )
-    }),
-    logDeployedProd: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitDeployedProd({ context: context2 })
-      )
-    }),
+    logMergeQueueEntry: emit2(emitMergeQueueEntry),
+    logMergeQueueFailure: emit2(emitMergeQueueFailure),
+    logMerged: emit2(emitMerged),
+    logDeployedStage: emit2(emitDeployedStage),
+    logDeployedProd: emit2(emitDeployedProd),
     // Push to draft action
-    pushToDraft: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitPushToDraft({ context: context2 }))
-    }),
+    pushToDraft: emit2(emitPushToDraft),
     // Reset action
-    resetIssue: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitResetIssue({ context: context2 }))
-    }),
-    logResetting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog(
-          { context: context2 },
-          `Resetting issue #${context2.issue.number} to initial state`
-        )
+    resetIssue: emit2(emitResetIssue),
+    logResetting: emit2(
+      (ctx) => emitLog(
+        ctx,
+        `Resetting issue #${ctx.context.issue.number} to initial state`
       )
-    }),
+    ),
     // Grooming actions
-    runClaudeGrooming: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudeGrooming({ context: context2 })
-      )
-    }),
-    logGrooming: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog({ context: context2 }, `Grooming issue #${context2.issue.number}`)
-      )
-    }),
-    setReady: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitSetReady({ context: context2 }))
-    }),
+    runClaudeGrooming: emit2(emitRunClaudeGrooming),
+    logGrooming: emit2(
+      (ctx) => emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`)
+    ),
+    setReady: emit2(emitSetReady),
     // Pivot actions
-    runClaudePivot: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudePivot({ context: context2 })
-      )
-    }),
-    logPivoting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLog({ context: context2 }, `Pivoting issue #${context2.issue.number}`)
-      )
-    })
+    runClaudePivot: emit2(emitRunClaudePivot),
+    logPivoting: emit2(
+      (ctx) => emitLog(ctx, `Pivoting issue #${ctx.context.issue.number}`)
+    )
   }
 }).createMachine({
   id: "claude-automation",
@@ -72434,7 +72227,7 @@ function emitLogCompleting({ context: context2 }) {
 }
 
 // src/discussion/machine.ts
-function accumulateActions2(existingActions, newActions) {
+function accumulateActions(existingActions, newActions) {
   return [...existingActions, ...newActions];
 }
 var discussionMachine = setup({
@@ -72466,7 +72259,7 @@ var discussionMachine = setup({
   actions: {
     // Logging actions
     logDetecting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, [
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -72476,34 +72269,34 @@ var discussionMachine = setup({
       ])
     }),
     logResearching: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitLogResearching({ context: context2 })
       )
     }),
     logResponding: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitLogResponding({ context: context2 })
       )
     }),
     logSummarizing: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitLogSummarizing({ context: context2 })
       )
     }),
     logPlanning: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, emitLogPlanning({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitLogPlanning({ context: context2 }))
     }),
     logCompleting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitLogCompleting({ context: context2 })
       )
     }),
     logSkipped: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, [
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -72513,7 +72306,7 @@ var discussionMachine = setup({
       ])
     }),
     logNoContext: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, [
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -72524,35 +72317,35 @@ var discussionMachine = setup({
     }),
     // Research actions
     runClaudeResearch: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitRunClaudeResearch({ context: context2 })
       )
     }),
     // Respond actions
     runClaudeRespond: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitRunClaudeRespond({ context: context2 })
       )
     }),
     // Summarize actions
     runClaudeSummarize: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitRunClaudeSummarize({ context: context2 })
       )
     }),
     // Plan actions
     runClaudePlan: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(
+      pendingActions: ({ context: context2 }) => accumulateActions(
         context2.pendingActions,
         emitRunClaudePlan({ context: context2 })
       )
     }),
     // Complete actions
     complete: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions2(context2.pendingActions, emitComplete({ context: context2 }))
+      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitComplete({ context: context2 }))
     })
   }
 }).createMachine({
