@@ -60,6 +60,8 @@ const GroomingResearch = promptFactory()
       )
       .optional(),
     context_summary: z.string(),
+    ready: z.boolean(),
+    questions: z.array(z.string()).optional(),
   }))
   .prompt((inputs) => (
     <prompt>
@@ -84,7 +86,8 @@ const GroomingResearch = promptFactory()
 2. **Related PRs**: Find relevant PRs (merged, open, or closed)
 3. **Related Discussions**: Find relevant GitHub discussions
 4. **Prior Art**: Has this been attempted before? What happened?
-5. **Codebase Context**: Key files or modules relevant to this work`}
+5. **Codebase Context**: Key files or modules relevant to this work
+6. **Readiness**: Based on your research, is there enough context to proceed?`}
       </section>
 
       <section title="Research Methods">
@@ -95,9 +98,9 @@ const GroomingResearch = promptFactory()
       </section>
 
       <section title="Output">
-        {
-          "Return structured JSON with your research findings. Focus on actionable context that will help implementation."
-        }
+        {`Return structured JSON with your research findings. Focus on actionable context that will help implementation.
+
+Set ready=true if research found no blockers or duplicates. Set ready=false with questions if critical context is missing.`}
       </section>
     </prompt>
   ));

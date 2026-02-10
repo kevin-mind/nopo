@@ -68253,7 +68253,9 @@ var GroomingResearch = promptFactory().inputs((z) => ({
       relevance: z.string()
     })
   ).optional(),
-  context_summary: z.string()
+  context_summary: z.string(),
+  ready: z.boolean(),
+  questions: z.array(z.string()).optional()
 })).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
   /* @__PURE__ */ jsx("line", { children: `You are a Research Analyst reviewing issue #${inputs.issueNumber}: "${inputs.issueTitle}"` }),
   /* @__PURE__ */ jsx("section", { title: "Issue Body", children: inputs.issueBody }),
@@ -68266,12 +68268,15 @@ var GroomingResearch = promptFactory().inputs((z) => ({
 2. **Related PRs**: Find relevant PRs (merged, open, or closed)
 3. **Related Discussions**: Find relevant GitHub discussions
 4. **Prior Art**: Has this been attempted before? What happened?
-5. **Codebase Context**: Key files or modules relevant to this work` }),
+5. **Codebase Context**: Key files or modules relevant to this work
+6. **Readiness**: Based on your research, is there enough context to proceed?` }),
   /* @__PURE__ */ jsx("section", { title: "Research Methods", children: `Use the GitHub CLI and codebase search to find:
 - \`gh issue list --search "keywords"\` - find related issues
 - \`gh pr list --search "keywords"\` - find related PRs
 - Grep/search for relevant code patterns` }),
-  /* @__PURE__ */ jsx("section", { title: "Output", children: "Return structured JSON with your research findings. Focus on actionable context that will help implementation." })
+  /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with your research findings. Focus on actionable context that will help implementation.
+
+Set ready=true if research found no blockers or duplicates. Set ready=false with questions if critical context is missing.` })
 ] }));
 var research_default = GroomingResearch;
 
