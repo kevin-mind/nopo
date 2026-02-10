@@ -70124,6 +70124,22 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
     core8.warning(`Failed to update issue body: ${error11}`);
   }
 }
+function extractPreservedSections(ast) {
+  const preserved = [];
+  const preservedHeadings = /* @__PURE__ */ new Set(["Iteration History", "Agent Notes"]);
+  let inPreserved = false;
+  for (const node2 of ast.children) {
+    if (node2.type === "heading" && node2.depth === 2) {
+      const firstChild = node2.children[0];
+      const text5 = firstChild?.type === "text" ? firstChild.value : "";
+      inPreserved = preservedHeadings.has(text5);
+    }
+    if (inPreserved) {
+      preserved.push(node2);
+    }
+  }
+  return preserved;
+}
 async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
   try {
     const { data, update } = await parseIssue(
@@ -70136,44 +70152,33 @@ async function updateIssueStructure(ctx, issueNumber, requirements, initialAppro
         fetchParent: false
       }
     );
-    let state = data;
+    const sections = [];
     if (requirements.length > 0) {
-      const reqContent = [
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
-        createBulletList(requirements)
-      ];
-      state = upsertSection2(
-        { title: "Requirements", content: reqContent },
-        state
+      sections.push(
+        `## Requirements
+
+${requirements.map((r) => `- ${r}`).join("\n")}`
       );
     }
     if (initialApproach) {
-      const approachAst = parseMarkdown(initialApproach);
-      const approachContent = approachAst.children;
-      state = upsertSection2(
-        { title: "Approach", content: approachContent },
-        state
-      );
+      sections.push(`## Approach
+
+${initialApproach}`);
     }
     if (initialQuestions && initialQuestions.length > 0) {
-      const todos = initialQuestions.map((q) => ({
-        text: q,
-        checked: false,
-        manual: false
-      }));
-      const questionsContent = [
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
-        createTodoList(todos)
-      ];
-      state = upsertSection2(
-        { title: "Questions", content: questionsContent },
-        state
-      );
+      const questionLines = initialQuestions.map((q) => `- [ ] ${q}`).join("\n");
+      sections.push(`## Questions
+
+${questionLines}`);
     }
-    if (state !== data) {
-      await update(state);
-      core8.info(`Updated issue #${issueNumber} with structured sections`);
+    const newBodyAst = parseMarkdown(sections.join("\n\n"));
+    const preservedNodes = extractPreservedSections(data.issue.bodyAst);
+    for (const node2 of preservedNodes) {
+      newBodyAst.children.push(node2);
     }
+    const state = replaceBody({ bodyAst: newBodyAst }, data);
+    await update(state);
+    core8.info(`Updated issue #${issueNumber} with structured sections`);
   } catch (error11) {
     core8.warning(`Failed to update issue structure: ${error11}`);
   }

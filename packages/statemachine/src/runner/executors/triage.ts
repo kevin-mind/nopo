@@ -12,14 +12,12 @@ import {
   parseIssue,
   createComment,
   parseMarkdown,
-  createBulletList,
-  createTodoList,
   type OctokitLike,
 } from "@more/issue-state";
-import type { RootContent } from "mdast";
+import type { Root, RootContent } from "mdast";
 import type { ApplyTriageOutputAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
-import { upsertSection, replaceBody } from "../../parser/index.js";
+import { replaceBody } from "../../parser/index.js";
 import {
   TriageOutputSchema,
   LegacyTriageOutputSchema,
@@ -250,10 +248,35 @@ async function updateIssueBody(
 }
 
 /**
- * Update issue body with structured sections from triage output
+ * Extract nodes belonging to preserved sections (Iteration History, Agent Notes).
+ * Returns MDAST nodes including section headings and all content until the next
+ * non-preserved depth-2 heading.
+ */
+function extractPreservedSections(ast: Root): RootContent[] {
+  const preserved: RootContent[] = [];
+  const preservedHeadings = new Set(["Iteration History", "Agent Notes"]);
+  let inPreserved = false;
+
+  for (const node of ast.children) {
+    if (node.type === "heading" && node.depth === 2) {
+      const firstChild = node.children[0];
+      const text = firstChild?.type === "text" ? firstChild.value : "";
+      inPreserved = preservedHeadings.has(text);
+    }
+    if (inPreserved) {
+      preserved.push(node);
+    }
+  }
+
+  return preserved;
+}
+
+/**
+ * Replace the issue body with structured sections from triage output.
  *
- * This adds/updates Requirements, Approach, and Questions sections
- * while preserving existing content like Agent Notes and Iteration History.
+ * Builds a fresh body from Requirements, Approach, and Questions sections,
+ * preserving only Iteration History and Agent Notes from the existing body.
+ * All sections are parsed as markdown to avoid remark-stringify escaping issues.
  */
 async function updateIssueStructure(
   ctx: RunnerContext,
@@ -273,52 +296,40 @@ async function updateIssueStructure(
         fetchParent: false,
       },
     );
-    let state = data;
 
-    // Requirements section
+    // Build new body as markdown, then parse to get properly-formed AST.
+    // This avoids escaping issues from createBulletList/createParagraph text nodes.
+    const sections: string[] = [];
+
     if (requirements.length > 0) {
-      const reqContent: RootContent[] = [
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
-        createBulletList(requirements) as unknown as RootContent,
-      ];
-      state = upsertSection(
-        { title: "Requirements", content: reqContent },
-        state,
+      sections.push(
+        `## Requirements\n\n${requirements.map((r) => `- ${r}`).join("\n")}`,
       );
     }
 
-    // Approach section - parse as markdown since it contains rich formatting
     if (initialApproach) {
-      const approachAst = parseMarkdown(initialApproach);
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Root children are RootContent nodes
-      const approachContent = approachAst.children as RootContent[];
-      state = upsertSection(
-        { title: "Approach", content: approachContent },
-        state,
-      );
+      sections.push(`## Approach\n\n${initialApproach}`);
     }
 
-    // Questions section (if any)
     if (initialQuestions && initialQuestions.length > 0) {
-      const todos = initialQuestions.map((q) => ({
-        text: q,
-        checked: false,
-        manual: false,
-      }));
-      const questionsContent: RootContent[] = [
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
-        createTodoList(todos) as unknown as RootContent,
-      ];
-      state = upsertSection(
-        { title: "Questions", content: questionsContent },
-        state,
-      );
+      const questionLines = initialQuestions
+        .map((q) => `- [ ] ${q}`)
+        .join("\n");
+      sections.push(`## Questions\n\n${questionLines}`);
     }
 
-    if (state !== data) {
-      await update(state);
-      core.info(`Updated issue #${issueNumber} with structured sections`);
+    // Parse the triage sections as markdown
+    const newBodyAst = parseMarkdown(sections.join("\n\n"));
+
+    // Preserve Iteration History and Agent Notes from existing body
+    const preservedNodes = extractPreservedSections(data.issue.bodyAst);
+    for (const node of preservedNodes) {
+      newBodyAst.children.push(node);
     }
+
+    const state = replaceBody({ bodyAst: newBodyAst }, data);
+    await update(state);
+    core.info(`Updated issue #${issueNumber} with structured sections`);
   } catch (error) {
     core.warning(`Failed to update issue structure: ${error}`);
   }
