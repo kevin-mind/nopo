@@ -423,18 +423,18 @@ var require_tunnel = __commonJS({
             res.statusCode
           );
           socket.destroy();
-          var error6 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error6.code = "ECONNRESET";
-          options.request.emit("error", error6);
+          var error7 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error7.code = "ECONNRESET";
+          options.request.emit("error", error7);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
           debug6("got illegal response body from proxy");
           socket.destroy();
-          var error6 = new Error("got illegal response body from proxy");
-          error6.code = "ECONNRESET";
-          options.request.emit("error", error6);
+          var error7 = new Error("got illegal response body from proxy");
+          error7.code = "ECONNRESET";
+          options.request.emit("error", error7);
           self2.removeSocket(placeholder);
           return;
         }
@@ -449,9 +449,9 @@ var require_tunnel = __commonJS({
           cause.message,
           cause.stack
         );
-        var error6 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error6.code = "ECONNRESET";
-        options.request.emit("error", error6);
+        var error7 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error7.code = "ECONNRESET";
+        options.request.emit("error", error7);
         self2.removeSocket(placeholder);
       }
     };
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error6) => promise.reject(error6);
+      const errorSteps = (error7) => promise.reject(error7);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error6) {
+      onError(error7) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error6 });
+          channels.error.publish({ request: this, error: error7 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error6);
+        return this[kHandler].onError(error7);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error6) {
-        this.handler.onError(error6);
+      onError(error7) {
+        this.handler.onError(error7);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util3.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util3.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error6) => {
+        this.on("connectionError", (origin2, targets, error7) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error6 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error7 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error6 !== null) {
+      if (error7 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error6);
+        handler.onError(error7);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error6) {
-            if (error6 instanceof MockNotMatchedError) {
+          } catch (error7) {
+            if (error7 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error6;
+              throw error7;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error6) {
-        if (typeof error6 === "undefined") {
+      replyWithError(error7) {
+        if (typeof error7 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error6 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error7 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error6) {
+      abort(error7) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error6) {
-          error6 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error7) {
+          error7 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error6;
-        this.connection?.destroy(error6);
-        this.emit("terminated", error6);
+        this.serializedAbortReason = error7;
+        this.connection?.destroy(error7);
+        this.emit("terminated", error7);
       }
     };
     function fetch2(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error6) {
-      if (!error6) {
-        error6 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error7) {
+      if (!error7) {
+        error7 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error6);
+      p.reject(error7);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error6).catch((err) => {
+        request.body.stream.cancel(error7).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error6).catch((err) => {
+        response.body.stream.cancel(error7).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error6) {
+            onError(error7) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error6);
-              fetchParams.controller.terminate(error6);
-              reject(error6);
+              this.body?.destroy(error7);
+              fetchParams.controller.terminate(error7);
+              reject(error7);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error6) {
-                  fr[kError] = error6;
+                } catch (error7) {
+                  fr[kError] = error7;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error6) {
+          } catch (error7) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error6;
+              fr[kError] = error7;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error6) {
+    function onSocketError(error7) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error6);
+        channels.socketError.publish(error7);
       }
       this.destroy();
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info22 = this._prepareRequest(verb, parsedUrl, headers);
+          let info24 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info22, data);
+            response = yield this.requestRaw(info24, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info22, data);
+                return authenticationHandler.handleAuthentication(this, info24, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info22 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info22, data);
+              info24 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info24, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info22, data) {
+      requestRaw(info24, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info22, data, callbackForResult);
+            this.requestRawWithCallback(info24, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info22, data, onResult) {
+      requestRawWithCallback(info24, data, onResult) {
         if (typeof data === "string") {
-          if (!info22.options.headers) {
-            info22.options.headers = {};
+          if (!info24.options.headers) {
+            info24.options.headers = {};
           }
-          info22.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info24.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info22.httpModule.request(info22.options, (msg) => {
+        const req = info24.httpModule.request(info24.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info22.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info24.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info22 = {};
-        info22.parsedUrl = requestUrl;
-        const usingSsl = info22.parsedUrl.protocol === "https:";
-        info22.httpModule = usingSsl ? https : http;
+        const info24 = {};
+        info24.parsedUrl = requestUrl;
+        const usingSsl = info24.parsedUrl.protocol === "https:";
+        info24.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info22.options = {};
-        info22.options.host = info22.parsedUrl.hostname;
-        info22.options.port = info22.parsedUrl.port ? parseInt(info22.parsedUrl.port) : defaultPort;
-        info22.options.path = (info22.parsedUrl.pathname || "") + (info22.parsedUrl.search || "");
-        info22.options.method = method;
-        info22.options.headers = this._mergeHeaders(headers);
+        info24.options = {};
+        info24.options.host = info24.parsedUrl.hostname;
+        info24.options.port = info24.parsedUrl.port ? parseInt(info24.parsedUrl.port) : defaultPort;
+        info24.options.path = (info24.parsedUrl.pathname || "") + (info24.parsedUrl.search || "");
+        info24.options.method = method;
+        info24.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info22.options.headers["user-agent"] = this.userAgent;
+          info24.options.headers["user-agent"] = this.userAgent;
         }
-        info22.options.agent = this._getAgent(info22.parsedUrl);
+        info24.options.agent = this._getAgent(info24.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info22.options);
+            handler.prepareRequest(info24.options);
           }
         }
-        return info22;
+        return info24;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error6) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error7) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error6.statusCode}
+        Error Code : ${error7.statusCode}
  
-        Error Message: ${error6.message}`);
+        Error Message: ${error7.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error6) {
-            throw new Error(`Error message: ${error6.message}`);
+          } catch (error7) {
+            throw new Error(`Error message: ${error7.message}`);
           }
         });
       }
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error6, exitCode) => {
+            state.on("done", (error7, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error6) {
-                reject(error6);
+              if (error7) {
+                reject(error7);
               } else {
                 resolve2(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error6;
+        let error7;
         if (this.processExited) {
           if (this.processError) {
-            error6 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error7 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error6 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error7 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error6 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error7 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error6, this.processExitCode);
+        this.emit("done", error7, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19725,7 +19725,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error6(message);
+      error7(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
@@ -19736,22 +19736,22 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("debug", {}, message);
     }
     exports2.debug = debug6;
-    function error6(message, properties = {}) {
+    function error7(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error6;
-    function warning16(message, properties = {}) {
+    exports2.error = error7;
+    function warning18(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning16;
+    exports2.warning = warning18;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info22(message) {
+    function info24(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info22;
+    exports2.info = info24;
     function startGroup10(name) {
       (0, command_1.issue)("group", name);
     }
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error6) {
-            return orig(error6, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error7) {
+            return orig(error7, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error6 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error7 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error6;
+          throw error7;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error6) => {
-        if (error6 instanceof import_request_error.RequestError)
-          throw error6;
-        else if (error6.name === "AbortError")
-          throw error6;
-        let message = error6.message;
-        if (error6.name === "TypeError" && "cause" in error6) {
-          if (error6.cause instanceof Error) {
-            message = error6.cause.message;
-          } else if (typeof error6.cause === "string") {
-            message = error6.cause;
+      }).catch((error7) => {
+        if (error7 instanceof import_request_error.RequestError)
+          throw error7;
+        else if (error7.name === "AbortError")
+          throw error7;
+        let message = error7.message;
+        if (error7.name === "TypeError" && "cause" in error7) {
+          if (error7.cause instanceof Error) {
+            message = error7.cause.message;
+          } else if (typeof error7.cause === "string") {
+            message = error7.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error6) {
-              if (error6.status !== 409)
-                throw error6;
+            } catch (error7) {
+              if (error7.status !== 409)
+                throw error7;
               url = "";
               return {
                 value: {
@@ -23974,7 +23974,7 @@ var require_extend = __commonJS({
 });
 
 // actions/sm-executor/index.ts
-var core22 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
@@ -24273,8 +24273,8 @@ var ZodError = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error6) => {
-      for (const issue2 of error6.issues) {
+    const processError = (error7) => {
+      for (const issue2 of error7.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -24337,8 +24337,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error6 = new ZodError(issues);
-  return error6;
+  const error7 = new ZodError(issues);
+  return error7;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -24602,8 +24602,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error6 = new ZodError(ctx.common.issues);
-        this._error = error6;
+        const error7 = new ZodError(ctx.common.issues);
+        this._error = error7;
         return this._error;
       }
     };
@@ -27258,25 +27258,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error6) {
+    function makeArgsIssue(args, error7) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error6
+          argumentsError: error7
         }
       });
     }
-    function makeReturnsIssue(returns, error6) {
+    function makeReturnsIssue(returns, error7) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error6
+          returnTypeError: error7
         }
       });
     }
@@ -27285,15 +27285,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error6 = new ZodError([]);
+        const error7 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error6.addIssue(makeArgsIssue(args, e));
-          throw error6;
+          error7.addIssue(makeArgsIssue(args, e));
+          throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error6.addIssue(makeReturnsIssue(result, e));
-          throw error6;
+          error7.addIssue(makeReturnsIssue(result, e));
+          throw error7;
         });
         return parsedReturns;
       });
@@ -28167,9 +28167,9 @@ var IssueStateDataSchema = external_exports.object({
 });
 
 // ../../node_modules/.pnpm/bail@2.0.2/node_modules/bail/index.js
-function bail(error6) {
-  if (error6) {
-    throw error6;
+function bail(error7) {
+  if (error7) {
+    throw error7;
   }
 }
 
@@ -28201,11 +28201,11 @@ function trough() {
       throw new TypeError("Expected function as last argument, not " + callback);
     }
     next(null, ...values);
-    function next(error6, ...output) {
+    function next(error7, ...output) {
       const fn = fns[++middlewareIndex];
       let index2 = -1;
-      if (error6) {
-        callback(error6);
+      if (error7) {
+        callback(error7);
         return;
       }
       while (++index2 < values.length) {
@@ -28242,10 +28242,10 @@ function wrap(middleware, callback) {
     }
     try {
       result = middleware.apply(this, parameters);
-    } catch (error6) {
+    } catch (error7) {
       const exception = (
         /** @type {Error} */
-        error6
+        error7
       );
       if (fnExpectsCallback && called) {
         throw exception;
@@ -28262,10 +28262,10 @@ function wrap(middleware, callback) {
       }
     }
   }
-  function done(error6, ...output) {
+  function done(error7, ...output) {
     if (!called) {
       called = true;
-      callback(error6, ...output);
+      callback(error7, ...output);
     }
   }
   function then(value) {
@@ -29173,9 +29173,9 @@ var Processor = class _Processor extends CallableInstance {
         /** @type {unknown} */
         self2.parse(realFile)
       );
-      self2.run(parseTree, realFile, function(error6, tree, file2) {
-        if (error6 || !tree || !file2) {
-          return realDone(error6);
+      self2.run(parseTree, realFile, function(error7, tree, file2) {
+        if (error7 || !tree || !file2) {
+          return realDone(error7);
         }
         const compileTree = (
           /** @type {CompileTree extends undefined ? Node : CompileTree} */
@@ -29189,14 +29189,14 @@ var Processor = class _Processor extends CallableInstance {
           file2.result = compileResult;
         }
         realDone(
-          error6,
+          error7,
           /** @type {VFileWithOutput<CompileResult>} */
           file2
         );
       });
-      function realDone(error6, file2) {
-        if (error6 || !file2) {
-          reject(error6);
+      function realDone(error7, file2) {
+        if (error7 || !file2) {
+          reject(error7);
         } else if (resolve2) {
           resolve2(file2);
         } else {
@@ -29247,9 +29247,9 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("processSync", "process", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error6, file2) {
+    function realDone(error7, file2) {
       complete = true;
-      bail(error6);
+      bail(error7);
       result = file2;
     }
   }
@@ -29307,13 +29307,13 @@ var Processor = class _Processor extends CallableInstance {
       );
       const realFile = vfile(file);
       transformers.run(tree, realFile, realDone);
-      function realDone(error6, outputTree, file2) {
+      function realDone(error7, outputTree, file2) {
         const resultingTree = (
           /** @type {TailTree extends undefined ? Node : TailTree} */
           outputTree || tree
         );
-        if (error6) {
-          reject(error6);
+        if (error7) {
+          reject(error7);
         } else if (resolve2) {
           resolve2(resultingTree);
         } else {
@@ -29347,8 +29347,8 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("runSync", "run", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error6, tree2) {
-      bail(error6);
+    function realDone(error7, tree2) {
+      bail(error7);
       result = tree2;
       complete = true;
     }
@@ -32601,9 +32601,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info22(code3);
+    return info24(code3);
   }
-  function info22(code3) {
+  function info24(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32618,7 +32618,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info22;
+    return info24;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35457,11 +35457,11 @@ function createTokenizer(parser2, initialize, from) {
     context2.events.push(["exit", token, context2]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info22) {
-    addResult(construct, info22.from);
+  function onsuccessfulconstruct(construct, info24) {
+    addResult(construct, info24.from);
   }
-  function onsuccessfulcheck(_, info22) {
-    info22.restore();
+  function onsuccessfulcheck(_, info24) {
+    info24.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35469,7 +35469,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info22;
+      let info24;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35505,7 +35505,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info22 = store();
+          info24 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context2.currentConstruct = construct;
@@ -35526,12 +35526,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info22);
+        onreturn(currentConstruct, info24);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info22.restore();
+        info24.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -37000,8 +37000,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info22) {
-  const tracker = state.createTracker(info22);
+function footnoteReference(node2, _, state, info24) {
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37039,8 +37039,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info22) {
-    const tracker = state.createTracker(info22);
+  function footnoteDefinition(node2, _, state, info24) {
+    const tracker = state.createTracker(info24);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37104,8 +37104,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info22) {
-  const tracker = state.createTracker(info22);
+function handleDelete(node2, _, state, info24) {
+  const tracker = state.createTracker(info24);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37332,9 +37332,9 @@ function map(left, right) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info22) {
+function blockquote(node2, _, state, info24) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37369,11 +37369,11 @@ function listInScope(stack, list4, none) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info22) {
+function hardBreak(_, _1, state, info24) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info22.before) ? "" : " ";
+      return /[ \t]/.test(info24.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37425,7 +37425,7 @@ function checkFence(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info22) {
+function code(node2, _, state, info24) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37435,7 +37435,7 @@ function code(node2, _, state, info22) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37488,12 +37488,12 @@ function checkQuote(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info22) {
+function definition2(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37603,10 +37603,10 @@ function encodeInfo(outside, inside, marker) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info22) {
+function emphasis(node2, _, state, info24) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37617,7 +37617,7 @@ function emphasis(node2, _, state, info22) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info22.before.charCodeAt(info22.before.length - 1),
+    info24.before.charCodeAt(info24.before.length - 1),
     betweenHead,
     marker
   );
@@ -37625,7 +37625,7 @@ function emphasis(node2, _, state, info22) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info22.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37678,9 +37678,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info22) {
+function heading(node2, _, state, info24) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37730,12 +37730,12 @@ function htmlPeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info22) {
+function image(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37787,11 +37787,11 @@ function imagePeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info22) {
+function imageReference(node2, _, state, info24) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37872,10 +37872,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info22) {
+function link(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37952,11 +37952,11 @@ function linkPeek(node2, _, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info22) {
+function linkReference(node2, _, state, info24) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38043,7 +38043,7 @@ function checkRule(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info22) {
+function list3(node2, parent, state, info24) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38075,7 +38075,7 @@ function list3(node2, parent, state, info22) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info22);
+  const value = state.containerFlow(node2, info24);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38094,7 +38094,7 @@ function checkListItemIndent(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info22) {
+function listItem(node2, parent, state, info24) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38104,7 +38104,7 @@ function listItem(node2, parent, state, info22) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38123,10 +38123,10 @@ function listItem(node2, parent, state, info22) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info22) {
+function paragraph(node2, _, state, info24) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info22);
+  const value = state.containerPhrasing(node2, info24);
   subexit();
   exit3();
   return value;
@@ -38161,12 +38161,12 @@ var phrasing = (
 );
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info22) {
+function root(node2, _, state, info24) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info22);
+  return container.call(state, node2, info24);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38182,10 +38182,10 @@ function checkStrong(state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info22) {
+function strong(node2, _, state, info24) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38196,7 +38196,7 @@ function strong(node2, _, state, info22) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info22.before.charCodeAt(info22.before.length - 1),
+    info24.before.charCodeAt(info24.before.length - 1),
     betweenHead,
     marker
   );
@@ -38204,7 +38204,7 @@ function strong(node2, _, state, info22) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info22.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38221,8 +38221,8 @@ function strongPeek(_, _1, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info22) {
-  return state.safe(node2.value, info22);
+function text3(node2, _, state, info24) {
+  return state.safe(node2.value, info24);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38437,15 +38437,15 @@ function compilePattern(pattern) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info22) {
+function containerPhrasing(parent, state, info24) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info22.before;
+  let before = info24.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info22);
+  let tracker = state.createTracker(info24);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38459,7 +38459,7 @@ function containerPhrasing(parent, state, info22) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info22.after;
+      after = info24.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38467,7 +38467,7 @@ function containerPhrasing(parent, state, info22) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info22);
+      tracker = state.createTracker(info24);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38496,10 +38496,10 @@ function containerPhrasing(parent, state, info22) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info22) {
+function containerFlow(parent, state, info24) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38735,11 +38735,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info22) {
-  return containerPhrasing(parent, this, info22);
+function containerPhrasingBound(parent, info24) {
+  return containerPhrasing(parent, this, info24);
 }
-function containerFlowBound(parent, info22) {
-  return containerFlow(parent, this, info22);
+function containerFlowBound(parent, info24) {
+  return containerFlow(parent, this, info24);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38836,19 +38836,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info22) {
-    return serializeData(handleTableAsData(node2, state, info22), node2.align);
+  function handleTable(node2, _, state, info24) {
+    return serializeData(handleTableAsData(node2, state, info24), node2.align);
   }
-  function handleTableRow(node2, _, state, info22) {
-    const row = handleTableRowAsData(node2, state, info22);
+  function handleTableRow(node2, _, state, info24) {
+    const row = handleTableRowAsData(node2, state, info24);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info22) {
+  function handleTableCell(node2, _, state, info24) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info22,
+      ...info24,
       before: around,
       after: around
     });
@@ -38867,24 +38867,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info22) {
+  function handleTableAsData(node2, state, info24) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info22);
+      result[index2] = handleTableRowAsData(children[index2], state, info24);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info22) {
+  function handleTableRowAsData(node2, state, info24) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info22);
+      result[index2] = handleTableCell(children[index2], node2, state, info24);
     }
     subexit();
     return result;
@@ -38950,16 +38950,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info22) {
+function listItemWithTaskListItem(node2, parent, state, info24) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info22,
+    ...info24,
     ...tracker.current()
   });
   if (checkable) {
@@ -43361,10 +43361,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error6) {
+function createErrorActorEvent(id, error7) {
   return {
     type: `xstate.error.actor.${id}`,
-    error: error6,
+    error: error7,
     actorId: id
   };
 }
@@ -52850,7 +52850,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core23 = [
+  var core25 = [
     "$schema",
     "$id",
     "$defs",
@@ -52860,7 +52860,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core23;
+  exports2.default = core25;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -55942,12 +55942,12 @@ var ProcessTransport = class {
       this.abortHandler = cleanup;
       process.on("exit", this.processExitHandler);
       this.abortController.signal.addEventListener("abort", this.abortHandler);
-      this.process.on("error", (error6) => {
+      this.process.on("error", (error7) => {
         this.ready = false;
         if (this.abortController.signal.aborted) {
           this.exitError = new AbortError("Claude Code process aborted by user");
         } else {
-          this.exitError = new Error(`Failed to spawn Claude Code process: ${error6.message}`);
+          this.exitError = new Error(`Failed to spawn Claude Code process: ${error7.message}`);
           logForSdkDebugging(this.exitError.message);
         }
       });
@@ -55956,17 +55956,17 @@ var ProcessTransport = class {
         if (this.abortController.signal.aborted) {
           this.exitError = new AbortError("Claude Code process aborted by user");
         } else {
-          const error6 = this.getProcessExitError(code3, signal);
-          if (error6) {
-            this.exitError = error6;
-            logForSdkDebugging(error6.message);
+          const error7 = this.getProcessExitError(code3, signal);
+          if (error7) {
+            this.exitError = error7;
+            logForSdkDebugging(error7.message);
           }
         }
       });
       this.ready = true;
-    } catch (error6) {
+    } catch (error7) {
       this.ready = false;
-      throw error6;
+      throw error7;
     }
   }
   getProcessExitError(code3, signal) {
@@ -55996,9 +55996,9 @@ var ProcessTransport = class {
       if (!written) {
         logForSdkDebugging("[ProcessTransport] Write buffer full, data queued");
       }
-    } catch (error6) {
+    } catch (error7) {
       this.ready = false;
-      throw new Error(`Failed to write to process stdin: ${error6.message}`);
+      throw new Error(`Failed to write to process stdin: ${error7.message}`);
     }
   }
   close() {
@@ -56044,8 +56044,8 @@ var ProcessTransport = class {
         }
       }
       await this.waitForExit();
-    } catch (error6) {
-      throw error6;
+    } catch (error7) {
+      throw error7;
     } finally {
       rl.close();
     }
@@ -56063,8 +56063,8 @@ var ProcessTransport = class {
       return () => {
       };
     const handler = (code3, signal) => {
-      const error6 = this.getProcessExitError(code3, signal);
-      callback(error6);
+      const error7 = this.getProcessExitError(code3, signal);
+      callback(error7);
     };
     this.process.on("exit", handler);
     this.exitListeners.push({ callback, handler });
@@ -56097,17 +56097,17 @@ var ProcessTransport = class {
           reject(new AbortError("Operation aborted"));
           return;
         }
-        const error6 = this.getProcessExitError(code3, signal);
-        if (error6) {
-          reject(error6);
+        const error7 = this.getProcessExitError(code3, signal);
+        if (error7) {
+          reject(error7);
         } else {
           resolve2();
         }
       };
       this.process.once("exit", exitHandler);
-      const errorHandler = (error6) => {
+      const errorHandler = (error7) => {
         this.process.off("exit", exitHandler);
-        reject(error6);
+        reject(error7);
       };
       this.process.once("error", errorHandler);
       this.process.once("exit", () => {
@@ -56175,13 +56175,13 @@ var Stream = class {
       resolve2({ done: true, value: void 0 });
     }
   }
-  error(error6) {
-    this.hasError = error6;
+  error(error7) {
+    this.hasError = error7;
     if (this.readReject) {
       const reject = this.readReject;
       this.readResolve = void 0;
       this.readReject = void 0;
-      reject(error6);
+      reject(error7);
     }
   }
   return() {
@@ -56258,10 +56258,10 @@ var Query = class {
     this.initialization.catch(() => {
     });
   }
-  setError(error6) {
-    this.inputStream.error(error6);
+  setError(error7) {
+    this.inputStream.error(error7);
   }
-  cleanup(error6) {
+  cleanup(error7) {
     if (this.cleanupPerformed)
       return;
     this.cleanupPerformed = true;
@@ -56278,8 +56278,8 @@ var Query = class {
         }
       }
       this.sdkMcpTransports.clear();
-      if (error6) {
-        this.inputStream.error(error6);
+      if (error7) {
+        this.inputStream.error(error7);
       } else {
         this.inputStream.done();
       }
@@ -56336,12 +56336,12 @@ var Query = class {
       }
       this.inputStream.done();
       this.cleanup();
-    } catch (error6) {
+    } catch (error7) {
       if (this.firstResultReceivedResolve) {
         this.firstResultReceivedResolve();
       }
-      this.inputStream.error(error6);
-      this.cleanup(error6);
+      this.inputStream.error(error7);
+      this.cleanup(error7);
     }
   }
   async handleControlRequest(request) {
@@ -56359,13 +56359,13 @@ var Query = class {
       };
       await Promise.resolve(this.transport.write(jsonStringify(controlResponse) + `
 `));
-    } catch (error6) {
+    } catch (error7) {
       const controlErrorResponse = {
         type: "control_response",
         response: {
           subtype: "error",
           request_id: request.request_id,
-          error: error6.message || String(error6)
+          error: error7.message || String(error7)
         }
       };
       await Promise.resolve(this.transport.write(jsonStringify(controlErrorResponse) + `
@@ -56587,9 +56587,9 @@ var Query = class {
       }
       logForDebugging(`[Query] Calling transport.endInput() to close stdin to CLI process`);
       this.transport.endInput();
-    } catch (error6) {
-      if (!(error6 instanceof AbortError)) {
-        throw error6;
+    } catch (error7) {
+      if (!(error7 instanceof AbortError)) {
+        throw error7;
       }
     }
   }
@@ -56665,9 +56665,9 @@ var Query = class {
         cleanup();
         resolve2(response);
       };
-      const rejectAndCleanup = (error6) => {
+      const rejectAndCleanup = (error7) => {
         cleanup();
-        reject(error6);
+        reject(error7);
       };
       this.pendingMcpResponses.set(key, {
         resolve: resolveAndCleanup,
@@ -56859,8 +56859,8 @@ var ZodError2 = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error6) => {
-      for (const issue2 of error6.issues) {
+    const processError = (error7) => {
+      for (const issue2 of error7.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -56923,8 +56923,8 @@ var ZodError2 = class _ZodError extends Error {
   }
 };
 ZodError2.create = (issues) => {
-  const error6 = new ZodError2(issues);
-  return error6;
+  const error7 = new ZodError2(issues);
+  return error7;
 };
 var errorMap2 = (issue2, _ctx) => {
   let message;
@@ -57170,8 +57170,8 @@ var handleResult2 = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error6 = new ZodError2(ctx.common.issues);
-        this._error = error6;
+        const error7 = new ZodError2(ctx.common.issues);
+        this._error = error7;
         return this._error;
       }
     };
@@ -59731,25 +59731,25 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
       });
       return INVALID2;
     }
-    function makeArgsIssue(args, error6) {
+    function makeArgsIssue(args, error7) {
       return makeIssue2({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_arguments,
-          argumentsError: error6
+          argumentsError: error7
         }
       });
     }
-    function makeReturnsIssue(returns, error6) {
+    function makeReturnsIssue(returns, error7) {
       return makeIssue2({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_return_type,
-          returnTypeError: error6
+          returnTypeError: error7
         }
       });
     }
@@ -59758,15 +59758,15 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
     if (this._def.returns instanceof ZodPromise2) {
       const me = this;
       return OK2(async function(...args) {
-        const error6 = new ZodError2([]);
+        const error7 = new ZodError2([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error6.addIssue(makeArgsIssue(args, e));
-          throw error6;
+          error7.addIssue(makeArgsIssue(args, e));
+          throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error6.addIssue(makeReturnsIssue(result, e));
-          throw error6;
+          error7.addIssue(makeReturnsIssue(result, e));
+          throw error7;
         });
         return parsedReturns;
       });
@@ -61037,10 +61037,10 @@ var initializer = (inst, def) => {
 };
 var $ZodError = $constructor("$ZodError", initializer);
 var $ZodRealError = $constructor("$ZodError", initializer, { Parent: Error });
-function flattenError(error6, mapper = (issue2) => issue2.message) {
+function flattenError(error7, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
-  for (const sub of error6.issues) {
+  for (const sub of error7.issues) {
     if (sub.path.length > 0) {
       fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
       fieldErrors[sub.path[0]].push(mapper(sub));
@@ -61050,7 +61050,7 @@ function flattenError(error6, mapper = (issue2) => issue2.message) {
   }
   return { formErrors, fieldErrors };
 }
-function formatError(error6, _mapper) {
+function formatError(error7, _mapper) {
   const mapper = _mapper || function(issue2) {
     return issue2.message;
   };
@@ -61083,7 +61083,7 @@ function formatError(error6, _mapper) {
       }
     }
   };
-  processError(error6);
+  processError(error7);
   return fieldErrors;
 }
 var _parse = (_Err) => (schema, value, _ctx, _params) => {
@@ -65343,8 +65343,8 @@ ${colors.green}${colors.bold}[SDK]${colors.reset} Completed successfully (${numT
       numTurns,
       costUsd
     };
-  } catch (error6) {
-    const errorMessage = error6 instanceof Error ? error6.message : String(error6);
+  } catch (error7) {
+    const errorMessage = error7 instanceof Error ? error7.message : String(error7);
     core.error(`Failed to run Claude: ${errorMessage}`);
     return {
       success: false,
@@ -68343,8 +68343,7 @@ function resolvePrompt(options) {
 }
 
 // src/runner/runner.ts
-var core17 = __toESM(require_core(), 1);
-var fs12 = __toESM(require("fs"), 1);
+var core19 = __toESM(require_core(), 1);
 
 // src/runner/types.ts
 function getOctokitForAction(action, ctx) {
@@ -68404,8 +68403,8 @@ async function addReactionToComment(octokit, owner, repo, commentId, resourceTyp
       });
     }
     core2.debug(`Added ${reaction} reaction to comment ${commentId}`);
-  } catch (error6) {
-    core2.warning(`Failed to add reaction to comment: ${error6}`);
+  } catch (error7) {
+    core2.warning(`Failed to add reaction to comment: ${error7}`);
   }
 }
 async function signalStart(ctx, progress) {
@@ -68513,8 +68512,8 @@ async function signalEnd(ctx, statusCommentId, result) {
       );
     }
     core2.info(`Updated status comment ${statusCommentId} to ${result}`);
-  } catch (error6) {
-    core2.warning(`Failed to update status comment: ${error6}`);
+  } catch (error7) {
+    core2.warning(`Failed to update status comment: ${error7}`);
   }
   await addReactionToComment(
     ctx.octokit,
@@ -68536,8 +68535,51 @@ async function signalEnd(ctx, statusCommentId, result) {
   }
 }
 
-// src/runner/executors/project.ts
+// src/runner/action-registry.ts
+var core18 = __toESM(require_core(), 1);
+
+// src/runner/get-structured-output.ts
 var core3 = __toESM(require_core(), 1);
+var fs4 = __toESM(require("fs"), 1);
+function getStructuredOutput(action, chainCtx) {
+  if (chainCtx?.lastClaudeStructuredOutput) {
+    core3.info("Using structured output from chain context");
+    return chainCtx.lastClaudeStructuredOutput;
+  }
+  const actionWithFile = action;
+  if (actionWithFile.filePath) {
+    core3.info(
+      `Checking for structured output file: ${actionWithFile.filePath}`
+    );
+    core3.info(`Current working directory: ${process.cwd()}`);
+    try {
+      const files = fs4.readdirSync(".");
+      core3.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
+    } catch (e) {
+      core3.warning(`Failed to list files: ${e}`);
+    }
+    if (fs4.existsSync(actionWithFile.filePath)) {
+      try {
+        const content3 = fs4.readFileSync(actionWithFile.filePath, "utf-8");
+        const parsed = JSON.parse(content3);
+        core3.info(
+          `Loaded structured output from file: ${actionWithFile.filePath}`
+        );
+        return parsed;
+      } catch (e) {
+        core3.warning(
+          `Failed to read structured output from ${actionWithFile.filePath}: ${e}`
+        );
+      }
+    } else {
+      core3.warning(`File not found: ${actionWithFile.filePath}`);
+    }
+  }
+  return void 0;
+}
+
+// src/runner/executors/project.ts
+var core4 = __toESM(require_core(), 1);
 function parseProjectFields(projectData) {
   const project = projectData;
   if (!project?.projectV2?.id || !project.projectV2.fields?.nodes) {
@@ -68629,7 +68671,7 @@ async function getOrAddProjectItem(octokit, ctx, issueNumber) {
   let itemId = getProjectItemId(projectItems, ctx.projectNumber);
   const currentState = parseProjectState2(projectItems, ctx.projectNumber);
   if (!itemId) {
-    core3.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
+    core4.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
     const addResult = await octokit.graphql(
       ADD_ISSUE_TO_PROJECT_MUTATION,
       {
@@ -68652,7 +68694,7 @@ async function executeUpdateProjectStatus(action, ctx) {
   );
   const optionId = findStatusOption(projectFields.statusOptions, action.status);
   if (!optionId) {
-    core3.warning(`Status option '${action.status}' not found in project`);
+    core4.warning(`Status option '${action.status}' not found in project`);
     return { updated: false, previousStatus: currentState.status };
   }
   await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
@@ -68661,7 +68703,7 @@ async function executeUpdateProjectStatus(action, ctx) {
     fieldId: projectFields.statusFieldId,
     value: { singleSelectOptionId: optionId }
   });
-  core3.info(
+  core4.info(
     `Updated Status to ${action.status} for issue #${action.issueNumber}`
   );
   return { updated: true, previousStatus: currentState.status };
@@ -68679,7 +68721,7 @@ async function executeIncrementIteration(action, ctx) {
     fieldId: projectFields.iterationFieldId,
     value: { number: newIteration }
   });
-  core3.info(
+  core4.info(
     `Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`
   );
   return { newIteration };
@@ -68697,7 +68739,7 @@ async function executeRecordFailure(action, ctx) {
     fieldId: projectFields.failuresFieldId,
     value: { number: newFailures }
   });
-  core3.info(
+  core4.info(
     `Incremented Failures to ${newFailures} for issue #${action.issueNumber}`
   );
   return { newFailures };
@@ -68714,7 +68756,7 @@ async function executeClearFailures(action, ctx) {
     fieldId: projectFields.failuresFieldId,
     value: { number: 0 }
   });
-  core3.info(`Cleared Failures for issue #${action.issueNumber}`);
+  core4.info(`Cleared Failures for issue #${action.issueNumber}`);
   return { previousFailures: currentState.failures };
 }
 async function executeBlock(action, ctx) {
@@ -68725,7 +68767,7 @@ async function executeBlock(action, ctx) {
   );
   const optionId = findStatusOption(projectFields.statusOptions, "Blocked");
   if (!optionId) {
-    core3.warning("Blocked status option not found in project");
+    core4.warning("Blocked status option not found in project");
     return { blocked: false };
   }
   await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
@@ -68734,12 +68776,12 @@ async function executeBlock(action, ctx) {
     fieldId: projectFields.statusFieldId,
     value: { singleSelectOptionId: optionId }
   });
-  core3.info(`Blocked issue #${action.issueNumber}: ${action.reason}`);
+  core4.info(`Blocked issue #${action.issueNumber}: ${action.reason}`);
   return { blocked: true };
 }
 
 // src/runner/executors/github.ts
-var core4 = __toESM(require_core(), 1);
+var core5 = __toESM(require_core(), 1);
 function asOctokitLike2(ctx) {
   return ctx.octokit;
 }
@@ -68764,7 +68806,7 @@ async function executeCloseIssue(action, ctx) {
     }
   };
   await update(state);
-  core4.info(`Closed issue #${action.issueNumber}`);
+  core5.info(`Closed issue #${action.issueNumber}`);
   return { closed: true };
 }
 async function executeAppendHistory(action, ctx) {
@@ -68796,7 +68838,7 @@ async function executeAppendHistory(action, ctx) {
     data
   );
   await update(state);
-  core4.info(`Appended history: Phase ${action.phase}, ${action.message}`);
+  core5.info(`Appended history: Phase ${action.phase}, ${action.message}`);
   if (data.issue.parentIssueNumber) {
     const { data: parentData, update: parentUpdate } = await parseIssue(
       ctx.owner,
@@ -68822,7 +68864,7 @@ async function executeAppendHistory(action, ctx) {
       parentData
     );
     await parentUpdate(parentState);
-    core4.info(`Also appended to parent issue #${data.issue.parentIssueNumber}`);
+    core5.info(`Also appended to parent issue #${data.issue.parentIssueNumber}`);
   }
   return { appended: true };
 }
@@ -68855,7 +68897,7 @@ async function executeUpdateHistory(action, ctx) {
     data
   );
   if (state === data) {
-    core4.info(
+    core5.info(
       `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
     );
     state = addHistoryEntry2(
@@ -68871,7 +68913,7 @@ async function executeUpdateHistory(action, ctx) {
       data
     );
   } else {
-    core4.info(
+    core5.info(
       `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
     );
   }
@@ -68914,11 +68956,11 @@ async function executeUpdateHistory(action, ctx) {
         },
         parentData
       );
-      core4.info(
+      core5.info(
         `Added new entry to parent issue #${data.issue.parentIssueNumber}`
       );
     } else {
-      core4.info(`Also updated parent issue #${data.issue.parentIssueNumber}`);
+      core5.info(`Also updated parent issue #${data.issue.parentIssueNumber}`);
     }
     await parentUpdate(parentState);
   }
@@ -68940,7 +68982,7 @@ async function executeUpdateIssueBody(action, ctx) {
   const newBodyAst = parseMarkdown(action.body);
   const state = replaceBody({ bodyAst: newBodyAst }, data);
   await update(state);
-  core4.info(`Updated body for issue #${action.issueNumber}`);
+  core5.info(`Updated body for issue #${action.issueNumber}`);
   return { updated: true };
 }
 async function executeAddComment(action, ctx) {
@@ -68951,7 +68993,7 @@ async function executeAddComment(action, ctx) {
     action.body,
     asOctokitLike2(ctx)
   );
-  core4.info(`Added comment to issue #${action.issueNumber}`);
+  core5.info(`Added comment to issue #${action.issueNumber}`);
   return { commentId: result.commentId };
 }
 async function executeUnassignUser(action, ctx) {
@@ -68975,7 +69017,7 @@ async function executeUnassignUser(action, ctx) {
     }
   };
   await update(state);
-  core4.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
+  core5.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
   return { unassigned: true };
 }
 async function executeAssignUser(action, ctx) {
@@ -68999,7 +69041,7 @@ async function executeAssignUser(action, ctx) {
     }
   };
   await update(state);
-  core4.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
+  core5.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
   return { assigned: true };
 }
 async function executeCreateSubIssues(action, ctx) {
@@ -69074,7 +69116,7 @@ async function executeCreateSubIssues(action, ctx) {
       }
     });
     subIssueNumbers.push(issueNumber);
-    core4.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
+    core5.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
   }
   return { subIssueNumbers };
 }
@@ -69088,7 +69130,7 @@ async function executeCreatePR(action, ctx) {
   });
   const existingPR = existingPRs.data[0];
   if (existingPR) {
-    core4.info(
+    core5.info(
       `PR #${existingPR.number} already exists for branch ${action.branchName}`
     );
     return { prNumber: existingPR.number };
@@ -69105,7 +69147,7 @@ Fixes #${action.issueNumber}`;
     base: action.baseBranch,
     draft: action.draft
   });
-  core4.info(
+  core5.info(
     `Created PR #${response.data.number} for issue #${action.issueNumber}`
   );
   return { prNumber: response.data.number };
@@ -69121,7 +69163,7 @@ async function executeConvertPRToDraft(action, ctx) {
     throw new Error(`PR #${action.prNumber} not found`);
   }
   await ctx.octokit.graphql(CONVERT_PR_TO_DRAFT_MUTATION, { prId });
-  core4.info(`Converted PR #${action.prNumber} to draft`);
+  core5.info(`Converted PR #${action.prNumber} to draft`);
   return { converted: true };
 }
 async function executeMarkPRReady(action, ctx) {
@@ -69135,7 +69177,7 @@ async function executeMarkPRReady(action, ctx) {
     throw new Error(`PR #${action.prNumber} not found`);
   }
   await ctx.octokit.graphql(MARK_PR_READY_MUTATION, { prId });
-  core4.info(`Marked PR #${action.prNumber} as ready for review`);
+  core5.info(`Marked PR #${action.prNumber} as ready for review`);
   return { ready: true };
 }
 async function executeRequestReview(action, ctx) {
@@ -69145,7 +69187,7 @@ async function executeRequestReview(action, ctx) {
     pull_number: action.prNumber,
     reviewers: [action.reviewer]
   });
-  core4.info(
+  core5.info(
     `Requested review from ${action.reviewer} on PR #${action.prNumber}`
   );
   return { requested: true };
@@ -69172,9 +69214,9 @@ async function executeMergePR(action, ctx) {
         labels: [...prData.issue.labels, label]
       }
     });
-    core4.info(`Added "${label}" label to PR #${action.prNumber}`);
-  } catch (error6) {
-    core4.warning(`Failed to add label: ${error6}`);
+    core5.info(`Added "${label}" label to PR #${action.prNumber}`);
+  } catch (error7) {
+    core5.warning(`Failed to add label: ${error7}`);
   }
   const { data, update } = await parseIssue(
     ctx.owner,
@@ -69202,7 +69244,7 @@ async function executeMergePR(action, ctx) {
     data
   );
   await update(state);
-  core4.info(
+  core5.info(
     `PR #${action.prNumber} marked ready for merge (human action required)`
   );
   return { markedReady: true };
@@ -69224,7 +69266,7 @@ async function executeSubmitReview(action, ctx) {
     event,
     body: action.body
   });
-  core4.info(`Submitted ${action.decision} review on PR #${action.prNumber}`);
+  core5.info(`Submitted ${action.decision} review on PR #${action.prNumber}`);
   return { submitted: true, decision: action.decision };
 }
 async function executeRemoveReviewer(action, ctx) {
@@ -69235,18 +69277,18 @@ async function executeRemoveReviewer(action, ctx) {
       pull_number: action.prNumber,
       reviewers: [action.reviewer]
     });
-    core4.info(
+    core5.info(
       `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
     );
     return { removed: true };
-  } catch (error6) {
-    if (error6 instanceof Error && error6.message.includes("404")) {
-      core4.info(
+  } catch (error7) {
+    if (error7 instanceof Error && error7.message.includes("404")) {
+      core5.info(
         `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`
       );
       return { removed: false };
     }
-    throw error6;
+    throw error7;
   }
 }
 async function executeResetIssue(action, ctx) {
@@ -69269,11 +69311,11 @@ async function executeResetIssue(action, ctx) {
         ...data,
         issue: { ...data.issue, state: "OPEN" }
       });
-      core4.info(`Reopened issue #${action.issueNumber}`);
+      core5.info(`Reopened issue #${action.issueNumber}`);
       resetCount++;
     }
-  } catch (error6) {
-    core4.warning(`Failed to reopen issue #${action.issueNumber}: ${error6}`);
+  } catch (error7) {
+    core5.warning(`Failed to reopen issue #${action.issueNumber}: ${error7}`);
   }
   for (const subIssueNumber of action.subIssueNumbers) {
     try {
@@ -69293,11 +69335,11 @@ async function executeResetIssue(action, ctx) {
           ...subData,
           issue: { ...subData.issue, state: "OPEN" }
         });
-        core4.info(`Reopened sub-issue #${subIssueNumber}`);
+        core5.info(`Reopened sub-issue #${subIssueNumber}`);
         resetCount++;
       }
-    } catch (error6) {
-      core4.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error6}`);
+    } catch (error7) {
+      core5.warning(`Failed to reopen sub-issue #${subIssueNumber}: ${error7}`);
     }
   }
   try {
@@ -69319,12 +69361,12 @@ async function executeResetIssue(action, ctx) {
         assignees: data.issue.assignees.filter((a) => a !== action.botUsername)
       }
     });
-    core4.info(
+    core5.info(
       `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
     );
-  } catch (error6) {
-    core4.warning(
-      `Failed to unassign bot from issue #${action.issueNumber}: ${error6}`
+  } catch (error7) {
+    core5.warning(
+      `Failed to unassign bot from issue #${action.issueNumber}: ${error7}`
     );
   }
   for (const subIssueNumber of action.subIssueNumbers) {
@@ -69349,16 +69391,16 @@ async function executeResetIssue(action, ctx) {
           )
         }
       });
-      core4.info(
+      core5.info(
         `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
       );
-    } catch (error6) {
-      core4.warning(
-        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error6}`
+    } catch (error7) {
+      core5.warning(
+        `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error7}`
       );
     }
   }
-  core4.info(`Reset complete: ${resetCount} issues reopened`);
+  core5.info(`Reset complete: ${resetCount} issues reopened`);
   return { resetCount };
 }
 async function executeAddLabel(action, ctx) {
@@ -69382,11 +69424,11 @@ async function executeAddLabel(action, ctx) {
         labels: [...data.issue.labels, action.label]
       }
     });
-    core4.info(`Added label "${action.label}" to issue #${action.issueNumber}`);
+    core5.info(`Added label "${action.label}" to issue #${action.issueNumber}`);
     return { added: true };
-  } catch (error6) {
-    core4.warning(
-      `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error6}`
+  } catch (error7) {
+    core5.warning(
+      `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error7}`
     );
     return { added: false };
   }
@@ -69412,26 +69454,26 @@ async function executeRemoveLabel(action, ctx) {
         labels: data.issue.labels.filter((l) => l !== action.label)
       }
     });
-    core4.info(
+    core5.info(
       `Removed label "${action.label}" from issue #${action.issueNumber}`
     );
     return { removed: true };
-  } catch (error6) {
-    if (error6 instanceof Error && error6.message.includes("404")) {
-      core4.info(
+  } catch (error7) {
+    if (error7 instanceof Error && error7.message.includes("404")) {
+      core5.info(
         `Label "${action.label}" was not present on issue #${action.issueNumber}`
       );
       return { removed: false };
     }
-    core4.warning(
-      `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error6}`
+    core5.warning(
+      `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error7}`
     );
     return { removed: false };
   }
 }
 
 // src/runner/executors/git.ts
-var core5 = __toESM(require_core(), 1);
+var core6 = __toESM(require_core(), 1);
 var exec3 = __toESM(require_exec(), 1);
 async function executeCreateBranch(action, ctx) {
   const result = {
@@ -69441,7 +69483,7 @@ async function executeCreateBranch(action, ctx) {
     pushed: false,
     shouldStop: false
   };
-  core5.info(`Fetching latest from origin...`);
+  core6.info(`Fetching latest from origin...`);
   await exec3.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
   const remoteBranchExists = await ctx.octokit.rest.repos.getBranch({
     owner: ctx.owner,
@@ -69449,7 +69491,7 @@ async function executeCreateBranch(action, ctx) {
     branch: action.branchName
   }).then(() => true).catch(() => false);
   if (!remoteBranchExists) {
-    core5.info(
+    core6.info(
       `Branch ${action.branchName} doesn't exist remotely, creating from ${action.baseBranch}`
     );
     const baseRef = await ctx.octokit.rest.git.getRef({
@@ -69464,7 +69506,7 @@ async function executeCreateBranch(action, ctx) {
       sha: baseRef.data.object.sha
     });
     result.created = true;
-    core5.info(`Created remote branch ${action.branchName}`);
+    core6.info(`Created remote branch ${action.branchName}`);
     await exec3.exec("git", ["fetch", "origin"], { ignoreReturnCode: true });
   }
   let checkoutExitCode = await exec3.exec(
@@ -69490,7 +69532,7 @@ async function executeCreateBranch(action, ctx) {
     throw new Error(`Failed to checkout branch ${action.branchName}`);
   }
   result.checkedOut = true;
-  core5.info(`Checked out branch ${action.branchName}`);
+  core6.info(`Checked out branch ${action.branchName}`);
   await exec3.exec(
     "git",
     ["branch", "--set-upstream-to", `origin/${action.branchName}`],
@@ -69511,7 +69553,7 @@ async function executeCreateBranch(action, ctx) {
   );
   const commitsBehind = parseInt(commitsCount.trim(), 10) || 0;
   if (commitsBehind > 0) {
-    core5.info(
+    core6.info(
       `Branch is ${commitsBehind} commits behind origin/${action.baseBranch}, attempting rebase...`
     );
     const rebaseExitCode = await exec3.exec(
@@ -69520,12 +69562,12 @@ async function executeCreateBranch(action, ctx) {
       { ignoreReturnCode: true }
     );
     if (rebaseExitCode !== 0) {
-      core5.warning(`Rebase failed, aborting and continuing with current state`);
+      core6.warning(`Rebase failed, aborting and continuing with current state`);
       await exec3.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true });
       return result;
     }
     result.rebased = true;
-    core5.info(`Successfully rebased on origin/${action.baseBranch}`);
+    core6.info(`Successfully rebased on origin/${action.baseBranch}`);
     const pushExitCode = await exec3.exec(
       "git",
       ["push", "origin", action.branchName, "--force-with-lease"],
@@ -69534,14 +69576,14 @@ async function executeCreateBranch(action, ctx) {
     if (pushExitCode === 0) {
       result.pushed = true;
       result.shouldStop = true;
-      core5.info(
+      core6.info(
         `Pushed rebased changes. Stopping execution - CI will re-trigger with up-to-date branch.`
       );
     } else {
-      core5.warning(`Failed to push rebased changes, continuing anyway`);
+      core6.warning(`Failed to push rebased changes, continuing anyway`);
     }
   } else {
-    core5.info(`Branch is up-to-date with origin/${action.baseBranch}`);
+    core6.info(`Branch is up-to-date with origin/${action.baseBranch}`);
   }
   return result;
 }
@@ -69560,20 +69602,20 @@ async function executeGitPush(action, _ctx) {
     }
   });
   if (exitCode !== 0) {
-    core5.warning(`Git push failed: ${stderr}`);
+    core6.warning(`Git push failed: ${stderr}`);
     return { pushed: false };
   }
-  core5.info(`Pushed to ${action.branchName}`);
+  core6.info(`Pushed to ${action.branchName}`);
   return { pushed: true };
 }
 
 // src/runner/executors/claude.ts
-var core6 = __toESM(require_core(), 1);
+var core7 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
-var fs4 = __toESM(require("fs"), 1);
+var fs5 = __toESM(require("fs"), 1);
 async function createMockCommit(action, _ctx) {
   const branchName = deriveBranchName2(action.issueNumber);
-  core6.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
+  core7.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
   try {
     await exec5.exec("git", ["config", "user.name", "nopo-bot"]);
     await exec5.exec("git", [
@@ -69604,7 +69646,7 @@ Timestamp: ${timestamp}
 Issue: #${action.issueNumber}
 Prompt: ${action.promptDir || action.promptFile || "inline"}
 `;
-    fs4.writeFileSync(mockFilePath, content3);
+    fs5.writeFileSync(mockFilePath, content3);
     await exec5.exec("git", ["add", mockFilePath]);
     const commitMessage = `test: mock commit for issue #${action.issueNumber}
 
@@ -69618,7 +69660,7 @@ It simulates Claude's code changes in mock mode.`;
       }
     );
     if (commitExitCode !== 0) {
-      core6.warning(
+      core7.warning(
         `[MOCK MODE] Git commit failed with exit code ${commitExitCode}`
       );
       return;
@@ -69631,15 +69673,15 @@ It simulates Claude's code changes in mock mode.`;
       }
     );
     if (pushExitCode !== 0) {
-      core6.warning(
+      core7.warning(
         `[MOCK MODE] Git push failed with exit code ${pushExitCode}`
       );
       return;
     }
-    core6.info(`[MOCK MODE] Created and pushed placeholder commit`);
-  } catch (error6) {
-    core6.warning(
-      `[MOCK MODE] Failed to create mock commit: ${error6 instanceof Error ? error6.message : String(error6)}`
+    core7.info(`[MOCK MODE] Created and pushed placeholder commit`);
+  } catch (error7) {
+    core7.warning(
+      `[MOCK MODE] Failed to create mock commit: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
   }
 }
@@ -69656,10 +69698,10 @@ async function executeRunClaude(action, ctx) {
     if (mockKey) {
       const mockOutput = ctx.mockOutputs[mockKey];
       if (mockOutput) {
-        core6.info(`[MOCK MODE] Using mock output for '${mockKey}' prompt`);
-        core6.startGroup("Mock Output");
-        core6.info(JSON.stringify(mockOutput, null, 2));
-        core6.endGroup();
+        core7.info(`[MOCK MODE] Using mock output for '${mockKey}' prompt`);
+        core7.startGroup("Mock Output");
+        core7.info(JSON.stringify(mockOutput, null, 2));
+        core7.endGroup();
         const promptsThatCreateCommits = ["iterate", "ci-fix"];
         if (mockKey && promptsThatCreateCommits.includes(mockKey)) {
           await createMockCommit(action, ctx);
@@ -69671,7 +69713,7 @@ async function executeRunClaude(action, ctx) {
           structuredOutput: mockOutput
         };
       }
-      core6.warning(
+      core7.warning(
         `[MOCK MODE] No mock output for '${mockKey}' prompt, running real Claude`
       );
     }
@@ -69692,7 +69734,7 @@ async function executeRunClaude(action, ctx) {
     promptsDir: action.promptsDir,
     promptVars: augmentedPromptVars
   });
-  core6.info(`Running Claude SDK for issue #${action.issueNumber}`);
+  core7.info(`Running Claude SDK for issue #${action.issueNumber}`);
   let cwd2 = process.cwd();
   if (action.worktree && (action.worktree.startsWith("/") || action.worktree.startsWith("."))) {
     cwd2 = action.worktree;
@@ -69703,7 +69745,7 @@ async function executeRunClaude(action, ctx) {
     allowedTools: action.allowedTools,
     outputSchema: resolved.outputSchema
   });
-  core6.info(`Claude completed for issue #${action.issueNumber}`);
+  core7.info(`Claude completed for issue #${action.issueNumber}`);
   return {
     success: result.success,
     exitCode: result.exitCode,
@@ -69714,8 +69756,8 @@ async function executeRunClaude(action, ctx) {
 }
 
 // src/runner/executors/triage.ts
-var core7 = __toESM(require_core(), 1);
-var fs5 = __toESM(require("fs"), 1);
+var core8 = __toESM(require_core(), 1);
+var fs6 = __toESM(require("fs"), 1);
 
 // src/runner/executors/output-schemas.ts
 function parseOutput(schema, data, label) {
@@ -69903,20 +69945,20 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
   let rawData;
   if (structuredOutput) {
     rawData = structuredOutput;
-    core7.info("Using structured output from in-process chain");
-    core7.startGroup("Triage Output (Structured)");
-    core7.info(JSON.stringify(rawData, null, 2));
-    core7.endGroup();
-  } else if (filePath && fs5.existsSync(filePath)) {
+    core8.info("Using structured output from in-process chain");
+    core8.startGroup("Triage Output (Structured)");
+    core8.info(JSON.stringify(rawData, null, 2));
+    core8.endGroup();
+  } else if (filePath && fs6.existsSync(filePath)) {
     try {
-      const content3 = fs5.readFileSync(filePath, "utf-8");
+      const content3 = fs6.readFileSync(filePath, "utf-8");
       rawData = JSON.parse(content3);
-      core7.info(`Triage output from file: ${filePath}`);
-      core7.startGroup("Triage Output (File)");
-      core7.info(JSON.stringify(rawData, null, 2));
-      core7.endGroup();
-    } catch (error6) {
-      core7.warning(`Failed to parse triage output: ${error6}`);
+      core8.info(`Triage output from file: ${filePath}`);
+      core8.startGroup("Triage Output (File)");
+      core8.info(JSON.stringify(rawData, null, 2));
+      core8.endGroup();
+    } catch (error7) {
+      core8.warning(`Failed to parse triage output: ${error7}`);
       return { applied: false };
     }
   } else {
@@ -69925,7 +69967,7 @@ async function executeApplyTriageOutput(action, ctx, structuredOutput) {
     );
   }
   if (ctx.dryRun) {
-    core7.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
+    core8.info(`[DRY RUN] Would apply triage output to issue #${issueNumber}`);
     return { applied: true };
   }
   const newFormatResult = TriageOutputSchema.safeParse(rawData);
@@ -69974,19 +70016,19 @@ async function applyLabels(ctx, issueNumber, classification) {
   const newLabels = [];
   if (classification.type && classification.type !== "null") {
     newLabels.push(classification.type);
-    core7.info(`Adding type label: ${classification.type}`);
+    core8.info(`Adding type label: ${classification.type}`);
   }
   if (classification.topics) {
     for (const topic of classification.topics) {
       if (topic) {
         const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
         newLabels.push(label);
-        core7.info(`Adding topic label: ${label}`);
+        core8.info(`Adding topic label: ${label}`);
       }
     }
   }
   newLabels.push("triaged");
-  core7.info("Adding triaged label");
+  core8.info("Adding triaged label");
   if (newLabels.length > 0) {
     try {
       const { data, update } = await parseIssue(
@@ -70003,9 +70045,9 @@ async function applyLabels(ctx, issueNumber, classification) {
       const mergedLabels = [.../* @__PURE__ */ new Set([...existingLabels, ...newLabels])];
       const state = { ...data, issue: { ...data.issue, labels: mergedLabels } };
       await update(state);
-      core7.info(`Applied labels: ${newLabels.join(", ")}`);
-    } catch (error6) {
-      core7.warning(`Failed to apply labels: ${error6}`);
+      core8.info(`Applied labels: ${newLabels.join(", ")}`);
+    } catch (error7) {
+      core8.warning(`Failed to apply labels: ${error7}`);
     }
   }
 }
@@ -70024,9 +70066,9 @@ async function updateIssueBody(ctx, issueNumber, newBody) {
     const bodyAst = parseMarkdown(newBody);
     const state = replaceBody({ bodyAst }, data);
     await update(state);
-    core7.info(`Updated issue body for #${issueNumber}`);
-  } catch (error6) {
-    core7.warning(`Failed to update issue body: ${error6}`);
+    core8.info(`Updated issue body for #${issueNumber}`);
+  } catch (error7) {
+    core8.warning(`Failed to update issue body: ${error7}`);
   }
 }
 async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
@@ -70079,10 +70121,10 @@ async function updateIssueStructure(ctx, issueNumber, requirements, initialAppro
     }
     if (state !== data) {
       await update(state);
-      core7.info(`Updated issue #${issueNumber} with structured sections`);
+      core8.info(`Updated issue #${issueNumber} with structured sections`);
     }
-  } catch (error6) {
-    core7.warning(`Failed to update issue structure: ${error6}`);
+  } catch (error7) {
+    core8.warning(`Failed to update issue structure: ${error7}`);
   }
 }
 async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
@@ -70097,9 +70139,9 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
       body,
       asOctokitLike3(ctx)
     );
-    core7.info(`Linked related issues: ${links}`);
-  } catch (error6) {
-    core7.warning(`Failed to link related issues: ${error6}`);
+    core8.info(`Linked related issues: ${links}`);
+  } catch (error7) {
+    core8.warning(`Failed to link related issues: ${error7}`);
   }
 }
 async function getProjectInfo(ctx) {
@@ -70142,8 +70184,8 @@ async function getProjectInfo(ctx) {
       }
     }
     return projectInfo;
-  } catch (error6) {
-    core7.warning(`Failed to get project info: ${error6}`);
+  } catch (error7) {
+    core8.warning(`Failed to get project info: ${error7}`);
     return null;
   }
 }
@@ -70173,12 +70215,12 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       (item) => item.project.number === ctx.projectNumber
     );
     if (!projectItem) {
-      core7.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
+      core8.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
       return;
     }
     const projectInfo = await getProjectInfo(ctx);
     if (!projectInfo) {
-      core7.warning("Could not get project info");
+      core8.warning("Could not get project info");
       return;
     }
     if (classification.priority && classification.priority !== "null" && classification.priority !== "none" && projectInfo.priorityFieldId) {
@@ -70190,7 +70232,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
           fieldId: projectInfo.priorityFieldId,
           value: { singleSelectOptionId: optionId }
         });
-        core7.info(`Set Priority to ${classification.priority}`);
+        core8.info(`Set Priority to ${classification.priority}`);
       }
     }
     if (classification.size && projectInfo.sizeFieldId) {
@@ -70202,7 +70244,7 @@ async function applyProjectFields(ctx, issueNumber, classification) {
           fieldId: projectInfo.sizeFieldId,
           value: { singleSelectOptionId: optionId }
         });
-        core7.info(`Set Size to ${classification.size}`);
+        core8.info(`Set Size to ${classification.size}`);
       }
     }
     if (classification.estimate && projectInfo.estimateFieldId) {
@@ -70212,16 +70254,16 @@ async function applyProjectFields(ctx, issueNumber, classification) {
         fieldId: projectInfo.estimateFieldId,
         value: { number: classification.estimate }
       });
-      core7.info(`Set Estimate to ${classification.estimate}`);
+      core8.info(`Set Estimate to ${classification.estimate}`);
     }
-  } catch (error6) {
-    core7.warning(`Failed to apply project fields: ${error6}`);
+  } catch (error7) {
+    core8.warning(`Failed to apply project fields: ${error7}`);
   }
 }
 
 // src/runner/executors/iterate.ts
-var core8 = __toESM(require_core(), 1);
-var fs6 = __toESM(require("node:fs"), 1);
+var core9 = __toESM(require_core(), 1);
+var fs7 = __toESM(require("node:fs"), 1);
 function asOctokitLike4(ctx) {
   return ctx.octokit;
 }
@@ -70234,32 +70276,32 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       structuredOutput,
       "iterate"
     );
-    core8.info("Using structured output from in-process chain");
-  } else if (filePath && fs6.existsSync(filePath)) {
+    core9.info("Using structured output from in-process chain");
+  } else if (filePath && fs7.existsSync(filePath)) {
     try {
-      const content3 = fs6.readFileSync(filePath, "utf-8");
+      const content3 = fs7.readFileSync(filePath, "utf-8");
       iterateOutput = parseOutput(
         IterateOutputSchema,
         JSON.parse(content3),
         "iterate file"
       );
-      core8.info(`Iterate output from file: ${filePath}`);
-    } catch (error6) {
-      core8.warning(`Failed to parse iterate output: ${error6}`);
+      core9.info(`Iterate output from file: ${filePath}`);
+    } catch (error7) {
+      core9.warning(`Failed to parse iterate output: ${error7}`);
       return { applied: false };
     }
   } else {
-    core8.warning(
+    core9.warning(
       `No structured output provided and iterate output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
     );
     return { applied: false };
   }
-  core8.info(`Processing iterate output for issue #${issueNumber}`);
-  core8.startGroup("Iterate Output");
-  core8.info(JSON.stringify(iterateOutput, null, 2));
-  core8.endGroup();
+  core9.info(`Processing iterate output for issue #${issueNumber}`);
+  core9.startGroup("Iterate Output");
+  core9.info(JSON.stringify(iterateOutput, null, 2));
+  core9.endGroup();
   if (ctx.dryRun) {
-    core8.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
+    core9.info(`[DRY RUN] Would apply iterate output to issue #${issueNumber}`);
     return { applied: true, status: iterateOutput.status };
   }
   const { data, update } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
@@ -70279,9 +70321,9 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       const newState = checkOffTodo({ todoText }, state);
       if (newState !== state) {
         state = newState;
-        core8.info(`Completed todo: ${todoText}`);
+        core9.info(`Completed todo: ${todoText}`);
       } else {
-        core8.warning(`Could not find unchecked todo matching: "${todoText}"`);
+        core9.warning(`Could not find unchecked todo matching: "${todoText}"`);
       }
     }
   }
@@ -70292,9 +70334,9 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       { runId, runLink, notes: iterateOutput.agent_notes },
       state
     );
-    core8.info("Agent notes appended to issue body:");
+    core9.info("Agent notes appended to issue body:");
     for (const note of iterateOutput.agent_notes) {
-      core8.info(`  - ${note}`);
+      core9.info(`  - ${note}`);
     }
   }
   if (state !== data) {
@@ -70304,37 +70346,37 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
     case "completed_todo":
       break;
     case "waiting_manual":
-      core8.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
+      core9.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
       break;
     case "blocked":
-      core8.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
+      core9.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
       break;
     case "all_done":
-      core8.info("All todos complete - ready for review");
+      core9.info("All todos complete - ready for review");
       break;
   }
   return { applied: true, status: iterateOutput.status };
 }
 
 // src/runner/executors/review.ts
-var core9 = __toESM(require_core(), 1);
-var fs7 = __toESM(require("node:fs"), 1);
+var core10 = __toESM(require_core(), 1);
+var fs8 = __toESM(require("node:fs"), 1);
 async function executeApplyReviewOutput(action, ctx, structuredOutput) {
   let reviewOutput;
   if (structuredOutput) {
     reviewOutput = parseOutput(ReviewOutputSchema, structuredOutput, "review");
-    core9.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs7.existsSync(action.filePath)) {
+    core10.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs8.existsSync(action.filePath)) {
     try {
-      const content3 = fs7.readFileSync(action.filePath, "utf-8");
+      const content3 = fs8.readFileSync(action.filePath, "utf-8");
       reviewOutput = parseOutput(
         ReviewOutputSchema,
         JSON.parse(content3),
         "review file"
       );
-      core9.info(`Review output from file: ${action.filePath}`);
-    } catch (error6) {
-      throw new Error(`Failed to parse review output from file: ${error6}`);
+      core10.info(`Review output from file: ${action.filePath}`);
+    } catch (error7) {
+      throw new Error(`Failed to parse review output from file: ${error7}`);
     }
   } else {
     throw new Error(
@@ -70346,12 +70388,12 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
       `Invalid review output: missing decision or body. Got: ${JSON.stringify(reviewOutput)}`
     );
   }
-  core9.info(`Applying review output: ${reviewOutput.decision}`);
-  core9.startGroup("Review Output");
-  core9.info(JSON.stringify(reviewOutput, null, 2));
-  core9.endGroup();
+  core10.info(`Applying review output: ${reviewOutput.decision}`);
+  core10.startGroup("Review Output");
+  core10.info(JSON.stringify(reviewOutput, null, 2));
+  core10.endGroup();
   if (ctx.dryRun) {
-    core9.info(
+    core10.info(
       `[DRY RUN] Would submit ${reviewOutput.decision} review on PR #${action.prNumber}`
     );
     return { submitted: true, decision: reviewOutput.decision };
@@ -70368,8 +70410,8 @@ async function executeApplyReviewOutput(action, ctx, structuredOutput) {
 }
 
 // src/runner/executors/pr-response.ts
-var core10 = __toESM(require_core(), 1);
-var fs8 = __toESM(require("node:fs"), 1);
+var core11 = __toESM(require_core(), 1);
+var fs9 = __toESM(require("node:fs"), 1);
 function asOctokitLike5(ctx) {
   return ctx.octokit;
 }
@@ -70381,18 +70423,18 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
       structuredOutput,
       "pr-response"
     );
-    core10.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs8.existsSync(action.filePath)) {
+    core11.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs9.existsSync(action.filePath)) {
     try {
-      const content3 = fs8.readFileSync(action.filePath, "utf-8");
+      const content3 = fs9.readFileSync(action.filePath, "utf-8");
       responseOutput = parseOutput(
         PRResponseOutputSchema,
         JSON.parse(content3),
         "pr-response file"
       );
-      core10.info(`PR response output from file: ${action.filePath}`);
-    } catch (error6) {
-      throw new Error(`Failed to parse PR response output from file: ${error6}`);
+      core11.info(`PR response output from file: ${action.filePath}`);
+    } catch (error7) {
+      throw new Error(`Failed to parse PR response output from file: ${error7}`);
     }
   } else {
     throw new Error(
@@ -70404,14 +70446,14 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
       `Invalid PR response output: missing had_commits or summary. Got: ${JSON.stringify(responseOutput)}`
     );
   }
-  core10.info(
+  core11.info(
     `Applying PR response output: had_commits=${responseOutput.had_commits}`
   );
-  core10.startGroup("PR Response Output");
-  core10.info(JSON.stringify(responseOutput, null, 2));
-  core10.endGroup();
+  core11.startGroup("PR Response Output");
+  core11.info(JSON.stringify(responseOutput, null, 2));
+  core11.endGroup();
   if (ctx.dryRun) {
-    core10.info(
+    core11.info(
       `[DRY RUN] Would post comment and ${responseOutput.had_commits ? "wait for CI" : "re-request review"} on PR #${action.prNumber}`
     );
     return { applied: true, hadCommits: responseOutput.had_commits };
@@ -70423,7 +70465,7 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
     responseOutput.summary,
     asOctokitLike5(ctx)
   );
-  core10.info(`Posted response comment on PR #${action.prNumber}`);
+  core11.info(`Posted response comment on PR #${action.prNumber}`);
   if (!responseOutput.had_commits) {
     try {
       await ctx.octokit.rest.pulls.requestReviewers({
@@ -70432,11 +70474,11 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
         pull_number: action.prNumber,
         reviewers: [action.reviewer]
       });
-      core10.info(
+      core11.info(
         `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
       );
-    } catch (error6) {
-      core10.warning(`Failed to re-request review: ${error6}`);
+    } catch (error7) {
+      core11.warning(`Failed to re-request review: ${error7}`);
     }
   }
   if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
@@ -70458,7 +70500,7 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
     );
     if (state !== data) {
       await update(state);
-      core10.info(
+      core11.info(
         `Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`
       );
     }
@@ -70467,24 +70509,24 @@ async function executeApplyPRResponseOutput(action, ctx, structuredOutput) {
 }
 
 // src/runner/executors/agent-notes.ts
-var core11 = __toESM(require_core(), 1);
+var core12 = __toESM(require_core(), 1);
 function asOctokitLike6(ctx) {
   return ctx.octokit;
 }
 async function executeAppendAgentNotes(action, ctx) {
   const { issueNumber, notes, runId, runLink, timestamp } = action;
   if (notes.length === 0) {
-    core11.info("No agent notes to append, skipping");
+    core12.info("No agent notes to append, skipping");
     return { appended: false };
   }
-  core11.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
+  core12.info(`Appending ${notes.length} agent notes to issue #${issueNumber}`);
   if (ctx.dryRun) {
-    core11.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
-    core11.startGroup("Agent Notes (dry run)");
+    core12.info(`[DRY RUN] Would append agent notes to issue #${issueNumber}`);
+    core12.startGroup("Agent Notes (dry run)");
     for (const note of notes) {
-      core11.info(`  - ${note}`);
+      core12.info(`  - ${note}`);
     }
-    core11.endGroup();
+    core12.endGroup();
     return { appended: true };
   }
   const { data, update } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
@@ -70495,20 +70537,20 @@ async function executeAppendAgentNotes(action, ctx) {
   const state = appendAgentNotes2({ runId, runLink, timestamp, notes }, data);
   if (state !== data) {
     await update(state);
-    core11.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
-    core11.startGroup("Agent Notes");
+    core12.info(`Appended ${notes.length} agent notes to issue #${issueNumber}`);
+    core12.startGroup("Agent Notes");
     for (const note of notes) {
-      core11.info(`  - ${note}`);
+      core12.info(`  - ${note}`);
     }
-    core11.endGroup();
+    core12.endGroup();
   } else {
-    core11.info("Issue body unchanged (notes may be empty)");
+    core12.info("Issue body unchanged (notes may be empty)");
   }
   return { appended: true };
 }
 
 // src/runner/executors/discussions.ts
-var core12 = __toESM(require_core(), 1);
+var core13 = __toESM(require_core(), 1);
 async function executeAddDiscussionComment(action, ctx) {
   let response;
   if (action.replyToNodeId) {
@@ -70533,7 +70575,7 @@ async function executeAddDiscussionComment(action, ctx) {
   if (!commentId) {
     throw new Error("Failed to add discussion comment");
   }
-  core12.info(
+  core13.info(
     `Added ${action.replyToNodeId ? "reply" : "comment"} to discussion`
   );
   return { commentId };
@@ -70549,7 +70591,7 @@ async function executeUpdateDiscussionBody(action, ctx) {
   if (!response.updateDiscussion?.discussion?.id) {
     throw new Error("Failed to update discussion body");
   }
-  core12.info("Updated discussion body");
+  core13.info("Updated discussion body");
   return { updated: true };
 }
 async function executeAddDiscussionReaction(action, ctx) {
@@ -70564,7 +70606,7 @@ async function executeAddDiscussionReaction(action, ctx) {
   if (!reactionId) {
     throw new Error("Failed to add reaction");
   }
-  core12.info(`Added ${action.content} reaction`);
+  core13.info(`Added ${action.content} reaction`);
   return { reactionId };
 }
 async function executeCreateIssuesFromDiscussion(action, ctx) {
@@ -70630,32 +70672,32 @@ async function executeCreateIssuesFromDiscussion(action, ctx) {
       }
     }
     issueNumbers.push(issueNumber);
-    core12.info(`Created issue #${issueNumber}: ${issueDef.title}`);
+    core13.info(`Created issue #${issueNumber}: ${issueDef.title}`);
   }
   return { issueNumbers };
 }
 
 // src/runner/executors/discussion-apply.ts
-var core13 = __toESM(require_core(), 1);
-var fs9 = __toESM(require("node:fs"), 1);
+var core14 = __toESM(require_core(), 1);
+var fs10 = __toESM(require("node:fs"), 1);
 async function executeApplyDiscussionResearchOutput(action, ctx, structuredOutput) {
   let output;
   if (structuredOutput) {
     output = parseOutput(ResearchOutputSchema, structuredOutput, "research");
-    core13.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs9.existsSync(action.filePath)) {
-    const content3 = fs9.readFileSync(action.filePath, "utf-8");
+    core14.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs10.existsSync(action.filePath)) {
+    const content3 = fs10.readFileSync(action.filePath, "utf-8");
     output = parseOutput(
       ResearchOutputSchema,
       JSON.parse(content3),
       "research file"
     );
-    core13.info(`Research output from file: ${action.filePath}`);
+    core14.info(`Research output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
   }
   if (ctx.dryRun) {
-    core13.info(
+    core14.info(
       `[DRY RUN] Would create ${output.research_threads.length} research threads`
     );
     return { applied: true, threadCount: output.research_threads.length };
@@ -70688,7 +70730,7 @@ ${thread.investigation_areas.map((a) => `- ${a}`).join("\n")}`;
       ctx
     );
   }
-  core13.info(
+  core14.info(
     `Created ${output.research_threads.length} research threads for discussion #${action.discussionNumber}`
   );
   return { applied: true, threadCount: output.research_threads.length };
@@ -70697,20 +70739,20 @@ async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput
   let output;
   if (structuredOutput) {
     output = parseOutput(RespondOutputSchema, structuredOutput, "respond");
-    core13.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs9.existsSync(action.filePath)) {
-    const content3 = fs9.readFileSync(action.filePath, "utf-8");
+    core14.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs10.existsSync(action.filePath)) {
+    const content3 = fs10.readFileSync(action.filePath, "utf-8");
     output = parseOutput(
       RespondOutputSchema,
       JSON.parse(content3),
       "respond file"
     );
-    core13.info(`Respond output from file: ${action.filePath}`);
+    core14.info(`Respond output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
   }
   if (ctx.dryRun) {
-    core13.info(`[DRY RUN] Would post response to discussion`);
+    core14.info(`[DRY RUN] Would post response to discussion`);
     return { applied: true, shouldContinue: output.should_continue };
   }
   await executeAddDiscussionComment(
@@ -70723,27 +70765,27 @@ async function executeApplyDiscussionRespondOutput(action, ctx, structuredOutput
     },
     ctx
   );
-  core13.info(`Posted response to discussion #${action.discussionNumber}`);
+  core14.info(`Posted response to discussion #${action.discussionNumber}`);
   return { applied: true, shouldContinue: output.should_continue };
 }
 async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutput) {
   let output;
   if (structuredOutput) {
     output = parseOutput(SummarizeOutputSchema, structuredOutput, "summarize");
-    core13.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs9.existsSync(action.filePath)) {
-    const content3 = fs9.readFileSync(action.filePath, "utf-8");
+    core14.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs10.existsSync(action.filePath)) {
+    const content3 = fs10.readFileSync(action.filePath, "utf-8");
     output = parseOutput(
       SummarizeOutputSchema,
       JSON.parse(content3),
       "summarize file"
     );
-    core13.info(`Summarize output from file: ${action.filePath}`);
+    core14.info(`Summarize output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
   }
   if (ctx.dryRun) {
-    core13.info(`[DRY RUN] Would update discussion body with summary`);
+    core14.info(`[DRY RUN] Would update discussion body with summary`);
     return { applied: true };
   }
   await executeUpdateDiscussionBody(
@@ -70755,23 +70797,23 @@ async function executeApplyDiscussionSummarizeOutput(action, ctx, structuredOutp
     },
     ctx
   );
-  core13.info(`Updated discussion #${action.discussionNumber} with summary`);
+  core14.info(`Updated discussion #${action.discussionNumber} with summary`);
   return { applied: true };
 }
 async function executeApplyDiscussionPlanOutput(action, ctx, structuredOutput) {
   let output;
   if (structuredOutput) {
     output = parseOutput(PlanOutputSchema, structuredOutput, "plan");
-    core13.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs9.existsSync(action.filePath)) {
-    const content3 = fs9.readFileSync(action.filePath, "utf-8");
+    core14.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs10.existsSync(action.filePath)) {
+    const content3 = fs10.readFileSync(action.filePath, "utf-8");
     output = parseOutput(PlanOutputSchema, JSON.parse(content3), "plan file");
-    core13.info(`Plan output from file: ${action.filePath}`);
+    core14.info(`Plan output from file: ${action.filePath}`);
   } else {
     throw new Error("No structured output provided and file not found");
   }
   if (ctx.dryRun) {
-    core13.info(
+    core14.info(
       `[DRY RUN] Would create ${output.issues.length} issues from plan`
     );
     return { applied: true, issueNumbers: [] };
@@ -70794,20 +70836,20 @@ async function executeApplyDiscussionPlanOutput(action, ctx, structuredOutput) {
     },
     ctx
   );
-  core13.info(
+  core14.info(
     `Created ${result.issueNumbers.length} issues from discussion #${action.discussionNumber}`
   );
   return { applied: true, issueNumbers: result.issueNumbers };
 }
 
 // src/runner/executors/discussion-research.ts
-var core14 = __toESM(require_core(), 1);
+var core15 = __toESM(require_core(), 1);
 async function executeInvestigateResearchThreads(action, ctx) {
-  core14.info(
+  core15.info(
     `Investigating ${action.threads.length} research threads for discussion #${action.discussionNumber}`
   );
   if (ctx.dryRun) {
-    core14.info(
+    core15.info(
       `[DRY RUN] Would investigate ${action.threads.length} research threads`
     );
     return { investigated: action.threads.length };
@@ -70831,35 +70873,35 @@ async function executeInvestigateResearchThreads(action, ctx) {
         ctx
       );
       investigated++;
-      core14.info(`Investigated thread: ${thread.title}`);
-    } catch (error6) {
-      core14.warning(`Failed to investigate thread "${thread.title}": ${error6}`);
+      core15.info(`Investigated thread: ${thread.title}`);
+    } catch (error7) {
+      core15.warning(`Failed to investigate thread "${thread.title}": ${error7}`);
     }
   }
   return { investigated };
 }
 async function executeUpdateDiscussionSummary(action, ctx) {
-  core14.info(`Updating summary for discussion #${action.discussionNumber}`);
+  core15.info(`Updating summary for discussion #${action.discussionNumber}`);
   if (ctx.dryRun) {
-    core14.info(`[DRY RUN] Would update discussion summary`);
+    core15.info(`[DRY RUN] Would update discussion summary`);
     return { updated: true };
   }
-  core14.info(
+  core15.info(
     `Discussion summary update for #${action.discussionNumber} (implementation pending)`
   );
   return { updated: true };
 }
 
 // src/runner/executors/grooming.ts
-var core15 = __toESM(require_core(), 1);
-var fs10 = __toESM(require("fs"), 1);
+var core16 = __toESM(require_core(), 1);
+var fs11 = __toESM(require("fs"), 1);
 function asOctokitLike7(ctx) {
   return ctx.octokit;
 }
 async function executeRunClaudeGrooming(action, ctx) {
-  core15.info(`Running grooming agents for issue #${action.issueNumber}`);
+  core16.info(`Running grooming agents for issue #${action.issueNumber}`);
   if (ctx.dryRun) {
-    core15.info(`[DRY RUN] Would run 4 grooming agents in parallel`);
+    core16.info(`[DRY RUN] Would run 4 grooming agents in parallel`);
     return {
       outputs: {
         pm: { ready: true },
@@ -70870,7 +70912,7 @@ async function executeRunClaudeGrooming(action, ctx) {
     };
   }
   if (ctx.mockOutputs?.grooming) {
-    core15.info("[MOCK MODE] Using mock grooming output");
+    core16.info("[MOCK MODE] Using mock grooming output");
     return {
       outputs: parseOutput(
         CombinedGroomingOutputSchema,
@@ -70885,7 +70927,7 @@ async function executeRunClaudeGrooming(action, ctx) {
     qa: { ready: true, questions: [] },
     research: { ready: true, questions: [] }
   };
-  core15.info("Grooming agents completed (placeholder implementation)");
+  core16.info("Grooming agents completed (placeholder implementation)");
   return { outputs };
 }
 async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
@@ -70896,31 +70938,31 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       structuredOutput,
       "grooming"
     );
-    core15.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs10.existsSync(action.filePath)) {
-    const content3 = fs10.readFileSync(action.filePath, "utf-8");
+    core16.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs11.existsSync(action.filePath)) {
+    const content3 = fs11.readFileSync(action.filePath, "utf-8");
     groomingOutput = parseOutput(
       CombinedGroomingOutputSchema,
       JSON.parse(content3),
       "grooming file"
     );
-    core15.info(`Grooming output from file: ${action.filePath}`);
+    core16.info(`Grooming output from file: ${action.filePath}`);
   } else {
     throw new Error(
       `No structured output provided and file not found at: ${action.filePath}`
     );
   }
-  core15.info(`Applying grooming output for issue #${action.issueNumber}`);
-  core15.startGroup("Grooming Output");
-  core15.info(JSON.stringify(groomingOutput, null, 2));
-  core15.endGroup();
+  core16.info(`Applying grooming output for issue #${action.issueNumber}`);
+  core16.startGroup("Grooming Output");
+  core16.info(JSON.stringify(groomingOutput, null, 2));
+  core16.endGroup();
   if (ctx.dryRun) {
-    core15.info(`[DRY RUN] Would apply grooming output`);
+    core16.info(`[DRY RUN] Would apply grooming output`);
     return { applied: true, decision: "ready" };
   }
   const allReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
   const decision = allReady ? "ready" : "needs_info";
-  core15.info(`Grooming decision: ${decision}`);
+  core16.info(`Grooming decision: ${decision}`);
   let subIssuesCreated = 0;
   if (decision === "ready") {
     try {
@@ -70941,9 +70983,9 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
           labels: [...data.issue.labels, "groomed"]
         }
       });
-      core15.info(`Added 'groomed' label to issue #${action.issueNumber}`);
-    } catch (error6) {
-      core15.warning(`Failed to add 'groomed' label: ${error6}`);
+      core16.info(`Added 'groomed' label to issue #${action.issueNumber}`);
+    } catch (error7) {
+      core16.warning(`Failed to add 'groomed' label: ${error7}`);
     }
     const engineerOutput = parseOutput(
       EngineerOutputSchema,
@@ -70951,7 +70993,7 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       "engineer"
     );
     if (engineerOutput.scope_recommendation === "split" && engineerOutput.recommended_phases && engineerOutput.recommended_phases.length > 0) {
-      core15.info(
+      core16.info(
         `Engineer recommends splitting into ${engineerOutput.recommended_phases.length} phases`
       );
       subIssuesCreated = await createSubIssuesForPhases(
@@ -71004,16 +71046,16 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
           projectStatus
         }
       );
-      core15.info(`Created sub-issue #${result.issueNumber}: ${title}`);
+      core16.info(`Created sub-issue #${result.issueNumber}: ${title}`);
       created++;
       if (phase.phase_number === 1 && projectStatus) {
-        core15.info(
+        core16.info(
           `Set Phase 1 sub-issue #${result.issueNumber} to ${projectStatus} status`
         );
       }
-    } catch (error6) {
-      core15.error(
-        `Failed to create sub-issue for phase ${phase.phase_number}: ${error6}`
+    } catch (error7) {
+      core16.error(
+        `Failed to create sub-issue for phase ${phase.phase_number}: ${error7}`
       );
     }
   }
@@ -71042,9 +71084,9 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
       if (parentState !== parentData) {
         await parentUpdate(parentState);
       }
-      core15.info(`Updated parent issue #${parentIssueNumber2} with agent notes`);
-    } catch (error6) {
-      core15.warning(`Failed to update parent issue body: ${error6}`);
+      core16.info(`Updated parent issue #${parentIssueNumber2} with agent notes`);
+    } catch (error7) {
+      core16.warning(`Failed to update parent issue body: ${error7}`);
     }
   }
   return created;
@@ -71076,8 +71118,8 @@ function buildPhaseIssueBody(phase) {
 }
 
 // src/runner/executors/pivot.ts
-var core16 = __toESM(require_core(), 1);
-var fs11 = __toESM(require("fs"), 1);
+var core17 = __toESM(require_core(), 1);
+var fs12 = __toESM(require("fs"), 1);
 function asOctokitLike8(ctx) {
   return ctx.octokit;
 }
@@ -71085,26 +71127,26 @@ async function executeApplyPivotOutput(action, ctx, structuredOutput) {
   let pivotOutput;
   if (structuredOutput) {
     pivotOutput = parseOutput(PivotOutputSchema, structuredOutput, "pivot");
-    core16.info("Using structured output from in-process chain");
-  } else if (action.filePath && fs11.existsSync(action.filePath)) {
-    const content3 = fs11.readFileSync(action.filePath, "utf-8");
+    core17.info("Using structured output from in-process chain");
+  } else if (action.filePath && fs12.existsSync(action.filePath)) {
+    const content3 = fs12.readFileSync(action.filePath, "utf-8");
     pivotOutput = parseOutput(
       PivotOutputSchema,
       JSON.parse(content3),
       "pivot file"
     );
-    core16.info(`Pivot output from file: ${action.filePath}`);
+    core17.info(`Pivot output from file: ${action.filePath}`);
   } else {
     throw new Error(
       `No structured output provided and file not found at: ${action.filePath}`
     );
   }
-  core16.info(`Applying pivot output for issue #${action.issueNumber}`);
-  core16.startGroup("Pivot Output");
-  core16.info(JSON.stringify(pivotOutput, null, 2));
-  core16.endGroup();
+  core17.info(`Applying pivot output for issue #${action.issueNumber}`);
+  core17.startGroup("Pivot Output");
+  core17.info(JSON.stringify(pivotOutput, null, 2));
+  core17.endGroup();
   if (pivotOutput.outcome === "needs_clarification") {
-    core16.info("Pivot needs clarification - posting comment and exiting");
+    core17.info("Pivot needs clarification - posting comment and exiting");
     await createComment(
       ctx.owner,
       ctx.repo,
@@ -71119,7 +71161,7 @@ ${pivotOutput.clarification_needed || pivotOutput.summary_for_user}
     return { applied: false, changesApplied: 0 };
   }
   if (pivotOutput.outcome === "no_changes_needed") {
-    core16.info("No changes needed");
+    core17.info("No changes needed");
     await createComment(
       ctx.owner,
       ctx.repo,
@@ -71151,7 +71193,7 @@ ${pivotOutput.summary_for_user}
   const newSubIssueCount = mods?.new_sub_issues?.length ?? 0;
   changesApplied += newSubIssueCount;
   if (ctx.dryRun) {
-    core16.info(`[DRY RUN] Would apply ${changesApplied} pivot changes`);
+    core17.info(`[DRY RUN] Would apply ${changesApplied} pivot changes`);
     return { applied: true, changesApplied };
   }
   if (mods?.parent_issue?.update_sections) {
@@ -71169,7 +71211,7 @@ ${pivotOutput.summary_for_user}
     for (const [section, content3] of Object.entries(
       mods.parent_issue.update_sections
     )) {
-      core16.info(`Updating parent issue section "${section}"`);
+      core17.info(`Updating parent issue section "${section}"`);
       const sectionAst = parseMarkdown(content3);
       const sectionContent = (
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast children are RootContent[]
@@ -71181,12 +71223,12 @@ ${pivotOutput.summary_for_user}
       );
     }
     await parentUpdate(parentState);
-    core16.info(`Updated parent issue body`);
+    core17.info(`Updated parent issue body`);
   }
   if (mods?.sub_issues) {
     for (const subIssue of mods.sub_issues) {
       if (subIssue.action === "skip") continue;
-      core16.info(`Modifying sub-issue #${subIssue.issue_number}`);
+      core17.info(`Modifying sub-issue #${subIssue.issue_number}`);
       const { data: subData, update: subUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
@@ -71211,11 +71253,11 @@ ${pivotOutput.summary_for_user}
         );
       }
       await subUpdate(subState);
-      core16.info(`Updated sub-issue #${subIssue.issue_number}`);
+      core17.info(`Updated sub-issue #${subIssue.issue_number}`);
     }
   }
   if (mods?.new_sub_issues && mods.new_sub_issues.length > 0) {
-    core16.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
+    core17.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
     for (const newSubIssue of mods.new_sub_issues) {
       const todoList = newSubIssue.todos.map((t) => `- [ ] ${t}`).join("\n");
       const bodyText = `${newSubIssue.description}
@@ -71235,11 +71277,11 @@ ${todoList}`;
             octokit: asOctokitLike8(ctx)
           }
         );
-        core16.info(
+        core17.info(
           `Created sub-issue #${result.issueNumber}: ${newSubIssue.title} (${newSubIssue.reason})`
         );
-      } catch (error6) {
-        core16.warning(`Failed to create sub-issue: ${error6}`);
+      } catch (error7) {
+        core17.warning(`Failed to create sub-issue: ${error7}`);
       }
     }
   }
@@ -71254,223 +71296,153 @@ ${pivotOutput.summary_for_user}
 *${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`,
     asOctokitLike8(ctx)
   );
-  core16.info(`Applied ${changesApplied} pivot changes`);
+  core17.info(`Applied ${changesApplied} pivot changes`);
   return { applied: true, changesApplied };
 }
 
-// src/runner/runner.ts
-function getStructuredOutput(action, chainCtx) {
-  if (chainCtx?.lastClaudeStructuredOutput) {
-    core17.info("Using structured output from chain context");
-    return chainCtx.lastClaudeStructuredOutput;
-  }
-  const actionWithFile = action;
-  if (actionWithFile.filePath) {
-    core17.info(
-      `Checking for structured output file: ${actionWithFile.filePath}`
-    );
-    core17.info(`Current working directory: ${process.cwd()}`);
-    try {
-      const files = fs12.readdirSync(".");
-      core17.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
-    } catch (e) {
-      core17.warning(`Failed to list files: ${e}`);
+// src/runner/action-registry.ts
+var ACTION_REGISTRY = {
+  // Project field actions
+  updateProjectStatus: executeUpdateProjectStatus,
+  incrementIteration: executeIncrementIteration,
+  recordFailure: executeRecordFailure,
+  clearFailures: executeClearFailures,
+  block: executeBlock,
+  // Issue actions
+  closeIssue: executeCloseIssue,
+  reopenIssue: (action) => {
+    core18.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+    return Promise.resolve({ reopened: true });
+  },
+  resetIssue: executeResetIssue,
+  appendHistory: executeAppendHistory,
+  updateHistory: executeUpdateHistory,
+  updateIssueBody: executeUpdateIssueBody,
+  addComment: executeAddComment,
+  unassignUser: executeUnassignUser,
+  assignUser: executeAssignUser,
+  createSubIssues: executeCreateSubIssues,
+  addLabel: executeAddLabel,
+  removeLabel: executeRemoveLabel,
+  // Git actions
+  createBranch: executeCreateBranch,
+  gitPush: executeGitPush,
+  // PR actions
+  createPR: executeCreatePR,
+  convertPRToDraft: executeConvertPRToDraft,
+  markPRReady: executeMarkPRReady,
+  requestReview: executeRequestReview,
+  mergePR: executeMergePR,
+  submitReview: executeSubmitReview,
+  removeReviewer: executeRemoveReviewer,
+  // Claude actions
+  runClaude: executeRunClaude,
+  // Discussion actions
+  addDiscussionComment: executeAddDiscussionComment,
+  updateDiscussionBody: executeUpdateDiscussionBody,
+  addDiscussionReaction: executeAddDiscussionReaction,
+  createIssuesFromDiscussion: executeCreateIssuesFromDiscussion,
+  // Triage / iterate / apply actions (need structured output)
+  applyTriageOutput: (action, ctx, chainCtx) => executeApplyTriageOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  applyIterateOutput: (action, ctx, chainCtx) => executeApplyIterateOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  // Grooming actions
+  runClaudeGrooming: executeRunClaudeGrooming,
+  applyGroomingOutput: (action, ctx, chainCtx) => executeApplyGroomingOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  // Pivot actions
+  applyPivotOutput: (action, ctx, chainCtx) => executeApplyPivotOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  // Agent notes actions
+  appendAgentNotes: executeAppendAgentNotes,
+  // Review actions
+  applyReviewOutput: (action, ctx, chainCtx) => executeApplyReviewOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  // PR response actions
+  applyPRResponseOutput: (action, ctx, chainCtx) => executeApplyPRResponseOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  // Discussion apply actions
+  applyDiscussionResearchOutput: (action, ctx, chainCtx) => executeApplyDiscussionResearchOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  applyDiscussionRespondOutput: (action, ctx, chainCtx) => executeApplyDiscussionRespondOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  applyDiscussionSummarizeOutput: (action, ctx, chainCtx) => executeApplyDiscussionSummarizeOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  applyDiscussionPlanOutput: (action, ctx, chainCtx) => executeApplyDiscussionPlanOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  investigateResearchThreads: executeInvestigateResearchThreads,
+  updateDiscussionSummary: executeUpdateDiscussionSummary,
+  // Control flow actions (inlined)
+  stop: (action) => {
+    core18.info(`Stopping: ${action.reason}`);
+    return Promise.resolve({ stopped: true, reason: action.reason });
+  },
+  log: (action) => {
+    switch (action.level) {
+      case "debug":
+        core18.debug(action.message);
+        break;
+      case "warning":
+        core18.warning(action.message);
+        break;
+      case "error":
+        core18.error(action.message);
+        break;
+      default:
+        core18.info(action.message);
     }
-    if (fs12.existsSync(actionWithFile.filePath)) {
-      try {
-        const content3 = fs12.readFileSync(actionWithFile.filePath, "utf-8");
-        const parsed = JSON.parse(content3);
-        core17.info(
-          `Loaded structured output from file: ${actionWithFile.filePath}`
-        );
-        return parsed;
-      } catch (e) {
-        core17.warning(
-          `Failed to read structured output from ${actionWithFile.filePath}: ${e}`
-        );
-      }
-    } else {
-      core17.warning(`File not found: ${actionWithFile.filePath}`);
-    }
+    return Promise.resolve({ logged: true });
+  },
+  noop: (action) => {
+    core18.debug(`No-op: ${action.reason || "no reason given"}`);
+    return Promise.resolve({ noop: true });
   }
-  return void 0;
+};
+
+// src/runner/create-action.ts
+function dispatchAction(registry2, action, ctx, chainCtx) {
+  const executor = registry2[action.type];
+  return executor(action, ctx, chainCtx);
 }
+
+// src/runner/runner.ts
 async function executeAction(action, ctx, chainCtx) {
   const actionCtx = {
     ...ctx,
     octokit: getOctokitForAction(action, ctx)
   };
-  switch (action.type) {
-    // Project field actions
-    case "updateProjectStatus":
-      return executeUpdateProjectStatus(action, actionCtx);
-    case "incrementIteration":
-      return executeIncrementIteration(action, actionCtx);
-    case "recordFailure":
-      return executeRecordFailure(action, actionCtx);
-    case "clearFailures":
-      return executeClearFailures(action, actionCtx);
-    case "block":
-      return executeBlock(action, actionCtx);
-    // Issue actions
-    case "closeIssue":
-      return executeCloseIssue(action, actionCtx);
-    case "reopenIssue":
-      core17.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
-      return { reopened: true };
-    case "resetIssue":
-      return executeResetIssue(action, actionCtx);
-    case "appendHistory":
-      return executeAppendHistory(action, actionCtx);
-    case "updateHistory":
-      return executeUpdateHistory(action, actionCtx);
-    case "updateIssueBody":
-      return executeUpdateIssueBody(action, actionCtx);
-    case "addComment":
-      return executeAddComment(action, actionCtx);
-    case "unassignUser":
-      return executeUnassignUser(action, actionCtx);
-    case "assignUser":
-      return executeAssignUser(action, actionCtx);
-    case "createSubIssues":
-      return executeCreateSubIssues(action, actionCtx);
-    case "addLabel":
-      return executeAddLabel(action, actionCtx);
-    case "removeLabel":
-      return executeRemoveLabel(action, actionCtx);
-    // Git actions
-    case "createBranch":
-      return executeCreateBranch(action, actionCtx);
-    case "gitPush":
-      return executeGitPush(action, actionCtx);
-    // PR actions
-    case "createPR":
-      return executeCreatePR(action, actionCtx);
-    case "convertPRToDraft":
-      return executeConvertPRToDraft(action, actionCtx);
-    case "markPRReady":
-      return executeMarkPRReady(action, actionCtx);
-    case "requestReview":
-      return executeRequestReview(action, actionCtx);
-    case "mergePR":
-      return executeMergePR(action, actionCtx);
-    case "submitReview":
-      return executeSubmitReview(action, actionCtx);
-    case "removeReviewer":
-      return executeRemoveReviewer(action, actionCtx);
-    // Claude actions
-    case "runClaude":
-      return executeRunClaude(action, actionCtx);
-    // Discussion actions
-    case "addDiscussionComment":
-      return executeAddDiscussionComment(action, actionCtx);
-    case "updateDiscussionBody":
-      return executeUpdateDiscussionBody(action, actionCtx);
-    case "addDiscussionReaction":
-      return executeAddDiscussionReaction(action, actionCtx);
-    case "createIssuesFromDiscussion":
-      return executeCreateIssuesFromDiscussion(action, actionCtx);
-    // Triage actions
-    case "applyTriageOutput":
-      return executeApplyTriageOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    // Iterate actions
-    case "applyIterateOutput":
-      return executeApplyIterateOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    // Grooming actions
-    case "runClaudeGrooming":
-      return executeRunClaudeGrooming(action, actionCtx);
-    case "applyGroomingOutput":
-      return executeApplyGroomingOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    // Pivot actions
-    case "applyPivotOutput":
-      return executeApplyPivotOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    // Agent notes actions
-    case "appendAgentNotes":
-      return executeAppendAgentNotes(action, actionCtx);
-    // Review actions
-    case "applyReviewOutput":
-      return executeApplyReviewOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    // PR response actions
-    case "applyPRResponseOutput":
-      return executeApplyPRResponseOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    // Discussion apply actions
-    case "applyDiscussionResearchOutput":
-      return executeApplyDiscussionResearchOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    case "applyDiscussionRespondOutput":
-      return executeApplyDiscussionRespondOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    case "applyDiscussionSummarizeOutput":
-      return executeApplyDiscussionSummarizeOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    case "applyDiscussionPlanOutput":
-      return executeApplyDiscussionPlanOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx)
-      );
-    case "investigateResearchThreads":
-      return executeInvestigateResearchThreads(action, actionCtx);
-    case "updateDiscussionSummary":
-      return executeUpdateDiscussionSummary(action, actionCtx);
-    // Control flow actions
-    case "stop":
-      core17.info(`Stopping: ${action.reason}`);
-      return { stopped: true, reason: action.reason };
-    case "log":
-      switch (action.level) {
-        case "debug":
-          core17.debug(action.message);
-          break;
-        case "warning":
-          core17.warning(action.message);
-          break;
-        case "error":
-          core17.error(action.message);
-          break;
-        default:
-          core17.info(action.message);
-      }
-      return { logged: true };
-    case "noop":
-      core17.debug(`No-op: ${action.reason || "no reason given"}`);
-      return { noop: true };
-    default:
-      throw new Error(`Unknown action type: ${action.type}`);
-  }
+  return dispatchAction(ACTION_REGISTRY, action, actionCtx, chainCtx);
 }
 async function executeActions(actions, ctx, options = {}) {
   const startTime = Date.now();
@@ -71483,7 +71455,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core17.error(`Invalid action: ${JSON.stringify(action)}`);
+      core19.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -71500,10 +71472,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core17.info(`Executing action: ${validatedAction.type}`);
+      core19.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core17.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core19.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -71518,14 +71490,14 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core17.info("Stored structured output for subsequent actions");
+          core19.info("Stored structured output for subsequent actions");
         }
       }
       if (validatedAction.type === "runClaudeGrooming") {
         const groomingResult = result;
         if (groomingResult.outputs) {
           chainCtx.lastClaudeStructuredOutput = groomingResult.outputs;
-          core17.info("Stored grooming outputs for subsequent actions");
+          core19.info("Stored grooming outputs for subsequent actions");
         }
       }
       const branchResult = result;
@@ -71539,7 +71511,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core17.info(
+        core19.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -71556,9 +71528,9 @@ async function executeActions(actions, ctx, options = {}) {
         stopReason = validatedAction.type === "stop" ? validatedAction.reason : `${validatedAction.type} action`;
         break;
       }
-    } catch (error6) {
-      const err = error6 instanceof Error ? error6 : new Error(String(error6));
-      core17.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+    } catch (error7) {
+      const err = error7 instanceof Error ? error7 : new Error(String(error7));
+      core19.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -71595,35 +71567,35 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
   };
 }
 function logRunnerSummary(result) {
-  core17.info("=".repeat(60));
-  core17.info("Runner Summary");
-  core17.info("=".repeat(60));
-  core17.info(`Total actions: ${result.results.length}`);
-  core17.info(`Successful: ${result.results.filter((r) => r.success).length}`);
-  core17.info(
+  core19.info("=".repeat(60));
+  core19.info("Runner Summary");
+  core19.info("=".repeat(60));
+  core19.info(`Total actions: ${result.results.length}`);
+  core19.info(`Successful: ${result.results.filter((r) => r.success).length}`);
+  core19.info(
     `Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`
   );
-  core17.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
-  core17.info(`Total duration: ${result.totalDurationMs}ms`);
+  core19.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
+  core19.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
-    core17.info(`Stopped early: ${result.stopReason}`);
+    core19.info(`Stopped early: ${result.stopReason}`);
   }
-  core17.info("=".repeat(60));
+  core19.info("=".repeat(60));
   for (const actionResult of result.results) {
     const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
     const duration3 = `${actionResult.durationMs}ms`;
-    core17.info(
+    core19.info(
       `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration3}`
     );
     if (actionResult.error) {
-      core17.error(`    Error: ${actionResult.error.message}`);
+      core19.error(`    Error: ${actionResult.error.message}`);
     }
   }
 }
 async function runWithSignaling(actions, ctx, options = {}) {
   let statusCommentId = "";
   if (ctx.dryRun) {
-    core17.info("[DRY RUN] Skipping status signaling");
+    core19.info("[DRY RUN] Skipping status signaling");
     const result2 = await executeActions(actions, ctx, options);
     return { ...result2, statusCommentId: "" };
   }
@@ -71641,8 +71613,8 @@ async function runWithSignaling(actions, ctx, options = {}) {
       },
       ctx.progress
     );
-  } catch (error6) {
-    core17.warning(`Failed to create status comment: ${error6}`);
+  } catch (error7) {
+    core19.warning(`Failed to create status comment: ${error7}`);
   }
   const result = await executeActions(actions, ctx, options);
   if (statusCommentId !== "") {
@@ -71662,8 +71634,8 @@ async function runWithSignaling(actions, ctx, options = {}) {
         statusCommentId,
         jobResult
       );
-    } catch (error6) {
-      core17.warning(`Failed to update status comment: ${error6}`);
+    } catch (error7) {
+      core19.warning(`Failed to update status comment: ${error7}`);
     }
   }
   return { ...result, statusCommentId };
@@ -71688,7 +71660,7 @@ function createSignaledRunnerContext(octokit, owner, repo, projectNumber, resour
 }
 
 // src/test-runner/poller.ts
-var core18 = __toESM(require_core(), 1);
+var core20 = __toESM(require_core(), 1);
 var exec7 = __toESM(require_exec(), 1);
 
 // src/test-runner/configurable/types.ts
@@ -71870,7 +71842,7 @@ var ConfigurableTestResultSchema = external_exports.object({
 });
 
 // src/test-runner/configurable/loader.ts
-var core19 = __toESM(require_core(), 1);
+var core21 = __toESM(require_core(), 1);
 
 // src/discussion/actions.ts
 var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
@@ -72452,22 +72424,22 @@ var discussionMachine = setup({
 });
 
 // src/discussion/context-builder.ts
-var core20 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 
 // src/action-utils.ts
-var core21 = __toESM(require_core(), 1);
+var core23 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
-  const value = core21.getInput(name);
+  const value = core23.getInput(name);
   return value === "" ? void 0 : value;
 }
 function getRequiredInput(name) {
-  return core21.getInput(name, { required: true });
+  return core23.getInput(name, { required: true });
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== void 0) {
-      core21.setOutput(key, value);
+      core23.setOutput(key, value);
     }
   }
 }
@@ -72508,9 +72480,9 @@ async function run() {
     if (mockOutputsJson) {
       try {
         mockOutputs = JSON.parse(mockOutputsJson);
-        core22.info("[MOCK MODE] Mock outputs loaded for Claude calls");
-      } catch (error6) {
-        core22.warning(`Failed to parse mock_outputs: ${error6}`);
+        core24.info("[MOCK MODE] Mock outputs loaded for Claude calls");
+      } catch (error7) {
+        core24.warning(`Failed to parse mock_outputs: ${error7}`);
       }
     }
     const job = getOptionalInput("job") || "";
@@ -72523,18 +72495,18 @@ async function run() {
     const runUrl = getOptionalInput("run_url") || "";
     const resourceType = resourceTypeInput === "pr" ? "pr" : "issue";
     const signalingEnabled = job !== "" && resourceNumber > 0;
-    core22.info(`Claude State Executor starting...`);
-    core22.info(`Project: ${projectNumber}`);
-    core22.info(`Dry run: ${dryRun}`);
-    core22.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
+    core24.info(`Claude State Executor starting...`);
+    core24.info(`Project: ${projectNumber}`);
+    core24.info(`Dry run: ${dryRun}`);
+    core24.info(`Signaling: ${signalingEnabled ? "enabled" : "disabled"}`);
     if (signalingEnabled) {
-      core22.info(`  Job: ${job}`);
-      core22.info(`  Resource: ${resourceType} #${resourceNumber}`);
+      core24.info(`  Job: ${job}`);
+      core24.info(`  Resource: ${resourceType} #${resourceNumber}`);
     }
     const actions = parseActions(actionsJson);
-    core22.info(`Actions to execute: ${actions.length}`);
+    core24.info(`Actions to execute: ${actions.length}`);
     if (actions.length === 0) {
-      core22.info("No actions to execute");
+      core24.info("No actions to execute");
       setOutputs({
         success: "true",
         stopped_early: "false",
@@ -72548,7 +72520,7 @@ async function run() {
       return;
     }
     const actionTypes = actions.map((a) => a.type);
-    core22.info(`Action types: ${actionTypes.join(", ")}`);
+    core24.info(`Action types: ${actionTypes.join(", ")}`);
     const tokenUsage = actions.reduce(
       (acc, a) => {
         const token = a.token || "code";
@@ -72558,7 +72530,7 @@ async function run() {
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- initializing accumulator with correct type
       {}
     );
-    core22.info(
+    core24.info(
       `Token usage: code=${tokenUsage.code || 0}, review=${tokenUsage.review || 0}`
     );
     const codeOctokit = github.getOctokit(codeToken);
@@ -72621,17 +72593,17 @@ async function run() {
       results_json: JSON.stringify(resultsForOutput)
     });
     if (!result.success) {
-      core22.setFailed(`${failed} action(s) failed. Check the logs for details.`);
+      core24.setFailed(`${failed} action(s) failed. Check the logs for details.`);
     } else if (result.stoppedEarly) {
-      core22.setFailed(
+      core24.setFailed(
         `Stopped early: ${result.stopReason || "unknown reason"}. Subsequent matrix jobs will be cancelled.`
       );
     }
-  } catch (error6) {
-    if (error6 instanceof Error) {
-      core22.setFailed(error6.message);
+  } catch (error7) {
+    if (error7 instanceof Error) {
+      core24.setFailed(error7.message);
     } else {
-      core22.setFailed("An unexpected error occurred");
+      core24.setFailed("An unexpected error occurred");
     }
   }
 }

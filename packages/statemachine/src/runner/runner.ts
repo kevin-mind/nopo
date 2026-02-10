@@ -5,8 +5,7 @@
  */
 
 import * as core from "@actions/core";
-import * as fs from "fs";
-import type { Action, ActionType } from "../schemas/actions.js";
+import type { Action } from "../schemas/actions.js";
 import {
   ActionSchema,
   isTerminalAction,
@@ -26,7 +25,8 @@ import type {
 } from "./types.js";
 import { getOctokitForAction } from "./types.js";
 import { signalStart, signalEnd } from "./signaler.js";
-import * as executors from "./executors/index.js";
+import { ACTION_REGISTRY } from "./action-registry.js";
+import { dispatchAction } from "./create-action.js";
 
 // Re-export types
 export type {
@@ -44,271 +44,23 @@ export type {
 export type { ResourceType, MockOutputs } from "./types.js";
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Get structured output from chain context or file
- *
- * For matrix job execution where actions run in separate jobs,
- * the structured output is passed through artifacts. This function
- * reads from the file if chain context doesn't have the output.
- */
-function getStructuredOutput(
-  action: Action,
-  chainCtx?: ActionChainContext,
-): unknown | undefined {
-  // First try chain context (same-job execution)
-  if (chainCtx?.lastClaudeStructuredOutput) {
-    core.info("Using structured output from chain context");
-    return chainCtx.lastClaudeStructuredOutput;
-  }
-
-  // Check if action has a filePath for artifact-based execution
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Action union may have filePath on some variants; casting to access it
-  const actionWithFile = action as Action & { filePath?: string };
-  if (actionWithFile.filePath) {
-    core.info(
-      `Checking for structured output file: ${actionWithFile.filePath}`,
-    );
-    core.info(`Current working directory: ${process.cwd()}`);
-
-    // List files in current directory for debugging
-    try {
-      const files = fs.readdirSync(".");
-      core.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
-    } catch (e) {
-      core.warning(`Failed to list files: ${e}`);
-    }
-
-    if (fs.existsSync(actionWithFile.filePath)) {
-      try {
-        const content = fs.readFileSync(actionWithFile.filePath, "utf-8");
-        const parsed = JSON.parse(content);
-        core.info(
-          `Loaded structured output from file: ${actionWithFile.filePath}`,
-        );
-        return parsed;
-      } catch (e) {
-        core.warning(
-          `Failed to read structured output from ${actionWithFile.filePath}: ${e}`,
-        );
-      }
-    } else {
-      core.warning(`File not found: ${actionWithFile.filePath}`);
-    }
-  }
-
-  return undefined;
-}
-
-// ============================================================================
 // Action Execution
 // ============================================================================
 
 /**
- * Execute a single action
+ * Execute a single action via registry lookup
  */
 async function executeAction(
   action: Action,
   ctx: RunnerContext,
   chainCtx?: ActionChainContext,
 ): Promise<unknown> {
-  // Create a context with the appropriate octokit for this action
   const actionCtx: RunnerContext = {
     ...ctx,
     octokit: getOctokitForAction(action, ctx),
   };
 
-  switch (action.type) {
-    // Project field actions
-    case "updateProjectStatus":
-      return executors.executeUpdateProjectStatus(action, actionCtx);
-    case "incrementIteration":
-      return executors.executeIncrementIteration(action, actionCtx);
-    case "recordFailure":
-      return executors.executeRecordFailure(action, actionCtx);
-    case "clearFailures":
-      return executors.executeClearFailures(action, actionCtx);
-    case "block":
-      return executors.executeBlock(action, actionCtx);
-
-    // Issue actions
-    case "closeIssue":
-      return executors.executeCloseIssue(action, actionCtx);
-    case "reopenIssue":
-      core.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
-      return { reopened: true };
-    case "resetIssue":
-      return executors.executeResetIssue(action, actionCtx);
-    case "appendHistory":
-      return executors.executeAppendHistory(action, actionCtx);
-    case "updateHistory":
-      return executors.executeUpdateHistory(action, actionCtx);
-    case "updateIssueBody":
-      return executors.executeUpdateIssueBody(action, actionCtx);
-    case "addComment":
-      return executors.executeAddComment(action, actionCtx);
-    case "unassignUser":
-      return executors.executeUnassignUser(action, actionCtx);
-    case "assignUser":
-      return executors.executeAssignUser(action, actionCtx);
-    case "createSubIssues":
-      return executors.executeCreateSubIssues(action, actionCtx);
-    case "addLabel":
-      return executors.executeAddLabel(action, actionCtx);
-    case "removeLabel":
-      return executors.executeRemoveLabel(action, actionCtx);
-
-    // Git actions
-    case "createBranch":
-      return executors.executeCreateBranch(action, actionCtx);
-    case "gitPush":
-      return executors.executeGitPush(action, actionCtx);
-
-    // PR actions
-    case "createPR":
-      return executors.executeCreatePR(action, actionCtx);
-    case "convertPRToDraft":
-      return executors.executeConvertPRToDraft(action, actionCtx);
-    case "markPRReady":
-      return executors.executeMarkPRReady(action, actionCtx);
-    case "requestReview":
-      return executors.executeRequestReview(action, actionCtx);
-    case "mergePR":
-      return executors.executeMergePR(action, actionCtx);
-    case "submitReview":
-      return executors.executeSubmitReview(action, actionCtx);
-    case "removeReviewer":
-      return executors.executeRemoveReviewer(action, actionCtx);
-
-    // Claude actions
-    case "runClaude":
-      return executors.executeRunClaude(action, actionCtx);
-
-    // Discussion actions
-    case "addDiscussionComment":
-      return executors.executeAddDiscussionComment(action, actionCtx);
-    case "updateDiscussionBody":
-      return executors.executeUpdateDiscussionBody(action, actionCtx);
-    case "addDiscussionReaction":
-      return executors.executeAddDiscussionReaction(action, actionCtx);
-    case "createIssuesFromDiscussion":
-      return executors.executeCreateIssuesFromDiscussion(action, actionCtx);
-
-    // Triage actions
-    case "applyTriageOutput":
-      return executors.executeApplyTriageOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-
-    // Iterate actions
-    case "applyIterateOutput":
-      return executors.executeApplyIterateOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-
-    // Grooming actions
-    case "runClaudeGrooming":
-      return executors.executeRunClaudeGrooming(action, actionCtx);
-    case "applyGroomingOutput":
-      return executors.executeApplyGroomingOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-
-    // Pivot actions
-    case "applyPivotOutput":
-      return executors.executeApplyPivotOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-
-    // Agent notes actions
-    case "appendAgentNotes":
-      return executors.executeAppendAgentNotes(action, actionCtx);
-
-    // Review actions
-    case "applyReviewOutput":
-      return executors.executeApplyReviewOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-
-    // PR response actions
-    case "applyPRResponseOutput":
-      return executors.executeApplyPRResponseOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-
-    // Discussion apply actions
-    case "applyDiscussionResearchOutput":
-      return executors.executeApplyDiscussionResearchOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-    case "applyDiscussionRespondOutput":
-      return executors.executeApplyDiscussionRespondOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-    case "applyDiscussionSummarizeOutput":
-      return executors.executeApplyDiscussionSummarizeOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-    case "applyDiscussionPlanOutput":
-      return executors.executeApplyDiscussionPlanOutput(
-        action,
-        actionCtx,
-        getStructuredOutput(action, chainCtx),
-      );
-    case "investigateResearchThreads":
-      return executors.executeInvestigateResearchThreads(action, actionCtx);
-    case "updateDiscussionSummary":
-      return executors.executeUpdateDiscussionSummary(action, actionCtx);
-
-    // Control flow actions
-    case "stop":
-      core.info(`Stopping: ${action.reason}`);
-      return { stopped: true, reason: action.reason };
-
-    case "log":
-      switch (action.level) {
-        case "debug":
-          core.debug(action.message);
-          break;
-        case "warning":
-          core.warning(action.message);
-          break;
-        case "error":
-          core.error(action.message);
-          break;
-        default:
-          core.info(action.message);
-      }
-      return { logged: true };
-
-    case "noop":
-      core.debug(`No-op: ${action.reason || "no reason given"}`);
-      return { noop: true };
-
-    default:
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- default case in exhaustive switch, action is typed as never
-      throw new Error(`Unknown action type: ${(action as Action).type}`);
-  }
+  return dispatchAction(ACTION_REGISTRY, action, actionCtx, chainCtx);
 }
 
 // ============================================================================
@@ -548,7 +300,7 @@ export function logRunnerSummary(result: RunnerResult): void {
 /**
  * Filter actions by type
  */
-export function filterActions<T extends ActionType>(
+export function filterActions<T extends Action["type"]>(
   actions: Action[],
   type: T,
 ): Extract<Action, { type: T }>[] {
@@ -564,13 +316,13 @@ export function filterActions<T extends ActionType>(
  */
 export function countActionsByType(
   actions: Action[],
-): Record<ActionType, number> {
-  const counts: Partial<Record<ActionType, number>> = {};
+): Record<Action["type"], number> {
+  const counts: Partial<Record<Action["type"], number>> = {};
   for (const action of actions) {
     counts[action.type] = (counts[action.type] || 0) + 1;
   }
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Partial<Record> built from exhaustive loop, safe to cast to Record
-  return counts as Record<ActionType, number>;
+  return counts as Record<Action["type"], number>;
 }
 
 // ============================================================================

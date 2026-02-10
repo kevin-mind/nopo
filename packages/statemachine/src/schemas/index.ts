@@ -136,7 +136,6 @@ export {
   type ApplyGroomingOutputAction,
   type ApplyPivotOutputAction,
   type Action,
-  type ActionType,
   type IssueActionType,
   type DiscussionActionType,
   type SharedActionType,

@@ -423,18 +423,18 @@ var require_tunnel = __commonJS({
             res.statusCode
           );
           socket.destroy();
-          var error6 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error6.code = "ECONNRESET";
-          options.request.emit("error", error6);
+          var error7 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error7.code = "ECONNRESET";
+          options.request.emit("error", error7);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
           debug7("got illegal response body from proxy");
           socket.destroy();
-          var error6 = new Error("got illegal response body from proxy");
-          error6.code = "ECONNRESET";
-          options.request.emit("error", error6);
+          var error7 = new Error("got illegal response body from proxy");
+          error7.code = "ECONNRESET";
+          options.request.emit("error", error7);
           self2.removeSocket(placeholder);
           return;
         }
@@ -449,9 +449,9 @@ var require_tunnel = __commonJS({
           cause.message,
           cause.stack
         );
-        var error6 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error6.code = "ECONNRESET";
-        options.request.emit("error", error6);
+        var error7 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error7.code = "ECONNRESET";
+        options.request.emit("error", error7);
         self2.removeSocket(placeholder);
       }
     };
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error6) => promise.reject(error6);
+      const errorSteps = (error7) => promise.reject(error7);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error6) {
+      onError(error7) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error6 });
+          channels.error.publish({ request: this, error: error7 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error6);
+        return this[kHandler].onError(error7);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error6) {
-        this.handler.onError(error6);
+      onError(error7) {
+        this.handler.onError(error7);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util3.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util3.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error6) => {
+        this.on("connectionError", (origin2, targets, error7) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error6 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error7 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error6 !== null) {
+      if (error7 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error6);
+        handler.onError(error7);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error6) {
-            if (error6 instanceof MockNotMatchedError) {
+          } catch (error7) {
+            if (error7 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error6;
+              throw error7;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error6) {
-        if (typeof error6 === "undefined") {
+      replyWithError(error7) {
+        if (typeof error7 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error6 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error7 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error6) {
+      abort(error7) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error6) {
-          error6 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error7) {
+          error7 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error6;
-        this.connection?.destroy(error6);
-        this.emit("terminated", error6);
+        this.serializedAbortReason = error7;
+        this.connection?.destroy(error7);
+        this.emit("terminated", error7);
       }
     };
     function fetch2(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error6) {
-      if (!error6) {
-        error6 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error7) {
+      if (!error7) {
+        error7 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error6);
+      p.reject(error7);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error6).catch((err) => {
+        request.body.stream.cancel(error7).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error6).catch((err) => {
+        response.body.stream.cancel(error7).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error6) {
+            onError(error7) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error6);
-              fetchParams.controller.terminate(error6);
-              reject(error6);
+              this.body?.destroy(error7);
+              fetchParams.controller.terminate(error7);
+              reject(error7);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error6) {
-                  fr[kError] = error6;
+                } catch (error7) {
+                  fr[kError] = error7;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error6) {
+          } catch (error7) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error6;
+              fr[kError] = error7;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error6) {
+    function onSocketError(error7) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error6);
+        channels.socketError.publish(error7);
       }
       this.destroy();
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info22 = this._prepareRequest(verb, parsedUrl, headers);
+          let info24 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info22, data);
+            response = yield this.requestRaw(info24, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info22, data);
+                return authenticationHandler.handleAuthentication(this, info24, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info22 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info22, data);
+              info24 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info24, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info22, data) {
+      requestRaw(info24, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info22, data, callbackForResult);
+            this.requestRawWithCallback(info24, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info22, data, onResult) {
+      requestRawWithCallback(info24, data, onResult) {
         if (typeof data === "string") {
-          if (!info22.options.headers) {
-            info22.options.headers = {};
+          if (!info24.options.headers) {
+            info24.options.headers = {};
           }
-          info22.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info24.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info22.httpModule.request(info22.options, (msg) => {
+        const req = info24.httpModule.request(info24.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info22.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info24.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info22 = {};
-        info22.parsedUrl = requestUrl;
-        const usingSsl = info22.parsedUrl.protocol === "https:";
-        info22.httpModule = usingSsl ? https : http;
+        const info24 = {};
+        info24.parsedUrl = requestUrl;
+        const usingSsl = info24.parsedUrl.protocol === "https:";
+        info24.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info22.options = {};
-        info22.options.host = info22.parsedUrl.hostname;
-        info22.options.port = info22.parsedUrl.port ? parseInt(info22.parsedUrl.port) : defaultPort;
-        info22.options.path = (info22.parsedUrl.pathname || "") + (info22.parsedUrl.search || "");
-        info22.options.method = method;
-        info22.options.headers = this._mergeHeaders(headers);
+        info24.options = {};
+        info24.options.host = info24.parsedUrl.hostname;
+        info24.options.port = info24.parsedUrl.port ? parseInt(info24.parsedUrl.port) : defaultPort;
+        info24.options.path = (info24.parsedUrl.pathname || "") + (info24.parsedUrl.search || "");
+        info24.options.method = method;
+        info24.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info22.options.headers["user-agent"] = this.userAgent;
+          info24.options.headers["user-agent"] = this.userAgent;
         }
-        info22.options.agent = this._getAgent(info22.parsedUrl);
+        info24.options.agent = this._getAgent(info24.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info22.options);
+            handler.prepareRequest(info24.options);
           }
         }
-        return info22;
+        return info24;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error6) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error7) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error6.statusCode}
+        Error Code : ${error7.statusCode}
  
-        Error Message: ${error6.message}`);
+        Error Message: ${error7.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error6) {
-            throw new Error(`Error message: ${error6.message}`);
+          } catch (error7) {
+            throw new Error(`Error message: ${error7.message}`);
           }
         });
       }
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error6, exitCode) => {
+            state.on("done", (error7, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error6) {
-                reject(error6);
+              if (error7) {
+                reject(error7);
               } else {
                 resolve2(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error6;
+        let error7;
         if (this.processExited) {
           if (this.processError) {
-            error6 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error7 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error6 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error7 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error6 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error7 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error6, this.processExitCode);
+        this.emit("done", error7, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19725,7 +19725,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error6(message);
+      error7(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
@@ -19736,22 +19736,22 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("debug", {}, message);
     }
     exports2.debug = debug7;
-    function error6(message, properties = {}) {
+    function error7(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error6;
-    function warning16(message, properties = {}) {
+    exports2.error = error7;
+    function warning18(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning16;
+    exports2.warning = warning18;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info22(message) {
+    function info24(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info22;
+    exports2.info = info24;
     function startGroup10(name) {
       (0, command_1.issue)("group", name);
     }
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error6) {
-            return orig(error6, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error7) {
+            return orig(error7, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error6 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error7 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error6;
+          throw error7;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error6) => {
-        if (error6 instanceof import_request_error.RequestError)
-          throw error6;
-        else if (error6.name === "AbortError")
-          throw error6;
-        let message = error6.message;
-        if (error6.name === "TypeError" && "cause" in error6) {
-          if (error6.cause instanceof Error) {
-            message = error6.cause.message;
-          } else if (typeof error6.cause === "string") {
-            message = error6.cause;
+      }).catch((error7) => {
+        if (error7 instanceof import_request_error.RequestError)
+          throw error7;
+        else if (error7.name === "AbortError")
+          throw error7;
+        let message = error7.message;
+        if (error7.name === "TypeError" && "cause" in error7) {
+          if (error7.cause instanceof Error) {
+            message = error7.cause.message;
+          } else if (typeof error7.cause === "string") {
+            message = error7.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error6) {
-              if (error6.status !== 409)
-                throw error6;
+            } catch (error7) {
+              if (error7.status !== 409)
+                throw error7;
               url = "";
               return {
                 value: {
@@ -23976,7 +23976,7 @@ var require_extend = __commonJS({
 // actions/sm-test-helper/index.ts
 var fs2 = __toESM(require("fs"), 1);
 var path2 = __toESM(require("path"), 1);
-var core22 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
@@ -24275,8 +24275,8 @@ var ZodError = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error6) => {
-      for (const issue2 of error6.issues) {
+    const processError = (error7) => {
+      for (const issue2 of error7.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -24339,8 +24339,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error6 = new ZodError(issues);
-  return error6;
+  const error7 = new ZodError(issues);
+  return error7;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -24604,8 +24604,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error6 = new ZodError(ctx.common.issues);
-        this._error = error6;
+        const error7 = new ZodError(ctx.common.issues);
+        this._error = error7;
         return this._error;
       }
     };
@@ -27260,25 +27260,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error6) {
+    function makeArgsIssue(args, error7) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error6
+          argumentsError: error7
         }
       });
     }
-    function makeReturnsIssue(returns, error6) {
+    function makeReturnsIssue(returns, error7) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error6
+          returnTypeError: error7
         }
       });
     }
@@ -27287,15 +27287,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error6 = new ZodError([]);
+        const error7 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error6.addIssue(makeArgsIssue(args, e));
-          throw error6;
+          error7.addIssue(makeArgsIssue(args, e));
+          throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error6.addIssue(makeReturnsIssue(result, e));
-          throw error6;
+          error7.addIssue(makeReturnsIssue(result, e));
+          throw error7;
         });
         return parsedReturns;
       });
@@ -28169,9 +28169,9 @@ var IssueStateDataSchema = external_exports.object({
 });
 
 // ../../node_modules/.pnpm/bail@2.0.2/node_modules/bail/index.js
-function bail(error6) {
-  if (error6) {
-    throw error6;
+function bail(error7) {
+  if (error7) {
+    throw error7;
   }
 }
 
@@ -28203,11 +28203,11 @@ function trough() {
       throw new TypeError("Expected function as last argument, not " + callback);
     }
     next(null, ...values);
-    function next(error6, ...output) {
+    function next(error7, ...output) {
       const fn = fns[++middlewareIndex];
       let index2 = -1;
-      if (error6) {
-        callback(error6);
+      if (error7) {
+        callback(error7);
         return;
       }
       while (++index2 < values.length) {
@@ -28244,10 +28244,10 @@ function wrap(middleware, callback) {
     }
     try {
       result = middleware.apply(this, parameters);
-    } catch (error6) {
+    } catch (error7) {
       const exception = (
         /** @type {Error} */
-        error6
+        error7
       );
       if (fnExpectsCallback && called) {
         throw exception;
@@ -28264,10 +28264,10 @@ function wrap(middleware, callback) {
       }
     }
   }
-  function done(error6, ...output) {
+  function done(error7, ...output) {
     if (!called) {
       called = true;
-      callback(error6, ...output);
+      callback(error7, ...output);
     }
   }
   function then(value) {
@@ -29175,9 +29175,9 @@ var Processor = class _Processor extends CallableInstance {
         /** @type {unknown} */
         self2.parse(realFile)
       );
-      self2.run(parseTree, realFile, function(error6, tree, file2) {
-        if (error6 || !tree || !file2) {
-          return realDone(error6);
+      self2.run(parseTree, realFile, function(error7, tree, file2) {
+        if (error7 || !tree || !file2) {
+          return realDone(error7);
         }
         const compileTree = (
           /** @type {CompileTree extends undefined ? Node : CompileTree} */
@@ -29191,14 +29191,14 @@ var Processor = class _Processor extends CallableInstance {
           file2.result = compileResult;
         }
         realDone(
-          error6,
+          error7,
           /** @type {VFileWithOutput<CompileResult>} */
           file2
         );
       });
-      function realDone(error6, file2) {
-        if (error6 || !file2) {
-          reject(error6);
+      function realDone(error7, file2) {
+        if (error7 || !file2) {
+          reject(error7);
         } else if (resolve2) {
           resolve2(file2);
         } else {
@@ -29249,9 +29249,9 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("processSync", "process", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error6, file2) {
+    function realDone(error7, file2) {
       complete = true;
-      bail(error6);
+      bail(error7);
       result = file2;
     }
   }
@@ -29309,13 +29309,13 @@ var Processor = class _Processor extends CallableInstance {
       );
       const realFile = vfile(file);
       transformers.run(tree, realFile, realDone);
-      function realDone(error6, outputTree, file2) {
+      function realDone(error7, outputTree, file2) {
         const resultingTree = (
           /** @type {TailTree extends undefined ? Node : TailTree} */
           outputTree || tree
         );
-        if (error6) {
-          reject(error6);
+        if (error7) {
+          reject(error7);
         } else if (resolve2) {
           resolve2(resultingTree);
         } else {
@@ -29349,8 +29349,8 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("runSync", "run", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error6, tree2) {
-      bail(error6);
+    function realDone(error7, tree2) {
+      bail(error7);
       result = tree2;
       complete = true;
     }
@@ -32603,9 +32603,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info22(code3);
+    return info24(code3);
   }
-  function info22(code3) {
+  function info24(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32620,7 +32620,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info22;
+    return info24;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35459,11 +35459,11 @@ function createTokenizer(parser2, initialize, from) {
     context2.events.push(["exit", token, context2]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info22) {
-    addResult(construct, info22.from);
+  function onsuccessfulconstruct(construct, info24) {
+    addResult(construct, info24.from);
   }
-  function onsuccessfulcheck(_, info22) {
-    info22.restore();
+  function onsuccessfulcheck(_, info24) {
+    info24.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35471,7 +35471,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info22;
+      let info24;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35507,7 +35507,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info22 = store();
+          info24 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context2.currentConstruct = construct;
@@ -35528,12 +35528,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info22);
+        onreturn(currentConstruct, info24);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info22.restore();
+        info24.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -37002,8 +37002,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info22) {
-  const tracker = state.createTracker(info22);
+function footnoteReference(node2, _, state, info24) {
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37041,8 +37041,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info22) {
-    const tracker = state.createTracker(info22);
+  function footnoteDefinition(node2, _, state, info24) {
+    const tracker = state.createTracker(info24);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37106,8 +37106,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info22) {
-  const tracker = state.createTracker(info22);
+function handleDelete(node2, _, state, info24) {
+  const tracker = state.createTracker(info24);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37334,9 +37334,9 @@ function map(left, right) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info22) {
+function blockquote(node2, _, state, info24) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37371,11 +37371,11 @@ function listInScope(stack, list4, none) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info22) {
+function hardBreak(_, _1, state, info24) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info22.before) ? "" : " ";
+      return /[ \t]/.test(info24.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37427,7 +37427,7 @@ function checkFence(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info22) {
+function code(node2, _, state, info24) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37437,7 +37437,7 @@ function code(node2, _, state, info22) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37490,12 +37490,12 @@ function checkQuote(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info22) {
+function definition2(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37605,10 +37605,10 @@ function encodeInfo(outside, inside, marker) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info22) {
+function emphasis(node2, _, state, info24) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37619,7 +37619,7 @@ function emphasis(node2, _, state, info22) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info22.before.charCodeAt(info22.before.length - 1),
+    info24.before.charCodeAt(info24.before.length - 1),
     betweenHead,
     marker
   );
@@ -37627,7 +37627,7 @@ function emphasis(node2, _, state, info22) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info22.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37680,9 +37680,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info22) {
+function heading(node2, _, state, info24) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37732,12 +37732,12 @@ function htmlPeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info22) {
+function image(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37789,11 +37789,11 @@ function imagePeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info22) {
+function imageReference(node2, _, state, info24) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37874,10 +37874,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info22) {
+function link(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37954,11 +37954,11 @@ function linkPeek(node2, _, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info22) {
+function linkReference(node2, _, state, info24) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38045,7 +38045,7 @@ function checkRule(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info22) {
+function list3(node2, parent, state, info24) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38077,7 +38077,7 @@ function list3(node2, parent, state, info22) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info22);
+  const value = state.containerFlow(node2, info24);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38096,7 +38096,7 @@ function checkListItemIndent(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info22) {
+function listItem(node2, parent, state, info24) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38106,7 +38106,7 @@ function listItem(node2, parent, state, info22) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38125,10 +38125,10 @@ function listItem(node2, parent, state, info22) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info22) {
+function paragraph(node2, _, state, info24) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info22);
+  const value = state.containerPhrasing(node2, info24);
   subexit();
   exit3();
   return value;
@@ -38163,12 +38163,12 @@ var phrasing = (
 );
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info22) {
+function root(node2, _, state, info24) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info22);
+  return container.call(state, node2, info24);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38184,10 +38184,10 @@ function checkStrong(state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info22) {
+function strong(node2, _, state, info24) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38198,7 +38198,7 @@ function strong(node2, _, state, info22) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info22.before.charCodeAt(info22.before.length - 1),
+    info24.before.charCodeAt(info24.before.length - 1),
     betweenHead,
     marker
   );
@@ -38206,7 +38206,7 @@ function strong(node2, _, state, info22) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info22.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38223,8 +38223,8 @@ function strongPeek(_, _1, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info22) {
-  return state.safe(node2.value, info22);
+function text3(node2, _, state, info24) {
+  return state.safe(node2.value, info24);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38439,15 +38439,15 @@ function compilePattern(pattern) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info22) {
+function containerPhrasing(parent, state, info24) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info22.before;
+  let before = info24.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info22);
+  let tracker = state.createTracker(info24);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38461,7 +38461,7 @@ function containerPhrasing(parent, state, info22) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info22.after;
+      after = info24.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38469,7 +38469,7 @@ function containerPhrasing(parent, state, info22) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info22);
+      tracker = state.createTracker(info24);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38498,10 +38498,10 @@ function containerPhrasing(parent, state, info22) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info22) {
+function containerFlow(parent, state, info24) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38737,11 +38737,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info22) {
-  return containerPhrasing(parent, this, info22);
+function containerPhrasingBound(parent, info24) {
+  return containerPhrasing(parent, this, info24);
 }
-function containerFlowBound(parent, info22) {
-  return containerFlow(parent, this, info22);
+function containerFlowBound(parent, info24) {
+  return containerFlow(parent, this, info24);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38838,19 +38838,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info22) {
-    return serializeData(handleTableAsData(node2, state, info22), node2.align);
+  function handleTable(node2, _, state, info24) {
+    return serializeData(handleTableAsData(node2, state, info24), node2.align);
   }
-  function handleTableRow(node2, _, state, info22) {
-    const row = handleTableRowAsData(node2, state, info22);
+  function handleTableRow(node2, _, state, info24) {
+    const row = handleTableRowAsData(node2, state, info24);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info22) {
+  function handleTableCell(node2, _, state, info24) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info22,
+      ...info24,
       before: around,
       after: around
     });
@@ -38869,24 +38869,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info22) {
+  function handleTableAsData(node2, state, info24) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info22);
+      result[index2] = handleTableRowAsData(children[index2], state, info24);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info22) {
+  function handleTableRowAsData(node2, state, info24) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info22);
+      result[index2] = handleTableCell(children[index2], node2, state, info24);
     }
     subexit();
     return result;
@@ -38952,16 +38952,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info22) {
+function listItemWithTaskListItem(node2, parent, state, info24) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info22,
+    ...info24,
     ...tracker.current()
   });
   if (checkable) {
@@ -43212,10 +43212,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error6) {
+function createErrorActorEvent(id, error7) {
   return {
     type: `xstate.error.actor.${id}`,
-    error: error6,
+    error: error7,
     actorId: id
   };
 }
@@ -52690,7 +52690,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core23 = [
+  var core25 = [
     "$schema",
     "$id",
     "$defs",
@@ -52700,7 +52700,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core23;
+  exports2.default = core25;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -55662,8 +55662,8 @@ var ZodError2 = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error6) => {
-      for (const issue2 of error6.issues) {
+    const processError = (error7) => {
+      for (const issue2 of error7.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -55726,8 +55726,8 @@ var ZodError2 = class _ZodError extends Error {
   }
 };
 ZodError2.create = (issues) => {
-  const error6 = new ZodError2(issues);
-  return error6;
+  const error7 = new ZodError2(issues);
+  return error7;
 };
 var errorMap2 = (issue2, _ctx) => {
   let message;
@@ -55973,8 +55973,8 @@ var handleResult2 = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error6 = new ZodError2(ctx.common.issues);
-        this._error = error6;
+        const error7 = new ZodError2(ctx.common.issues);
+        this._error = error7;
         return this._error;
       }
     };
@@ -58534,25 +58534,25 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
       });
       return INVALID2;
     }
-    function makeArgsIssue(args, error6) {
+    function makeArgsIssue(args, error7) {
       return makeIssue2({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_arguments,
-          argumentsError: error6
+          argumentsError: error7
         }
       });
     }
-    function makeReturnsIssue(returns, error6) {
+    function makeReturnsIssue(returns, error7) {
       return makeIssue2({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_return_type,
-          returnTypeError: error6
+          returnTypeError: error7
         }
       });
     }
@@ -58561,15 +58561,15 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
     if (this._def.returns instanceof ZodPromise2) {
       const me = this;
       return OK2(async function(...args) {
-        const error6 = new ZodError2([]);
+        const error7 = new ZodError2([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error6.addIssue(makeArgsIssue(args, e));
-          throw error6;
+          error7.addIssue(makeArgsIssue(args, e));
+          throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error6.addIssue(makeReturnsIssue(result, e));
-          throw error6;
+          error7.addIssue(makeReturnsIssue(result, e));
+          throw error7;
         });
         return parsedReturns;
       });
@@ -59840,10 +59840,10 @@ var initializer = (inst, def) => {
 };
 var $ZodError = $constructor("$ZodError", initializer);
 var $ZodRealError = $constructor("$ZodError", initializer, { Parent: Error });
-function flattenError(error6, mapper = (issue2) => issue2.message) {
+function flattenError(error7, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
-  for (const sub of error6.issues) {
+  for (const sub of error7.issues) {
     if (sub.path.length > 0) {
       fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
       fieldErrors[sub.path[0]].push(mapper(sub));
@@ -59853,7 +59853,7 @@ function flattenError(error6, mapper = (issue2) => issue2.message) {
   }
   return { formErrors, fieldErrors };
 }
-function formatError(error6, _mapper) {
+function formatError(error7, _mapper) {
   const mapper = _mapper || function(issue2) {
     return issue2.message;
   };
@@ -59886,7 +59886,7 @@ function formatError(error6, _mapper) {
       }
     }
   };
-  processError(error6);
+  processError(error7);
   return fieldErrors;
 }
 var _parse = (_Err) => (schema, value, _ctx, _params) => {
@@ -66522,27 +66522,33 @@ The executor will:
 ] }));
 
 // src/runner/runner.ts
-var core17 = __toESM(require_core(), 1);
+var core19 = __toESM(require_core(), 1);
 
 // src/runner/signaler.ts
 var core2 = __toESM(require_core(), 1);
 
-// src/runner/executors/project.ts
+// src/runner/action-registry.ts
+var core18 = __toESM(require_core(), 1);
+
+// src/runner/get-structured-output.ts
 var core3 = __toESM(require_core(), 1);
 
-// src/runner/executors/github.ts
+// src/runner/executors/project.ts
 var core4 = __toESM(require_core(), 1);
 
-// src/runner/executors/git.ts
+// src/runner/executors/github.ts
 var core5 = __toESM(require_core(), 1);
+
+// src/runner/executors/git.ts
+var core6 = __toESM(require_core(), 1);
 var exec3 = __toESM(require_exec(), 1);
 
 // src/runner/executors/claude.ts
-var core6 = __toESM(require_core(), 1);
+var core7 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
 
 // src/runner/executors/triage.ts
-var core7 = __toESM(require_core(), 1);
+var core8 = __toESM(require_core(), 1);
 
 // src/runner/executors/output-schemas.ts
 var IterateOutputSchema = external_exports.object({
@@ -66710,34 +66716,34 @@ var PlanOutputSchema = external_exports.object({
 });
 
 // src/runner/executors/iterate.ts
-var core8 = __toESM(require_core(), 1);
-
-// src/runner/executors/review.ts
 var core9 = __toESM(require_core(), 1);
 
-// src/runner/executors/pr-response.ts
+// src/runner/executors/review.ts
 var core10 = __toESM(require_core(), 1);
 
-// src/runner/executors/agent-notes.ts
+// src/runner/executors/pr-response.ts
 var core11 = __toESM(require_core(), 1);
 
-// src/runner/executors/discussions.ts
+// src/runner/executors/agent-notes.ts
 var core12 = __toESM(require_core(), 1);
 
-// src/runner/executors/discussion-apply.ts
+// src/runner/executors/discussions.ts
 var core13 = __toESM(require_core(), 1);
 
-// src/runner/executors/discussion-research.ts
+// src/runner/executors/discussion-apply.ts
 var core14 = __toESM(require_core(), 1);
 
-// src/runner/executors/grooming.ts
+// src/runner/executors/discussion-research.ts
 var core15 = __toESM(require_core(), 1);
 
-// src/runner/executors/pivot.ts
+// src/runner/executors/grooming.ts
 var core16 = __toESM(require_core(), 1);
 
+// src/runner/executors/pivot.ts
+var core17 = __toESM(require_core(), 1);
+
 // src/test-runner/poller.ts
-var core18 = __toESM(require_core(), 1);
+var core20 = __toESM(require_core(), 1);
 var exec7 = __toESM(require_exec(), 1);
 
 // src/test-runner/configurable/types.ts
@@ -66919,7 +66925,7 @@ var ConfigurableTestResultSchema = external_exports.object({
 });
 
 // src/test-runner/configurable/loader.ts
-var core19 = __toESM(require_core(), 1);
+var core21 = __toESM(require_core(), 1);
 
 // src/discussion/actions.ts
 var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
@@ -67501,22 +67507,22 @@ var discussionMachine = setup({
 });
 
 // src/discussion/context-builder.ts
-var core20 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 
 // src/action-utils.ts
-var core21 = __toESM(require_core(), 1);
+var core23 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
-  const value = core21.getInput(name);
+  const value = core23.getInput(name);
   return value === "" ? void 0 : value;
 }
 function getRequiredInput(name) {
-  return core21.getInput(name, { required: true });
+  return core23.getInput(name, { required: true });
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== void 0) {
-      core21.setOutput(key, value);
+      core23.setOutput(key, value);
     }
   }
 }
@@ -67781,18 +67787,18 @@ async function addLabelsToDiscussion(octokit, owner, repo, discussionId, labelNa
     if (label) {
       labelIds.push(label.id);
     } else {
-      core22.warning(`Label "${labelName}" not found in repository`);
+      core24.warning(`Label "${labelName}" not found in repository`);
     }
   }
   if (labelIds.length === 0) {
-    core22.warning("No valid labels found to add to discussion");
+    core24.warning("No valid labels found to add to discussion");
     return;
   }
   await octokit.graphql(ADD_LABELS_TO_LABELABLE_MUTATION, {
     labelableId: discussionId,
     labelIds
   });
-  core22.info(`Added ${labelIds.length} labels to discussion`);
+  core24.info(`Added ${labelIds.length} labels to discussion`);
 }
 async function createFixture(octokit, owner, repo, fixture, projectNumber, reviewOctokit) {
   const result = {
@@ -67800,9 +67806,9 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     sub_issue_numbers: []
   };
   if (!fixture.parent_issue) {
-    core22.info("No parent_issue in fixture - creating discussion-only fixture");
+    core24.info("No parent_issue in fixture - creating discussion-only fixture");
     if (fixture.discussion) {
-      core22.info(`Creating discussion: ${fixture.discussion.title}`);
+      core24.info(`Creating discussion: ${fixture.discussion.title}`);
       const categoriesResponse = await octokit.graphql(
         GET_DISCUSSION_CATEGORIES_QUERY2,
         { owner, repo }
@@ -67814,7 +67820,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
       );
       if (!repoId || !category) {
-        core22.warning(
+        core24.warning(
           `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
         );
       } else {
@@ -67830,7 +67836,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         const discussion = discussionResponse.createDiscussion?.discussion;
         if (discussion) {
           result.discussion_number = discussion.number;
-          core22.info(
+          core24.info(
             `Created discussion #${discussion.number}: ${discussion.url}`
           );
           if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
@@ -67847,7 +67853,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               discussionId: discussion.id,
               body: fixture.comment.body
             });
-            core22.info("Added comment to discussion");
+            core24.info("Added comment to discussion");
           }
         }
       }
@@ -67859,7 +67865,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     "test:automation",
     ...fixture.parent_issue.labels || []
   ];
-  core22.info(`Creating parent issue: ${parentTitle}`);
+  core24.info(`Creating parent issue: ${parentTitle}`);
   const createResult = await createIssue(
     owner,
     repo,
@@ -67872,8 +67878,8 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
   );
   result.issue_number = createResult.issueNumber;
   const issueNodeId = createResult.issueId;
-  core22.info(`Created parent issue #${createResult.issueNumber}`);
-  core22.info(`Issue node_id: ${issueNodeId}`);
+  core24.info(`Created parent issue #${createResult.issueNumber}`);
+  core24.info(`Issue node_id: ${issueNodeId}`);
   let projectFields = null;
   try {
     const projectResponse = await octokit.graphql(
@@ -67907,21 +67913,21 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       }
     );
     const projectData = projectResponse.organization?.projectV2;
-    core22.info(
+    core24.info(
       `Project query result - org: ${owner}, projectNumber: ${projectNumber}`
     );
-    core22.info(`Project data: ${JSON.stringify(projectData)}`);
+    core24.info(`Project data: ${JSON.stringify(projectData)}`);
     projectFields = parseProjectFields(projectData);
     if (projectFields) {
-      core22.info(
+      core24.info(
         `Parsed project fields - projectId: ${projectFields.projectId}`
       );
     }
-  } catch (error6) {
-    core22.warning(
-      `Could not access project #${projectNumber}: ${error6 instanceof Error ? error6.message : String(error6)}`
+  } catch (error7) {
+    core24.warning(
+      `Could not access project #${projectNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
-    core22.warning("Continuing without project field setup");
+    core24.warning("Continuing without project field setup");
   }
   if (projectFields && fixture.parent_issue.project_fields) {
     try {
@@ -67946,7 +67952,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.statusFieldId,
               value: { singleSelectOptionId: optionId }
             });
-            core22.info(`Set parent Status to ${statusValue}`);
+            core24.info(`Set parent Status to ${statusValue}`);
           }
         }
         if (fixture.parent_issue.project_fields.Iteration !== void 0 && projectFields.iterationFieldId) {
@@ -67956,11 +67962,11 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             fieldId: projectFields.iterationFieldId,
             value: { number: fixture.parent_issue.project_fields.Iteration }
           });
-          core22.info(
+          core24.info(
             `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`
           );
         } else if (fixture.parent_issue.project_fields.Iteration !== void 0) {
-          core22.warning(
+          core24.warning(
             "Iteration field not found in project - skipping Iteration update"
           );
         }
@@ -67971,18 +67977,18 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             fieldId: projectFields.failuresFieldId,
             value: { number: fixture.parent_issue.project_fields.Failures }
           });
-          core22.info(
+          core24.info(
             `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`
           );
         } else if (fixture.parent_issue.project_fields.Failures !== void 0) {
-          core22.warning(
+          core24.warning(
             "Failures field not found in project - skipping Failures update"
           );
         }
       }
-    } catch (error6) {
-      core22.warning(
-        `Failed to set project fields for parent issue: ${error6 instanceof Error ? error6.message : String(error6)}`
+    } catch (error7) {
+      core24.warning(
+        `Failed to set project fields for parent issue: ${error7 instanceof Error ? error7.message : String(error7)}`
       );
     }
   }
@@ -67991,7 +67997,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       const subConfig = fixture.sub_issues[i];
       if (!subConfig) continue;
       const subTitle = `[Phase ${i + 1}] ${subConfig.title}`;
-      core22.info(`Creating sub-issue: ${subTitle}`);
+      core24.info(`Creating sub-issue: ${subTitle}`);
       const bodyWithParent = subConfig.body.replace(
         /\{PARENT_NUMBER\}/g,
         String(createResult.issueNumber)
@@ -68028,17 +68034,17 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         await updateSub(updatedSubState);
       }
       result.sub_issue_numbers.push(subCreateResult.issueNumber);
-      core22.info(`Created sub-issue #${subCreateResult.issueNumber}`);
+      core24.info(`Created sub-issue #${subCreateResult.issueNumber}`);
       try {
         await octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
           parentId: issueNodeId,
           subIssueId: subCreateResult.issueId
         });
-        core22.info(
+        core24.info(
           `Linked sub-issue #${subCreateResult.issueNumber} to parent #${createResult.issueNumber}`
         );
-      } catch (error6) {
-        core22.warning(`Failed to link sub-issue: ${error6}`);
+      } catch (error7) {
+        core24.warning(`Failed to link sub-issue: ${error7}`);
       }
       if (subConfig.project_fields && projectFields) {
         const addResult = await octokit.graphql(
@@ -68062,7 +68068,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
                 fieldId: projectFields.statusFieldId,
                 value: { singleSelectOptionId: optionId }
               });
-              core22.info(
+              core24.info(
                 `Set sub-issue #${subCreateResult.issueNumber} Status to ${subStatus}`
               );
             }
@@ -68074,7 +68080,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.iterationFieldId,
               value: { number: subConfig.project_fields.Iteration }
             });
-            core22.info(
+            core24.info(
               `Set sub-issue #${subCreateResult.issueNumber} Iteration to ${subConfig.project_fields.Iteration}`
             );
           }
@@ -68085,7 +68091,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.failuresFieldId,
               value: { number: subConfig.project_fields.Failures }
             });
-            core22.info(
+            core24.info(
               `Set sub-issue #${subCreateResult.issueNumber} Failures to ${subConfig.project_fields.Failures}`
             );
           }
@@ -68096,7 +68102,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
   if (fixture.branch) {
     const branchName = `test/${fixture.branch.name}`;
     result.branch_name = branchName;
-    core22.info(`Creating branch: ${branchName}`);
+    core24.info(`Creating branch: ${branchName}`);
     const { data: baseBranch } = await octokit.rest.repos.getBranch({
       owner,
       repo,
@@ -68108,7 +68114,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       ref: `refs/heads/${branchName}`,
       sha: baseBranch.commit.sha
     });
-    core22.info(`Created branch ${branchName} from ${fixture.branch.from}`);
+    core24.info(`Created branch ${branchName} from ${fixture.branch.from}`);
     if (fixture.branch.commits && fixture.branch.commits.length > 0) {
       for (const commit2 of fixture.branch.commits) {
         const { data: currentRef } = await octokit.rest.git.getRef({
@@ -68173,12 +68179,12 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           ref: `heads/${branchName}`,
           sha: newCommit.sha
         });
-        core22.info(`Added commit: ${commit2.message}`);
+        core24.info(`Added commit: ${commit2.message}`);
       }
     }
   }
   if (fixture.pr && result.branch_name) {
-    core22.info(`Creating PR: ${fixture.pr.title}`);
+    core24.info(`Creating PR: ${fixture.pr.title}`);
     const firstSubIssueNumber = result.sub_issue_numbers[0];
     let prBody = fixture.pr.body;
     if (firstSubIssueNumber) {
@@ -68199,7 +68205,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       // Default to draft
     });
     result.pr_number = pr.number;
-    core22.info(`Created PR #${pr.number}`);
+    core24.info(`Created PR #${pr.number}`);
     await setLabels(
       owner,
       repo,
@@ -68215,14 +68221,14 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           pull_number: pr.number,
           reviewers: ["nopo-bot"]
         });
-        core22.info("Requested nopo-bot as reviewer");
-      } catch (error6) {
-        core22.warning(`Failed to request reviewer: ${error6}`);
+        core24.info("Requested nopo-bot as reviewer");
+      } catch (error7) {
+        core24.warning(`Failed to request reviewer: ${error7}`);
       }
     }
   }
   if (fixture.comment && result.issue_number) {
-    core22.info("Adding comment to issue");
+    core24.info("Adding comment to issue");
     const { commentId } = await createComment(
       owner,
       repo,
@@ -68231,7 +68237,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       asOctokitLike(octokit)
     );
     result.comment_id = String(commentId);
-    core22.info(`Created comment ${commentId}`);
+    core24.info(`Created comment ${commentId}`);
   }
   if (fixture.review && result.pr_number) {
     if (!reviewOctokit) {
@@ -68239,7 +68245,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         "Test fixture requires review but no github_review_token provided. Set CLAUDE_REVIEWER_PAT secret or remove 'review' from fixture."
       );
     }
-    core22.info(`Submitting review with state: ${fixture.review.state}`);
+    core24.info(`Submitting review with state: ${fixture.review.state}`);
     const eventMap = {
       approve: "APPROVE",
       request_changes: "REQUEST_CHANGES",
@@ -68252,10 +68258,10 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       body: fixture.review.body,
       event: eventMap[fixture.review.state]
     });
-    core22.info("Review submitted");
+    core24.info("Review submitted");
   }
   if (fixture.discussion) {
-    core22.info(`Creating discussion: ${fixture.discussion.title}`);
+    core24.info(`Creating discussion: ${fixture.discussion.title}`);
     const categoriesResponse = await octokit.graphql(
       GET_DISCUSSION_CATEGORIES_QUERY2,
       { owner, repo }
@@ -68267,7 +68273,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
     );
     if (!repoId || !category) {
-      core22.warning(
+      core24.warning(
         `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
       );
     } else {
@@ -68283,7 +68289,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       const discussion = discussionResponse.createDiscussion?.discussion;
       if (discussion) {
         result.discussion_number = discussion.number;
-        core22.info(
+        core24.info(
           `Created discussion #${discussion.number}: ${discussion.url}`
         );
         if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
@@ -68300,7 +68306,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             discussionId: discussion.id,
             body: fixture.comment.body
           });
-          core22.info("Added comment to discussion");
+          core24.info("Added comment to discussion");
         }
       }
     }
@@ -68526,7 +68532,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
       }
     }
     if (fixture.discussion) {
-      core22.info(
+      core24.info(
         "Discussion verification not yet implemented - skipping discussion checks"
       );
     }
@@ -68687,7 +68693,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
   };
 }
 async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
-  core22.info(`Checking for running workflows related to issue #${issueNumber}`);
+  core24.info(`Checking for running workflows related to issue #${issueNumber}`);
   try {
     const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
@@ -68705,7 +68711,7 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
     const currentRunId = github.context.runId;
     for (const run2 of allRuns) {
       if (run2.id === currentRunId) {
-        core22.debug(`Skipping current run ${run2.id}`);
+        core24.debug(`Skipping current run ${run2.id}`);
         continue;
       }
       const runName = run2.name || "";
@@ -68715,7 +68721,7 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
       displayTitle.includes(`[TEST]`) || // Check head_branch for claude/issue/{N} pattern
       run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
       if (isRelated) {
-        core22.info(
+        core24.info(
           `Force cancelling workflow run ${run2.id}: ${run2.name} - ${run2.display_title}`
         );
         try {
@@ -68727,14 +68733,14 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
               run_id: run2.id
             }
           );
-          core22.info(`\u2705 Force cancelled run ${run2.id}`);
+          core24.info(`\u2705 Force cancelled run ${run2.id}`);
         } catch (cancelError) {
-          core22.debug(`Could not force cancel run ${run2.id}: ${cancelError}`);
+          core24.debug(`Could not force cancel run ${run2.id}: ${cancelError}`);
         }
       }
     }
-  } catch (error6) {
-    core22.warning(`Failed to check/cancel related workflows: ${error6}`);
+  } catch (error7) {
+    core24.warning(`Failed to check/cancel related workflows: ${error7}`);
   }
 }
 async function deleteBranch(octokit, owner, repo, branch) {
@@ -68744,13 +68750,13 @@ async function deleteBranch(octokit, owner, repo, branch) {
       repo,
       ref: `heads/${branch}`
     });
-    core22.info(`Deleted branch: ${branch}`);
-  } catch (error6) {
-    if (error6 && typeof error6 === "object" && "status" in error6 && error6.status === 404) {
-      core22.info(`Branch already deleted: ${branch}`);
+    core24.info(`Deleted branch: ${branch}`);
+  } catch (error7) {
+    if (error7 && typeof error7 === "object" && "status" in error7 && error7.status === 404) {
+      core24.info(`Branch already deleted: ${branch}`);
       return;
     }
-    throw error6;
+    throw error7;
   }
 }
 async function closeIssue(octokit, owner, repo, issueNumber) {
@@ -68771,16 +68777,16 @@ async function closeIssue(octokit, owner, repo, issueNumber) {
         }
       };
       await closeUpdate(closedState);
-      core22.info(`Closed issue #${issueNumber}`);
+      core24.info(`Closed issue #${issueNumber}`);
     } else {
-      core22.info(`Issue #${issueNumber} already closed`);
+      core24.info(`Issue #${issueNumber} already closed`);
     }
-  } catch (error6) {
-    if (error6 && typeof error6 === "object" && "status" in error6 && (error6.status === 404 || error6.status === 410)) {
-      core22.info(`Issue #${issueNumber} already gone`);
+  } catch (error7) {
+    if (error7 && typeof error7 === "object" && "status" in error7 && (error7.status === 404 || error7.status === 410)) {
+      core24.info(`Issue #${issueNumber} already gone`);
       return;
     }
-    throw error6;
+    throw error7;
   }
 }
 async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectNumber) {
@@ -68791,7 +68797,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     skipped: 0,
     errors: []
   };
-  core22.info(
+  core24.info(
     `Cleaning up test resources for issue #${issueNumber} via parseIssue`
   );
   const { data } = await parseIssue(owner, repo, issueNumber, {
@@ -68806,7 +68812,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
       `SAFETY: Issue #${issueNumber} title "${data.issue.title}" doesn't start with [TEST]. Only test issues can be cleaned up to prevent accidentally deleting real issues.`
     );
   }
-  core22.info(
+  core24.info(
     `Safety check passed: Issue #${issueNumber} title starts with [TEST]`
   );
   const summaryLines = [
@@ -68827,7 +68833,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     }
     summaryLines.push("");
   }
-  await core22.summary.addRaw(summaryLines.join("\n")).write();
+  await core24.summary.addRaw(summaryLines.join("\n")).write();
   await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
   for (const sub of data.issue.subIssues) {
     try {
@@ -68838,7 +68844,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
           pull_number: sub.pr.number,
           state: "closed"
         });
-        core22.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
+        core24.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
         result.cleaned++;
       }
       if (sub.branch) {
@@ -68847,9 +68853,9 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
       }
       await closeIssue(octokit, owner, repo, sub.number);
       result.cleaned++;
-    } catch (error6) {
-      const msg = error6 instanceof Error ? error6.message : String(error6);
-      core22.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
+    } catch (error7) {
+      const msg = error7 instanceof Error ? error7.message : String(error7);
+      core24.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
       result.failed++;
       result.errors.push(`Sub-issue #${sub.number}: ${msg}`);
       result.success = false;
@@ -68863,7 +68869,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
         pull_number: data.issue.pr.number,
         state: "closed"
       });
-      core22.info(`Closed parent PR #${data.issue.pr.number}`);
+      core24.info(`Closed parent PR #${data.issue.pr.number}`);
       result.cleaned++;
     }
     if (data.issue.branch) {
@@ -68872,14 +68878,14 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     }
     await closeIssue(octokit, owner, repo, issueNumber);
     result.cleaned++;
-  } catch (error6) {
-    const msg = error6 instanceof Error ? error6.message : String(error6);
-    core22.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
+  } catch (error7) {
+    const msg = error7 instanceof Error ? error7.message : String(error7);
+    core24.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
     result.failed++;
     result.errors.push(`Parent issue #${issueNumber}: ${msg}`);
     result.success = false;
   }
-  core22.info(
+  core24.info(
     `Cleanup result: cleaned=${result.cleaned}, failed=${result.failed}`
   );
   return result;
@@ -68894,13 +68900,13 @@ async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, 
   );
   if (!result.success) {
     const errorMsg = `Cleanup had failures: cleaned=${result.cleaned}, failed=${result.failed}. Errors: ${result.errors.join("; ")}`;
-    await core22.summary.addRaw("\n\n## Cleanup Warnings\n\n").addRaw(`${errorMsg}
+    await core24.summary.addRaw("\n\n## Cleanup Warnings\n\n").addRaw(`${errorMsg}
 `).write();
-    core22.warning(errorMsg);
+    core24.warning(errorMsg);
   }
 }
 async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
-  core22.info(`Resetting issue #${issueNumber} to initial state`);
+  core24.info(`Resetting issue #${issueNumber} to initial state`);
   let resetCount = 0;
   let projectFields = null;
   try {
@@ -68936,9 +68942,9 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
     );
     const projectData = projectResponse.organization?.projectV2;
     projectFields = parseProjectFields(projectData);
-  } catch (error6) {
-    core22.warning(
-      `Could not access project #${projectNumber}: ${error6 instanceof Error ? error6.message : String(error6)}`
+  } catch (error7) {
+    core24.warning(
+      `Could not access project #${projectNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
   }
   const { data: resetData, update: resetUpdate } = await parseIssue(
@@ -68948,7 +68954,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
     { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false }
   );
   if (resetData.issue.state === "CLOSED") {
-    core22.info(`Re-opening parent issue #${issueNumber}`);
+    core24.info(`Re-opening parent issue #${issueNumber}`);
     const reopenedState = {
       ...resetData,
       issue: { ...resetData.issue, state: "OPEN" }
@@ -68965,7 +68971,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
       "Backlog",
       projectFields
     );
-    core22.info(`Set parent issue #${issueNumber} status to Backlog`);
+    core24.info(`Set parent issue #${issueNumber} status to Backlog`);
   }
   const subResponse = await octokit.graphql(
     GET_SUB_ISSUES_QUERY2,
@@ -68989,7 +68995,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
         }
       );
       if (subResetData.issue.state === "CLOSED") {
-        core22.info(`Re-opening sub-issue #${subIssue.number}`);
+        core24.info(`Re-opening sub-issue #${subIssue.number}`);
         const subReopenedState = {
           ...subResetData,
           issue: { ...subResetData.issue, state: "OPEN" }
@@ -69006,15 +69012,15 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
           "Ready",
           projectFields
         );
-        core22.info(`Set sub-issue #${subIssue.number} status to Ready`);
+        core24.info(`Set sub-issue #${subIssue.number} status to Ready`);
       }
     }
   }
-  core22.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
+  core24.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
   return { reset_count: resetCount };
 }
 async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
-  core22.info(`Deleting issue #${issueNumber} and all sub-issues`);
+  core24.info(`Deleting issue #${issueNumber} and all sub-issues`);
   let deleteCount = 0;
   const { data: deleteCheckData } = await parseIssue(owner, repo, issueNumber, {
     octokit: asOctokitLike(octokit),
@@ -69063,7 +69069,7 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
   const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
   for (const subIssue of subIssues) {
     if (subIssue.node_id) {
-      core22.info(`Deleting sub-issue #${subIssue.number}`);
+      core24.info(`Deleting sub-issue #${subIssue.number}`);
       try {
         await octokit.graphql(
           `mutation DeleteIssue($issueId: ID!) {
@@ -69074,14 +69080,14 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
           { issueId: subIssue.node_id }
         );
         deleteCount++;
-      } catch (error6) {
-        core22.warning(
-          `Failed to delete sub-issue #${subIssue.number}: ${error6 instanceof Error ? error6.message : String(error6)}`
+      } catch (error7) {
+        core24.warning(
+          `Failed to delete sub-issue #${subIssue.number}: ${error7 instanceof Error ? error7.message : String(error7)}`
         );
       }
     }
   }
-  core22.info(`Deleting parent issue #${issueNumber}`);
+  core24.info(`Deleting parent issue #${issueNumber}`);
   try {
     await octokit.graphql(
       `mutation DeleteIssue($issueId: ID!) {
@@ -69092,11 +69098,11 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
       { issueId: issueNodeIdForDelete }
     );
     deleteCount++;
-  } catch (error6) {
-    core22.warning(
-      `Failed to delete parent issue #${issueNumber}: ${error6 instanceof Error ? error6.message : String(error6)}`
+  } catch (error7) {
+    core24.warning(
+      `Failed to delete parent issue #${issueNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
-    throw error6;
+    throw error7;
   }
   return { delete_count: deleteCount };
 }
@@ -69113,7 +69119,7 @@ async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, 
   );
   const issueNodeId = issueIdResponse.repository?.issue?.id;
   if (!issueNodeId) {
-    core22.warning(`Could not get node ID for issue #${issueNumber}`);
+    core24.warning(`Could not get node ID for issue #${issueNumber}`);
     return;
   }
   const projectItemsResponse = await octokit.graphql(
@@ -69146,7 +69152,7 @@ async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, 
     projectItemId = addResult.addProjectV2ItemById?.item?.id;
   }
   if (!projectItemId) {
-    core22.warning(`Could not get project item ID for issue #${issueNumber}`);
+    core24.warning(`Could not get project item ID for issue #${issueNumber}`);
     return;
   }
   const optionId = projectFields.statusOptions[status] || Object.entries(projectFields.statusOptions).find(
@@ -69230,7 +69236,7 @@ async function commitE2EConfigFile(octokit, owner, repo, branchName, filePath, c
     ref: `heads/${branchName}`,
     sha: newCommit.sha
   });
-  core22.info(
+  core24.info(
     `Committed ${existingFileSha ? "updated" : "new"} e2e config to ${branchName}: ${newCommit.sha}`
   );
 }
@@ -69250,25 +69256,25 @@ async function run() {
     if (action === "create" || action === "verify") {
       try {
         const { data: codeUser } = await octokit.rest.users.getAuthenticated();
-        core22.info(`Code token authenticated as: ${codeUser.login}`);
+        core24.info(`Code token authenticated as: ${codeUser.login}`);
         if (reviewOctokit) {
           const { data: reviewUser } = await reviewOctokit.rest.users.getAuthenticated();
-          core22.info(`Review token authenticated as: ${reviewUser.login}`);
+          core24.info(`Review token authenticated as: ${reviewUser.login}`);
           if (codeUser.login === reviewUser.login) {
-            core22.warning(
+            core24.warning(
               `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`
             );
           }
         }
       } catch (authError) {
-        core22.debug(`Could not verify token identity: ${authError}`);
+        core24.debug(`Could not verify token identity: ${authError}`);
       }
     }
     if (action === "create") {
       const fixtureJson = getRequiredInput("fixture_json");
       const fixture = JSON.parse(fixtureJson);
-      core22.info(`Creating test fixture: ${fixture.name}`);
-      core22.info(`Description: ${fixture.description}`);
+      core24.info(`Creating test fixture: ${fixture.name}`);
+      core24.info(`Description: ${fixture.description}`);
       const result = await createFixture(
         octokit,
         owner,
@@ -69285,14 +69291,14 @@ async function run() {
         discussion_number: result.discussion_number ? String(result.discussion_number) : "",
         comment_id: result.comment_id || ""
       });
-      core22.info("Fixture creation complete");
+      core24.info("Fixture creation complete");
       return;
     }
     if (action === "verify") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getRequiredInput("fixture_json");
       const fixture = JSON.parse(fixtureJson);
-      core22.info(`Verifying fixture for issue #${issueNumber}`);
+      core24.info(`Verifying fixture for issue #${issueNumber}`);
       const result = await verifyFixture(
         octokit,
         owner,
@@ -69302,14 +69308,14 @@ async function run() {
         projectNumber
       );
       if (result.passed) {
-        core22.info("All verifications passed!");
+        core24.info("All verifications passed!");
       } else {
-        core22.warning(
+        core24.warning(
           `Verification failed with ${result.errors.length} errors:`
         );
-        for (const error6 of result.errors) {
-          core22.warning(
-            `  ${error6.field}: expected ${error6.expected}, got ${error6.actual}`
+        for (const error7 of result.errors) {
+          core24.warning(
+            `  ${error7.field}: expected ${error7.expected}, got ${error7.actual}`
           );
         }
       }
@@ -69318,7 +69324,7 @@ async function run() {
         verification_errors: JSON.stringify(result.errors)
       });
       if (!result.passed) {
-        core22.setFailed(
+        core24.setFailed(
           `Verification failed with ${result.errors.length} errors`
         );
       }
@@ -69392,10 +69398,10 @@ async function run() {
       if (!outcomes.review || outcomes.review.length === 0) {
         outcomes.review = ["approved"];
       }
-      core22.info(
+      core24.info(
         `${action === "create_e2e_config" ? "Creating" : "Updating"} e2e config with run_id=${e2eRunId}, iteration=${iteration}`
       );
-      core22.info(`Outcomes: ${JSON.stringify(outcomes)}`);
+      core24.info(`Outcomes: ${JSON.stringify(outcomes)}`);
       const configContent = createE2EConfigContent(
         e2eRunId,
         outcomes,
@@ -69419,7 +69425,7 @@ async function run() {
     }
     if (action === "sweep") {
       const manifestDir = path2.resolve(getRequiredInput("manifest_dir"));
-      core22.info(`Sweeping test resources from manifests in ${manifestDir}`);
+      core24.info(`Sweeping test resources from manifests in ${manifestDir}`);
       const parentIssues = /* @__PURE__ */ new Set();
       if (fs2.existsSync(manifestDir)) {
         const files = fs2.readdirSync(manifestDir);
@@ -69434,16 +69440,16 @@ async function run() {
             if (typeof parsed.parentIssue === "number" && parsed.parentIssue > 0) {
               parentIssues.add(parsed.parentIssue);
             } else {
-              core22.warning(
+              core24.warning(
                 `Invalid manifest in ${file}: missing or invalid parentIssue`
               );
             }
           } catch (err) {
-            core22.warning(`Failed to read manifest ${file}: ${err}`);
+            core24.warning(`Failed to read manifest ${file}: ${err}`);
           }
         }
       }
-      core22.info(
+      core24.info(
         `Found ${parentIssues.size} unique parent issues to sweep: ${[...parentIssues].join(", ")}`
       );
       let totalCleaned = 0;
@@ -69463,12 +69469,12 @@ async function run() {
           sweepErrors.push(...result.errors);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          core22.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
+          core24.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
           sweepErrors.push(`Issue #${issueNum}: ${msg}`);
           totalFailed++;
         }
       }
-      await core22.summary.addRaw(
+      await core24.summary.addRaw(
         `## Sweep Summary
 
 Issues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Failed: ${totalFailed}
@@ -69479,18 +69485,18 @@ Issues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Fa
         delete_count: String(totalCleaned)
       });
       if (totalFailed > 0) {
-        core22.warning(
+        core24.warning(
           `Sweep completed with ${totalFailed} failures: ${sweepErrors.join("; ")}`
         );
       }
       return;
     }
-    core22.setFailed(`Unknown action: ${action}`);
-  } catch (error6) {
-    if (error6 instanceof Error) {
-      core22.setFailed(error6.message);
+    core24.setFailed(`Unknown action: ${action}`);
+  } catch (error7) {
+    if (error7 instanceof Error) {
+      core24.setFailed(error7.message);
     } else {
-      core22.setFailed("An unexpected error occurred");
+      core24.setFailed("An unexpected error occurred");
     }
   }
 }

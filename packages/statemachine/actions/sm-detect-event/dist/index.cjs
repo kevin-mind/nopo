@@ -423,18 +423,18 @@ var require_tunnel = __commonJS({
             res.statusCode
           );
           socket.destroy();
-          var error6 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error6.code = "ECONNRESET";
-          options.request.emit("error", error6);
+          var error7 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error7.code = "ECONNRESET";
+          options.request.emit("error", error7);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
           debug6("got illegal response body from proxy");
           socket.destroy();
-          var error6 = new Error("got illegal response body from proxy");
-          error6.code = "ECONNRESET";
-          options.request.emit("error", error6);
+          var error7 = new Error("got illegal response body from proxy");
+          error7.code = "ECONNRESET";
+          options.request.emit("error", error7);
           self2.removeSocket(placeholder);
           return;
         }
@@ -449,9 +449,9 @@ var require_tunnel = __commonJS({
           cause.message,
           cause.stack
         );
-        var error6 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error6.code = "ECONNRESET";
-        options.request.emit("error", error6);
+        var error7 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error7.code = "ECONNRESET";
+        options.request.emit("error", error7);
         self2.removeSocket(placeholder);
       }
     };
@@ -5579,7 +5579,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error6) => promise.reject(error6);
+      const errorSteps = (error7) => promise.reject(error7);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error6) {
+      onError(error7) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error6 });
+          channels.error.publish({ request: this, error: error7 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error6);
+        return this[kHandler].onError(error7);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error6) {
-        this.handler.onError(error6);
+      onError(error7) {
+        this.handler.onError(error7);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util3.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util3.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error6) => {
+        this.on("connectionError", (origin2, targets, error7) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error6 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error7 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error6 !== null) {
+      if (error7 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error6);
+        handler.onError(error7);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error6) {
-            if (error6 instanceof MockNotMatchedError) {
+          } catch (error7) {
+            if (error7 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error6;
+              throw error7;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error6) {
-        if (typeof error6 === "undefined") {
+      replyWithError(error7) {
+        if (typeof error7 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error6 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error7 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,17 +13038,17 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error6) {
+      abort(error7) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error6) {
-          error6 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error7) {
+          error7 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error6;
-        this.connection?.destroy(error6);
-        this.emit("terminated", error6);
+        this.serializedAbortReason = error7;
+        this.connection?.destroy(error7);
+        this.emit("terminated", error7);
       }
     };
     function fetch2(input, init = {}) {
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error6) {
-      if (!error6) {
-        error6 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error7) {
+      if (!error7) {
+        error7 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error6);
+      p.reject(error7);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error6).catch((err) => {
+        request.body.stream.cancel(error7).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error6).catch((err) => {
+        response.body.stream.cancel(error7).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error6) {
+            onError(error7) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error6);
-              fetchParams.controller.terminate(error6);
-              reject(error6);
+              this.body?.destroy(error7);
+              fetchParams.controller.terminate(error7);
+              reject(error7);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error6) {
-                  fr[kError] = error6;
+                } catch (error7) {
+                  fr[kError] = error7;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error6) {
+          } catch (error7) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error6;
+              fr[kError] = error7;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error6) {
+    function onSocketError(error7) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error6);
+        channels.socketError.publish(error7);
       }
       this.destroy();
     }
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info22 = this._prepareRequest(verb, parsedUrl, headers);
+          let info24 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info22, data);
+            response = yield this.requestRaw(info24, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info22, data);
+                return authenticationHandler.handleAuthentication(this, info24, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info22 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info22, data);
+              info24 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info24, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info22, data) {
+      requestRaw(info24, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info22, data, callbackForResult);
+            this.requestRawWithCallback(info24, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info22, data, onResult) {
+      requestRawWithCallback(info24, data, onResult) {
         if (typeof data === "string") {
-          if (!info22.options.headers) {
-            info22.options.headers = {};
+          if (!info24.options.headers) {
+            info24.options.headers = {};
           }
-          info22.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info24.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info22.httpModule.request(info22.options, (msg) => {
+        const req = info24.httpModule.request(info24.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info22.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info24.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info22 = {};
-        info22.parsedUrl = requestUrl;
-        const usingSsl = info22.parsedUrl.protocol === "https:";
-        info22.httpModule = usingSsl ? https : http;
+        const info24 = {};
+        info24.parsedUrl = requestUrl;
+        const usingSsl = info24.parsedUrl.protocol === "https:";
+        info24.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info22.options = {};
-        info22.options.host = info22.parsedUrl.hostname;
-        info22.options.port = info22.parsedUrl.port ? parseInt(info22.parsedUrl.port) : defaultPort;
-        info22.options.path = (info22.parsedUrl.pathname || "") + (info22.parsedUrl.search || "");
-        info22.options.method = method;
-        info22.options.headers = this._mergeHeaders(headers);
+        info24.options = {};
+        info24.options.host = info24.parsedUrl.hostname;
+        info24.options.port = info24.parsedUrl.port ? parseInt(info24.parsedUrl.port) : defaultPort;
+        info24.options.path = (info24.parsedUrl.pathname || "") + (info24.parsedUrl.search || "");
+        info24.options.method = method;
+        info24.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info22.options.headers["user-agent"] = this.userAgent;
+          info24.options.headers["user-agent"] = this.userAgent;
         }
-        info22.options.agent = this._getAgent(info22.parsedUrl);
+        info24.options.agent = this._getAgent(info24.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info22.options);
+            handler.prepareRequest(info24.options);
           }
         }
-        return info22;
+        return info24;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error6) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error7) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error6.statusCode}
+        Error Code : ${error7.statusCode}
  
-        Error Message: ${error6.message}`);
+        Error Message: ${error7.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error6) {
-            throw new Error(`Error message: ${error6.message}`);
+          } catch (error7) {
+            throw new Error(`Error message: ${error7.message}`);
           }
         });
       }
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error6, exitCode) => {
+            state.on("done", (error7, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error6) {
-                reject(error6);
+              if (error7) {
+                reject(error7);
               } else {
                 resolve(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error6;
+        let error7;
         if (this.processExited) {
           if (this.processError) {
-            error6 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error7 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error6 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error7 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error6 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error7 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error6, this.processExitCode);
+        this.emit("done", error7, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19725,7 +19725,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error6(message);
+      error7(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
@@ -19736,22 +19736,22 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("debug", {}, message);
     }
     exports2.debug = debug6;
-    function error6(message, properties = {}) {
+    function error7(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error6;
-    function warning16(message, properties = {}) {
+    exports2.error = error7;
+    function warning18(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning16;
+    exports2.warning = warning18;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info22(message) {
+    function info24(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info22;
+    exports2.info = info24;
     function startGroup10(name) {
       (0, command_1.issue)("group", name);
     }
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error6) {
-            return orig(error6, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error7) {
+            return orig(error7, options);
           });
         };
       }
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error6 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error7 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error6;
+          throw error7;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error6) => {
-        if (error6 instanceof import_request_error.RequestError)
-          throw error6;
-        else if (error6.name === "AbortError")
-          throw error6;
-        let message = error6.message;
-        if (error6.name === "TypeError" && "cause" in error6) {
-          if (error6.cause instanceof Error) {
-            message = error6.cause.message;
-          } else if (typeof error6.cause === "string") {
-            message = error6.cause;
+      }).catch((error7) => {
+        if (error7 instanceof import_request_error.RequestError)
+          throw error7;
+        else if (error7.name === "AbortError")
+          throw error7;
+        let message = error7.message;
+        if (error7.name === "TypeError" && "cause" in error7) {
+          if (error7.cause instanceof Error) {
+            message = error7.cause.message;
+          } else if (typeof error7.cause === "string") {
+            message = error7.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error6) {
-              if (error6.status !== 409)
-                throw error6;
+            } catch (error7) {
+              if (error7.status !== 409)
+                throw error7;
               url = "";
               return {
                 value: {
@@ -23974,7 +23974,7 @@ var require_extend = __commonJS({
 });
 
 // actions/sm-detect-event/index.ts
-var core22 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
@@ -24273,8 +24273,8 @@ var ZodError = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error6) => {
-      for (const issue2 of error6.issues) {
+    const processError = (error7) => {
+      for (const issue2 of error7.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -24337,8 +24337,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error6 = new ZodError(issues);
-  return error6;
+  const error7 = new ZodError(issues);
+  return error7;
 };
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -24602,8 +24602,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error6 = new ZodError(ctx.common.issues);
-        this._error = error6;
+        const error7 = new ZodError(ctx.common.issues);
+        this._error = error7;
         return this._error;
       }
     };
@@ -27258,25 +27258,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error6) {
+    function makeArgsIssue(args, error7) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error6
+          argumentsError: error7
         }
       });
     }
-    function makeReturnsIssue(returns, error6) {
+    function makeReturnsIssue(returns, error7) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error6
+          returnTypeError: error7
         }
       });
     }
@@ -27285,15 +27285,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error6 = new ZodError([]);
+        const error7 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error6.addIssue(makeArgsIssue(args, e));
-          throw error6;
+          error7.addIssue(makeArgsIssue(args, e));
+          throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error6.addIssue(makeReturnsIssue(result, e));
-          throw error6;
+          error7.addIssue(makeReturnsIssue(result, e));
+          throw error7;
         });
         return parsedReturns;
       });
@@ -28167,9 +28167,9 @@ var IssueStateDataSchema = external_exports.object({
 });
 
 // ../../node_modules/.pnpm/bail@2.0.2/node_modules/bail/index.js
-function bail(error6) {
-  if (error6) {
-    throw error6;
+function bail(error7) {
+  if (error7) {
+    throw error7;
   }
 }
 
@@ -28201,11 +28201,11 @@ function trough() {
       throw new TypeError("Expected function as last argument, not " + callback);
     }
     next(null, ...values);
-    function next(error6, ...output) {
+    function next(error7, ...output) {
       const fn = fns[++middlewareIndex];
       let index2 = -1;
-      if (error6) {
-        callback(error6);
+      if (error7) {
+        callback(error7);
         return;
       }
       while (++index2 < values.length) {
@@ -28242,10 +28242,10 @@ function wrap(middleware, callback) {
     }
     try {
       result = middleware.apply(this, parameters);
-    } catch (error6) {
+    } catch (error7) {
       const exception = (
         /** @type {Error} */
-        error6
+        error7
       );
       if (fnExpectsCallback && called) {
         throw exception;
@@ -28262,10 +28262,10 @@ function wrap(middleware, callback) {
       }
     }
   }
-  function done(error6, ...output) {
+  function done(error7, ...output) {
     if (!called) {
       called = true;
-      callback(error6, ...output);
+      callback(error7, ...output);
     }
   }
   function then(value) {
@@ -29173,9 +29173,9 @@ var Processor = class _Processor extends CallableInstance {
         /** @type {unknown} */
         self2.parse(realFile)
       );
-      self2.run(parseTree, realFile, function(error6, tree, file2) {
-        if (error6 || !tree || !file2) {
-          return realDone(error6);
+      self2.run(parseTree, realFile, function(error7, tree, file2) {
+        if (error7 || !tree || !file2) {
+          return realDone(error7);
         }
         const compileTree = (
           /** @type {CompileTree extends undefined ? Node : CompileTree} */
@@ -29189,14 +29189,14 @@ var Processor = class _Processor extends CallableInstance {
           file2.result = compileResult;
         }
         realDone(
-          error6,
+          error7,
           /** @type {VFileWithOutput<CompileResult>} */
           file2
         );
       });
-      function realDone(error6, file2) {
-        if (error6 || !file2) {
-          reject(error6);
+      function realDone(error7, file2) {
+        if (error7 || !file2) {
+          reject(error7);
         } else if (resolve) {
           resolve(file2);
         } else {
@@ -29247,9 +29247,9 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("processSync", "process", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error6, file2) {
+    function realDone(error7, file2) {
       complete = true;
-      bail(error6);
+      bail(error7);
       result = file2;
     }
   }
@@ -29307,13 +29307,13 @@ var Processor = class _Processor extends CallableInstance {
       );
       const realFile = vfile(file);
       transformers.run(tree, realFile, realDone);
-      function realDone(error6, outputTree, file2) {
+      function realDone(error7, outputTree, file2) {
         const resultingTree = (
           /** @type {TailTree extends undefined ? Node : TailTree} */
           outputTree || tree
         );
-        if (error6) {
-          reject(error6);
+        if (error7) {
+          reject(error7);
         } else if (resolve) {
           resolve(resultingTree);
         } else {
@@ -29347,8 +29347,8 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("runSync", "run", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error6, tree2) {
-      bail(error6);
+    function realDone(error7, tree2) {
+      bail(error7);
       result = tree2;
       complete = true;
     }
@@ -32601,9 +32601,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info22(code3);
+    return info24(code3);
   }
-  function info22(code3) {
+  function info24(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32618,7 +32618,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info22;
+    return info24;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35457,11 +35457,11 @@ function createTokenizer(parser2, initialize, from) {
     context2.events.push(["exit", token, context2]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info22) {
-    addResult(construct, info22.from);
+  function onsuccessfulconstruct(construct, info24) {
+    addResult(construct, info24.from);
   }
-  function onsuccessfulcheck(_, info22) {
-    info22.restore();
+  function onsuccessfulcheck(_, info24) {
+    info24.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35469,7 +35469,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info22;
+      let info24;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35505,7 +35505,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info22 = store();
+          info24 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context2.currentConstruct = construct;
@@ -35526,12 +35526,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info22);
+        onreturn(currentConstruct, info24);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info22.restore();
+        info24.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -37000,8 +37000,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info22) {
-  const tracker = state.createTracker(info22);
+function footnoteReference(node2, _, state, info24) {
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37039,8 +37039,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info22) {
-    const tracker = state.createTracker(info22);
+  function footnoteDefinition(node2, _, state, info24) {
+    const tracker = state.createTracker(info24);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37104,8 +37104,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info22) {
-  const tracker = state.createTracker(info22);
+function handleDelete(node2, _, state, info24) {
+  const tracker = state.createTracker(info24);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37332,9 +37332,9 @@ function map(left, right) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info22) {
+function blockquote(node2, _, state, info24) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37369,11 +37369,11 @@ function listInScope(stack, list4, none) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info22) {
+function hardBreak(_, _1, state, info24) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info22.before) ? "" : " ";
+      return /[ \t]/.test(info24.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37425,7 +37425,7 @@ function checkFence(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info22) {
+function code(node2, _, state, info24) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37435,7 +37435,7 @@ function code(node2, _, state, info22) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37488,12 +37488,12 @@ function checkQuote(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info22) {
+function definition2(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37603,10 +37603,10 @@ function encodeInfo(outside, inside, marker) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info22) {
+function emphasis(node2, _, state, info24) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37617,7 +37617,7 @@ function emphasis(node2, _, state, info22) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info22.before.charCodeAt(info22.before.length - 1),
+    info24.before.charCodeAt(info24.before.length - 1),
     betweenHead,
     marker
   );
@@ -37625,7 +37625,7 @@ function emphasis(node2, _, state, info22) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info22.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37678,9 +37678,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info22) {
+function heading(node2, _, state, info24) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37730,12 +37730,12 @@ function htmlPeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info22) {
+function image(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37787,11 +37787,11 @@ function imagePeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info22) {
+function imageReference(node2, _, state, info24) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37872,10 +37872,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info22) {
+function link(node2, _, state, info24) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37952,11 +37952,11 @@ function linkPeek(node2, _, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info22) {
+function linkReference(node2, _, state, info24) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38043,7 +38043,7 @@ function checkRule(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info22) {
+function list3(node2, parent, state, info24) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38075,7 +38075,7 @@ function list3(node2, parent, state, info22) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info22);
+  const value = state.containerFlow(node2, info24);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38094,7 +38094,7 @@ function checkListItemIndent(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info22) {
+function listItem(node2, parent, state, info24) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38104,7 +38104,7 @@ function listItem(node2, parent, state, info22) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38123,10 +38123,10 @@ function listItem(node2, parent, state, info22) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info22) {
+function paragraph(node2, _, state, info24) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info22);
+  const value = state.containerPhrasing(node2, info24);
   subexit();
   exit3();
   return value;
@@ -38161,12 +38161,12 @@ var phrasing = (
 );
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info22) {
+function root(node2, _, state, info24) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info22);
+  return container.call(state, node2, info24);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38182,10 +38182,10 @@ function checkStrong(state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info22) {
+function strong(node2, _, state, info24) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38196,7 +38196,7 @@ function strong(node2, _, state, info22) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info22.before.charCodeAt(info22.before.length - 1),
+    info24.before.charCodeAt(info24.before.length - 1),
     betweenHead,
     marker
   );
@@ -38204,7 +38204,7 @@ function strong(node2, _, state, info22) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info22.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38221,8 +38221,8 @@ function strongPeek(_, _1, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info22) {
-  return state.safe(node2.value, info22);
+function text3(node2, _, state, info24) {
+  return state.safe(node2.value, info24);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38437,15 +38437,15 @@ function compilePattern(pattern) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info22) {
+function containerPhrasing(parent, state, info24) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info22.before;
+  let before = info24.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info22);
+  let tracker = state.createTracker(info24);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38459,7 +38459,7 @@ function containerPhrasing(parent, state, info22) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info22.after;
+      after = info24.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38467,7 +38467,7 @@ function containerPhrasing(parent, state, info22) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info22);
+      tracker = state.createTracker(info24);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38496,10 +38496,10 @@ function containerPhrasing(parent, state, info22) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info22) {
+function containerFlow(parent, state, info24) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38735,11 +38735,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info22) {
-  return containerPhrasing(parent, this, info22);
+function containerPhrasingBound(parent, info24) {
+  return containerPhrasing(parent, this, info24);
 }
-function containerFlowBound(parent, info22) {
-  return containerFlow(parent, this, info22);
+function containerFlowBound(parent, info24) {
+  return containerFlow(parent, this, info24);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38836,19 +38836,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info22) {
-    return serializeData(handleTableAsData(node2, state, info22), node2.align);
+  function handleTable(node2, _, state, info24) {
+    return serializeData(handleTableAsData(node2, state, info24), node2.align);
   }
-  function handleTableRow(node2, _, state, info22) {
-    const row = handleTableRowAsData(node2, state, info22);
+  function handleTableRow(node2, _, state, info24) {
+    const row = handleTableRowAsData(node2, state, info24);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info22) {
+  function handleTableCell(node2, _, state, info24) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info22,
+      ...info24,
       before: around,
       after: around
     });
@@ -38867,24 +38867,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info22) {
+  function handleTableAsData(node2, state, info24) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info22);
+      result[index2] = handleTableRowAsData(children[index2], state, info24);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info22) {
+  function handleTableRowAsData(node2, state, info24) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info22);
+      result[index2] = handleTableCell(children[index2], node2, state, info24);
     }
     subexit();
     return result;
@@ -38950,16 +38950,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info22) {
+function listItemWithTaskListItem(node2, parent, state, info24) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info22);
+  const tracker = state.createTracker(info24);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info22,
+    ...info24,
     ...tracker.current()
   });
   if (checkable) {
@@ -42931,10 +42931,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error6) {
+function createErrorActorEvent(id, error7) {
   return {
     type: `xstate.error.actor.${id}`,
-    error: error6,
+    error: error7,
     actorId: id
   };
 }
@@ -52409,7 +52409,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core23 = [
+  var core25 = [
     "$schema",
     "$id",
     "$defs",
@@ -52419,7 +52419,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core23;
+  exports2.default = core25;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -55381,8 +55381,8 @@ var ZodError2 = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error6) => {
-      for (const issue2 of error6.issues) {
+    const processError = (error7) => {
+      for (const issue2 of error7.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -55445,8 +55445,8 @@ var ZodError2 = class _ZodError extends Error {
   }
 };
 ZodError2.create = (issues) => {
-  const error6 = new ZodError2(issues);
-  return error6;
+  const error7 = new ZodError2(issues);
+  return error7;
 };
 var errorMap2 = (issue2, _ctx) => {
   let message;
@@ -55692,8 +55692,8 @@ var handleResult2 = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error6 = new ZodError2(ctx.common.issues);
-        this._error = error6;
+        const error7 = new ZodError2(ctx.common.issues);
+        this._error = error7;
         return this._error;
       }
     };
@@ -58253,25 +58253,25 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
       });
       return INVALID2;
     }
-    function makeArgsIssue(args, error6) {
+    function makeArgsIssue(args, error7) {
       return makeIssue2({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_arguments,
-          argumentsError: error6
+          argumentsError: error7
         }
       });
     }
-    function makeReturnsIssue(returns, error6) {
+    function makeReturnsIssue(returns, error7) {
       return makeIssue2({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_return_type,
-          returnTypeError: error6
+          returnTypeError: error7
         }
       });
     }
@@ -58280,15 +58280,15 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
     if (this._def.returns instanceof ZodPromise2) {
       const me = this;
       return OK2(async function(...args) {
-        const error6 = new ZodError2([]);
+        const error7 = new ZodError2([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error6.addIssue(makeArgsIssue(args, e));
-          throw error6;
+          error7.addIssue(makeArgsIssue(args, e));
+          throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
         const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error6.addIssue(makeReturnsIssue(result, e));
-          throw error6;
+          error7.addIssue(makeReturnsIssue(result, e));
+          throw error7;
         });
         return parsedReturns;
       });
@@ -59559,10 +59559,10 @@ var initializer = (inst, def) => {
 };
 var $ZodError = $constructor("$ZodError", initializer);
 var $ZodRealError = $constructor("$ZodError", initializer, { Parent: Error });
-function flattenError(error6, mapper = (issue2) => issue2.message) {
+function flattenError(error7, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
-  for (const sub of error6.issues) {
+  for (const sub of error7.issues) {
     if (sub.path.length > 0) {
       fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
       fieldErrors[sub.path[0]].push(mapper(sub));
@@ -59572,7 +59572,7 @@ function flattenError(error6, mapper = (issue2) => issue2.message) {
   }
   return { formErrors, fieldErrors };
 }
-function formatError(error6, _mapper) {
+function formatError(error7, _mapper) {
   const mapper = _mapper || function(issue2) {
     return issue2.message;
   };
@@ -59605,7 +59605,7 @@ function formatError(error6, _mapper) {
       }
     }
   };
-  processError(error6);
+  processError(error7);
   return fieldErrors;
 }
 var _parse = (_Err) => (schema, value, _ctx, _params) => {
@@ -66241,27 +66241,33 @@ The executor will:
 ] }));
 
 // src/runner/runner.ts
-var core17 = __toESM(require_core(), 1);
+var core19 = __toESM(require_core(), 1);
 
 // src/runner/signaler.ts
 var core2 = __toESM(require_core(), 1);
 
-// src/runner/executors/project.ts
+// src/runner/action-registry.ts
+var core18 = __toESM(require_core(), 1);
+
+// src/runner/get-structured-output.ts
 var core3 = __toESM(require_core(), 1);
 
-// src/runner/executors/github.ts
+// src/runner/executors/project.ts
 var core4 = __toESM(require_core(), 1);
 
-// src/runner/executors/git.ts
+// src/runner/executors/github.ts
 var core5 = __toESM(require_core(), 1);
+
+// src/runner/executors/git.ts
+var core6 = __toESM(require_core(), 1);
 var exec3 = __toESM(require_exec(), 1);
 
 // src/runner/executors/claude.ts
-var core6 = __toESM(require_core(), 1);
+var core7 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
 
 // src/runner/executors/triage.ts
-var core7 = __toESM(require_core(), 1);
+var core8 = __toESM(require_core(), 1);
 
 // src/runner/executors/output-schemas.ts
 var IterateOutputSchema = external_exports.object({
@@ -66429,34 +66435,34 @@ var PlanOutputSchema = external_exports.object({
 });
 
 // src/runner/executors/iterate.ts
-var core8 = __toESM(require_core(), 1);
-
-// src/runner/executors/review.ts
 var core9 = __toESM(require_core(), 1);
 
-// src/runner/executors/pr-response.ts
+// src/runner/executors/review.ts
 var core10 = __toESM(require_core(), 1);
 
-// src/runner/executors/agent-notes.ts
+// src/runner/executors/pr-response.ts
 var core11 = __toESM(require_core(), 1);
 
-// src/runner/executors/discussions.ts
+// src/runner/executors/agent-notes.ts
 var core12 = __toESM(require_core(), 1);
 
-// src/runner/executors/discussion-apply.ts
+// src/runner/executors/discussions.ts
 var core13 = __toESM(require_core(), 1);
 
-// src/runner/executors/discussion-research.ts
+// src/runner/executors/discussion-apply.ts
 var core14 = __toESM(require_core(), 1);
 
-// src/runner/executors/grooming.ts
+// src/runner/executors/discussion-research.ts
 var core15 = __toESM(require_core(), 1);
 
-// src/runner/executors/pivot.ts
+// src/runner/executors/grooming.ts
 var core16 = __toESM(require_core(), 1);
 
+// src/runner/executors/pivot.ts
+var core17 = __toESM(require_core(), 1);
+
 // src/test-runner/poller.ts
-var core18 = __toESM(require_core(), 1);
+var core20 = __toESM(require_core(), 1);
 var exec7 = __toESM(require_exec(), 1);
 
 // src/test-runner/configurable/types.ts
@@ -66638,7 +66644,7 @@ var ConfigurableTestResultSchema = external_exports.object({
 });
 
 // src/test-runner/configurable/loader.ts
-var core19 = __toESM(require_core(), 1);
+var core21 = __toESM(require_core(), 1);
 
 // src/discussion/actions.ts
 var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
@@ -67220,22 +67226,22 @@ var discussionMachine = setup({
 });
 
 // src/discussion/context-builder.ts
-var core20 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 
 // src/action-utils.ts
-var core21 = __toESM(require_core(), 1);
+var core23 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
-  const value = core21.getInput(name);
+  const value = core23.getInput(name);
   return value === "" ? void 0 : value;
 }
 function getRequiredInput(name) {
-  return core21.getInput(name, { required: true });
+  return core23.getInput(name, { required: true });
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== void 0) {
-      core21.setOutput(key, value);
+      core23.setOutput(key, value);
     }
   }
 }
@@ -67355,9 +67361,9 @@ async function addReactionToComment(octokit, owner, repo, commentId, reaction) {
       comment_id: commentId,
       content: reaction
     });
-    core22.info(`Added ${reaction} reaction to comment ${commentId}`);
-  } catch (error6) {
-    core22.warning(`Failed to add reaction to comment: ${error6}`);
+    core24.info(`Added ${reaction} reaction to comment ${commentId}`);
+  } catch (error7) {
+    core24.warning(`Failed to add reaction to comment: ${error7}`);
   }
 }
 async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
@@ -67374,9 +67380,9 @@ async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
       `,
       { subjectId: nodeId, content: reaction }
     );
-    core22.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
-  } catch (error6) {
-    core22.warning(`Failed to add reaction to discussion comment: ${error6}`);
+    core24.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
+  } catch (error7) {
+    core24.warning(`Failed to add reaction to discussion comment: ${error7}`);
   }
 }
 function jobToTrigger(job, contextJson) {
@@ -67598,11 +67604,11 @@ async function ensureBranchExists(branch) {
       branch
     ]);
     if (stdout.includes(branch)) {
-      core22.info(`Branch ${branch} exists`);
+      core24.info(`Branch ${branch} exists`);
       return true;
     }
   }
-  core22.info(`Creating branch ${branch}`);
+  core24.info(`Creating branch ${branch}`);
   await execCommand("git", ["checkout", "-b", branch]);
   const { exitCode: pushCode } = await execCommand(
     "git",
@@ -67610,10 +67616,10 @@ async function ensureBranchExists(branch) {
     { ignoreReturnCode: true }
   );
   if (pushCode !== 0) {
-    core22.warning(`Failed to push branch ${branch}`);
+    core24.warning(`Failed to push branch ${branch}`);
     return false;
   }
-  core22.info(`Created and pushed branch ${branch}`);
+  core24.info(`Created and pushed branch ${branch}`);
   return true;
 }
 async function checkBranchExists(branch) {
@@ -68265,7 +68271,7 @@ async function handleWorkflowRunEvent(issueState, resolvedIssueNumber) {
   }
   if (!isClaudePr(issueState))
     return emptyResult(true, "PR is not a Claude PR");
-  if (!resolvedIssueNumber) core22.setFailed("PR has no issue number");
+  if (!resolvedIssueNumber) core24.setFailed("PR has no issue number");
   const issueNumber = String(resolvedIssueNumber ?? "");
   if (issueLabels(issueState).includes("test:automation")) {
     return emptyResult(
@@ -68465,8 +68471,8 @@ async function handleDiscussionEvent(octokit, owner, repo) {
       { owner, repo, number: discussion.number }
     );
     discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
-  } catch (error6) {
-    core22.warning(`Failed to fetch discussion labels: ${error6}`);
+  } catch (error7) {
+    core24.warning(`Failed to fetch discussion labels: ${error7}`);
   }
   const isTestAutomation = discussionLabels.includes("test:automation");
   if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
@@ -68549,8 +68555,8 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
       { owner, repo, number: discussion.number }
     );
     discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
-  } catch (error6) {
-    core22.warning(`Failed to fetch discussion labels: ${error6}`);
+  } catch (error7) {
+    core24.warning(`Failed to fetch discussion labels: ${error7}`);
   }
   const isTestAutomation = discussionLabels.includes("test:automation");
   if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
@@ -68667,7 +68673,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   if (isNaN(issueNumber)) {
     return emptyResult(true, `Invalid resource_number: ${resourceNumber}`);
   }
-  core22.info(`Workflow dispatch for issue #${issueNumber}`);
+  core24.info(`Workflow dispatch for issue #${issueNumber}`);
   if (shouldSkipProjectStatus(issueState)) {
     return emptyResult(
       true,
@@ -68677,7 +68683,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   let parentIssueStr = "0";
   if (isSubIssue2(issueState) && parentIssue(issueState) > 0) {
     parentIssueStr = String(parentIssue(issueState));
-    core22.info(
+    core24.info(
       `Issue #${issueNumber} is a sub-issue of parent #${parentIssueStr}`
     );
   }
@@ -68685,7 +68691,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   const hasTriaged = labels.includes("triaged");
   const hasGroomed = labels.includes("groomed");
   if (hasTriaged && !hasGroomed) {
-    core22.info(
+    core24.info(
       `Issue #${issueNumber} needs grooming (triaged=${hasTriaged}, groomed=${hasGroomed})`
     );
     return {
@@ -68769,7 +68775,7 @@ async function run() {
     const repo = github.context.repo.repo;
     process.env.GH_TOKEN = token;
     const resolved = await resolveEvent(octokit, owner, repo, resourceNumber);
-    core22.info(
+    core24.info(
       `Processing event: ${github.context.eventName} (handler=${resolved.handler}, issueNumber=${resolved.issueNumber ?? "none"})`
     );
     let issueState = null;
@@ -68782,9 +68788,9 @@ async function run() {
           // Handlers use parentIssueNumber from issue data
         });
         issueState = data;
-      } catch (error6) {
-        core22.warning(
-          `Failed to parse issue #${resolved.issueNumber}: ${error6}`
+      } catch (error7) {
+        core24.warning(
+          `Failed to parse issue #${resolved.issueNumber}: ${error7}`
         );
       }
     }
@@ -68867,24 +68873,24 @@ async function run() {
         result = emptyResult(true, `Unhandled event: ${resolved.handler}`);
     }
     if (result.skip) {
-      core22.info(`Skipping: ${result.skipReason}`);
+      core24.info(`Skipping: ${result.skipReason}`);
     } else {
-      core22.info(`Detected job: ${result.job}`);
-      core22.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
+      core24.info(`Detected job: ${result.job}`);
+      core24.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
     }
     const ctx = result.contextJson;
     const ctxParentIssue = String(ctx.parent_issue ?? "0");
     const branch = String(ctx.branch_name ?? "");
     const trigger = jobToTrigger(result.job, JSON.stringify(ctx));
-    core22.info(`Trigger: ${trigger}`);
+    core24.info(`Trigger: ${trigger}`);
     const concurrency = computeConcurrency(
       result.job,
       result.resourceNumber,
       ctxParentIssue,
       branch
     );
-    core22.info(`Concurrency group: ${concurrency.group}`);
-    core22.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
+    core24.info(`Concurrency group: ${concurrency.group}`);
+    core24.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
     const unifiedContext = {
       // Routing & control
       job: result.job,
@@ -68903,11 +68909,11 @@ async function run() {
     setOutputs({
       context_json: JSON.stringify(unifiedContext)
     });
-  } catch (error6) {
-    if (error6 instanceof Error) {
-      core22.setFailed(error6.message);
+  } catch (error7) {
+    if (error7 instanceof Error) {
+      core24.setFailed(error7.message);
     } else {
-      core22.setFailed("An unexpected error occurred");
+      core24.setFailed("An unexpected error occurred");
     }
   }
 }

@@ -892,11 +892,6 @@ export const ActionSchema = z.discriminatedUnion("type", [
 export type Action = z.infer<typeof ActionSchema>;
 
 /**
- * Extract the action type string
- */
-export type ActionType = Action["type"];
-
-/**
  * All action types as a const array for runtime use
  */
 export const ACTION_TYPES = [
@@ -946,12 +941,14 @@ export const ACTION_TYPES = [
   "applyDiscussionRespondOutput",
   "applyDiscussionSummarizeOutput",
   "applyDiscussionPlanOutput",
+  "investigateResearchThreads",
+  "updateDiscussionSummary",
 ] as const;
 
 /**
  * Helper to create an action with type inference
  */
-export function createAction<T extends ActionType>(
+export function createAction<T extends Action["type"]>(
   type: T,
   params: Omit<Extract<Action, { type: T }>, "type">,
 ): Extract<Action, { type: T }> {
@@ -969,8 +966,8 @@ export function isTerminalAction(action: Action): boolean {
 /**
  * Actions that should stop on error
  */
-export function shouldStopOnError(actionType: ActionType): boolean {
-  const criticalActions: ActionType[] = [
+export function shouldStopOnError(actionType: Action["type"]): boolean {
+  const criticalActions: Action["type"][] = [
     "runClaude",
     "createPR",
     "mergePR",
