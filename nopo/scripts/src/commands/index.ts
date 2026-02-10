@@ -307,8 +307,42 @@ export function resolveCommandDependencies(
 }
 
 /**
+ * Extract dependency service names from CommandDependencies format.
+ * Handles both array format and object format.
+ */
+function extractDependencyNames(
+  deps: CommandDependencies | undefined,
+): string[] {
+  if (!deps) return [];
+  if (Array.isArray(deps)) return deps;
+  return Object.keys(deps);
+}
+
+/**
+ * Determine if a command is build-related based on its name.
+ * Build commands include: build, compile, check, test, clean, lint, format, etc.
+ * Runtime commands include: dev, start, run, serve, etc.
+ */
+function isBuildCommand(commandName: string): boolean {
+  const buildKeywords = [
+    "build",
+    "compile",
+    "check",
+    "test",
+    "clean",
+    "lint",
+    "format",
+    "types",
+    "typecheck",
+  ];
+  return buildKeywords.some((keyword) => commandName.includes(keyword));
+}
+
+/**
  * Get effective dependencies for a service command.
  * Command-specific dependencies override service-level dependencies.
+ * For service-level dependencies, uses build.depends_on for build commands
+ * and runtime.depends_on for runtime commands, with fallback to service.dependencies.
  */
 function getEffectiveDependencies(
   service: NormalizedService,
@@ -322,8 +356,20 @@ function getEffectiveDependencies(
     return normalizeDependencies(commandDeps, commandName);
   }
 
-  // Otherwise, use service-level dependencies with the same command
-  return service.dependencies.map((dep) => ({
+  // Determine which dependencies to use based on command type
+  let serviceDeps: string[];
+  if (isBuildCommand(commandName)) {
+    // For build commands, prefer build.depends_on
+    const buildDeps = extractDependencyNames(service.build?.depends_on);
+    serviceDeps = buildDeps.length > 0 ? buildDeps : service.dependencies;
+  } else {
+    // For runtime commands, prefer runtime.depends_on
+    const runtimeDeps = extractDependencyNames(service.runtime?.depends_on);
+    serviceDeps = runtimeDeps.length > 0 ? runtimeDeps : service.dependencies;
+  }
+
+  // Map to command dependency specs with the same command
+  return serviceDeps.map((dep) => ({
     service: dep,
     command: commandName,
   }));
