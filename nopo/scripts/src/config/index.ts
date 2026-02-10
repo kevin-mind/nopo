@@ -731,6 +731,16 @@ function discoverServices(
         ? path.resolve(serviceRoot, build?.dockerfile ?? parsed.dockerfile!)
         : undefined;
 
+    // Merge dependencies from all sources for backward compatibility:
+    // 1. Top-level service dependencies (legacy)
+    // 2. Runtime dependencies (new runtime.depends_on field)
+    // 3. Build dependencies (new build.depends_on field)
+    const allDependencies = new Set([
+      ...parsed.dependencies,
+      ...extractDependencyNames(runtime?.depends_on),
+      ...extractDependencyNames(build?.depends_on),
+    ]);
+
     const normalized: NormalizedService = {
       id: serviceId,
       name: parsed.name ?? serviceId,
@@ -741,7 +751,7 @@ function discoverServices(
       runtime,
       configPath: serviceConfigPath,
       image: parsed.image,
-      dependencies: parsed.dependencies,
+      dependencies: Array.from(allDependencies),
       commands,
       paths: {
         root: serviceRoot,
@@ -760,6 +770,18 @@ function discoverServices(
     }
     entries[serviceId] = normalized;
   }
+}
+
+/**
+ * Extract service names from CommandDependencies format.
+ * Handles both array format (["backend", "worker"]) and object format ({ backend: ["build"] }).
+ */
+function extractDependencyNames(
+  deps: CommandDependencies | undefined,
+): string[] {
+  if (!deps) return [];
+  if (Array.isArray(deps)) return deps;
+  return Object.keys(deps);
 }
 
 /**
