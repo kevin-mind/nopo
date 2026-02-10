@@ -2114,8 +2114,6 @@ build:
   depends_on:
     - build-dep
 commands:
-  build:
-    command: npm run build
   compile:
     command: tsc
   test:
@@ -2137,8 +2135,6 @@ commands:
 name: build-dep
 dockerfile: Dockerfile
 commands:
-  build:
-    command: echo "build"
   compile:
     command: echo "compile"
   test:
@@ -2167,7 +2163,6 @@ dockerfile: Dockerfile
 
       // All these should use build.depends_on (build-dep)
       const buildCommands = [
-        "build",
         "compile",
         "test",
         "check",

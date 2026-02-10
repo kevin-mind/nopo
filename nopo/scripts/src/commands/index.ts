@@ -348,13 +348,19 @@ function getEffectiveDependencies(
   // Determine which dependencies to use based on command type
   let serviceDeps: string[];
   if (isBuildCommand(commandName)) {
-    // For build commands, prefer build.depends_on
-    const buildDeps = extractDependencyNames(service.build?.depends_on);
-    serviceDeps = buildDeps.length > 0 ? buildDeps : service.dependencies;
+    // For build commands, prefer build.depends_on if defined (even if empty)
+    const buildDeps = service.build?.depends_on;
+    serviceDeps =
+      buildDeps !== undefined
+        ? extractDependencyNames(buildDeps)
+        : service.dependencies;
   } else {
-    // For runtime commands, prefer runtime.depends_on
-    const runtimeDeps = extractDependencyNames(service.runtime?.depends_on);
-    serviceDeps = runtimeDeps.length > 0 ? runtimeDeps : service.dependencies;
+    // For runtime commands, prefer runtime.depends_on if defined (even if empty)
+    const runtimeDeps = service.runtime?.depends_on;
+    serviceDeps =
+      runtimeDeps !== undefined
+        ? extractDependencyNames(runtimeDeps)
+        : service.dependencies;
   }
 
   // Map to command dependency specs with the same command

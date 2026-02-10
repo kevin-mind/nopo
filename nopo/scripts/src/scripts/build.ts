@@ -216,9 +216,12 @@ export default class BuildScript extends TargetScript {
       const service = this.runner.config.project.services.entries[targetName];
       if (!service) return;
 
-      // Use build.depends_on if available, fallback to service.dependencies
-      const buildDeps = extractDependencyNames(service.build?.depends_on);
-      const deps = buildDeps.length > 0 ? buildDeps : service.dependencies;
+      // Use build.depends_on if defined (even if empty), fallback to service.dependencies
+      const buildDepsField = service.build?.depends_on;
+      const deps =
+        buildDepsField !== undefined
+          ? extractDependencyNames(buildDepsField)
+          : service.dependencies;
       for (const dep of deps) {
         if (allPackages.includes(dep)) {
           packageDeps.add(dep);
@@ -258,9 +261,12 @@ export default class BuildScript extends TargetScript {
       const service = this.runner.config.project.services.entries[name];
       if (service) {
         // Visit dependencies first (only those that are also packages to build)
-        // Use build.depends_on if available, fallback to service.dependencies
-        const buildDeps = extractDependencyNames(service.build?.depends_on);
-        const deps = buildDeps.length > 0 ? buildDeps : service.dependencies;
+        // Use build.depends_on if defined (even if empty), fallback to service.dependencies
+        const buildDepsField = service.build?.depends_on;
+        const deps =
+          buildDepsField !== undefined
+            ? extractDependencyNames(buildDepsField)
+            : service.dependencies;
         for (const dep of deps) {
           if (packageSet.has(dep)) {
             visit(dep);
