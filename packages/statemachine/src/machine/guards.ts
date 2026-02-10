@@ -1,9 +1,6 @@
 import type { MachineContext } from "../schemas/index.js";
 import { isTerminalStatus } from "../schemas/index.js";
-import {
-  extractTodosFromAst,
-  extractQuestionsFromAst,
-} from "../parser/index.js";
+import { extractTodosFromAst } from "../parser/index.js";
 
 /**
  * Guard context type for XState
@@ -592,14 +589,6 @@ export function isGroomed({ context }: GuardContext): boolean {
 }
 
 /**
- * Check if all questions in the issue body's Questions section are answered (checked)
- */
-function allQuestionsAnswered({ context }: GuardContext): boolean {
-  const stats = extractQuestionsFromAst(context.issue.bodyAst);
-  return stats.unanswered === 0;
-}
-
-/**
  * Check if the issue needs more info (has "needs-info" label)
  */
 export function needsInfo({ context }: GuardContext): boolean {
@@ -711,7 +700,6 @@ export const guards = {
   triggeredByGroomSummary,
   needsGrooming,
   isGroomed,
-  allQuestionsAnswered,
   needsInfo,
   // Composite guards
   readyForReview,
