@@ -416,20 +416,20 @@ export const claudeMachine = setup({
             target: "triaging",
             guard: "needsTriage",
           },
-          // Check if this is a grooming trigger
+          // Sub-issues always iterate - check BEFORE grooming and orchestration
+          // to prevent sub-issues from being groomed or routed to orchestration
+          { target: "iterating", guard: "isSubIssue" },
+          // Check if this is a grooming trigger (parent issues only)
           {
             target: "grooming",
             guard: "triggeredByGroom",
           },
           // Check if issue needs grooming (has triaged but not groomed)
-          // This ensures triaged issues get groomed before any work begins
+          // This ensures triaged parent issues get groomed before any work begins
           {
             target: "grooming",
             guard: "needsGrooming",
           },
-          // Sub-issues always iterate - check BEFORE hasSubIssues to prevent
-          // sub-issues from being routed to orchestration
-          { target: "iterating", guard: "isSubIssue" },
           // Check for multi-phase work (parent issues only)
           { target: "initializing", guard: "needsSubIssues" },
           { target: "orchestrating", guard: "hasSubIssues" },
