@@ -21,6 +21,7 @@ import type {
   TableRow,
   RootContent,
   PhrasingContent,
+  InlineCode,
 } from "mdast";
 import { isList, childrenAsRootContent } from "./type-guards.js";
 
@@ -221,6 +222,121 @@ export const historyExtractor = createExtractor(
 /**
  * Extract agent notes directly from MDAST
  */
+// ============================================================================
+// Question Extractors
+// ============================================================================
+
+export const QuestionStatsSchema = z.object({
+  total: z.number(),
+  answered: z.number(),
+  unanswered: z.number(),
+});
+
+export type QuestionStats = z.infer<typeof QuestionStatsSchema>;
+
+export interface QuestionItem {
+  id: string | null;
+  text: string;
+  checked: boolean;
+}
+
+/**
+ * Extract question statistics directly from MDAST
+ */
+export const questionsExtractor = createExtractor(
+  QuestionStatsSchema,
+  (data) => {
+    return extractQuestionsFromAst(data.issue.bodyAst);
+  },
+);
+
+/**
+ * Extract question statistics from a bodyAst.
+ * Finds the ## Questions heading, counts checklist items.
+ */
+export function extractQuestionsFromAst(bodyAst: Root): QuestionStats {
+  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+
+  if (questionsIdx === -1) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+
+  const listNode = bodyAst.children[questionsIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+
+  let total = 0;
+  let answered = 0;
+
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== undefined) {
+      total++;
+      if (item.checked) {
+        answered++;
+      }
+    }
+  }
+
+  return { total, answered, unanswered: total - answered };
+}
+
+/**
+ * Parse ID from a question item's text.
+ * IDs are embedded as trailing `id:slug` inline code.
+ */
+function parseQuestionId(item: ListItem): string | null {
+  // Walk through the listItem's paragraph children to find an inlineCode node
+  // matching `id:slug`
+  for (const child of childrenAsRootContent(item)) {
+    if ("children" in child && Array.isArray(child.children)) {
+      for (const node of childrenAsRootContent(child)) {
+        if (node.type === "inlineCode") {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- type narrowing from RootContent to InlineCode after type check
+          const code = (node as InlineCode).value;
+          if (code.startsWith("id:")) {
+            return code.slice(3);
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract detailed question items from a bodyAst.
+ * Returns QuestionItem[] with IDs parsed from `id:slug` inline code.
+ */
+export function extractQuestionItems(bodyAst: Root): QuestionItem[] {
+  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+
+  if (questionsIdx === -1) {
+    return [];
+  }
+
+  const listNode = bodyAst.children[questionsIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return [];
+  }
+
+  const items: QuestionItem[] = [];
+
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && typeof item.checked === "boolean") {
+      const id = parseQuestionId(item);
+      const text = getNodeText(item);
+      items.push({
+        id,
+        text,
+        checked: item.checked,
+      });
+    }
+  }
+
+  return items;
+}
+
 export const agentNotesExtractor = createExtractor(
   z.array(AgentNotesEntrySchema),
   (data) => {

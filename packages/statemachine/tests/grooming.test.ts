@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { parseMarkdown, serializeMarkdown } from "@more/issue-state";
+import type { Root } from "mdast";
 import {
   GroomingSummaryOutputSchema,
   type GroomingSummaryOutput,
@@ -6,9 +8,12 @@ import {
 } from "../src/runner/executors/output-schemas.js";
 import {
   buildFallbackSummary,
-  buildGroomingQuestionsComment,
-  GROOMING_QUESTIONS_HEADING,
+  buildQuestionsContent,
 } from "../src/runner/executors/grooming.js";
+import {
+  extractQuestionsFromAst,
+  extractQuestionItems,
+} from "../src/parser/index.js";
 
 // ============================================================================
 // GroomingSummaryOutputSchema
@@ -252,21 +257,31 @@ describe("buildFallbackSummary", () => {
 });
 
 // ============================================================================
-// buildGroomingQuestionsComment
+// buildQuestionsContent
 // ============================================================================
 
-describe("buildGroomingQuestionsComment", () => {
-  it("returns null when no questions", () => {
+describe("buildQuestionsContent", () => {
+  /** Helper to serialize MDAST nodes to markdown for assertion */
+  function contentToMarkdown(
+    content: ReturnType<typeof buildQuestionsContent>,
+  ): string {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- test helper
+    const ast: Root = { type: "root", children: content as Root["children"] };
+    return serializeMarkdown(ast);
+  }
+
+  it("returns empty array when no questions", () => {
     const summary: GroomingSummaryOutput = {
       summary: "All good.",
       decision: "needs_info",
       decision_rationale: "No questions.",
     };
 
-    expect(buildGroomingQuestionsComment(summary)).toBeNull();
+    const result = buildQuestionsContent(summary, []);
+    expect(result).toHaveLength(0);
   });
 
-  it("returns null when both arrays are empty", () => {
+  it("returns empty array when both arrays are empty and no existing", () => {
     const summary: GroomingSummaryOutput = {
       summary: "All good.",
       decision: "needs_info",
@@ -275,30 +290,11 @@ describe("buildGroomingQuestionsComment", () => {
       answered_questions: [],
     };
 
-    expect(buildGroomingQuestionsComment(summary)).toBeNull();
+    const result = buildQuestionsContent(summary, []);
+    expect(result).toHaveLength(0);
   });
 
-  it("starts with the grooming questions heading", () => {
-    const summary: GroomingSummaryOutput = {
-      summary: "Questions remain.",
-      decision: "needs_info",
-      decision_rationale: "Pending questions.",
-      consolidated_questions: [
-        {
-          id: "auth-method",
-          title: "Auth method?",
-          description: "Need to decide OAuth vs JWT.",
-          sources: ["pm", "engineer"],
-          priority: "critical",
-        },
-      ],
-    };
-
-    const result = buildGroomingQuestionsComment(summary);
-    expect(result?.startsWith(GROOMING_QUESTIONS_HEADING)).toBe(true);
-  });
-
-  it("renders pending questions as unchecked items", () => {
+  it("creates unchecked items for pending questions with format", () => {
     const summary: GroomingSummaryOutput = {
       summary: "Questions remain.",
       decision: "needs_info",
@@ -311,28 +307,132 @@ describe("buildGroomingQuestionsComment", () => {
           sources: ["pm", "engineer"],
           priority: "important",
         },
+      ],
+    };
+
+    const result = buildQuestionsContent(summary, []);
+    expect(result).toHaveLength(1);
+
+    const md = contentToMarkdown(result);
+    expect(md).toContain("Auth method?");
+    expect(md).toContain("Need to decide OAuth vs JWT.");
+    expect(md).toContain("(pm, engineer)");
+    expect(md).toContain("`id:auth-method`");
+  });
+
+  it("creates checked items for answered questions", () => {
+    const summary: GroomingSummaryOutput = {
+      summary: "Resolved.",
+      decision: "needs_info",
+      decision_rationale: "Progress.",
+      answered_questions: [
         {
-          id: "db-schema",
-          title: "DB schema design?",
-          description: "Which tables are needed?",
-          sources: ["engineer"],
-          priority: "nice-to-have",
+          id: "resolved",
+          title: "Resolved question",
+          answer_summary: "Decided to use OAuth.",
         },
       ],
     };
 
-    const result = buildGroomingQuestionsComment(summary);
-    expect(result).toContain("- [ ] **Auth method?** - Need to decide");
-    expect(result).toContain("_(pm, engineer)_");
-    expect(result).toContain("- [ ] **DB schema design?**");
-    expect(result).toContain("_(engineer)_");
+    const result = buildQuestionsContent(summary, []);
+    expect(result).toHaveLength(1);
+
+    const md = contentToMarkdown(result);
+    expect(md).toContain("[x]");
+    expect(md).toContain("~~Resolved question~~");
+    expect(md).toContain("Decided to use OAuth.");
+    expect(md).toContain("`id:resolved`");
   });
 
-  it("marks critical questions with priority tag", () => {
+  it("preserves existing triage questions (no ID)", () => {
     const summary: GroomingSummaryOutput = {
-      summary: "Critical question.",
+      summary: "Questions remain.",
       decision: "needs_info",
-      decision_rationale: "Blocking question.",
+      decision_rationale: "Pending questions.",
+      consolidated_questions: [
+        {
+          id: "new-q",
+          title: "New question",
+          description: "Something new.",
+          sources: ["pm"],
+          priority: "important",
+        },
+      ],
+    };
+
+    const existingQuestions = [
+      { id: null, text: "What about performance?", checked: false },
+    ];
+
+    const result = buildQuestionsContent(summary, existingQuestions);
+    const md = contentToMarkdown(result);
+
+    // Triage question preserved
+    expect(md).toContain("What about performance?");
+    // New grooming question also present
+    expect(md).toContain("New question");
+  });
+
+  it("respects user-checked state on re-run", () => {
+    const summary: GroomingSummaryOutput = {
+      summary: "Re-run.",
+      decision: "needs_info",
+      decision_rationale: "Re-evaluating.",
+      consolidated_questions: [
+        {
+          id: "auth-method",
+          title: "Auth method?",
+          description: "Need to decide.",
+          sources: ["pm"],
+          priority: "important",
+        },
+      ],
+    };
+
+    // User already checked this question
+    const existingQuestions = [
+      {
+        id: "auth-method",
+        text: "**Auth method?** - Original `id:auth-method`",
+        checked: true,
+      },
+    ];
+
+    const result = buildQuestionsContent(summary, existingQuestions);
+    const md = contentToMarkdown(result);
+
+    // Should be checked because user checked it
+    expect(md).toContain("[x]");
+    expect(md).toContain("`id:auth-method`");
+  });
+
+  it("embeds IDs as inline code in text", () => {
+    const summary: GroomingSummaryOutput = {
+      summary: "Questions.",
+      decision: "needs_info",
+      decision_rationale: "Questions.",
+      consolidated_questions: [
+        {
+          id: "db-schema",
+          title: "DB schema?",
+          description: "Which tables?",
+          sources: ["engineer"],
+          priority: "important",
+        },
+      ],
+    };
+
+    const result = buildQuestionsContent(summary, []);
+    const md = contentToMarkdown(result);
+
+    expect(md).toContain("`id:db-schema`");
+  });
+
+  it("renders critical priority tag", () => {
+    const summary: GroomingSummaryOutput = {
+      summary: "Critical.",
+      decision: "needs_info",
+      decision_rationale: "Blocking.",
       consolidated_questions: [
         {
           id: "blocking",
@@ -344,77 +444,133 @@ describe("buildGroomingQuestionsComment", () => {
       ],
     };
 
-    const result = buildGroomingQuestionsComment(summary);
-    expect(result).toContain("**[critical]**");
+    const result = buildQuestionsContent(summary, []);
+    const md = contentToMarkdown(result);
+
+    expect(md).toContain("**\\[critical]**");
   });
 
-  it("does not add priority tag for non-critical questions", () => {
+  it("preserves existing grooming questions not in new output", () => {
     const summary: GroomingSummaryOutput = {
-      summary: "Minor question.",
+      summary: "Partial re-run.",
       decision: "needs_info",
-      decision_rationale: "Non-blocking.",
+      decision_rationale: "Some questions remain.",
       consolidated_questions: [
         {
-          id: "minor",
-          title: "Minor detail",
-          description: "Just curious.",
-          sources: ["qa"],
-          priority: "nice-to-have",
-        },
-      ],
-    };
-
-    const result = buildGroomingQuestionsComment(summary);
-    expect(result).not.toContain("**[critical]**");
-  });
-
-  it("renders answered questions as checked items with strikethrough", () => {
-    const summary: GroomingSummaryOutput = {
-      summary: "Some resolved.",
-      decision: "needs_info",
-      decision_rationale: "Progress made.",
-      consolidated_questions: [
-        {
-          id: "remaining",
-          title: "Open question",
-          description: "Still unanswered.",
+          id: "new-q",
+          title: "New question",
+          description: "Something new.",
           sources: ["pm"],
           priority: "important",
         },
       ],
-      answered_questions: [
-        {
-          id: "resolved",
-          title: "Resolved question",
-          answer_summary: "Decided to use OAuth.",
-        },
-      ],
     };
 
-    const result = buildGroomingQuestionsComment(summary);
-    expect(result).toContain("### Resolved");
-    expect(result).toContain(
-      "- [x] ~~Resolved question~~ - Decided to use OAuth.",
-    );
+    const existingQuestions = [
+      {
+        id: "old-q",
+        text: "**Old question** - Still relevant `id:old-q`",
+        checked: false,
+      },
+    ];
+
+    const result = buildQuestionsContent(summary, existingQuestions);
+    const md = contentToMarkdown(result);
+
+    // Old question preserved
+    expect(md).toContain("Old question");
+    expect(md).toContain("`id:old-q`");
+    // New question also present
+    expect(md).toContain("New question");
+    expect(md).toContain("`id:new-q`");
+  });
+});
+
+// ============================================================================
+// extractQuestionItems
+// ============================================================================
+
+describe("extractQuestionItems", () => {
+  it("returns empty array for body without Questions section", () => {
+    const ast = parseMarkdown("## Description\n\nSome content.");
+    expect(extractQuestionItems(ast)).toEqual([]);
   });
 
-  it("renders comment with only answered questions", () => {
-    const summary: GroomingSummaryOutput = {
-      summary: "All resolved.",
-      decision: "needs_info",
-      decision_rationale: "Was needs_info, now all answered.",
-      answered_questions: [
-        {
-          id: "q1",
-          title: "First question",
-          answer_summary: "Answered in comments.",
-        },
-      ],
-    };
+  it("extracts items without IDs", () => {
+    const ast = parseMarkdown(
+      "## Questions\n\n- [ ] What about performance?\n- [x] How to test?",
+    );
+    const items = extractQuestionItems(ast);
 
-    const result = buildGroomingQuestionsComment(summary);
-    expect(result).not.toBeNull();
-    expect(result).toContain("### Resolved");
-    expect(result).toContain("- [x] ~~First question~~");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toEqual({
+      id: null,
+      text: "What about performance?",
+      checked: false,
+    });
+    expect(items[1]).toEqual({
+      id: null,
+      text: "How to test?",
+      checked: true,
+    });
+  });
+
+  it("extracts items with IDs from inline code", () => {
+    const ast = parseMarkdown(
+      "## Questions\n\n- [ ] **Auth method?** - Need to decide `id:auth-method`\n- [x] ~~Resolved~~ - Done `id:resolved-q`",
+    );
+    const items = extractQuestionItems(ast);
+
+    expect(items).toHaveLength(2);
+    expect(items[0]?.id).toBe("auth-method");
+    expect(items[0]?.checked).toBe(false);
+    expect(items[1]?.id).toBe("resolved-q");
+    expect(items[1]?.checked).toBe(true);
+  });
+
+  it("respects checked state", () => {
+    const ast = parseMarkdown(
+      "## Questions\n\n- [x] Done question `id:done`\n- [ ] Open question `id:open`",
+    );
+    const items = extractQuestionItems(ast);
+
+    expect(items[0]?.checked).toBe(true);
+    expect(items[1]?.checked).toBe(false);
+  });
+});
+
+// ============================================================================
+// extractQuestionsFromAst
+// ============================================================================
+
+describe("extractQuestionsFromAst", () => {
+  it("returns zeros when no Questions section", () => {
+    const ast = parseMarkdown("## Description\n\nSome content.");
+    const stats = extractQuestionsFromAst(ast);
+
+    expect(stats).toEqual({ total: 0, answered: 0, unanswered: 0 });
+  });
+
+  it("counts questions correctly", () => {
+    const ast = parseMarkdown(
+      "## Questions\n\n- [ ] Open 1\n- [x] Answered 1\n- [ ] Open 2\n- [x] Answered 2",
+    );
+    const stats = extractQuestionsFromAst(ast);
+
+    expect(stats).toEqual({ total: 4, answered: 2, unanswered: 2 });
+  });
+
+  it("returns all answered when all checked", () => {
+    const ast = parseMarkdown("## Questions\n\n- [x] Done 1\n- [x] Done 2");
+    const stats = extractQuestionsFromAst(ast);
+
+    expect(stats).toEqual({ total: 2, answered: 2, unanswered: 0 });
+  });
+
+  it("handles empty Questions section", () => {
+    const ast = parseMarkdown("## Questions\n\nNo checklist here.\n\n## Next");
+    const stats = extractQuestionsFromAst(ast);
+
+    expect(stats).toEqual({ total: 0, answered: 0, unanswered: 0 });
   });
 });

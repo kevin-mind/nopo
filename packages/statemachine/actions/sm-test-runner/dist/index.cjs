@@ -41707,14 +41707,6 @@ async function createComment(owner, repo, issueNumber, body, octokit) {
   });
   return { commentId: result.data.id };
 }
-async function updateComment(owner, repo, commentId, body, octokit) {
-  await octokit.rest.issues.updateComment({
-    owner,
-    repo,
-    comment_id: commentId,
-    body
-  });
-}
 
 // ../issue-state/src/issue-ops.ts
 async function listComments(owner, repo, issueNumber, octokit, opts) {
@@ -42863,6 +42855,76 @@ var historyExtractor = createExtractor(
     });
   }
 );
+var QuestionStatsSchema = external_exports.object({
+  total: external_exports.number(),
+  answered: external_exports.number(),
+  unanswered: external_exports.number()
+});
+var questionsExtractor = createExtractor(
+  QuestionStatsSchema,
+  (data) => {
+    return extractQuestionsFromAst(data.issue.bodyAst);
+  }
+);
+function extractQuestionsFromAst(bodyAst) {
+  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  if (questionsIdx === -1) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+  const listNode = bodyAst.children[questionsIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+  let total = 0;
+  let answered = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        answered++;
+      }
+    }
+  }
+  return { total, answered, unanswered: total - answered };
+}
+function parseQuestionId(item) {
+  for (const child of childrenAsRootContent(item)) {
+    if ("children" in child && Array.isArray(child.children)) {
+      for (const node2 of childrenAsRootContent(child)) {
+        if (node2.type === "inlineCode") {
+          const code3 = node2.value;
+          if (code3.startsWith("id:")) {
+            return code3.slice(3);
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+function extractQuestionItems(bodyAst) {
+  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  if (questionsIdx === -1) {
+    return [];
+  }
+  const listNode = bodyAst.children[questionsIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return [];
+  }
+  const items = [];
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && typeof item.checked === "boolean") {
+      const id = parseQuestionId(item);
+      const text5 = getNodeText(item);
+      items.push({
+        id,
+        text: text5,
+        checked: item.checked
+      });
+    }
+  }
+  return items;
+}
 var agentNotesExtractor = createExtractor(
   external_exports.array(AgentNotesEntrySchema),
   (data) => {
@@ -68063,7 +68125,7 @@ var GroomingSummary = promptFactory().inputs((z) => ({
     /* @__PURE__ */ jsx("section", { title: "QA Analysis", children: inputs.qaOutput }),
     /* @__PURE__ */ jsx("section", { title: "Research Findings", children: inputs.researchOutput })
   ] }),
-  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Previous Grooming Questions", children: `The following questions were posted in a previous grooming run. Compare them with the current agent analyses to determine which have been answered:
+  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Previous Grooming Questions", children: `The following questions are from the issue body's Questions section. Compare them with the current agent analyses to determine which have been answered:
 
 ${inputs.previousQuestions ?? ""}` }) }),
   "---",
@@ -71126,9 +71188,6 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
     core16.info(`[DRY RUN] Would apply grooming output`);
     return { applied: true, decision: "ready" };
   }
-  const allReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
-  const decision = allReady ? "ready" : "needs_info";
-  core16.info(`Grooming decision: ${decision}`);
   const { data, update } = await parseIssue(
     ctx.owner,
     ctx.repo,
@@ -71138,6 +71197,13 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       fetchPRs: false,
       fetchParent: false
     }
+  );
+  const allAgentsReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
+  const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
+  const allReady = allAgentsReady && questionStats.unanswered === 0;
+  const decision = allReady ? "ready" : "needs_info";
+  core16.info(
+    `Grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`
   );
   let subIssuesCreated = 0;
   if (decision === "ready") {
@@ -71167,43 +71233,25 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       engineerOutput.recommended_phases
     );
   } else {
-    const previousComment = data.issue.comments.find(
-      (c) => c.body.startsWith("## Grooming Questions")
-    );
+    const existingQuestions = extractQuestionItems(data.issue.bodyAst);
+    const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
     const summaryOutput = await runGroomingSummary(
       action,
       groomingOutput,
       data,
-      previousComment?.body
+      previousQuestionsText
     );
-    const commentBody = buildGroomingQuestionsComment(summaryOutput);
-    if (commentBody) {
-      if (previousComment?.databaseId) {
-        await updateComment(
-          ctx.owner,
-          ctx.repo,
-          previousComment.databaseId,
-          commentBody,
-          asOctokitLike6(ctx)
-        );
-        core16.info(
-          `Updated existing grooming questions comment (id: ${previousComment.databaseId})`
-        );
-      } else {
-        await createComment(
-          ctx.owner,
-          ctx.repo,
-          action.issueNumber,
-          commentBody,
-          asOctokitLike6(ctx)
-        );
-        core16.info(`Created new grooming questions comment`);
-      }
+    const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
+    if (content3.length > 0) {
+      const updatedData = upsertSection2({ title: "Questions", content: content3 }, data);
+      await update(updatedData);
+      core16.info(
+        `Updated Questions section in issue #${action.issueNumber} body`
+      );
     }
   }
   return { applied: true, decision, subIssuesCreated };
 }
-var GROOMING_QUESTIONS_HEADING = "## Grooming Questions";
 async function runGroomingSummary(action, groomingOutput, data, previousQuestions) {
   const resolved = resolvePrompt({
     promptDir: "grooming/summary",
@@ -71262,34 +71310,73 @@ function buildFallbackSummary(groomingOutput) {
     consolidated_questions: consolidated
   };
 }
-function buildGroomingQuestionsComment(summary) {
-  const lines = [GROOMING_QUESTIONS_HEADING];
-  lines.push("");
-  lines.push(
-    "The following questions need to be addressed before this issue is ready:"
-  );
-  lines.push("");
+function parseMarkdownLine(markdown) {
+  const ast = parseMarkdown(markdown);
+  const firstChild = ast.children[0];
+  if (firstChild && "children" in firstChild) {
+    return firstChild.children;
+  }
+  return [{ type: "text", value: markdown }];
+}
+function buildQuestionsContent(summary, existingQuestions) {
   const pending = summary.consolidated_questions ?? [];
   const answered = summary.answered_questions ?? [];
-  if (pending.length === 0 && answered.length === 0) {
-    return null;
+  if (pending.length === 0 && answered.length === 0 && existingQuestions.length === 0) {
+    return [];
   }
-  for (const q of pending) {
-    const sources = q.sources.join(", ");
-    const priority = q.priority === "critical" ? " **[critical]**" : "";
-    lines.push(
-      `- [ ] **${q.title}**${priority} - ${q.description} _(${sources})_`
-    );
+  const newIds = /* @__PURE__ */ new Set();
+  for (const q of pending) newIds.add(q.id);
+  for (const q of answered) newIds.add(q.id);
+  const existingById = /* @__PURE__ */ new Map();
+  for (const q of existingQuestions) {
+    if (q.id) existingById.set(q.id, q);
   }
-  if (answered.length > 0) {
-    lines.push("");
-    lines.push("### Resolved");
-    lines.push("");
-    for (const q of answered) {
-      lines.push(`- [x] ~~${q.title}~~ - ${q.answer_summary}`);
+  const listItems = [];
+  for (const q of existingQuestions) {
+    if (!q.id) {
+      listItems.push({
+        type: "listItem",
+        checked: q.checked,
+        children: [{ type: "paragraph", children: parseMarkdownLine(q.text) }]
+      });
     }
   }
-  return lines.join("\n");
+  for (const q of pending) {
+    const existing = existingById.get(q.id);
+    const checked = existing?.checked ?? false;
+    const sources = q.sources.join(", ");
+    const priority = q.priority === "critical" ? " **[critical]**" : "";
+    const text5 = `**${q.title}**${priority} - ${q.description} _(${sources})_ \`id:${q.id}\``;
+    listItems.push({
+      type: "listItem",
+      checked,
+      children: [{ type: "paragraph", children: parseMarkdownLine(text5) }]
+    });
+  }
+  for (const q of answered) {
+    const text5 = `~~${q.title}~~ - ${q.answer_summary} \`id:${q.id}\``;
+    listItems.push({
+      type: "listItem",
+      checked: true,
+      children: [{ type: "paragraph", children: parseMarkdownLine(text5) }]
+    });
+  }
+  for (const q of existingQuestions) {
+    if (q.id && !newIds.has(q.id)) {
+      listItems.push({
+        type: "listItem",
+        checked: q.checked,
+        children: [{ type: "paragraph", children: parseMarkdownLine(q.text) }]
+      });
+    }
+  }
+  const list4 = {
+    type: "list",
+    ordered: false,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- unknown[] contains valid ListItem nodes
+    children: listItems
+  };
+  return [list4];
 }
 async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
   let created = 0;

@@ -70,7 +70,7 @@ const GroomingSummary = promptFactory()
 
       <Conditional when={inputs.previousQuestions}>
         <section title="Previous Grooming Questions">
-          {`The following questions were posted in a previous grooming run. Compare them with the current agent analyses to determine which have been answered:
+          {`The following questions are from the issue body's Questions section. Compare them with the current agent analyses to determine which have been answered:
 
 ${inputs.previousQuestions ?? ""}`}
         </section>

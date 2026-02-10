@@ -42273,6 +42273,38 @@ var historyExtractor = createExtractor(
     });
   }
 );
+var QuestionStatsSchema = external_exports.object({
+  total: external_exports.number(),
+  answered: external_exports.number(),
+  unanswered: external_exports.number()
+});
+var questionsExtractor = createExtractor(
+  QuestionStatsSchema,
+  (data) => {
+    return extractQuestionsFromAst(data.issue.bodyAst);
+  }
+);
+function extractQuestionsFromAst(bodyAst) {
+  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  if (questionsIdx === -1) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+  const listNode = bodyAst.children[questionsIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+  let total = 0;
+  let answered = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        answered++;
+      }
+    }
+  }
+  return { total, answered, unanswered: total - answered };
+}
 var agentNotesExtractor = createExtractor(
   external_exports.array(AgentNotesEntrySchema),
   (data) => {
@@ -65941,7 +65973,7 @@ var GroomingSummary = promptFactory().inputs((z) => ({
     /* @__PURE__ */ jsx("section", { title: "QA Analysis", children: inputs.qaOutput }),
     /* @__PURE__ */ jsx("section", { title: "Research Findings", children: inputs.researchOutput })
   ] }),
-  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Previous Grooming Questions", children: `The following questions were posted in a previous grooming run. Compare them with the current agent analyses to determine which have been answered:
+  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Previous Grooming Questions", children: `The following questions are from the issue body's Questions section. Compare them with the current agent analyses to determine which have been answered:
 
 ${inputs.previousQuestions ?? ""}` }) }),
   "---",

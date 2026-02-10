@@ -6,7 +6,7 @@
 
 import * as core from "@actions/core";
 import * as fs from "fs";
-import type { Root } from "mdast";
+import type { Root, RootContent, List } from "mdast";
 import {
   addSubIssueToParent,
   createSection,
@@ -14,8 +14,7 @@ import {
   createBulletList,
   createTodoList,
   parseIssue,
-  createComment,
-  updateComment,
+  parseMarkdown,
   type OctokitLike,
   type ProjectStatus,
 } from "@more/issue-state";
@@ -25,7 +24,13 @@ import type {
   ApplyGroomingOutputAction,
 } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
-import { appendAgentNotes } from "../../parser/index.js";
+import {
+  appendAgentNotes,
+  upsertSection,
+  extractQuestionsFromAst,
+  extractQuestionItems,
+  type QuestionItem,
+} from "../../parser/index.js";
 import {
   CombinedGroomingOutputSchema,
   EngineerOutputSchema,
@@ -193,17 +198,7 @@ export async function executeApplyGroomingOutput(
     return { applied: true, decision: "ready" };
   }
 
-  // Determine the decision based on agent readiness
-  const allReady =
-    groomingOutput.pm.ready &&
-    groomingOutput.engineer.ready &&
-    groomingOutput.qa.ready &&
-    groomingOutput.research.ready;
-
-  const decision = allReady ? "ready" : "needs_info";
-  core.info(`Grooming decision: ${decision}`);
-
-  // Parse issue data (used by both branches)
+  // Parse issue data first (needed for readiness check and both branches)
   const { data, update } = await parseIssue(
     ctx.owner,
     ctx.repo,
@@ -213,6 +208,21 @@ export async function executeApplyGroomingOutput(
       fetchPRs: false,
       fetchParent: false,
     },
+  );
+
+  // Determine the decision based on agent readiness AND question state
+  const allAgentsReady =
+    groomingOutput.pm.ready &&
+    groomingOutput.engineer.ready &&
+    groomingOutput.qa.ready &&
+    groomingOutput.research.ready;
+
+  const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
+  const allReady = allAgentsReady && questionStats.unanswered === 0;
+
+  const decision = allReady ? "ready" : "needs_info";
+  core.info(
+    `Grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`,
   );
 
   // Track sub-issues created
@@ -250,45 +260,34 @@ export async function executeApplyGroomingOutput(
       engineerOutput.recommended_phases,
     );
   } else {
-    // Find previous grooming questions comment
-    const previousComment = data.issue.comments.find((c) =>
-      c.body.startsWith("## Grooming Questions"),
-    );
+    // Extract existing questions from body for context
+    const existingQuestions = extractQuestionItems(data.issue.bodyAst);
+
+    // Build previous questions text for summary prompt context
+    const previousQuestionsText =
+      existingQuestions.length > 0
+        ? existingQuestions
+            .map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`)
+            .join("\n")
+        : undefined;
 
     // Run summary prompt with consolidated question logic
     const summaryOutput = await runGroomingSummary(
       action,
       groomingOutput,
       data,
-      previousComment?.body,
+      previousQuestionsText,
     );
 
-    // Build the consolidated comment body
-    const commentBody = buildGroomingQuestionsComment(summaryOutput);
+    // Build questions content as MDAST and upsert into body
+    const content = buildQuestionsContent(summaryOutput, existingQuestions);
 
-    if (commentBody) {
-      // Upsert: update existing comment or create new one
-      if (previousComment?.databaseId) {
-        await updateComment(
-          ctx.owner,
-          ctx.repo,
-          previousComment.databaseId,
-          commentBody,
-          asOctokitLike(ctx),
-        );
-        core.info(
-          `Updated existing grooming questions comment (id: ${previousComment.databaseId})`,
-        );
-      } else {
-        await createComment(
-          ctx.owner,
-          ctx.repo,
-          action.issueNumber,
-          commentBody,
-          asOctokitLike(ctx),
-        );
-        core.info(`Created new grooming questions comment`);
-      }
+    if (content.length > 0) {
+      const updatedData = upsertSection({ title: "Questions", content }, data);
+      await update(updatedData);
+      core.info(
+        `Updated Questions section in issue #${action.issueNumber} body`,
+      );
     }
   }
 
@@ -298,8 +297,6 @@ export async function executeApplyGroomingOutput(
 // ============================================================================
 // Grooming Summary
 // ============================================================================
-
-export const GROOMING_QUESTIONS_HEADING = "## Grooming Questions";
 
 /**
  * Run the grooming summary prompt to consolidate questions from all agents.
@@ -384,46 +381,113 @@ export function buildFallbackSummary(
 }
 
 /**
- * Build the markdown comment body from summary output.
- * Returns null if there are no questions to display.
+ * Parse a markdown line into MDAST list item children.
+ * This preserves rich formatting (bold, strikethrough, inline code) in the AST
+ * instead of creating plain text nodes that get escaped on serialization.
  */
-export function buildGroomingQuestionsComment(
-  summary: GroomingSummaryOutput,
-): string | null {
-  const lines: string[] = [GROOMING_QUESTIONS_HEADING];
-  lines.push("");
-  lines.push(
-    "The following questions need to be addressed before this issue is ready:",
-  );
-  lines.push("");
+function parseMarkdownLine(markdown: string): RootContent[] {
+  const ast = parseMarkdown(markdown);
+  const firstChild = ast.children[0];
+  if (firstChild && "children" in firstChild) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- paragraph children are phrasing content, compatible with RootContent
+    return (firstChild as { children: RootContent[] }).children;
+  }
+  return [{ type: "text", value: markdown }];
+}
 
+/**
+ * Build questions content as MDAST RootContent[] for upsertSection.
+ * Merges new consolidated questions with existing ones from the body.
+ *
+ * - New pending questions → unchecked, with `id:slug` inline code
+ * - Answered questions → checked with strikethrough, with `id:slug` inline code
+ * - Existing triage questions (no ID) → preserved as-is
+ * - Existing grooming questions not in new output → preserved with current checked state
+ * - User-checked questions → respected (not unchecked by re-run)
+ */
+export function buildQuestionsContent(
+  summary: GroomingSummaryOutput,
+  existingQuestions: QuestionItem[],
+): RootContent[] {
   const pending = summary.consolidated_questions ?? [];
   const answered = summary.answered_questions ?? [];
 
-  if (pending.length === 0 && answered.length === 0) {
-    return null;
+  if (
+    pending.length === 0 &&
+    answered.length === 0 &&
+    existingQuestions.length === 0
+  ) {
+    return [];
   }
 
-  // Pending questions as unchecked items
-  for (const q of pending) {
-    const sources = q.sources.join(", ");
-    const priority = q.priority === "critical" ? " **[critical]**" : "";
-    lines.push(
-      `- [ ] **${q.title}**${priority} - ${q.description} _(${sources})_`,
-    );
+  // Build a set of IDs from the new output (pending + answered)
+  const newIds = new Set<string>();
+  for (const q of pending) newIds.add(q.id);
+  for (const q of answered) newIds.add(q.id);
+
+  // Build a map of existing questions by ID for user-checked state
+  const existingById = new Map<string, QuestionItem>();
+  for (const q of existingQuestions) {
+    if (q.id) existingById.set(q.id, q);
   }
 
-  // Answered questions as checked items
-  if (answered.length > 0) {
-    lines.push("");
-    lines.push("### Resolved");
-    lines.push("");
-    for (const q of answered) {
-      lines.push(`- [x] ~~${q.title}~~ - ${q.answer_summary}`);
+  // Build list items as MDAST nodes with proper formatting
+  const listItems: unknown[] = [];
+
+  // 1. Preserve existing triage questions (no ID) as-is
+  for (const q of existingQuestions) {
+    if (!q.id) {
+      listItems.push({
+        type: "listItem",
+        checked: q.checked,
+        children: [{ type: "paragraph", children: parseMarkdownLine(q.text) }],
+      });
     }
   }
 
-  return lines.join("\n");
+  // 2. Add pending questions (unchecked, unless user already checked them)
+  for (const q of pending) {
+    const existing = existingById.get(q.id);
+    const checked = existing?.checked ?? false;
+    const sources = q.sources.join(", ");
+    const priority = q.priority === "critical" ? " **[critical]**" : "";
+    const text = `**${q.title}**${priority} - ${q.description} _(${sources})_ \`id:${q.id}\``;
+    listItems.push({
+      type: "listItem",
+      checked,
+      children: [{ type: "paragraph", children: parseMarkdownLine(text) }],
+    });
+  }
+
+  // 3. Add answered questions (checked with strikethrough)
+  for (const q of answered) {
+    const text = `~~${q.title}~~ - ${q.answer_summary} \`id:${q.id}\``;
+    listItems.push({
+      type: "listItem",
+      checked: true,
+      children: [{ type: "paragraph", children: parseMarkdownLine(text) }],
+    });
+  }
+
+  // 4. Preserve existing grooming questions not in new output
+  for (const q of existingQuestions) {
+    if (q.id && !newIds.has(q.id)) {
+      listItems.push({
+        type: "listItem",
+        checked: q.checked,
+        children: [{ type: "paragraph", children: parseMarkdownLine(q.text) }],
+      });
+    }
+  }
+
+  const list: List = {
+    type: "list",
+    ordered: false,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- unknown[] contains valid ListItem nodes
+    children: listItems as List["children"],
+  };
+
+  return [list];
 }
 
 // ============================================================================

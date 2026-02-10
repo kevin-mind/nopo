@@ -42,6 +42,12 @@ export {
   historyExtractor,
   agentNotesExtractor,
   extractTodosFromAst,
+  questionsExtractor,
+  extractQuestionsFromAst,
+  extractQuestionItems,
+  QuestionStatsSchema,
+  type QuestionStats,
+  type QuestionItem,
 } from "./extractors.js";
 
 // MDAST-based mutators (work directly with JSON, return new IssueStateData)
