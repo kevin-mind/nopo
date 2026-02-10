@@ -19740,10 +19740,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error7;
-    function warning17(message, properties = {}) {
+    function warning18(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning17;
+    exports2.warning = warning18;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -43427,6 +43427,9 @@ var serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, 
 function parseMarkdown(markdown) {
   return parser.parse(markdown);
 }
+function serializeMarkdown(ast) {
+  return serializer.stringify(ast);
+}
 
 // ../issue-state/src/graphql/issue-queries.ts
 var GET_ISSUE_WITH_PROJECT_QUERY = `
@@ -43571,6 +43574,150 @@ query CheckBranchExists($owner: String!, $repo: String!, $branchName: String!) {
   }
 }
 `;
+var GET_ISSUE_LINKED_PRS_QUERY = `
+query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      number
+      timelineItems(first: 50, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+        nodes {
+          ... on CrossReferencedEvent {
+            source {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+          ... on ConnectedEvent {
+            subject {
+              ... on PullRequest {
+                number
+                title
+                state
+                headRefName
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+// ../issue-state/src/graphql/pr-queries.ts
+var GET_PR_CLOSING_ISSUES_QUERY = `
+query GetPRClosingIssues($owner: String!, $repo: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      closingIssuesReferences(first: 1) {
+        nodes {
+          number
+        }
+      }
+    }
+  }
+}
+`;
+var GET_BRANCH_CLOSING_ISSUES_QUERY = `
+query GetBranchClosingIssues($owner: String!, $repo: String!, $headRef: String!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(first: 1, headRefName: $headRef, states: [OPEN, MERGED]) {
+      nodes {
+        closingIssuesReferences(first: 1) {
+          nodes {
+            number
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+// ../issue-state/src/graphql/project-queries.ts
+var GET_PROJECT_ITEM_QUERY = `
+query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
+  repository(owner: $org, name: $repo) {
+    issue(number: $issueNumber) {
+      id
+      projectItems(first: 10) {
+        nodes {
+          id
+          project {
+            id
+            number
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                    id
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field {
+                  ... on ProjectV2Field {
+                    name
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+var UPDATE_PROJECT_FIELD_MUTATION = `
+mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: $value
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
 
 // ../issue-state/src/graphql/discussion-queries.ts
 var GET_DISCUSSION_QUERY = `
@@ -43598,6 +43745,527 @@ query GetDiscussion($owner: String!, $repo: String!, $number: Int!) {
   }
 }
 `;
+
+// ../issue-state/src/diff.ts
+function setDifference(a, b) {
+  const bSet = new Set(b);
+  return a.filter((x) => !bSet.has(x));
+}
+function computeDiff(original, updated) {
+  const originalBody = serializeMarkdown(original.bodyAst);
+  const updatedBody = serializeMarkdown(updated.bodyAst);
+  return {
+    bodyChanged: originalBody !== updatedBody,
+    titleChanged: original.title !== updated.title,
+    stateChanged: original.state !== updated.state,
+    labelsAdded: setDifference(updated.labels, original.labels),
+    labelsRemoved: setDifference(original.labels, updated.labels),
+    assigneesAdded: setDifference(updated.assignees, original.assignees),
+    assigneesRemoved: setDifference(original.assignees, updated.assignees),
+    projectStatusChanged: original.projectStatus !== updated.projectStatus,
+    iterationChanged: original.iteration !== updated.iteration,
+    failuresChanged: original.failures !== updated.failures
+  };
+}
+
+// ../issue-state/src/project-helpers.ts
+async function getProjectFieldInfo(octokit, owner, repo, issueNumber, projectNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_PROJECT_ITEM_QUERY,
+      {
+        org: owner,
+        repo,
+        issueNumber,
+        projectNumber
+      }
+    );
+    const project = response.organization?.projectV2;
+    if (!project) {
+      return null;
+    }
+    let projectItemId = null;
+    const projectItems = response.repository?.issue?.projectItems?.nodes || [];
+    for (const item of projectItems) {
+      if (item.project?.number === projectNumber) {
+        projectItemId = item.id;
+        break;
+      }
+    }
+    let statusFieldId = null;
+    const statusOptions = /* @__PURE__ */ new Map();
+    let iterationFieldId = null;
+    let failuresFieldId = null;
+    for (const field of project.fields.nodes) {
+      if (field.name === "Status" && field.options) {
+        statusFieldId = field.id;
+        for (const option of field.options) {
+          statusOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Iteration" && field.dataType === "NUMBER") {
+        iterationFieldId = field.id;
+      } else if (field.name === "Failures" && field.dataType === "NUMBER") {
+        failuresFieldId = field.id;
+      }
+    }
+    return {
+      projectId: project.id,
+      projectItemId,
+      statusFieldId,
+      statusOptions,
+      iterationFieldId,
+      failuresFieldId
+    };
+  } catch {
+    return null;
+  }
+}
+async function updateProjectField(octokit, projectId, itemId, fieldId, value) {
+  await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+async function updateProjectFields(octokit, owner, repo, issueNumber, projectNumber, fields) {
+  const fieldInfo = await getProjectFieldInfo(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber
+  );
+  if (!fieldInfo) {
+    return;
+  }
+  const projectItemId = fieldInfo.projectItemId;
+  if (!projectItemId) {
+    return;
+  }
+  const fieldUpdates = [];
+  if (fields.status !== void 0 && fieldInfo.statusFieldId) {
+    const optionId = fields.status ? fieldInfo.statusOptions.get(fields.status) : null;
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.statusFieldId,
+          { singleSelectOptionId: optionId }
+        )
+      );
+    }
+  }
+  if (fields.iteration !== void 0 && fieldInfo.iterationFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.iterationFieldId,
+        { number: fields.iteration }
+      )
+    );
+  }
+  if (fields.failures !== void 0 && fieldInfo.failuresFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.failuresFieldId,
+        { number: fields.failures }
+      )
+    );
+  }
+  await Promise.all(fieldUpdates);
+}
+
+// ../issue-state/src/update-issue.ts
+async function updateIssue(original, updated, octokit, options = {}) {
+  const { owner, repo } = updated;
+  const diff = computeDiff(original.issue, updated.issue);
+  const { projectNumber } = options;
+  const promises = [];
+  if (diff.bodyChanged || diff.titleChanged || diff.stateChanged) {
+    const updateParams = {
+      owner,
+      repo,
+      issue_number: updated.issue.number
+    };
+    if (diff.bodyChanged) {
+      updateParams.body = serializeMarkdown(updated.issue.bodyAst);
+    }
+    if (diff.titleChanged) {
+      updateParams.title = updated.issue.title;
+    }
+    if (diff.stateChanged) {
+      updateParams.state = updated.issue.state === "OPEN" ? "open" : "closed";
+      if (updated.issue.state === "CLOSED" && updated.issue.stateReason) {
+        updateParams.state_reason = updated.issue.stateReason;
+      }
+    }
+    promises.push(octokit.rest.issues.update(updateParams));
+  }
+  if (diff.labelsAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        labels: diff.labelsAdded
+      })
+    );
+  }
+  for (const label of diff.labelsRemoved) {
+    promises.push(
+      octokit.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        name: label
+      })
+    );
+  }
+  if (diff.assigneesAdded.length > 0) {
+    promises.push(
+      octokit.rest.issues.addAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesAdded
+      })
+    );
+  }
+  if (diff.assigneesRemoved.length > 0) {
+    promises.push(
+      octokit.rest.issues.removeAssignees({
+        owner,
+        repo,
+        issue_number: updated.issue.number,
+        assignees: diff.assigneesRemoved
+      })
+    );
+  }
+  if (projectNumber && (diff.projectStatusChanged || diff.iterationChanged || diff.failuresChanged)) {
+    const fieldsToUpdate = {};
+    if (diff.projectStatusChanged) {
+      fieldsToUpdate.status = updated.issue.projectStatus;
+    }
+    if (diff.iterationChanged) {
+      fieldsToUpdate.iteration = updated.issue.iteration;
+    }
+    if (diff.failuresChanged) {
+      fieldsToUpdate.failures = updated.issue.failures;
+    }
+    promises.push(
+      updateProjectFields(
+        octokit,
+        owner,
+        repo,
+        updated.issue.number,
+        projectNumber,
+        fieldsToUpdate
+      )
+    );
+  }
+  await Promise.all(promises);
+}
+
+// ../issue-state/src/parse-issue.ts
+function buildUpdateOptions(options) {
+  return {
+    projectNumber: options.projectNumber
+  };
+}
+function parseProjectState(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      status = ProjectStatusSchema.parse(fieldValue.name);
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+function parseSubIssueStatus(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem?.fieldValues?.nodes) {
+    return null;
+  }
+  for (const fieldValue of projectItem.fieldValues.nodes) {
+    if (fieldValue.field?.name === "Status" && fieldValue.name) {
+      return ProjectStatusSchema.parse(fieldValue.name);
+    }
+  }
+  return null;
+}
+function deriveBranchName(parentIssueNumber3, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber3}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber3}`;
+}
+function parseIssueComments(commentNodes, botUsername) {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername
+    };
+  });
+}
+async function getLinkedPRs(octokit, owner, repo, issueNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_ISSUE_LINKED_PRS_QUERY,
+      { owner, repo, issueNumber }
+    );
+    const linkedPRs = [];
+    const timelineNodes = response.repository?.issue?.timelineItems?.nodes || [];
+    for (const node2 of timelineNodes) {
+      const pr = node2.source || node2.subject;
+      if (!pr?.number || !pr?.headRefName) continue;
+      if (linkedPRs.some((p) => p.number === pr.number)) continue;
+      linkedPRs.push({
+        number: pr.number,
+        state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+        isDraft: false,
+        // Timeline doesn't include draft status
+        title: pr.title || "",
+        headRef: pr.headRefName,
+        baseRef: "main",
+        // Timeline doesn't include base ref
+        ciStatus: null,
+        // Timeline doesn't include CI status
+        labels: [],
+        // Timeline doesn't include labels
+        reviews: []
+        // Timeline doesn't include reviews
+      });
+    }
+    return linkedPRs;
+  } catch {
+    return [];
+  }
+}
+async function getPRForBranch(octokit, owner, repo, headRef) {
+  try {
+    const response = await octokit.graphql(
+      GET_PR_FOR_BRANCH_QUERY,
+      { owner, repo, headRef }
+    );
+    const pr = response.repository?.pullRequests?.nodes?.[0];
+    if (!pr || !pr.number) {
+      return null;
+    }
+    const rawCiStatus = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
+    let ciStatus = null;
+    if (rawCiStatus) {
+      const parsed = CIStatusSchema.safeParse(rawCiStatus);
+      if (parsed.success) {
+        ciStatus = parsed.data;
+      }
+    }
+    let reviewDecision = null;
+    if (pr.reviewDecision) {
+      const parsed = ReviewDecisionSchema.safeParse(pr.reviewDecision);
+      if (parsed.success) {
+        reviewDecision = parsed.data;
+      }
+    }
+    let mergeable = null;
+    if (pr.mergeable) {
+      const parsed = MergeableStateSchema.safeParse(pr.mergeable);
+      if (parsed.success) {
+        mergeable = parsed.data;
+      }
+    }
+    return {
+      number: pr.number,
+      state: PRStateSchema.parse(pr.state?.toUpperCase() || "OPEN"),
+      isDraft: pr.isDraft || false,
+      title: pr.title || "",
+      headRef: pr.headRefName || headRef,
+      baseRef: pr.baseRefName || "main",
+      ciStatus,
+      reviewDecision,
+      mergeable,
+      reviewCount: pr.reviews?.totalCount ?? 0,
+      url: pr.url || "",
+      author: pr.author?.login ?? null,
+      labels: pr.labels?.nodes?.map((l) => l.name).filter((name) => Boolean(name)) ?? [],
+      reviews: pr.reviews?.nodes?.map((r) => ({
+        state: r.state ?? "",
+        author: r.author?.login ?? "",
+        body: r.body ?? ""
+      })) ?? []
+    };
+  } catch {
+    return null;
+  }
+}
+function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber3) {
+  const status = parseSubIssueStatus(
+    node2.projectItems?.nodes || [],
+    projectNumber
+  );
+  const body = node2.body || "";
+  const bodyAst = parseMarkdown(body);
+  return {
+    number: node2.number || 0,
+    title: node2.title || "",
+    state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
+    bodyAst,
+    projectStatus: status,
+    branch: deriveBranchName(parentIssueNumber3, phaseNumber),
+    pr: null
+    // Populated separately if fetchPRs is true
+  };
+}
+async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, botUsername, fetchPRs) {
+  const response = await octokit.graphql(
+    GET_ISSUE_WITH_PROJECT_QUERY,
+    { owner, repo, issueNumber }
+  );
+  const issue2 = response.repository?.issue;
+  if (!issue2) {
+    return null;
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  const { status, iteration, failures } = parseProjectState(
+    projectItems,
+    projectNumber
+  );
+  const subIssueNodes = issue2.subIssues?.nodes || [];
+  const sortedSubIssues = [...subIssueNodes].sort(
+    (a, b) => (a.number || 0) - (b.number || 0)
+  );
+  const subIssues = [];
+  for (let i = 0; i < sortedSubIssues.length; i++) {
+    const node2 = sortedSubIssues[i];
+    if (!node2 || !node2.number) continue;
+    const subIssue = parseSubIssueData(node2, projectNumber, i + 1, issueNumber);
+    if (fetchPRs) {
+      const linkedPRs = await getLinkedPRs(octokit, owner, repo, node2.number);
+      if (linkedPRs.length > 0) {
+        const linkedPR = linkedPRs[0];
+        if (linkedPR) {
+          subIssue.branch = linkedPR.headRef;
+          subIssue.pr = await getPRForBranch(
+            octokit,
+            owner,
+            repo,
+            linkedPR.headRef
+          );
+        }
+      }
+    }
+    subIssues.push(subIssue);
+  }
+  const body = issue2.body || "";
+  const bodyAst = parseMarkdown(body);
+  const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
+  const parentIssueNumber3 = issue2.parent?.number ?? null;
+  let issueBranch = null;
+  let issuePR = null;
+  if (fetchPRs) {
+    const linkedPRs = await getLinkedPRs(octokit, owner, repo, issueNumber);
+    const firstPR = linkedPRs[0];
+    if (firstPR) {
+      issueBranch = firstPR.headRef;
+      issuePR = await getPRForBranch(octokit, owner, repo, issueBranch);
+    }
+  }
+  return {
+    issue: {
+      number: issue2.number || issueNumber,
+      title: issue2.title || "",
+      state: IssueStateSchema.parse(issue2.state?.toUpperCase() || "OPEN"),
+      bodyAst,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees: issue2.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels: issue2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      comments,
+      branch: issueBranch,
+      pr: issuePR,
+      parentIssueNumber: parentIssueNumber3
+    },
+    parentIssueNumber: parentIssueNumber3
+  };
+}
+async function parseIssue(owner, repo, issueNumber, options) {
+  const {
+    octokit,
+    projectNumber = 0,
+    botUsername = "nopo-bot",
+    fetchPRs = true,
+    fetchParent = true
+  } = options;
+  const result = await fetchIssueData(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    botUsername,
+    fetchPRs
+  );
+  if (!result) {
+    throw new Error(`Issue #${issueNumber} not found`);
+  }
+  let parentIssue = null;
+  if (fetchParent && result.parentIssueNumber) {
+    const parentResult = await fetchIssueData(
+      octokit,
+      owner,
+      repo,
+      result.parentIssueNumber,
+      projectNumber,
+      botUsername,
+      fetchPRs
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
+  }
+  const data = {
+    owner,
+    repo,
+    issue: result.issue,
+    parentIssue
+  };
+  const original = structuredClone(data);
+  const updateOptions = buildUpdateOptions(options);
+  return {
+    data,
+    update: (newData) => updateIssue(original, newData, octokit, updateOptions)
+  };
+}
 
 // ../issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
@@ -43641,6 +44309,22 @@ function formatAgentNotesForPrompt(entries) {
   }
   const recentEntries = entries.slice(0, 3);
   return recentEntries.map(formatEntry).join("\n\n");
+}
+
+// ../issue-state/src/resolve-issue.ts
+async function issueNumberFromPR(octokit, owner, repo, prNumber) {
+  const response = await octokit.graphql(
+    GET_PR_CLOSING_ISSUES_QUERY,
+    { owner, repo, prNumber }
+  );
+  return response.repository?.pullRequest?.closingIssuesReferences?.nodes?.[0]?.number ?? null;
+}
+async function issueNumberFromBranch(octokit, owner, repo, branch) {
+  const response = await octokit.graphql(
+    GET_BRANCH_CLOSING_ISSUES_QUERY,
+    { owner, repo, headRef: branch }
+  );
+  return response.repository?.pullRequests?.nodes?.[0]?.closingIssuesReferences?.nodes?.[0]?.number ?? null;
 }
 
 // ../issue-state/src/create-extractor.ts
@@ -44639,15 +45323,15 @@ function isDiscussionTrigger(trigger) {
 }
 
 // src/parser/issue-adapter.ts
-function deriveBranchName(parentIssueNumber2, phaseNumber) {
+function deriveBranchName2(parentIssueNumber3, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber3}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber2}`;
+  return `claude/issue/${parentIssueNumber3}`;
 }
 
 // src/parser/state-parser.ts
-function parseProjectState(projectItems, projectNumber) {
+function parseProjectState2(projectItems, projectNumber) {
   const projectItem = projectItems.find(
     (item) => item.project?.number === projectNumber
   );
@@ -44673,7 +45357,7 @@ function parseProjectState(projectItems, projectNumber) {
   }
   return { status, iteration, failures };
 }
-function parseSubIssueStatus(projectItems, projectNumber) {
+function parseSubIssueStatus2(projectItems, projectNumber) {
   const projectItem = projectItems.find(
     (item) => item.project?.number === projectNumber
   );
@@ -44690,14 +45374,14 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   return null;
 }
-function deriveBranchName2(parentIssueNumber2, phaseNumber) {
+function deriveBranchName3(parentIssueNumber3, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
+    return `claude/issue/${parentIssueNumber3}/phase-${phaseNumber}`;
   }
-  return `claude/issue/${parentIssueNumber2}`;
+  return `claude/issue/${parentIssueNumber3}`;
 }
-function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber2) {
-  const status = parseSubIssueStatus(
+function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber3) {
+  const status = parseSubIssueStatus2(
     node2.projectItems?.nodes || [],
     projectNumber
   );
@@ -44709,7 +45393,7 @@ function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber2) {
     state: IssueStateSchema.catch("OPEN").parse(node2.state?.toUpperCase()),
     bodyAst,
     projectStatus: status,
-    branch: deriveBranchName2(parentIssueNumber2, phaseNumber),
+    branch: deriveBranchName3(parentIssueNumber3, phaseNumber),
     pr: null
     // Will be populated separately
   };
@@ -44729,7 +45413,7 @@ async function checkBranchExists(octokit, owner, repo, branchName) {
     return false;
   }
 }
-async function getPRForBranch(octokit, owner, repo, headRef) {
+async function getPRForBranch2(octokit, owner, repo, headRef) {
   try {
     const response = await octokit.graphql(
       GET_PR_FOR_BRANCH_QUERY,
@@ -44766,7 +45450,7 @@ async function getPRForBranch(octokit, owner, repo, headRef) {
     return null;
   }
 }
-function parseIssueComments(commentNodes, botUsername) {
+function parseIssueComments2(commentNodes, botUsername) {
   return commentNodes.map((c) => {
     const author = c.author?.login ?? "unknown";
     return {
@@ -44792,7 +45476,7 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber,
     return null;
   }
   const projectItems = issue2.projectItems?.nodes || [];
-  const { status, iteration, failures } = parseProjectState(
+  const { status, iteration, failures } = parseProjectState2(
     projectItems,
     projectNumber
   );
@@ -44808,8 +45492,8 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber,
   }
   const body = issue2.body || "";
   const bodyAst = parseMarkdown(body);
-  const comments = parseIssueComments(issue2.comments?.nodes || [], botUsername);
-  const parentIssueNumber2 = issue2.parent?.number ?? null;
+  const comments = parseIssueComments2(issue2.comments?.nodes || [], botUsername);
+  const parentIssueNumber3 = issue2.parent?.number ?? null;
   return {
     issue: {
       number: issue2.number || issueNumber,
@@ -44828,9 +45512,9 @@ async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber,
       // Will be populated separately
       pr: null,
       // Will be populated separately
-      parentIssueNumber: parentIssueNumber2
+      parentIssueNumber: parentIssueNumber3
     },
-    parentIssueNumber: parentIssueNumber2
+    parentIssueNumber: parentIssueNumber3
   };
 }
 function findCurrentPhase(subIssues) {
@@ -44843,13 +45527,13 @@ function findCurrentPhase(subIssues) {
   }
   return null;
 }
-async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber2, subIssues) {
+async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber3, subIssues) {
   const enriched = [];
   for (let i = 0; i < subIssues.length; i++) {
     const subIssue = subIssues[i];
     if (!subIssue) continue;
-    const branchName = deriveBranchName2(parentIssueNumber2, i + 1);
-    const pr = await getPRForBranch(octokit, owner, repo, branchName);
+    const branchName = deriveBranchName3(parentIssueNumber3, i + 1);
+    const pr = await getPRForBranch2(octokit, owner, repo, branchName);
     enriched.push({
       ...subIssue,
       branch: branchName,
@@ -44882,14 +45566,14 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   if (!issueResult) {
     return null;
   }
-  const { issue: issue2, parentIssueNumber: parentIssueNumber2 } = issueResult;
+  const { issue: issue2, parentIssueNumber: parentIssueNumber3 } = issueResult;
   let parentIssue = null;
-  if (parentIssueNumber2) {
+  if (parentIssueNumber3) {
     const parentResult = await fetchIssueState(
       octokit,
       owner,
       repo,
-      parentIssueNumber2,
+      parentIssueNumber3,
       projectNumber,
       botUsername
     );
@@ -44909,10 +45593,10 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   const currentPhaseInfo = findCurrentPhase(issue2.subIssues);
   const currentPhase = currentPhaseInfo?.phase ?? null;
   const currentSubIssue = currentPhaseInfo?.subIssue ?? null;
-  const derivedBranch = currentPhase ? deriveBranchName2(issueNumber, currentPhase) : deriveBranchName2(issueNumber);
+  const derivedBranch = currentPhase ? deriveBranchName3(issueNumber, currentPhase) : deriveBranchName3(issueNumber);
   const branch = options.branch || derivedBranch;
   const hasBranch2 = await checkBranchExists(octokit, owner, repo, branch);
-  const pr = hasBranch2 ? await getPRForBranch(octokit, owner, repo, branch) : null;
+  const pr = hasBranch2 ? await getPRForBranch2(octokit, owner, repo, branch) : null;
   let ciResult = null;
   let ciRunUrl = options.ciRunUrl ?? null;
   let ciCommitSha = null;
@@ -46285,7 +46969,7 @@ function emitLogReviewRequested({
   return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
 }
 function emitCreateBranch({ context: context2 }) {
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   return [
     {
       type: "createBranch",
@@ -46301,7 +46985,7 @@ function emitCreatePR({ context: context2 }) {
   if (context2.pr) {
     return [];
   }
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
   return [
     {
@@ -46370,33 +47054,33 @@ function emitMergePR({ context: context2 }) {
 }
 function buildIteratePromptVars(context2, ciResultOverride) {
   const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
-  const branchName = context2.branch ?? deriveBranchName(context2.issue.number, context2.currentPhase ?? void 0);
+  const issueTitle2 = context2.currentSubIssue?.title ?? context2.issue.title;
+  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
   const iteration = context2.issue.iteration;
   const failures = context2.issue.failures;
   const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
-  const isSubIssue2 = context2.parentIssue !== null && context2.currentPhase !== null;
-  const parentIssueNumber2 = context2.parentIssue?.number;
+  const isSubIssue3 = context2.parentIssue !== null && context2.currentPhase !== null;
+  const parentIssueNumber3 = context2.parentIssue?.number;
   const phaseNumber = context2.currentPhase;
-  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber2}
+  const parentContext = isSubIssue3 ? `- **Parent Issue**: #${parentIssueNumber3}
 - **Phase**: ${phaseNumber}
 
 > This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
-  const prCreateCommand = isSubIssue2 ? `\`\`\`bash
+  const prCreateCommand = isSubIssue3 ? `\`\`\`bash
 gh pr create --draft --reviewer nopo-bot \\
-  --title "${issueTitle}" \\
+  --title "${issueTitle2}" \\
   --body "Fixes #${issueNumber}
-Related to #${parentIssueNumber2}
+Related to #${parentIssueNumber3}
 
 Phase ${phaseNumber} of parent issue."
 \`\`\`` : `\`\`\`bash
 gh pr create --draft --reviewer nopo-bot \\
-  --title "${issueTitle}" \\
+  --title "${issueTitle2}" \\
   --body "Fixes #${issueNumber}"
 \`\`\``;
   return {
     ISSUE_NUMBER: String(issueNumber),
-    ISSUE_TITLE: issueTitle,
+    ISSUE_TITLE: issueTitle2,
     ITERATION: String(iteration),
     LAST_CI_RESULT: ciResult,
     CONSECUTIVE_FAILURES: String(failures),
@@ -67074,8 +67758,1666 @@ function setOutputs(outputs) {
     }
   }
 }
+async function execCommand(command, args = [], options) {
+  let stdout = "";
+  let stderr = "";
+  const exitCode = await exec9.exec(command, args, {
+    ...options,
+    listeners: {
+      stdout: (data) => {
+        stdout += data.toString();
+      },
+      stderr: (data) => {
+        stderr += data.toString();
+      }
+    }
+  });
+  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
+}
+
+// actions/sm-router/payload-schemas.ts
+var LabelSchema = external_exports.object({ name: external_exports.string() });
+var UserSchema = external_exports.object({
+  login: external_exports.string(),
+  type: external_exports.string().optional()
+});
+var UserLoginSchema = external_exports.object({ login: external_exports.string() });
+var IssuePayloadSchema = external_exports.object({
+  number: external_exports.number(),
+  title: external_exports.string(),
+  body: external_exports.string().nullable().default(""),
+  labels: external_exports.array(LabelSchema),
+  assignees: external_exports.array(external_exports.object({ login: external_exports.string() })).optional()
+});
+var IssueCommentPayloadSchema = external_exports.object({
+  id: external_exports.number(),
+  node_id: external_exports.string(),
+  body: external_exports.string(),
+  user: UserSchema
+});
+var IssueForCommentPayloadSchema = external_exports.object({
+  number: external_exports.number(),
+  title: external_exports.string(),
+  body: external_exports.string().nullable().default(""),
+  labels: external_exports.array(LabelSchema),
+  pull_request: external_exports.unknown().optional()
+});
+var PullRequestPayloadSchema = external_exports.object({
+  number: external_exports.number(),
+  title: external_exports.string(),
+  draft: external_exports.boolean(),
+  head: external_exports.object({ ref: external_exports.string() }),
+  body: external_exports.string().nullable().default(""),
+  labels: external_exports.array(LabelSchema),
+  author: external_exports.object({ login: external_exports.string() }).optional(),
+  user: external_exports.object({ login: external_exports.string() }).optional()
+});
+var ReviewPayloadSchema = external_exports.object({
+  id: external_exports.number(),
+  state: external_exports.string(),
+  body: external_exports.string().nullable().default(""),
+  user: external_exports.object({ login: external_exports.string() }).optional()
+});
+var ReviewCommentPayloadSchema = external_exports.object({
+  id: external_exports.number(),
+  body: external_exports.string(),
+  user: UserSchema
+});
+var PullRequestForReviewCommentPayloadSchema = external_exports.object({
+  number: external_exports.number(),
+  title: external_exports.string(),
+  head: external_exports.object({ ref: external_exports.string() }),
+  labels: external_exports.array(LabelSchema)
+});
+var WorkflowRunPayloadSchema = external_exports.object({
+  conclusion: external_exports.string().nullable(),
+  head_branch: external_exports.string(),
+  head_sha: external_exports.string(),
+  id: external_exports.number()
+});
+var MergeGroupPayloadSchema = external_exports.object({
+  head_ref: external_exports.string(),
+  head_sha: external_exports.string()
+});
+var DiscussionPayloadSchema = external_exports.object({
+  number: external_exports.number(),
+  title: external_exports.string(),
+  body: external_exports.string().nullable().default("")
+});
+var DiscussionCommentPayloadSchema = external_exports.object({
+  id: external_exports.number(),
+  node_id: external_exports.string(),
+  body: external_exports.string(),
+  parent_id: external_exports.number().nullable().optional(),
+  user: external_exports.object({ login: external_exports.string() })
+});
 
 // actions/sm-router/index.ts
+function emptyResult(skip = false, skipReason = "") {
+  return {
+    job: "",
+    resourceType: "",
+    resourceNumber: "",
+    commentId: "",
+    contextJson: {},
+    skip,
+    skipReason,
+    concurrencyGroup: "",
+    cancelInProgress: false
+  };
+}
+async function addReactionToComment(octokit, owner, repo, commentId, reaction) {
+  try {
+    await octokit.rest.reactions.createForIssueComment({
+      owner,
+      repo,
+      comment_id: commentId,
+      content: reaction
+    });
+    core24.info(`Added ${reaction} reaction to comment ${commentId}`);
+  } catch (error7) {
+    core24.warning(`Failed to add reaction to comment: ${error7}`);
+  }
+}
+async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
+  try {
+    await octokit.graphql(
+      `
+      mutation($subjectId: ID!, $content: ReactionContent!) {
+        addReaction(input: {subjectId: $subjectId, content: $content}) {
+          reaction {
+            content
+          }
+        }
+      }
+      `,
+      { subjectId: nodeId, content: reaction }
+    );
+    core24.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
+  } catch (error7) {
+    core24.warning(`Failed to add reaction to discussion comment: ${error7}`);
+  }
+}
+function jobToTrigger(job, contextJson) {
+  try {
+    const ctx = JSON.parse(contextJson);
+    if (ctx.trigger_type) {
+      return ctx.trigger_type;
+    }
+  } catch {
+  }
+  const jobTriggerOverrides = {
+    "issue-iterate": "issue-assigned",
+    "merge-queue-logging": "merge-queue-entered",
+    "discussion-research": "discussion-created",
+    "discussion-respond": "discussion-comment",
+    "discussion-summarize": "discussion-command",
+    "discussion-plan": "discussion-command",
+    "discussion-complete": "discussion-command"
+  };
+  return jobTriggerOverrides[job] || job || "issue-assigned";
+}
+function computeConcurrency(job, resourceNumber, parentIssue, branch) {
+  const reviewJobs = [
+    "pr-push",
+    "pr-review",
+    "pr-review-approved",
+    "pr-response",
+    "pr-human-response"
+  ];
+  if (reviewJobs.includes(job)) {
+    return {
+      group: `claude-job-review-${resourceNumber}`,
+      // pr-push should cancel in-flight reviews
+      cancelInProgress: job === "pr-push"
+    };
+  }
+  const discussionJobs = [
+    "discussion-research",
+    "discussion-respond",
+    "discussion-summarize",
+    "discussion-plan",
+    "discussion-complete"
+  ];
+  if (discussionJobs.includes(job)) {
+    return {
+      group: `claude-job-discussion-${resourceNumber}`,
+      cancelInProgress: false
+    };
+  }
+  if (branch && job === "issue-iterate") {
+    return {
+      group: `claude-job-issue-${parentIssue !== "0" ? parentIssue : resourceNumber}`,
+      cancelInProgress: false
+    };
+  }
+  return {
+    group: `claude-job-issue-${parentIssue !== "0" ? parentIssue : resourceNumber}`,
+    cancelInProgress: false
+  };
+}
+function deriveBranch(parentIssueNumber3, phaseNumber) {
+  return `claude/issue/${parentIssueNumber3}/phase-${phaseNumber}`;
+}
+async function resolveEvent(octokit, owner, repo, resourceNumber) {
+  const eventName = github.context.eventName;
+  const payload = github.context.payload;
+  switch (eventName) {
+    case "issues":
+      return {
+        handler: "issues",
+        issueNumber: payload.issue?.number ?? null
+      };
+    case "issue_comment": {
+      const issuePayload = payload.issue;
+      const isPr = !!issuePayload?.pull_request;
+      if (isPr && issuePayload?.number) {
+        const resolved = await issueNumberFromPR(
+          octokit,
+          owner,
+          repo,
+          issuePayload.number
+        );
+        return {
+          handler: "issue_comment",
+          // Fall back to payload issue number if no closing issue found
+          issueNumber: resolved ?? issuePayload.number
+        };
+      }
+      return {
+        handler: "issue_comment",
+        issueNumber: issuePayload?.number ?? null
+      };
+    }
+    case "workflow_dispatch": {
+      const num = parseInt(resourceNumber, 10);
+      return {
+        handler: "workflow_dispatch",
+        issueNumber: isNaN(num) ? null : num
+      };
+    }
+    case "push": {
+      const branch = github.context.ref.replace("refs/heads/", "");
+      const resolved = await issueNumberFromBranch(
+        octokit,
+        owner,
+        repo,
+        branch
+      );
+      return {
+        handler: "push",
+        issueNumber: resolved
+      };
+    }
+    case "pull_request": {
+      const prNum = payload.pull_request?.number;
+      if (prNum) {
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "pull_request",
+          issueNumber: resolved
+        };
+      }
+      return { handler: "pull_request", issueNumber: null };
+    }
+    case "pull_request_review": {
+      const prNum = payload.pull_request?.number;
+      if (prNum) {
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "pull_request_review",
+          issueNumber: resolved
+        };
+      }
+      return { handler: "pull_request_review", issueNumber: null };
+    }
+    case "pull_request_review_comment": {
+      const prNum = payload.pull_request?.number;
+      if (prNum) {
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "pull_request_review_comment",
+          issueNumber: resolved
+        };
+      }
+      return { handler: "pull_request_review_comment", issueNumber: null };
+    }
+    case "workflow_run": {
+      const workflowRun = "workflow_run" in payload ? payload.workflow_run : null;
+      const branch = workflowRun && typeof workflowRun === "object" && workflowRun !== null && "head_branch" in workflowRun && typeof workflowRun.head_branch === "string" ? workflowRun.head_branch : "";
+      if (branch) {
+        const resolved = await issueNumberFromBranch(
+          octokit,
+          owner,
+          repo,
+          branch
+        );
+        return {
+          handler: "workflow_run",
+          issueNumber: resolved
+        };
+      }
+      return { handler: "workflow_run", issueNumber: null };
+    }
+    case "merge_group": {
+      const mergeGroup = "merge_group" in payload ? payload.merge_group : null;
+      const headRef = mergeGroup && typeof mergeGroup === "object" && mergeGroup !== null && "head_ref" in mergeGroup && typeof mergeGroup.head_ref === "string" ? mergeGroup.head_ref : "";
+      const prMatch = headRef.match(/pr-(\d+)/);
+      if (prMatch?.[1]) {
+        const prNum = parseInt(prMatch[1], 10);
+        const resolved = await issueNumberFromPR(octokit, owner, repo, prNum);
+        return {
+          handler: "merge_group",
+          issueNumber: resolved,
+          prNumber: prNum
+        };
+      }
+      return { handler: "merge_group", issueNumber: null };
+    }
+    case "discussion":
+      return { handler: "discussion", issueNumber: null };
+    case "discussion_comment":
+      return { handler: "discussion_comment", issueNumber: null };
+    default:
+      return { handler: eventName, issueNumber: null };
+  }
+}
+function extractPhaseNumber(title) {
+  const match = title.match(/^\[Phase\s*(\d+)\]/i);
+  return match?.[1] ? parseInt(match[1], 10) : 0;
+}
+function hasSkipLabel(labels) {
+  return labels.some((l) => l === "skip-dispatch" || l === "test:automation");
+}
+function hasTestAutomationLabel(labels) {
+  return labels.some(
+    (l) => typeof l === "string" ? l === "test:automation" : l.name === "test:automation"
+  );
+}
+function isTestResource(title) {
+  return title.startsWith("[TEST]");
+}
+function shouldSkipTestResource(title, labels) {
+  if (hasTestAutomationLabel(labels)) {
+    return false;
+  }
+  return isTestResource(title);
+}
+async function ensureBranchExists(branch) {
+  const { exitCode } = await execCommand(
+    "git",
+    ["ls-remote", "--heads", "origin", branch],
+    { ignoreReturnCode: true }
+  );
+  if (exitCode === 0) {
+    const { stdout } = await execCommand("git", [
+      "ls-remote",
+      "--heads",
+      "origin",
+      branch
+    ]);
+    if (stdout.includes(branch)) {
+      core24.info(`Branch ${branch} exists`);
+      return true;
+    }
+  }
+  core24.info(`Creating branch ${branch}`);
+  await execCommand("git", ["checkout", "-b", branch]);
+  const { exitCode: pushCode } = await execCommand(
+    "git",
+    ["push", "-u", "origin", branch],
+    { ignoreReturnCode: true }
+  );
+  if (pushCode !== 0) {
+    core24.warning(`Failed to push branch ${branch}`);
+    return false;
+  }
+  core24.info(`Created and pushed branch ${branch}`);
+  return true;
+}
+async function checkBranchExists2(branch) {
+  const { stdout } = await execCommand(
+    "git",
+    ["ls-remote", "--heads", "origin", branch],
+    { ignoreReturnCode: true }
+  );
+  return stdout.includes(branch);
+}
+function shouldSkipProjectStatus(issueState) {
+  const status = issueState?.issue.projectStatus;
+  if (!status) return false;
+  const skipStatuses = ["Done", "Blocked", "Error"];
+  return skipStatuses.includes(status);
+}
+function isClaudePr(issueState) {
+  const pr = issueState?.issue.pr;
+  if (!pr) return false;
+  const claudeAuthors = ["nopo-bot", "claude[bot]"];
+  return claudeAuthors.includes(pr.author ?? "") || pr.headRef.startsWith("claude/");
+}
+function isSubIssue2(issueState) {
+  return !!issueState?.issue.parentIssueNumber;
+}
+function parentIssueNumber2(issueState) {
+  return issueState?.issue.parentIssueNumber ?? 0;
+}
+function subIssueNumbers(issueState) {
+  return issueState?.issue.subIssues.map((s) => s.number) ?? [];
+}
+function issueLabels(issueState) {
+  return issueState?.issue.labels ?? [];
+}
+function issueTitle(issueState) {
+  return issueState?.issue.title ?? "";
+}
+async function handleIssueEvent(octokit, owner, repo, issueState) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const action = payload.action ?? "";
+  const issue2 = IssuePayloadSchema.parse(payload.issue);
+  const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "Issue has test:automation label - skipping from normal automation"
+    );
+  }
+  if (isTestResource(issue2.title)) {
+    if (issueLabels(issueState).includes("test:automation")) {
+      return emptyResult(
+        true,
+        "Issue has test:automation label (verified via API) - skipping from normal automation"
+      );
+    }
+    return emptyResult(true, "Issue title starts with [TEST]");
+  }
+  const hasSkipLabelOnIssue = issue2.labels.some(
+    (l) => l.name === "skip-dispatch"
+  );
+  if (hasSkipLabelOnIssue) {
+    return emptyResult(true, "Issue has skip-dispatch label");
+  }
+  const hasTriagedLabel = issue2.labels.some((l) => l.name === "triaged");
+  const assignees = issue2.assignees;
+  const isNopoBotAssigned = assignees?.some((a) => a.login === "nopo-bot");
+  if (action === "opened" || action === "unlabeled" && LabelSchema.safeParse(payload.label).data?.name === "triaged") {
+    if (hasTriagedLabel && action !== "unlabeled") {
+      return emptyResult(true, "Issue already triaged");
+    }
+    const hasPhaseTitle = /^\[Phase \d+\]/.test(issue2.title);
+    if (isSubIssue2(issueState) || hasPhaseTitle) {
+      return emptyResult(
+        true,
+        isSubIssue2(issueState) ? "Issue is a sub-issue" : "Issue has phase title pattern"
+      );
+    }
+    return {
+      job: "issue-triage",
+      resourceType: "issue",
+      resourceNumber: String(issue2.number),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issue2.number)
+        // Note: issue_title fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (action === "edited") {
+    const sender = UserLoginSchema.safeParse(payload.sender).data?.login ?? "";
+    const botAccounts = [
+      "nopo-bot",
+      "nopo-reviewer",
+      "claude[bot]",
+      "github-actions[bot]"
+    ];
+    if (botAccounts.includes(sender)) {
+      return emptyResult(
+        true,
+        `Edit made by bot/automated account (${sender}) - use workflow dispatch to continue`
+      );
+    }
+    const hasGroomedLabel = issue2.labels.some((l) => l.name === "groomed");
+    const hasNeedsInfoLabel = issue2.labels.some((l) => l.name === "needs-info");
+    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel && !isNopoBotAssigned) {
+      const hasPhaseTitle = /^\[Phase \d+\]/.test(issue2.title);
+      if (!isSubIssue2(issueState) && !hasPhaseTitle) {
+        return {
+          job: "issue-groom",
+          resourceType: "issue",
+          resourceNumber: String(issue2.number),
+          commentId: "",
+          contextJson: {
+            issue_number: String(issue2.number),
+            trigger_type: "issue-groom"
+            // Note: issue_title fetched by parseIssue
+          },
+          skip: false,
+          skipReason: ""
+        };
+      }
+    }
+    if (isNopoBotAssigned) {
+      if (shouldSkipProjectStatus(issueState)) {
+        return emptyResult(
+          true,
+          `Issue project status is '${issueState.issue.projectStatus}' - skipping iteration`
+        );
+      }
+      if (isSubIssue2(issueState)) {
+        return {
+          job: "issue-iterate",
+          resourceType: "issue",
+          resourceNumber: String(issue2.number),
+          commentId: "",
+          contextJson: {
+            issue_number: String(issue2.number),
+            trigger_type: "issue-edited",
+            parent_issue: String(parentIssueNumber2(issueState))
+            // Note: branch_name, project_* fields removed - fetched by parseIssue
+          },
+          skip: false,
+          skipReason: ""
+        };
+      }
+      const subs = subIssueNumbers(issueState);
+      if (subs.length > 0) {
+        return {
+          job: "issue-orchestrate",
+          resourceType: "issue",
+          resourceNumber: String(issue2.number),
+          commentId: "",
+          contextJson: {
+            issue_number: String(issue2.number),
+            sub_issues: subs.join(","),
+            trigger_type: "issue-edited"
+            // Note: project_* fields removed - fetched by parseIssue
+          },
+          skip: false,
+          skipReason: ""
+        };
+      }
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: "",
+        contextJson: {
+          issue_number: String(issue2.number),
+          trigger_type: "issue-edited"
+          // Note: branch_name, project_* fields removed - fetched by parseIssue
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    if (!hasTriagedLabel) {
+      const hasPhaseTitle = /^\[Phase \d+\]/.test(issue2.title);
+      if (isSubIssue2(issueState) || hasPhaseTitle) {
+        return emptyResult(
+          true,
+          isSubIssue2(issueState) ? "Issue is a sub-issue" : "Issue has phase title pattern"
+        );
+      }
+      return {
+        job: "issue-triage",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: "",
+        contextJson: {
+          issue_number: String(issue2.number)
+          // Note: issue_title fetched by parseIssue
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    return emptyResult(
+      true,
+      "Issue edited but already triaged and not assigned to nopo-bot"
+    );
+  }
+  if (action === "closed") {
+    if (!isSubIssue2(issueState)) {
+      return emptyResult(true, "Closed issue is not a sub-issue");
+    }
+    return {
+      job: "issue-orchestrate",
+      resourceType: "issue",
+      resourceNumber: String(parentIssueNumber2(issueState)),
+      commentId: "",
+      contextJson: {
+        issue_number: String(parentIssueNumber2(issueState)),
+        trigger_type: "issue-orchestrate",
+        closed_sub_issue: String(issue2.number)
+        // Note: project_* fields removed - fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (action === "assigned") {
+    const assignee = UserLoginSchema.parse(payload.assignee);
+    if (assignee.login !== "nopo-bot") {
+      return emptyResult(true, "Not assigned to nopo-bot");
+    }
+    const terminalStatuses = ["Done", "Blocked", "Error"];
+    if (issueState.issue.projectStatus && terminalStatuses.includes(issueState.issue.projectStatus)) {
+      return emptyResult(
+        true,
+        `Issue project status is '${issueState.issue.projectStatus}' - skipping iteration`
+      );
+    }
+    if (isSubIssue2(issueState)) {
+      const phaseNumber = extractPhaseNumber(issueTitle(issueState));
+      const branchName2 = deriveBranch(
+        parentIssueNumber2(issueState),
+        phaseNumber || issue2.number
+      );
+      await ensureBranchExists(branchName2);
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: "",
+        contextJson: {
+          issue_number: String(issue2.number),
+          branch_name: branchName2,
+          trigger_type: "issue-assigned",
+          parent_issue: String(parentIssueNumber2(issueState))
+          // Note: project_* fields removed - fetched by parseIssue
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    const subs = subIssueNumbers(issueState);
+    if (!hasTriagedLabel && subs.length === 0) {
+      return emptyResult(
+        true,
+        "Issue not triaged yet - waiting for triage to complete and create sub-issues"
+      );
+    }
+    if (subs.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: "",
+        contextJson: {
+          issue_number: String(issue2.number),
+          sub_issues: subs.join(","),
+          trigger_type: "issue-assigned"
+          // Note: project_* fields removed - fetched by parseIssue
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    const branchName = `claude/issue/${issue2.number}`;
+    await ensureBranchExists(branchName);
+    return {
+      job: "issue-iterate",
+      resourceType: "issue",
+      resourceNumber: String(issue2.number),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issue2.number),
+        branch_name: branchName,
+        trigger_type: "issue-assigned"
+        // Note: project_* fields removed - fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  return emptyResult(true, `Unhandled issue action: ${action}`);
+}
+async function handleIssueCommentEvent(octokit, owner, repo, resolvedIssueNumber, issueState) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const comment = IssueCommentPayloadSchema.parse(payload.comment);
+  const issue2 = IssueForCommentPayloadSchema.parse(payload.issue);
+  const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "Issue has test:automation label - skipping from normal automation"
+    );
+  }
+  if (isTestResource(issue2.title)) {
+    return emptyResult(true, "Issue/PR title starts with [TEST]");
+  }
+  const hasSkipLabelOnIssue = issue2.labels.some(
+    (l) => l.name === "skip-dispatch"
+  );
+  if (hasSkipLabelOnIssue) {
+    return emptyResult(true, "Issue has skip-dispatch label");
+  }
+  if (comment.user.type === "Bot") {
+    return emptyResult(true, "Comment is from a bot");
+  }
+  const isPr = !!issue2.pull_request;
+  const commandLines = comment.body.split("\n").map((line) => line.trim());
+  const hasImplementCommand = commandLines.some(
+    (line) => line === "/implement"
+  );
+  const hasContinueCommand = commandLines.some((line) => line === "/continue");
+  const hasLfgCommand = commandLines.some((line) => line === "/lfg");
+  const hasResetCommand = commandLines.some((line) => line === "/reset");
+  const hasPivotCommand = commandLines.some(
+    (line) => line.startsWith("/pivot")
+  );
+  if (hasResetCommand && !isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
+    return {
+      job: "issue-reset",
+      resourceType: "issue",
+      resourceNumber: String(issue2.number),
+      commentId: String(comment.id),
+      contextJson: {
+        issue_number: String(issue2.number),
+        trigger_type: "issue-reset"
+        // Note: sub_issues fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (hasPivotCommand && !isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
+    const pivotLine = comment.body.split("\n").find((l) => l.trim().startsWith("/pivot"));
+    const pivotDescription = pivotLine?.replace(/^\/pivot\s*/, "").trim() || "";
+    const targetIssue = isSubIssue2(issueState) ? parentIssueNumber2(issueState) : issue2.number;
+    return {
+      job: "issue-pivot",
+      resourceType: "issue",
+      resourceNumber: String(targetIssue),
+      commentId: String(comment.id),
+      contextJson: {
+        issue_number: String(targetIssue),
+        pivot_description: pivotDescription,
+        triggered_from: String(issue2.number),
+        trigger_type: "issue-pivot"
+        // Note: sub_issues fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
+    const pr = issueState.issue.pr;
+    if (pr?.isDraft) {
+      return emptyResult(
+        true,
+        "PR is a draft - convert to ready for review first"
+      );
+    }
+    const pendingReview = pr?.reviews?.filter((r) => r.state === "CHANGES_REQUESTED").pop();
+    if (!pendingReview) {
+      if (pr?.reviewDecision === "APPROVED") {
+        return emptyResult(true, "PR is already approved");
+      }
+      return emptyResult(true, "No pending changes requested on this PR");
+    }
+    const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
+    const isClaudeReviewer = claudeReviewers.includes(pendingReview.author);
+    const job = isClaudeReviewer ? "pr-response" : "pr-human-response";
+    const triggerType = job;
+    return {
+      job,
+      resourceType: "pr",
+      resourceNumber: String(issue2.number),
+      commentId: String(comment.id),
+      contextJson: {
+        pr_number: String(issue2.number),
+        branch_name: pr?.headRef ?? "main",
+        review_state: "changes_requested",
+        review_decision: "CHANGES_REQUESTED",
+        review_body: pendingReview.body ?? "",
+        reviewer: pendingReview.author,
+        reviewer_login: pendingReview.author,
+        issue_number: String(resolvedIssueNumber),
+        trigger_type: triggerType
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if ((hasImplementCommand || hasContinueCommand || hasLfgCommand) && !isPr) {
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
+    if (isSubIssue2(issueState)) {
+      const phaseNumber = extractPhaseNumber(issueTitle(issueState));
+      const branchName3 = deriveBranch(
+        parentIssueNumber2(issueState),
+        phaseNumber || issue2.number
+      );
+      const branchExists = await checkBranchExists2(branchName3);
+      if (!branchExists) {
+        await ensureBranchExists(branchName3);
+      }
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue2.number),
+          branch_name: branchName3,
+          trigger_type: "issue-assigned",
+          // Routes to iterating state, not commenting
+          parent_issue: String(parentIssueNumber2(issueState))
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    const hasGroomedLabel = issue2.labels.some((l) => l.name === "groomed");
+    const hasNeedsInfoLabel = issue2.labels.some((l) => l.name === "needs-info");
+    const hasTriagedLabel = issue2.labels.some((l) => l.name === "triaged");
+    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel) {
+      return {
+        job: "issue-groom",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue2.number),
+          trigger_type: "issue-groom"
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    const subs = subIssueNumbers(issueState);
+    if (subs.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue2.number),
+          sub_issues: subs.join(","),
+          trigger_type: "issue-orchestrate"
+          // Routes to orchestrating state
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    const branchName2 = `claude/issue/${issue2.number}`;
+    await ensureBranchExists(branchName2);
+    return {
+      job: "issue-iterate",
+      resourceType: "issue",
+      resourceNumber: String(issue2.number),
+      commentId: String(comment.id),
+      contextJson: {
+        issue_number: String(issue2.number),
+        branch_name: branchName2,
+        trigger_type: "issue-assigned"
+        // Routes to iterating state, not commenting
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (!comment.body.includes("@claude")) {
+    return emptyResult(true, "Comment does not mention @claude");
+  }
+  let contextType = "issue";
+  let branchName = "main";
+  let linkedIssueNumber = String(resolvedIssueNumber);
+  let prNumber = "";
+  if (isPr) {
+    const pr = issueState.issue.pr;
+    branchName = pr?.headRef ?? "main";
+    contextType = "pr";
+    prNumber = String(issue2.number);
+    linkedIssueNumber = String(resolvedIssueNumber);
+  } else {
+    const issueBranch = `claude/issue/${issue2.number}`;
+    if (await checkBranchExists2(issueBranch)) {
+      branchName = issueBranch;
+    }
+  }
+  const contextDescription = branchName === "main" ? `This is ${contextType.toLowerCase()} #${issue2.number}. You are checked out on main.` : `This is ${contextType} #${issue2.number} on branch \`${branchName}\`. You are checked out on the ${isPr ? "PR" : "issue"} branch.`;
+  return {
+    job: "issue-comment",
+    resourceType: isPr ? "pr" : "issue",
+    resourceNumber: String(issue2.number),
+    commentId: String(comment.id),
+    contextJson: {
+      issue_number: linkedIssueNumber,
+      pr_number: prNumber,
+      context_type: contextType,
+      context_description: contextDescription,
+      branch_name: branchName
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
+async function handlePullRequestReviewCommentEvent(_issueState) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const comment = ReviewCommentPayloadSchema.parse(payload.comment);
+  const pr = PullRequestForReviewCommentPayloadSchema.parse(
+    payload.pull_request
+  );
+  const hasTestLabel = pr.labels.some((l) => l.name === "test:automation");
+  if (hasTestLabel) {
+    return emptyResult(
+      true,
+      "PR has test:automation label - skipping from normal automation"
+    );
+  }
+  if (isTestResource(pr.title)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
+  const hasSkipLabelOnPr = pr.labels.some((l) => l.name === "skip-dispatch");
+  if (hasSkipLabelOnPr) {
+    return emptyResult(true, "PR has skip-dispatch label");
+  }
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
+  }
+  if (comment.user.type === "Bot") {
+    return emptyResult(true, "Comment is from a bot");
+  }
+  if (!comment.body.includes("@claude")) {
+    return emptyResult(true, "Comment does not mention @claude");
+  }
+  return {
+    job: "issue-comment",
+    resourceType: "pr",
+    resourceNumber: String(pr.number),
+    commentId: String(comment.id),
+    contextJson: {
+      issue_number: String(pr.number),
+      context_type: "pr",
+      context_description: `This is PR #${pr.number} on branch \`${pr.head.ref}\`. You are checked out on the PR branch with the code changes.`,
+      branch_name: pr.head.ref
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
+async function handlePushEvent(issueState) {
+  const { context: context2 } = github;
+  const ref = context2.ref;
+  const branch = ref.replace("refs/heads/", "");
+  if (branch === "main") {
+    return emptyResult(true, "Push to main branch");
+  }
+  if (branch.startsWith("gh-readonly-queue/")) {
+    return emptyResult(true, "Push to merge queue branch");
+  }
+  if (branch.startsWith("test/")) {
+    return emptyResult(true, "Push to test branch");
+  }
+  const pr = issueState?.issue.pr;
+  if (!pr) {
+    return emptyResult(true, "No PR found for branch");
+  }
+  if (hasSkipLabel(pr.labels)) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
+  if (issueLabels(issueState).includes("test:automation")) {
+    return emptyResult(
+      true,
+      "Linked issue has test:automation label - skipping from normal automation"
+    );
+  }
+  const owner = context2.repo.owner;
+  const repo = context2.repo.repo;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const commitSha = github.context.sha;
+  const runUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+  const branchMatch = branch.match(/^claude\/issue\/(\d+)/);
+  const issueNumber = branchMatch?.[1] ?? "";
+  return {
+    job: "pr-push",
+    resourceType: "pr",
+    resourceNumber: String(pr.number),
+    commentId: "",
+    contextJson: {
+      pr_number: String(pr.number),
+      branch_name: branch,
+      is_draft: pr.isDraft,
+      issue_number: issueNumber,
+      // Include commit SHA and run URL for history entry
+      ci_commit_sha: commitSha,
+      ci_run_url: runUrl
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
+async function handleWorkflowRunEvent(issueState, resolvedIssueNumber) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const workflowRun = WorkflowRunPayloadSchema.parse(payload.workflow_run);
+  const conclusion = workflowRun.conclusion;
+  const branch = workflowRun.head_branch;
+  const headSha = workflowRun.head_sha;
+  const runId = String(workflowRun.id);
+  if (branch.startsWith("test/")) {
+    return emptyResult(true, "Workflow run on test branch");
+  }
+  const pr = issueState?.issue.pr;
+  if (!pr) {
+    return emptyResult(true, "No PR found for workflow run branch");
+  }
+  if (hasSkipLabel(pr.labels)) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
+  if (!isClaudePr(issueState))
+    return emptyResult(true, "PR is not a Claude PR");
+  if (!resolvedIssueNumber) core24.setFailed("PR has no issue number");
+  const issueNumber = String(resolvedIssueNumber ?? "");
+  if (issueLabels(issueState).includes("test:automation")) {
+    return emptyResult(
+      true,
+      "Linked issue has test:automation label - skipping from normal automation"
+    );
+  }
+  const owner = context2.repo.owner;
+  const repo = context2.repo.repo;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+  return {
+    job: "issue-iterate",
+    resourceType: "issue",
+    resourceNumber: issueNumber,
+    commentId: "",
+    contextJson: {
+      issue_number: issueNumber,
+      pr_number: String(pr.number),
+      branch_name: branch,
+      ci_run_url: ciRunUrl,
+      ci_result: conclusion,
+      ci_commit_sha: headSha,
+      trigger_type: "workflow-run-completed",
+      parent_issue: String(parentIssueNumber2(issueState))
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
+async function handlePullRequestEvent(resolvedIssueNumber) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const action = payload.action ?? "";
+  const pr = PullRequestPayloadSchema.parse(payload.pull_request);
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
+  const hasSkipLabelOnPr = pr.labels.some(
+    (l) => l.name === "skip-dispatch" || l.name === "test:automation"
+  );
+  if (hasSkipLabelOnPr) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
+  }
+  if (action === "review_requested") {
+    const requestedReviewer = UserLoginSchema.parse(payload.requested_reviewer);
+    const validReviewers = ["nopo-bot", "nopo-reviewer"];
+    if (!validReviewers.includes(requestedReviewer.login)) {
+      return emptyResult(true, "Reviewer is not nopo-bot or nopo-reviewer");
+    }
+    if (pr.draft) {
+      return emptyResult(true, "PR is a draft");
+    }
+    return {
+      job: "pr-review-requested",
+      resourceType: "pr",
+      resourceNumber: String(pr.number),
+      commentId: "",
+      contextJson: {
+        pr_number: String(pr.number),
+        branch_name: pr.head.ref,
+        issue_number: String(resolvedIssueNumber ?? "")
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  return emptyResult(true, `Unhandled PR action: ${action}`);
+}
+async function handlePullRequestReviewEvent(resolvedIssueNumber, issueState) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const review = ReviewPayloadSchema.parse(payload.review);
+  const pr = PullRequestPayloadSchema.parse(payload.pull_request);
+  if (!review?.user?.login) {
+    return emptyResult(true, "Review has no user information");
+  }
+  const reviewerLogin = review.user.login;
+  if (shouldSkipTestResource(pr.title, pr.labels)) {
+    return emptyResult(true, "PR title starts with [TEST]");
+  }
+  const hasSkipLabelOnPr = pr.labels.some(
+    (l) => l.name === "skip-dispatch" || l.name === "test:automation"
+  );
+  if (hasSkipLabelOnPr) {
+    return emptyResult(true, "PR has skip-dispatch or test:automation label");
+  }
+  if (pr.head.ref.startsWith("test/")) {
+    return emptyResult(true, "PR is on a test branch");
+  }
+  if (pr.draft) {
+    return emptyResult(true, "PR is a draft");
+  }
+  if (issueLabels(issueState).includes("test:automation")) {
+    return emptyResult(
+      true,
+      "Linked issue has test:automation label - skipping from normal automation"
+    );
+  }
+  const state = review.state.toLowerCase();
+  const issueNumber = String(resolvedIssueNumber ?? "");
+  if (state === "approved" && reviewerLogin === "nopo-reviewer") {
+    const parentIssueStr = String(parentIssueNumber2(issueState));
+    return {
+      job: "pr-review-approved",
+      resourceType: "pr",
+      resourceNumber: String(pr.number),
+      commentId: "",
+      contextJson: {
+        pr_number: String(pr.number),
+        branch_name: pr.head.ref,
+        review_state: state,
+        review_decision: "APPROVED",
+        // Uppercase for state machine
+        review_id: String(review.id),
+        issue_number: issueNumber,
+        parent_issue: parentIssueStr
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (state !== "changes_requested" && state !== "commented") {
+    return emptyResult(true, `Review state is ${state}`);
+  }
+  const claudeReviewers = ["nopo-reviewer", "claude[bot]"];
+  if (claudeReviewers.includes(reviewerLogin)) {
+    const reviewDecision2 = state.toUpperCase();
+    return {
+      job: "pr-response",
+      resourceType: "pr",
+      resourceNumber: String(pr.number),
+      commentId: "",
+      contextJson: {
+        pr_number: String(pr.number),
+        branch_name: pr.head.ref,
+        review_state: state,
+        review_decision: reviewDecision2,
+        review_body: review.body ?? "",
+        review_id: String(review.id),
+        reviewer: reviewerLogin,
+        issue_number: issueNumber
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  const claudeAuthors = ["nopo-bot", "claude[bot]"];
+  const prAuthorLogin = pr.author?.login ?? pr.user?.login ?? "";
+  const isClaudePrForReview = claudeAuthors.includes(prAuthorLogin) || pr.head.ref.startsWith("claude/");
+  if (!isClaudePrForReview) {
+    return emptyResult(true, "Human review on non-Claude PR");
+  }
+  const reviewDecision = state.toUpperCase();
+  return {
+    job: "pr-human-response",
+    resourceType: "pr",
+    resourceNumber: String(pr.number),
+    commentId: "",
+    contextJson: {
+      pr_number: String(pr.number),
+      branch_name: pr.head.ref,
+      reviewer_login: reviewerLogin,
+      reviewer: reviewerLogin,
+      review_state: state,
+      review_decision: reviewDecision,
+      review_body: review.body ?? "",
+      review_id: String(review.id),
+      issue_number: issueNumber
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
+async function handleDiscussionEvent(octokit, owner, repo) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const action = payload.action ?? "";
+  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
+  let discussionLabels = [];
+  try {
+    const result = await octokit.graphql(
+      `
+      query($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          discussion(number: $number) {
+            labels(first: 20) {
+              nodes { name }
+            }
+          }
+        }
+      }
+    `,
+      { owner, repo, number: discussion.number }
+    );
+    discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
+  } catch (error7) {
+    core24.warning(`Failed to fetch discussion labels: ${error7}`);
+  }
+  const isTestAutomation = discussionLabels.includes("test:automation");
+  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
+    return emptyResult(true, "Discussion title starts with [TEST]");
+  }
+  if (action === "created") {
+    return {
+      job: "discussion-research",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: "",
+      contextJson: {
+        discussion_number: String(discussion.number),
+        discussion_title: discussion.title,
+        discussion_body: discussion.body ?? "",
+        trigger_type: "discussion-created",
+        is_test_automation: isTestAutomation
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  return emptyResult(true, `Unhandled discussion action: ${action}`);
+}
+async function handleMergeGroupEvent(resolvedIssueNumber, prNumber, issueState) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const mergeGroup = MergeGroupPayloadSchema.parse(payload.merge_group);
+  const headRef = mergeGroup.head_ref;
+  const owner = context2.repo.owner;
+  const repo = context2.repo.repo;
+  if (!prNumber) {
+    return emptyResult(true, "No PR found in merge queue branch");
+  }
+  if (!resolvedIssueNumber) {
+    return emptyResult(true, "Could not find linked issue for merge queue PR");
+  }
+  const issueNumber = String(resolvedIssueNumber);
+  const parentIssueStr = isSubIssue2(issueState) ? String(parentIssueNumber2(issueState)) : issueNumber;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
+  return {
+    job: "merge-queue-logging",
+    resourceType: "issue",
+    resourceNumber: issueNumber,
+    commentId: "",
+    contextJson: {
+      issue_number: issueNumber,
+      parent_issue: parentIssueStr,
+      pr_number: String(prNumber),
+      trigger_type: "merge-queue-entered",
+      ci_run_url: ciRunUrl,
+      head_ref: headRef,
+      head_sha: mergeGroup.head_sha
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
+async function handleDiscussionCommentEvent(octokit, owner, repo) {
+  const { context: context2 } = github;
+  const payload = context2.payload;
+  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
+  const comment = DiscussionCommentPayloadSchema.parse(payload.comment);
+  let discussionLabels = [];
+  try {
+    const result = await octokit.graphql(
+      `
+      query($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          discussion(number: $number) {
+            labels(first: 20) {
+              nodes { name }
+            }
+          }
+        }
+      }
+    `,
+      { owner, repo, number: discussion.number }
+    );
+    discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
+  } catch (error7) {
+    core24.warning(`Failed to fetch discussion labels: ${error7}`);
+  }
+  const isTestAutomation = discussionLabels.includes("test:automation");
+  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
+    return emptyResult(true, "Discussion title starts with [TEST]");
+  }
+  const body = comment.body.trim();
+  const author = comment.user.login;
+  const isTopLevel = !comment.parent_id;
+  if (body === "/summarize") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "EYES");
+    return {
+      job: "discussion-summarize",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: comment.node_id,
+      contextJson: {
+        discussion_number: String(discussion.number),
+        trigger_type: "discussion-command",
+        command: "summarize",
+        is_test_automation: isTestAutomation
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (body === "/plan") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
+    return {
+      job: "discussion-plan",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: comment.node_id,
+      contextJson: {
+        discussion_number: String(discussion.number),
+        trigger_type: "discussion-command",
+        command: "plan",
+        is_test_automation: isTestAutomation
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (body === "/complete") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "THUMBS_UP");
+    return {
+      job: "discussion-complete",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: comment.node_id,
+      contextJson: {
+        discussion_number: String(discussion.number),
+        trigger_type: "discussion-command",
+        command: "complete",
+        is_test_automation: isTestAutomation
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (body === "/lfg" || body === "/research") {
+    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
+    return {
+      job: "discussion-research",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: comment.node_id,
+      contextJson: {
+        discussion_number: String(discussion.number),
+        discussion_title: discussion.title,
+        discussion_body: discussion.body ?? "",
+        trigger_type: "discussion-created",
+        is_test_automation: isTestAutomation
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (author !== "claude[bot]" && author !== "nopo-bot") {
+    return {
+      job: "discussion-respond",
+      resourceType: "discussion",
+      resourceNumber: String(discussion.number),
+      commentId: comment.node_id,
+      contextJson: {
+        discussion_number: String(discussion.number),
+        comment_body: comment.body,
+        comment_author: author,
+        trigger_type: "discussion-comment",
+        is_test_automation: isTestAutomation
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (isTopLevel && comment.body.includes("## \u{1F50D} Research:")) {
+    return emptyResult(
+      true,
+      "Bot research thread - investigation handled in same workflow"
+    );
+  }
+  if (comment.body.includes("## \u{1F4CA} Findings:")) {
+    return emptyResult(true, "Bot investigation findings - no action needed");
+  }
+  return emptyResult(true, "Bot comment - preventing infinite loop");
+}
+async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
+  if (!resourceNumber) {
+    return emptyResult(
+      true,
+      "No resource_number provided for workflow_dispatch"
+    );
+  }
+  const issueNum = parseInt(resourceNumber, 10);
+  if (isNaN(issueNum)) {
+    return emptyResult(true, `Invalid resource_number: ${resourceNumber}`);
+  }
+  core24.info(`Workflow dispatch for issue #${issueNum}`);
+  if (shouldSkipProjectStatus(issueState)) {
+    return emptyResult(
+      true,
+      `Issue project status is '${issueState.issue.projectStatus}' - skipping iteration`
+    );
+  }
+  let parentIssueStr = "0";
+  if (isSubIssue2(issueState) && parentIssueNumber2(issueState) > 0) {
+    parentIssueStr = String(parentIssueNumber2(issueState));
+    core24.info(
+      `Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`
+    );
+  }
+  const labels = issueLabels(issueState);
+  const hasTriaged = labels.includes("triaged");
+  const hasGroomed = labels.includes("groomed");
+  if (hasTriaged && !hasGroomed) {
+    core24.info(
+      `Issue #${issueNum} needs grooming (triaged=${hasTriaged}, groomed=${hasGroomed})`
+    );
+    return {
+      job: "issue-groom",
+      resourceType: "issue",
+      resourceNumber: String(issueNum),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNum),
+        trigger_type: "issue-groom",
+        parent_issue: parentIssueStr
+        // Note: project_* fields removed - fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  const subs = subIssueNumbers(issueState);
+  if (subs.length > 0) {
+    return {
+      job: "issue-orchestrate",
+      resourceType: "issue",
+      resourceNumber: String(issueNum),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNum),
+        sub_issues: subs.join(","),
+        trigger_type: "issue-assigned",
+        parent_issue: parentIssueStr
+        // Note: project_* fields removed - fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  if (isSubIssue2(issueState)) {
+    const phaseNumber = extractPhaseNumber(issueTitle(issueState));
+    const branchName2 = deriveBranch(
+      parentIssueNumber2(issueState),
+      phaseNumber || issueNum
+    );
+    return {
+      job: "issue-iterate",
+      resourceType: "issue",
+      resourceNumber: String(issueNum),
+      commentId: "",
+      contextJson: {
+        issue_number: String(issueNum),
+        branch_name: branchName2,
+        trigger_type: "issue-assigned",
+        parent_issue: parentIssueStr
+        // Note: project_* fields removed - fetched by parseIssue
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
+  const branchName = `claude/issue/${issueNum}`;
+  return {
+    job: "issue-iterate",
+    resourceType: "issue",
+    resourceNumber: String(issueNum),
+    commentId: "",
+    contextJson: {
+      issue_number: String(issueNum),
+      branch_name: branchName,
+      trigger_type: "issue-assigned",
+      parent_issue: parentIssueStr
+      // Note: project_* fields removed - fetched by parseIssue
+    },
+    skip: false,
+    skipReason: ""
+  };
+}
+async function detectEvent(token, resourceNumber) {
+  const octokit = github.getOctokit(token);
+  const owner = github.context.repo.owner;
+  const repo = github.context.repo.repo;
+  process.env.GH_TOKEN = token;
+  const resolved = await resolveEvent(octokit, owner, repo, resourceNumber);
+  core24.info(
+    `Processing event: ${github.context.eventName} (handler=${resolved.handler}, issueNumber=${resolved.issueNumber ?? "none"})`
+  );
+  let issueState = null;
+  if (resolved.issueNumber) {
+    try {
+      const { data } = await parseIssue(owner, repo, resolved.issueNumber, {
+        octokit,
+        fetchPRs: true,
+        fetchParent: false
+        // Handlers use parentIssueNumber from issue data
+      });
+      issueState = data;
+    } catch (error7) {
+      core24.warning(
+        `Failed to parse issue #${resolved.issueNumber}: ${error7}`
+      );
+    }
+  }
+  let result;
+  switch (resolved.handler) {
+    // ── Discussion events (no issue resolution needed) ──
+    case "discussion":
+      result = await handleDiscussionEvent(octokit, owner, repo);
+      break;
+    case "discussion_comment":
+      result = await handleDiscussionCommentEvent(octokit, owner, repo);
+      break;
+    // ── Issue events (guaranteed issue number + non-null issueState) ──
+    case "issues":
+      if (!resolved.issueNumber || !issueState) {
+        result = emptyResult(
+          true,
+          `No issue number resolved for ${resolved.handler}`
+        );
+      } else {
+        result = await handleIssueEvent(octokit, owner, repo, issueState);
+      }
+      break;
+    case "issue_comment":
+      if (!resolved.issueNumber || !issueState) {
+        result = emptyResult(
+          true,
+          `No issue number resolved for ${resolved.handler}`
+        );
+      } else {
+        result = await handleIssueCommentEvent(
+          octokit,
+          owner,
+          repo,
+          resolved.issueNumber,
+          issueState
+        );
+      }
+      break;
+    case "workflow_dispatch":
+      if (!resolved.issueNumber || !issueState) {
+        result = emptyResult(
+          true,
+          `No issue number resolved for ${resolved.handler}`
+        );
+      } else {
+        result = await handleWorkflowDispatchEvent(
+          resourceNumber,
+          issueState
+        );
+      }
+      break;
+    // ── Events with optional issue number ──
+    case "push":
+      result = await handlePushEvent(issueState);
+      break;
+    case "pull_request":
+      result = await handlePullRequestEvent(resolved.issueNumber);
+      break;
+    case "pull_request_review":
+      result = await handlePullRequestReviewEvent(
+        resolved.issueNumber,
+        issueState
+      );
+      break;
+    case "pull_request_review_comment":
+      result = await handlePullRequestReviewCommentEvent(issueState);
+      break;
+    case "workflow_run":
+      result = await handleWorkflowRunEvent(issueState, resolved.issueNumber);
+      break;
+    case "merge_group":
+      result = await handleMergeGroupEvent(
+        resolved.issueNumber,
+        resolved.prNumber,
+        issueState
+      );
+      break;
+    default:
+      result = emptyResult(true, `Unhandled event: ${resolved.handler}`);
+  }
+  if (result.skip) {
+    core24.info(`Skipping: ${result.skipReason}`);
+  } else {
+    core24.info(`Detected job: ${result.job}`);
+    core24.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
+  }
+  const ctx = result.contextJson;
+  const ctxParentIssue = String(ctx.parent_issue ?? "0");
+  const branch = String(ctx.branch_name ?? "");
+  const trigger = jobToTrigger(result.job, JSON.stringify(ctx));
+  core24.info(`Trigger: ${trigger}`);
+  const concurrency = computeConcurrency(
+    result.job,
+    result.resourceNumber,
+    ctxParentIssue,
+    branch
+  );
+  core24.info(`Concurrency group: ${concurrency.group}`);
+  core24.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
+  const unifiedContext = {
+    // Routing & control
+    job: result.job,
+    trigger: TriggerTypeSchema.parse(trigger),
+    resource_type: result.resourceType,
+    resource_number: result.resourceNumber,
+    parent_issue: ctxParentIssue,
+    comment_id: result.commentId,
+    concurrency_group: concurrency.group,
+    cancel_in_progress: concurrency.cancelInProgress,
+    skip: result.skip,
+    skip_reason: result.skipReason,
+    // Spread in all the context-specific fields
+    ...ctx
+  };
+  return unifiedContext;
+}
 function parseDiscussionCommand(body) {
   const trimmed = body.trim();
   if (trimmed === "/summarize") return "summarize";
@@ -67133,56 +69475,6 @@ function getTransitionName(finalState) {
     noContext: "No Context"
   };
   return stateNames[finalState] || finalState;
-}
-async function run() {
-  try {
-    const mode = getOptionalInput("mode") || "derive";
-    const token = getRequiredInput("github_token");
-    const projectNumber = parseInt(getRequiredInput("project_number"), 10);
-    const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
-    const botUsername = getOptionalInput("bot_username") || "nopo-bot";
-    const contextJsonInput = getRequiredInput("context_json");
-    const ctx = parseWorkflowContext(contextJsonInput);
-    const trigger = ctx.trigger;
-    core24.info(`Router received context_json with trigger: ${trigger}`);
-    core24.info(
-      `Job: ${ctx.job}, Resource: ${ctx.resource_type} #${ctx.resource_number}`
-    );
-    const octokit = github.getOctokit(token);
-    const { owner, repo } = github.context.repo;
-    if (isDiscussionTrigger(trigger)) {
-      await runDiscussionMachine({
-        mode,
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- checkDiscussionTrigger guard confirms this is a DiscussionTriggerType
-        trigger,
-        ctx,
-        octokit,
-        owner,
-        repo,
-        maxRetries,
-        botUsername
-      });
-      return;
-    }
-    await runIssueMachine({
-      mode,
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- trigger confirmed as non-discussion type, safe to cast to TriggerType
-      trigger,
-      ctx,
-      octokit,
-      owner,
-      repo,
-      projectNumber,
-      maxRetries,
-      botUsername
-    });
-  } catch (error7) {
-    if (error7 instanceof Error) {
-      core24.setFailed(error7.message);
-    } else {
-      core24.setFailed("An unexpected error occurred");
-    }
-  }
 }
 async function runDiscussionMachine(options) {
   const { mode, trigger, ctx, octokit, owner, repo, maxRetries, botUsername } = options;
@@ -67358,10 +69650,10 @@ async function runIssueMachine(options) {
   core24.info(`Iteration: ${context2.issue.iteration}`);
   const iteration = String(context2.issue.iteration ?? 0);
   const phase = context2.currentPhase !== null ? String(context2.currentPhase) : "-";
-  const parentIssueNumber2 = String(
+  const parentIssueNum = String(
     context2.parentIssue?.number || context2.issue.number
   );
-  const subIssueNumber = context2.currentSubIssue?.number ? String(context2.currentSubIssue.number) : "";
+  const subIssueNum = context2.currentSubIssue?.number ? String(context2.currentSubIssue.number) : "";
   const agentNotesEntries = agentNotesExtractor({
     owner,
     repo,
@@ -67382,10 +69674,10 @@ async function runIssueMachine(options) {
       action_count: "0",
       iteration,
       phase,
-      parent_issue_number: parentIssueNumber2,
+      parent_issue_number: parentIssueNum,
       pr_number: context2.pr?.number ? String(context2.pr.number) : "",
       commit_sha: context2.ciCommitSha || "",
-      sub_issue_number: subIssueNumber,
+      sub_issue_number: subIssueNum,
       agent_notes: agentNotes
     });
     return;
@@ -67414,13 +69706,98 @@ async function runIssueMachine(options) {
     action_count: String(pendingActions.length),
     iteration,
     phase,
-    parent_issue_number: parentIssueNumber2,
+    parent_issue_number: parentIssueNum,
     pr_number: prNumber,
     commit_sha: commitSha,
-    sub_issue_number: subIssueNumber,
+    sub_issue_number: subIssueNum,
     agent_notes: agentNotes
   });
   actor.stop();
+}
+async function run() {
+  try {
+    const mode = getOptionalInput("mode") || "derive";
+    const token = getRequiredInput("github_token");
+    const resourceNumber = getOptionalInput("resource_number") || "";
+    const contextJsonInput = getOptionalInput("context_json") || "";
+    if (mode === "detect") {
+      const unifiedContext = await detectEvent(token, resourceNumber);
+      setOutputs({
+        context_json: JSON.stringify(unifiedContext),
+        skip: String(unifiedContext.skip),
+        skip_reason: unifiedContext.skip_reason,
+        concurrency_group: unifiedContext.concurrency_group,
+        cancel_in_progress: String(unifiedContext.cancel_in_progress)
+      });
+      return;
+    }
+    let ctx;
+    if (contextJsonInput) {
+      ctx = parseWorkflowContext(contextJsonInput);
+    } else {
+      core24.info("No context_json provided, running event detection...");
+      const detected = await detectEvent(token, resourceNumber);
+      if (detected.skip) {
+        core24.info(`Skipping: ${detected.skip_reason}`);
+        setOutputs({
+          context_json: JSON.stringify(detected),
+          skip: "true",
+          skip_reason: detected.skip_reason,
+          actions_json: "[]",
+          final_state: "skipped",
+          transition_name: "Skipped",
+          action_count: "0"
+        });
+        return;
+      }
+      ctx = parseWorkflowContext(JSON.stringify(detected));
+    }
+    const projectNumber = parseInt(
+      getOptionalInput("project_number") || "1",
+      10
+    );
+    const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
+    const botUsername = getOptionalInput("bot_username") || "nopo-bot";
+    const trigger = ctx.trigger;
+    core24.info(`Router received context with trigger: ${trigger}`);
+    core24.info(
+      `Job: ${ctx.job}, Resource: ${ctx.resource_type} #${ctx.resource_number}`
+    );
+    const octokit = github.getOctokit(token);
+    const { owner, repo } = github.context.repo;
+    if (isDiscussionTrigger(trigger)) {
+      await runDiscussionMachine({
+        mode,
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- checkDiscussionTrigger guard confirms this is a DiscussionTriggerType
+        trigger,
+        ctx,
+        octokit,
+        owner,
+        repo,
+        maxRetries,
+        botUsername
+      });
+      return;
+    }
+    await runIssueMachine({
+      mode,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- trigger confirmed as non-discussion type, safe to cast to TriggerType
+      trigger,
+      ctx,
+      octokit,
+      owner,
+      repo,
+      projectNumber,
+      maxRetries,
+      botUsername
+    });
+  } catch (error7) {
+    if (error7 instanceof Error) {
+      core24.setFailed(error7.message);
+    } else {
+      core24.setFailed("An unexpected error occurred");
+    }
+  }
 }
 run();
 /*! Bundled license information:

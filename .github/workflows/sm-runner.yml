@@ -14,7 +14,7 @@ on:
     inputs:
       context_json:
         description: |
-          Unified JSON context from detect-event containing all routing and resource info.
+          Unified JSON context from the detect step containing all routing and resource info.
           Includes: job, trigger, resource_type, resource_number, parent_issue, comment_id,
           concurrency_group, cancel_in_progress, skip, skip_reason, plus context-specific
           fields (issue_number, branch_name, ci_result, etc.)

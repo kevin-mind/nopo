@@ -1,23 +1,35 @@
-name: Claude State Machine Router
-description: Routes to either issue or discussion state machine based on trigger type
+name: Claude State Machine Entry Point
+description: >
+  Unified state machine entry point that detects GitHub events and routes
+  to the appropriate state machine. Combines event detection and routing
+  into a single action.
 
 inputs:
   mode:
-    description: 'Operation mode: "derive" runs full state machine, "context" only fetches context'
+    description: |
+      Operation mode:
+        "detect" - detect event, compute skip/concurrency, output context_json (for sm-trigger.yml)
+        "derive" - full state machine: detect event (if context_json not provided), build context, derive actions
+        "context" - only fetch context (iteration, phase) without running state machine
     required: false
     default: "derive"
   github_token:
-    description: GitHub token for API operations (read-only)
+    description: GitHub token for API operations
     required: true
   project_number:
     description: GitHub Project number
-    required: true
+    required: false
+    default: "1"
+  resource_number:
+    description: Resource number for workflow_dispatch events
+    required: false
+    default: ''
   context_json:
     description: |
-      Unified JSON context from detect-event containing all routing and resource info.
-      Includes: job, trigger, resource_type, resource_number, parent_issue, comment_id,
-      plus context-specific fields (issue_number, branch_name, ci_result, review_decision, etc.)
-    required: true
+      Pre-built context JSON from a previous "detect" mode call.
+      If not provided in "derive" or "context" mode, event detection runs automatically.
+    required: false
+    default: ''
   max_retries:
     description: Maximum number of CI failures before blocking
     required: false
@@ -28,14 +40,28 @@ inputs:
     default: "nopo-bot"
 
 outputs:
+  # Detection outputs (mode: detect)
+  context_json:
+    description: |
+      Unified JSON context containing all routing and resource information.
+      In "detect" mode: detection context with skip/concurrency fields.
+      In "derive"/"context" mode: full machine context as JSON.
+  skip:
+    description: Whether to skip processing (true/false string)
+  skip_reason:
+    description: Reason for skipping
+  concurrency_group:
+    description: Concurrency group name for workflow-level concurrency
+  cancel_in_progress:
+    description: Whether to cancel in-progress runs (true/false string)
+
+  # Routing outputs (mode: derive)
   actions_json:
     description: JSON array of actions to execute (pass to executor)
   final_state:
     description: Final state of the machine after processing
   transition_name:
     description: Human-readable name for the transition (e.g., "Iterate", "Triage", "Research", "Respond")
-  context_json:
-    description: Full machine context as JSON (for debugging)
   action_count:
     description: Number of actions derived
 
