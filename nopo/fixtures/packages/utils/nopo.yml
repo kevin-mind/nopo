@@ -2,14 +2,14 @@ name: Utils Package
 description: Utility functions shared across services
 
 # No runtime or image - this is a package
-# Depends on shared package
-dependencies:
-  - shared
 
 # Build configuration for package builds via docker run
 build:
   command: echo "FIXTURE_UTILS_BUILD_SUCCESS"
   output: ./dist
+  # Build dependencies - shared package must be built first
+  depends_on:
+    - shared
 
 commands:
   test: echo "FIXTURE_UTILS_TEST_SUCCESS"
