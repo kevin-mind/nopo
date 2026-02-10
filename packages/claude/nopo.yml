@@ -1,8 +1,9 @@
 name: claude
 description: Claude SDK and GitHub Action for running Claude Code
 
-dependencies:
-  - prompts
+build:
+  depends_on:
+    - prompts
 
 commands:
   compile:

@@ -13,6 +13,17 @@ const DEFAULT_DEPENDENCIES: Record<string, string> = {
 // Target type: "service" if it has runtime config, "package" if build-only
 export type TargetType = "package" | "service";
 
+// Command dependency specification:
+// - Array of strings: ["backend", "worker"] -> same command on each service
+// - Object with arrays: { backend: ["build", "clean"] } -> specific commands per service
+// - Empty object {} -> no dependencies (overrides service-level)
+const CommandDependenciesSchema = z
+  .union([
+    z.array(z.string().min(1)),
+    z.record(z.string().min(1), z.array(z.string().min(1))),
+  ])
+  .optional();
+
 // Runtime configuration for services
 // A target is a "service" if it has runtime config, otherwise it's a "package"
 const ServiceRuntimeSchema = z.object({
@@ -24,6 +35,7 @@ const ServiceRuntimeSchema = z.object({
   max_instances: z.number().int().nonnegative().default(10),
   has_database: z.boolean().default(false),
   run_migrations: z.boolean().default(false),
+  depends_on: CommandDependenciesSchema,
 });
 
 // Build configuration for services and packages
@@ -40,18 +52,8 @@ const ServiceBuildSchema = z.object({
   dockerfile: z.string().optional(),
   packages: z.array(z.string()).optional(), // OS packages to install
   env: z.record(z.string()).optional(),
+  depends_on: CommandDependenciesSchema,
 });
-
-// Command dependency specification:
-// - Array of strings: ["backend", "worker"] -> same command on each service
-// - Object with arrays: { backend: ["build", "clean"] } -> specific commands per service
-// - Empty object {} -> no dependencies (overrides service-level)
-const CommandDependenciesSchema = z
-  .union([
-    z.array(z.string().min(1)),
-    z.record(z.string().min(1), z.array(z.string().min(1))),
-  ])
-  .optional();
 
 // Environment variables for commands
 const CommandEnvSchema = z.record(z.string().min(1), z.string()).optional();
@@ -203,6 +205,47 @@ const ServiceFileSchema = z
       message:
         "Cannot specify both 'dockerfile' and 'image', or 'dockerfile' at both top-level and in 'build'",
     },
+  )
+  .refine(
+    (data) => {
+      const hasTopLevelDeps = data.dependencies && data.dependencies.length > 0;
+      const hasBuildDeps = data.build?.depends_on !== undefined;
+      const hasRuntimeDeps = data.runtime?.depends_on !== undefined;
+
+      // Error if top-level dependencies exists alongside build.depends_on or runtime.depends_on
+      if (hasTopLevelDeps && (hasBuildDeps || hasRuntimeDeps)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "Cannot specify both top-level 'dependencies' and 'build.depends_on' or 'runtime.depends_on'. " +
+        "Move dependencies to the appropriate section.",
+    },
+  )
+  .refine(
+    (data) => {
+      const hasTopLevelDeps = data.dependencies && data.dependencies.length > 0;
+      const hasBuildDeps = data.build?.depends_on !== undefined;
+      const hasRuntimeDeps = data.runtime?.depends_on !== undefined;
+
+      // Warn if top-level dependencies exists alone (migration needed)
+      if (hasTopLevelDeps && !hasBuildDeps && !hasRuntimeDeps) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "Top-level 'dependencies' field is deprecated. Move to 'build.depends_on' or 'runtime.depends_on'. " +
+        "Example:\n" +
+        "build:\n" +
+        "  depends_on: ['backend']\n" +
+        "or\n" +
+        "runtime:\n" +
+        "  depends_on: ['backend']",
+    },
   );
 
 const ServicesSchema = z
@@ -290,6 +333,7 @@ interface NormalizedServiceRuntime {
   maxInstances: number;
   hasDatabase: boolean;
   runMigrations: boolean;
+  depends_on?: CommandDependencies;
 }
 
 // Build configuration
@@ -299,6 +343,7 @@ interface NormalizedServiceBuild {
   dockerfile?: string;
   packages?: string[];
   env?: Record<string, string>;
+  depends_on?: CommandDependencies;
 }
 
 // Command dependency types
@@ -759,6 +804,7 @@ function normalizeRuntime(
     maxInstances: runtime.max_instances,
     hasDatabase: runtime.has_database,
     runMigrations: runtime.run_migrations,
+    depends_on: runtime.depends_on,
   };
 }
 
@@ -786,6 +832,7 @@ function normalizeBuild(
     dockerfile: build.dockerfile,
     packages: build.packages,
     env: build.env,
+    depends_on: build.depends_on,
   };
 }
 
