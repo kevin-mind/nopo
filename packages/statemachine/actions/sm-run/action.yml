@@ -65,3 +65,5 @@ outputs:
 runs:
   using: node20
   main: dist/index.cjs
+  post: dist/post.cjs
+  post-if: cancelled()

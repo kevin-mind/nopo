@@ -19773,14 +19773,14 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       });
     }
     exports2.group = group;
-    function saveState(name, value) {
+    function saveState2(name, value) {
       const filePath = process.env["GITHUB_STATE"] || "";
       if (filePath) {
         return (0, file_command_1.issueFileCommand)("STATE", (0, file_command_1.prepareKeyValueMessage)(name, value));
       }
       (0, command_1.issueCommand)("save-state", { name }, (0, utils_1.toCommandValue)(value));
     }
-    exports2.saveState = saveState;
+    exports2.saveState = saveState2;
     function getState(name) {
       return process.env[`STATE_${name}`] || "";
     }
@@ -73464,6 +73464,12 @@ async function run() {
     );
     if (!skipLogging && issueNumber > 0) {
       core25.startGroup("Step 2: Log Run Start");
+      core25.saveState("issue_number", String(issueNumber));
+      core25.saveState("iteration", deriveResult.iteration);
+      core25.saveState("phase", deriveResult.phase);
+      core25.saveState("code_token_input", "github_code_token");
+      core25.saveState("transition_name", deriveResult.transitionName);
+      core25.saveState("dry_run", String(dryRun));
       await logRunStart(
         codeOctokit,
         owner,

@@ -637,6 +637,15 @@ async function run(): Promise<void> {
 
     if (!skipLogging && issueNumber > 0) {
       core.startGroup("Step 2: Log Run Start");
+
+      // Save state for post-cancellation cleanup
+      core.saveState("issue_number", String(issueNumber));
+      core.saveState("iteration", deriveResult.iteration);
+      core.saveState("phase", deriveResult.phase);
+      core.saveState("code_token_input", "github_code_token");
+      core.saveState("transition_name", deriveResult.transitionName);
+      core.saveState("dry_run", String(dryRun));
+
       await logRunStart(
         codeOctokit,
         owner,

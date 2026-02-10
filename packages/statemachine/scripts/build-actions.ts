@@ -9,6 +9,8 @@ interface ActionInfo {
   name: string;
   entryPoint: string;
   outDir: string;
+  /** Optional additional entry points (e.g., post.ts for cleanup) */
+  extraEntryPoints?: { entry: string; outFile: string }[];
 }
 
 /**
@@ -38,19 +40,31 @@ function findActionsInDir(dir: string): ActionInfo[] {
     if (!fs.existsSync(actionYml)) continue;
 
     // Prefer action-entry.ts over index.ts for the build entry point
-    if (fs.existsSync(actionEntryTs)) {
-      actions.push({
-        name: entry.name,
-        entryPoint: actionEntryTs,
-        outDir: path.join(actionDir, "dist"),
-      });
-    } else if (fs.existsSync(indexTs)) {
-      actions.push({
-        name: entry.name,
-        entryPoint: indexTs,
-        outDir: path.join(actionDir, "dist"),
+    const mainEntry = fs.existsSync(actionEntryTs)
+      ? actionEntryTs
+      : fs.existsSync(indexTs)
+        ? indexTs
+        : null;
+
+    if (!mainEntry) continue;
+
+    // Detect extra entry points (e.g., post.ts for cleanup actions)
+    const extraEntryPoints: ActionInfo["extraEntryPoints"] = [];
+    const postTs = path.join(actionDir, "post.ts");
+    if (fs.existsSync(postTs)) {
+      extraEntryPoints.push({
+        entry: postTs,
+        outFile: path.join(actionDir, "dist", "post.cjs"),
       });
     }
+
+    actions.push({
+      name: entry.name,
+      entryPoint: mainEntry,
+      outDir: path.join(actionDir, "dist"),
+      extraEntryPoints:
+        extraEntryPoints.length > 0 ? extraEntryPoints : undefined,
+    });
   }
 
   return actions;
@@ -72,21 +86,38 @@ async function build() {
     `Building ${actions.length} actions: ${actions.map((a) => a.name).join(", ")}`,
   );
 
-  const buildConfigs = actions.map((action) => ({
-    entryPoints: [action.entryPoint],
+  const sharedConfig = {
     bundle: true,
     platform: "node" as const,
     target: "node20",
-    outfile: path.join(action.outDir, "index.cjs"),
     format: "cjs" as const,
     sourcemap: true,
     minify: false,
-    // Bundle all dependencies into the output
-    external: [],
+    external: [] satisfies string[],
     banner: {
       js: "// This file is auto-generated. Do not edit directly.",
     },
-  }));
+  };
+
+  const buildConfigs = actions.flatMap((action) => {
+    const configs = [
+      {
+        ...sharedConfig,
+        entryPoints: [action.entryPoint],
+        outfile: path.join(action.outDir, "index.cjs"),
+      },
+    ];
+
+    for (const extra of action.extraEntryPoints ?? []) {
+      configs.push({
+        ...sharedConfig,
+        entryPoints: [extra.entry],
+        outfile: extra.outFile,
+      });
+    }
+
+    return configs;
+  });
 
   if (isWatch) {
     console.log("Watching for changes...");

@@ -60,6 +60,7 @@ export default {
       // Actions are standalone entry points compiled by esbuild
       entry: [
         "actions/*/index.ts",
+        "actions/*/post.ts",
         "actions/*/src/**/*.ts",
         "actions/*/lib/**/*.ts",
         "scripts/*.ts",
