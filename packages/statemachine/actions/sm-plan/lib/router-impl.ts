@@ -1122,7 +1122,22 @@ async function handleIssueCommentEvent(
     const hasNeedsInfoLabel = issue.labels.some((l) => l.name === "needs-info");
     const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
 
-    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel) {
+    if (!hasTriagedLabel) {
+      // /lfg on untriaged issue -> triage first
+      return {
+        job: "issue-triage",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue.number),
+        },
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    if (!hasGroomedLabel && !hasNeedsInfoLabel) {
       // /lfg on ungroomed issue -> groom first
       return {
         job: "issue-groom",

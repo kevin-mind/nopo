@@ -68157,7 +68157,20 @@ async function handleIssueCommentEvent(octokit, owner, repo, resolvedIssueNumber
     const hasGroomedLabel = issue2.labels.some((l) => l.name === "groomed");
     const hasNeedsInfoLabel = issue2.labels.some((l) => l.name === "needs-info");
     const hasTriagedLabel = issue2.labels.some((l) => l.name === "triaged");
-    if (hasTriagedLabel && !hasGroomedLabel && !hasNeedsInfoLabel) {
+    if (!hasTriagedLabel) {
+      return {
+        job: "issue-triage",
+        resourceType: "issue",
+        resourceNumber: String(issue2.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue2.number)
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
+    if (!hasGroomedLabel && !hasNeedsInfoLabel) {
       return {
         job: "issue-groom",
         resourceType: "issue",
