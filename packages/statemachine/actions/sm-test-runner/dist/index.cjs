@@ -71243,10 +71243,25 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
     );
     const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
     if (content3.length > 0) {
-      const updatedData = upsertSection2({ title: "Questions", content: content3 }, data);
+      let updatedData = upsertSection2({ title: "Questions", content: content3 }, data);
+      const questionCount = (summaryOutput.consolidated_questions ?? []).length;
+      const answeredCount = (summaryOutput.answered_questions ?? []).length;
+      const notes = [
+        `Grooming decision: needs_info`,
+        `${questionCount} pending question(s), ${answeredCount} answered`,
+        summaryOutput.decision_rationale
+      ];
+      updatedData = appendAgentNotes2(
+        {
+          runId: `grooming-${Date.now()}`,
+          runLink: "",
+          notes
+        },
+        updatedData
+      );
       await update(updatedData);
       core16.info(
-        `Updated Questions section in issue #${action.issueNumber} body`
+        `Updated Questions section and agent notes in issue #${action.issueNumber} body`
       );
     }
   }

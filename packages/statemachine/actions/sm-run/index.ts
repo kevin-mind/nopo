@@ -626,10 +626,7 @@ async function run(): Promise<void> {
     // ====================================================================
     // STEP 2: Log Run Start (skip for discussions and merge-queue-logging)
     // ====================================================================
-    const skipLogging =
-      isDiscussion ||
-      ctx.job === "merge-queue-logging" ||
-      deriveResult.finalState === "grooming";
+    const skipLogging = isDiscussion || ctx.job === "merge-queue-logging";
     const issueNumber = parseInt(
       deriveResult.parentIssueNumber || ctx.issue_number || "0",
       10,
