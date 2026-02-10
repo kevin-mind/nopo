@@ -1,4 +1,5 @@
 import type { MachineContext, Action, IssueComment } from "../schemas/index.js";
+import { serializeMarkdown } from "@more/issue-state";
 import { deriveBranchName, extractTodosFromAst } from "../parser/index.js";
 
 /**
@@ -574,7 +575,7 @@ gh pr create --draft --reviewer nopo-bot \\
   return {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issueTitle,
-    ISSUE_BODY: JSON.stringify(issueBodyAst),
+    ISSUE_BODY: serializeMarkdown(issueBodyAst),
     ISSUE_COMMENTS: issueComments,
     ITERATION: String(iteration),
     LAST_CI_RESULT: ciResult,
@@ -686,7 +687,7 @@ export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: JSON.stringify(context.issue.bodyAst),
+    ISSUE_BODY: serializeMarkdown(context.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     AGENT_NOTES: "", // Injected by workflow from previous runs
   };
@@ -1530,7 +1531,7 @@ function buildGroomingPromptVars(
   return {
     ISSUE_NUMBER: String(context.issue.number),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: JSON.stringify(context.issue.bodyAst),
+    ISSUE_BODY: serializeMarkdown(context.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     ISSUE_LABELS: context.issue.labels.join(", "),
   };
@@ -1676,7 +1677,7 @@ export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: JSON.stringify(s.bodyAst),
+    body: serializeMarkdown(s.bodyAst),
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst),
   }));
@@ -1689,7 +1690,7 @@ export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
-    ISSUE_BODY: JSON.stringify(context.issue.bodyAst),
+    ISSUE_BODY: serializeMarkdown(context.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION:
       context.pivotDescription ?? "(No pivot description provided)",

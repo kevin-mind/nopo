@@ -49,7 +49,7 @@ export type {
 } from "./schemas/index.js";
 
 // Markdown AST
-export { parseMarkdown } from "./markdown/ast.js";
+export { parseMarkdown, serializeMarkdown } from "./markdown/ast.js";
 
 // GraphQL
 export {

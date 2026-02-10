@@ -46645,7 +46645,7 @@ gh pr create --draft --reviewer nopo-bot \\
   return {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issueTitle2,
-    ISSUE_BODY: JSON.stringify(issueBodyAst),
+    ISSUE_BODY: serializeMarkdown(issueBodyAst),
     ISSUE_COMMENTS: issueComments,
     ITERATION: String(iteration),
     LAST_CI_RESULT: ciResult,
@@ -46725,7 +46725,7 @@ function emitRunClaudeTriage({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
+    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     AGENT_NOTES: ""
     // Injected by workflow from previous runs
@@ -47302,7 +47302,7 @@ function buildGroomingPromptVars(context2) {
   return {
     ISSUE_NUMBER: String(context2.issue.number),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
+    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     ISSUE_LABELS: context2.issue.labels.join(", ")
   };
@@ -47363,7 +47363,7 @@ function emitRunClaudePivot({ context: context2 }) {
     number: s.number,
     title: s.title,
     state: s.state,
-    body: JSON.stringify(s.bodyAst),
+    body: serializeMarkdown(s.bodyAst),
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst)
   }));
@@ -47371,7 +47371,7 @@ function emitRunClaudePivot({ context: context2 }) {
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
+    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
