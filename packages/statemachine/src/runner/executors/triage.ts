@@ -13,7 +13,6 @@ import {
   createComment,
   parseMarkdown,
   createBulletList,
-  createParagraph,
   createTodoList,
   type OctokitLike,
 } from "@more/issue-state";
@@ -288,12 +287,11 @@ async function updateIssueStructure(
       );
     }
 
-    // Approach section
+    // Approach section - parse as markdown since it contains rich formatting
     if (initialApproach) {
-      const approachContent: RootContent[] = [
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast builder returns compatible node type
-        createParagraph(initialApproach) as unknown as RootContent,
-      ];
+      const approachAst = parseMarkdown(initialApproach);
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast Root children are RootContent nodes
+      const approachContent = approachAst.children as RootContent[];
       state = upsertSection(
         { title: "Approach", content: approachContent },
         state,
