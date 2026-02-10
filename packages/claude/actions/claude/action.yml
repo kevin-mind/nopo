@@ -1,0 +1,40 @@
+name: 'Claude Code'
+description: 'Run Claude Code via the Agent SDK. Caller supplies the prompt (e.g. via @more/prompts).'
+
+inputs:
+  prompt:
+    description: 'Prompt text (use when not using prompt_file)'
+    required: false
+  prompt_file:
+    description: 'Path to a prompt .txt file (built from @more/prompts); use instead of prompt'
+    required: false
+  prompt_vars:
+    description: 'JSON object for {{VAR}} substitution in prompt_file content (e.g. {"testResultsFile":"/tmp/results.json"})'
+    required: false
+  working_directory:
+    description: 'Working directory for Claude to operate in'
+    required: false
+  allowed_tools:
+    description: 'Comma-separated list of tools Claude can use (e.g. Read,Write,Edit,Bash)'
+    required: false
+  output_schema:
+    description: 'Optional JSON schema for structured output'
+    required: false
+
+outputs:
+  success:
+    description: 'Whether execution succeeded (true/false)'
+  output:
+    description: 'Raw text output from Claude'
+  structured_output:
+    description: 'JSON structured output when schema was used'
+  error:
+    description: 'Error message if execution failed'
+  num_turns:
+    description: 'Number of API round-trips'
+  cost_usd:
+    description: 'Total cost in USD'
+
+runs:
+  using: node20
+  main: dist/index.cjs

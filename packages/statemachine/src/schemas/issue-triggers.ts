@@ -33,6 +33,8 @@ export const IssueTriggerTypeSchema = z.enum([
   "pr-merged",
   "deployed-stage",
   "deployed-prod",
+  "deployed-stage-failed",
+  "deployed-prod-failed",
 ]);
 
 export type IssueTriggerType = z.infer<typeof IssueTriggerTypeSchema>;

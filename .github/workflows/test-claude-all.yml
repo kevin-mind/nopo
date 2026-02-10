@@ -232,16 +232,16 @@ jobs:
 
           echo "$DOCS" > /tmp/scenario_docs.md
 
+      - name: Build prompt templates
+        run: pnpm --filter @more/prompts exec tsx scripts/render-templates.ts
+
       - name: Run Claude Analysis
-        id: analysis
-        uses: ./packages/statemachine/actions/sm-claude
+        id: claude
+        uses: ./packages/claude/actions/claude
         with:
-          prompt_dir: test-analysis
+          prompt_file: packages/prompts/prompts/test-analysis.txt
           prompt_vars: >-
-            {
-              "TEST_RESULTS_FILE": "/tmp/all_results.json",
-              "SCENARIO_DOCS_FILE": "${{ steps.aggregate.outputs.has_failures == 'true' && '/tmp/scenario_docs.md' || '' }}"
-            }
+            {"TEST_RESULTS_FILE":"/tmp/all_results.json","SCENARIO_DOCS_FILE":"${{ steps.aggregate.outputs.has_failures == 'true' && '/tmp/scenario_docs.md' || '' }}"}
           allowed_tools: "Read,Bash"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -253,10 +253,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Claude Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.analysis.outputs.output }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.claude.outputs.output }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "**Stats:** ${{ steps.analysis.outputs.num_turns }} turns | \$${{ steps.analysis.outputs.cost_usd }} cost" >> $GITHUB_STEP_SUMMARY
+          echo "**Stats:** ${{ steps.claude.outputs.num_turns }} turns | \$${{ steps.claude.outputs.cost_usd }} cost" >> $GITHUB_STEP_SUMMARY
 
       - name: Final Status
         if: always()

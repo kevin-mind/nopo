@@ -51,9 +51,19 @@ export default {
       // which knip can't trace (custom JSX runtime, not React)
       ignore: ["dist/**", "prompts/**", "src/components.tsx"],
     },
+    "packages/claude": {
+      entry: ["src/index.ts", "actions/claude/index.ts"],
+      ignore: ["actions/claude/dist/**"],
+      ignoreDependencies: ["@more/prompt-factory", "esbuild"],
+    },
     "packages/statemachine": {
       // Actions are standalone entry points compiled by esbuild
-      entry: ["actions/*/index.ts", "actions/*/src/**/*.ts", "scripts/*.ts"],
+      entry: [
+        "actions/*/index.ts",
+        "actions/*/src/**/*.ts",
+        "actions/*/lib/**/*.ts",
+        "scripts/*.ts",
+      ],
       ignore: ["actions/*/dist/**"],
     },
     ".github/actions-ts": {

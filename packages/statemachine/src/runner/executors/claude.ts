@@ -13,7 +13,7 @@ import * as fs from "fs";
 import type { RunClaudeAction } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import { deriveBranchName } from "../../parser/index.js";
-import { executeClaudeSDK, resolvePrompt } from "../../claude/index.js";
+import { executeClaudeSDK, resolvePrompt } from "@more/claude";
 
 // ============================================================================
 // Types

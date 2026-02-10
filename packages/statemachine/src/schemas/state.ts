@@ -39,6 +39,8 @@ export const TriggerTypeSchema = z.enum([
   "pr-merged",
   "deployed-stage",
   "deployed-prod",
+  "deployed-stage-failed",
+  "deployed-prod-failed",
   // Discussion triggers
   "discussion-created",
   "discussion-comment",

@@ -71,12 +71,18 @@ run-name: >-
   discussion_comment:
     types:
       - created
-  # Note: merge_group/deploy logging is handled directly by release.yml calling the executor
+  merge_group:
+    types:
+      - checks_requested  # PR entered merge queue
   workflow_dispatch:
     inputs:
       resource_number:
         description: Issue, PR, or Discussion number
         required: true
+        type: string
+      trigger_type:
+        description: Override trigger (e.g. deployed-stage, deployed-prod, pr-merged) for logging from release.yml
+        required: false
         type: string
       continue:
         description: Continue to next state (true) or stop after this iteration (false)
@@ -99,49 +105,38 @@ defaults:
 # ============================================================================
 jobs:
   # ============================================================================
-  # STEP 1: DETECT EVENT
+  # STEP 1: sm-plan (detect event, output context_json)
   # ============================================================================
-  # Unified action detects event, computes skip/concurrency, and outputs context_json
-  detect:
+  sm-plan:
     runs-on: ubuntu-latest
     outputs:
-      context_json: ${{ steps.detect.outputs.context_json }}
+      context_json: ${{ steps.sm-plan.outputs.context_json }}
     steps:
-      # Always checkout main for detection - the logic should not depend on PR-specific code
-      # This ensures bug fixes are picked up immediately without needing to merge to each PR
       - uses: actions/checkout@v4
         with:
           ref: main
-      - id: detect
-        uses: ./packages/statemachine/actions/sm-router
+      - id: sm-plan
+        uses: ./packages/statemachine/actions/sm-plan
         with:
-          mode: detect
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           resource_number: ${{ inputs.resource_number || '' }}
+          trigger_type: ${{ inputs.trigger_type || '' }}
 
   # ============================================================================
-  # STEP 2: RUN STATE MACHINE
+  # STEP 2: sm-run (state machine runner)
   # ============================================================================
-  # All issue, PR, and discussion jobs are handled by the state machine
-  # Status signaling (start/end comments) is now handled inside the runner
-  run-state-machine:
-    needs: detect
+  sm-run:
+    needs: sm-plan
     if: |
-      needs.detect.outputs.context_json != '' &&
-      fromJson(needs.detect.outputs.context_json).skip != true &&
-      fromJson(needs.detect.outputs.context_json).job != ''
-    # Concurrency computed by detect step based on job type:
-    # - Issue jobs: one Claude job per parent issue at a time (includes all sub-issues)
-    # - PR jobs (including push-to-draft): share group so push cancels in-flight reviews
-    # - CI follow-up (workflow_run): uses issue-based group
-    # - cancel-in-progress varies by event type (e.g., true for triage, false for iterate)
+      needs.sm-plan.outputs.context_json != '' &&
+      fromJson(needs.sm-plan.outputs.context_json).skip != true &&
+      fromJson(needs.sm-plan.outputs.context_json).job != ''
     concurrency:
-      group: ${{ fromJson(needs.detect.outputs.context_json).concurrency_group }}
-      cancel-in-progress: ${{ fromJson(needs.detect.outputs.context_json).cancel_in_progress == true }}
+      group: ${{ fromJson(needs.sm-plan.outputs.context_json).concurrency_group }}
+      cancel-in-progress: ${{ fromJson(needs.sm-plan.outputs.context_json).cancel_in_progress == true }}
     uses: ./.github/workflows/sm-runner.yml
     with:
-      # Pass the entire context_json - runner extracts what it needs
-      context_json: ${{ needs.detect.outputs.context_json }}
+      context_json: ${{ needs.sm-plan.outputs.context_json }}
       dry_run: false
       # For workflow_run and other events (no inputs), always continue
       # For workflow_dispatch, use the explicit input value

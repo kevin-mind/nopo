@@ -44,5 +44,5 @@ if [[ ! -f "${BINARY}" ]] || ! "${BINARY}" --version 2>/dev/null | grep -q "${VE
   echo "Installed actionlint v${VERSION} to ${BINARY}"
 fi
 
-# Run actionlint with all arguments
+# Run actionlint (action dists are built via nopo check dependencies: statemachine:compile, claude:compile)
 exec "${BINARY}" "$@"

@@ -517,6 +517,20 @@ export function triggeredByDeployedProd({ context }: GuardContext): boolean {
   return context.trigger === "deployed-prod";
 }
 
+/**
+ * Check if triggered by stage deployment failure
+ */
+function triggeredByDeployedStageFailure({ context }: GuardContext): boolean {
+  return context.trigger === "deployed-stage-failed";
+}
+
+/**
+ * Check if triggered by production deployment failure
+ */
+function triggeredByDeployedProdFailure({ context }: GuardContext): boolean {
+  return context.trigger === "deployed-prod-failed";
+}
+
 // ============================================================================
 // Triage Guards
 // ============================================================================
@@ -676,6 +690,8 @@ export const guards = {
   triggeredByPRMerged,
   triggeredByDeployedStage,
   triggeredByDeployedProd,
+  triggeredByDeployedStageFailure,
+  triggeredByDeployedProdFailure,
   // Triage guards
   needsTriage,
   isTriaged,

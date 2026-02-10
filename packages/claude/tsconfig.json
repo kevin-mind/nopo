@@ -1,0 +1,11 @@
+{
+  "extends": "@more/configs/tsconfig.node.json",
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "build",
+    "rootDir": ".",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@more/prompt-factory"
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,18 @@
+name: claude
+description: Claude SDK and GitHub Action for running Claude Code
+
+dependencies:
+  - prompts
+
+commands:
+  compile:
+    command: mkdir -p actions/claude/dist && pnpm exec esbuild actions/claude/index.ts --bundle --platform=node --target=node20 --outfile=actions/claude/dist/index.cjs --format=cjs
+    dependencies: {}
+  clean: rm -rf node_modules && rm -rf build
+  check:
+    commands:
+      types: pnpm exec tsc --noEmit
+      lint: pnpm exec eslint
+  fix:
+    commands:
+      lint: pnpm exec eslint --fix

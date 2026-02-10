@@ -1,6 +1,0 @@
-# E2E Test File for Issue #3890
-
-Created: 2026-01-22
-Issue Reference: https://github.com/kevin-mind/nopo/issues/3890
-
-This file validates the Claude automation state machine workflow.

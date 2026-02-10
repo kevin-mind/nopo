@@ -5,8 +5,8 @@ export * from "./schemas/index.js";
 export * from "./parser/index.js";
 export * from "./machine/index.js";
 
-// Claude SDK utilities
-export * from "./claude/index.js";
+// Claude SDK utilities (re-exported from @more/claude for backward compatibility)
+export * from "@more/claude";
 
 // Runner infrastructure and executors
 export * from "./runner/index.js";

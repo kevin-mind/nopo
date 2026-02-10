@@ -1296,9 +1296,7 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
 // ============================================================================
 // Merge Queue Logging Actions
 // ============================================================================
-// Note: These are now called directly from release.yml via the executor.
-// The state machine paths are kept for consistency but are effectively dead code.
-// The executor automatically handles dual-logging to parent issues.
+// Release logging is triggered by release.yml dispatching sm-trigger.yml with trigger_type.
 
 /**
  * Emit action to log merge queue entry
@@ -1410,6 +1408,52 @@ export function emitDeployedProd({ context }: ActionContext): ActionResult {
       message: "✅ Released to production",
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
+}
+
+/**
+ * Emit action to log stage deployment failure
+ */
+export function emitDeployedStageFailure({
+  context,
+}: ActionContext): ActionResult {
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration ?? 0;
+
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "❌ Stage deploy failed",
+      runLink: context.ciRunUrl ?? undefined,
+    },
+  ];
+}
+
+/**
+ * Emit action to log production deployment failure
+ */
+export function emitDeployedProdFailure({
+  context,
+}: ActionContext): ActionResult {
+  const issueNumber = context.currentSubIssue?.number ?? context.issue.number;
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration ?? 0;
+
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "❌ Prod deploy failed",
       runLink: context.ciRunUrl ?? undefined,
     },
   ];

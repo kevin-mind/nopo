@@ -45,6 +45,9 @@ root:
         statemachine:
           command: pnpm exec tsx scripts/build-actions.ts
           dir: ./packages/statemachine
+        claude:
+          command: mkdir -p actions/claude/dist && pnpm exec esbuild actions/claude/index.ts --bundle --platform=node --target=node20 --outfile=actions/claude/dist/index.cjs --format=cjs
+          dir: ./packages/claude
     # Root-level cleaning
     clean:
       commands:
@@ -57,6 +60,11 @@ root:
         root: rm -rf .cache .config .bash_history .env .local .pnpm-store .venv/* node_modules && rm -f build-metadata.json || true
     # Root-level checks (eslint, tsc, knip at project root level)
     check:
+      dependencies:
+        statemachine:
+          - compile
+        claude:
+          - compile
       commands:
         lint: pnpm exec eslint
         types: pnpm exec tsc --noEmit

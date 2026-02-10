@@ -42,6 +42,8 @@ import {
   emitMerged,
   emitDeployedStage,
   emitDeployedProd,
+  emitDeployedStageFailure,
+  emitDeployedProdFailure,
   // Push to draft action
   emitPushToDraft,
   // Reset action
@@ -154,6 +156,10 @@ export const claudeMachine = setup({
       guards.triggeredByDeployedStage({ context }),
     triggeredByDeployedProd: ({ context }) =>
       guards.triggeredByDeployedProd({ context }),
+    triggeredByDeployedStageFailure: ({ context }) =>
+      guards.triggeredByDeployedStageFailure({ context }),
+    triggeredByDeployedProdFailure: ({ context }) =>
+      guards.triggeredByDeployedProdFailure({ context }),
     needsTriage: ({ context }) => guards.needsTriage({ context }),
     // Grooming guards
     triggeredByGroom: ({ context }) => guards.triggeredByGroom({ context }),
@@ -277,6 +283,8 @@ export const claudeMachine = setup({
     logMerged: emit<MachineEvent>(emitMerged),
     logDeployedStage: emit<MachineEvent>(emitDeployedStage),
     logDeployedProd: emit<MachineEvent>(emitDeployedProd),
+    logDeployedStageFailure: emit<MachineEvent>(emitDeployedStageFailure),
+    logDeployedProdFailure: emit<MachineEvent>(emitDeployedProdFailure),
 
     // Push to draft action
     pushToDraft: emit<MachineEvent>(emitPushToDraft),
@@ -344,6 +352,14 @@ export const claudeMachine = setup({
           { target: "processingMerge", guard: "triggeredByPRMerged" },
           { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
           { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
+          {
+            target: "deployedStageFailureLogging",
+            guard: "triggeredByDeployedStageFailure",
+          },
+          {
+            target: "deployedProdFailureLogging",
+            guard: "triggeredByDeployedProdFailure",
+          },
           // Check if this is a triage request
           {
             target: "triaging",
@@ -847,6 +863,22 @@ export const claudeMachine = setup({
      */
     deployedProdLogging: {
       entry: ["logDeployedProd"],
+      type: "final",
+    },
+
+    /**
+     * Log stage deployment failure
+     */
+    deployedStageFailureLogging: {
+      entry: ["logDeployedStageFailure"],
+      type: "final",
+    },
+
+    /**
+     * Log production deployment failure
+     */
+    deployedProdFailureLogging: {
+      entry: ["logDeployedProdFailure"],
       type: "final",
     },
 

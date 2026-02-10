@@ -23,10 +23,9 @@
     "@actions/core": "^1.11.1",
     "@actions/exec": "^1.1.1",
     "@actions/github": "^6.0.0",
-    "@anthropic-ai/claude-agent-sdk": "^0.1.6",
+    "@more/claude": "workspace:*",
     "@more/issue-state": "workspace:*",
     "@more/prompt-factory": "workspace:*",
-    "@more/prompts": "workspace:*",
     "xstate": "^5.19.0",
     "zod": "^3.24.4"
   },

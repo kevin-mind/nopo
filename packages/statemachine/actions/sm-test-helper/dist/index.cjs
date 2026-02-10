@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info24 = this._prepareRequest(verb, parsedUrl, headers);
+          let info25 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info24, data);
+            response = yield this.requestRaw(info25, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info24, data);
+                return authenticationHandler.handleAuthentication(this, info25, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info24 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info24, data);
+              info25 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info25, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info24, data) {
+      requestRaw(info25, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info24, data, callbackForResult);
+            this.requestRawWithCallback(info25, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info24, data, onResult) {
+      requestRawWithCallback(info25, data, onResult) {
         if (typeof data === "string") {
-          if (!info24.options.headers) {
-            info24.options.headers = {};
+          if (!info25.options.headers) {
+            info25.options.headers = {};
           }
-          info24.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info25.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info24.httpModule.request(info24.options, (msg) => {
+        const req = info25.httpModule.request(info25.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info24.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info25.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info24 = {};
-        info24.parsedUrl = requestUrl;
-        const usingSsl = info24.parsedUrl.protocol === "https:";
-        info24.httpModule = usingSsl ? https : http;
+        const info25 = {};
+        info25.parsedUrl = requestUrl;
+        const usingSsl = info25.parsedUrl.protocol === "https:";
+        info25.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info24.options = {};
-        info24.options.host = info24.parsedUrl.hostname;
-        info24.options.port = info24.parsedUrl.port ? parseInt(info24.parsedUrl.port) : defaultPort;
-        info24.options.path = (info24.parsedUrl.pathname || "") + (info24.parsedUrl.search || "");
-        info24.options.method = method;
-        info24.options.headers = this._mergeHeaders(headers);
+        info25.options = {};
+        info25.options.host = info25.parsedUrl.hostname;
+        info25.options.port = info25.parsedUrl.port ? parseInt(info25.parsedUrl.port) : defaultPort;
+        info25.options.path = (info25.parsedUrl.pathname || "") + (info25.parsedUrl.search || "");
+        info25.options.method = method;
+        info25.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info24.options.headers["user-agent"] = this.userAgent;
+          info25.options.headers["user-agent"] = this.userAgent;
         }
-        info24.options.agent = this._getAgent(info24.parsedUrl);
+        info25.options.agent = this._getAgent(info25.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info24.options);
+            handler.prepareRequest(info25.options);
           }
         }
-        return info24;
+        return info25;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19748,10 +19748,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info24(message) {
+    function info25(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info24;
+    exports2.info = info25;
     function startGroup10(name) {
       (0, command_1.issue)("group", name);
     }
@@ -23976,7 +23976,7 @@ var require_extend = __commonJS({
 // actions/sm-test-helper/index.ts
 var fs2 = __toESM(require("fs"), 1);
 var path2 = __toESM(require("path"), 1);
-var core24 = __toESM(require_core(), 1);
+var core25 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
@@ -32603,9 +32603,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info24(code3);
+    return info25(code3);
   }
-  function info24(code3) {
+  function info25(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32620,7 +32620,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info24;
+    return info25;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35459,11 +35459,11 @@ function createTokenizer(parser2, initialize, from) {
     context2.events.push(["exit", token, context2]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info24) {
-    addResult(construct, info24.from);
+  function onsuccessfulconstruct(construct, info25) {
+    addResult(construct, info25.from);
   }
-  function onsuccessfulcheck(_, info24) {
-    info24.restore();
+  function onsuccessfulcheck(_, info25) {
+    info25.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35471,7 +35471,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info24;
+      let info25;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35507,7 +35507,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info24 = store();
+          info25 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context2.currentConstruct = construct;
@@ -35528,12 +35528,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info24);
+        onreturn(currentConstruct, info25);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info24.restore();
+        info25.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -37002,8 +37002,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info24) {
-  const tracker = state.createTracker(info24);
+function footnoteReference(node2, _, state, info25) {
+  const tracker = state.createTracker(info25);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37041,8 +37041,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info24) {
-    const tracker = state.createTracker(info24);
+  function footnoteDefinition(node2, _, state, info25) {
+    const tracker = state.createTracker(info25);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37106,8 +37106,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info24) {
-  const tracker = state.createTracker(info24);
+function handleDelete(node2, _, state, info25) {
+  const tracker = state.createTracker(info25);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37334,9 +37334,9 @@ function map(left, right) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info24) {
+function blockquote(node2, _, state, info25) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37371,11 +37371,11 @@ function listInScope(stack, list4, none) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info24) {
+function hardBreak(_, _1, state, info25) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info24.before) ? "" : " ";
+      return /[ \t]/.test(info25.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37427,7 +37427,7 @@ function checkFence(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info24) {
+function code(node2, _, state, info25) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37437,7 +37437,7 @@ function code(node2, _, state, info24) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37490,12 +37490,12 @@ function checkQuote(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info24) {
+function definition2(node2, _, state, info25) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37605,10 +37605,10 @@ function encodeInfo(outside, inside, marker) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info24) {
+function emphasis(node2, _, state, info25) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37619,7 +37619,7 @@ function emphasis(node2, _, state, info24) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info24.before.charCodeAt(info24.before.length - 1),
+    info25.before.charCodeAt(info25.before.length - 1),
     betweenHead,
     marker
   );
@@ -37627,7 +37627,7 @@ function emphasis(node2, _, state, info24) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info25.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37680,9 +37680,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info24) {
+function heading(node2, _, state, info25) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37732,12 +37732,12 @@ function htmlPeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info24) {
+function image(node2, _, state, info25) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37789,11 +37789,11 @@ function imagePeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info24) {
+function imageReference(node2, _, state, info25) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37874,10 +37874,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info24) {
+function link(node2, _, state, info25) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37954,11 +37954,11 @@ function linkPeek(node2, _, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info24) {
+function linkReference(node2, _, state, info25) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38045,7 +38045,7 @@ function checkRule(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info24) {
+function list3(node2, parent, state, info25) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38077,7 +38077,7 @@ function list3(node2, parent, state, info24) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info24);
+  const value = state.containerFlow(node2, info25);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38096,7 +38096,7 @@ function checkListItemIndent(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info24) {
+function listItem(node2, parent, state, info25) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38106,7 +38106,7 @@ function listItem(node2, parent, state, info24) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38125,10 +38125,10 @@ function listItem(node2, parent, state, info24) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info24) {
+function paragraph(node2, _, state, info25) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info24);
+  const value = state.containerPhrasing(node2, info25);
   subexit();
   exit3();
   return value;
@@ -38163,12 +38163,12 @@ var phrasing = (
 );
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info24) {
+function root(node2, _, state, info25) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info24);
+  return container.call(state, node2, info25);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38184,10 +38184,10 @@ function checkStrong(state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info24) {
+function strong(node2, _, state, info25) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38198,7 +38198,7 @@ function strong(node2, _, state, info24) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info24.before.charCodeAt(info24.before.length - 1),
+    info25.before.charCodeAt(info25.before.length - 1),
     betweenHead,
     marker
   );
@@ -38206,7 +38206,7 @@ function strong(node2, _, state, info24) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info24.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info25.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38223,8 +38223,8 @@ function strongPeek(_, _1, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info24) {
-  return state.safe(node2.value, info24);
+function text3(node2, _, state, info25) {
+  return state.safe(node2.value, info25);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38439,15 +38439,15 @@ function compilePattern(pattern) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info24) {
+function containerPhrasing(parent, state, info25) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info24.before;
+  let before = info25.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info24);
+  let tracker = state.createTracker(info25);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38461,7 +38461,7 @@ function containerPhrasing(parent, state, info24) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info24.after;
+      after = info25.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38469,7 +38469,7 @@ function containerPhrasing(parent, state, info24) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info24);
+      tracker = state.createTracker(info25);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38498,10 +38498,10 @@ function containerPhrasing(parent, state, info24) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info24) {
+function containerFlow(parent, state, info25) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38737,11 +38737,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info24) {
-  return containerPhrasing(parent, this, info24);
+function containerPhrasingBound(parent, info25) {
+  return containerPhrasing(parent, this, info25);
 }
-function containerFlowBound(parent, info24) {
-  return containerFlow(parent, this, info24);
+function containerFlowBound(parent, info25) {
+  return containerFlow(parent, this, info25);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38838,19 +38838,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info24) {
-    return serializeData(handleTableAsData(node2, state, info24), node2.align);
+  function handleTable(node2, _, state, info25) {
+    return serializeData(handleTableAsData(node2, state, info25), node2.align);
   }
-  function handleTableRow(node2, _, state, info24) {
-    const row = handleTableRowAsData(node2, state, info24);
+  function handleTableRow(node2, _, state, info25) {
+    const row = handleTableRowAsData(node2, state, info25);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info24) {
+  function handleTableCell(node2, _, state, info25) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info24,
+      ...info25,
       before: around,
       after: around
     });
@@ -38869,24 +38869,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info24) {
+  function handleTableAsData(node2, state, info25) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info24);
+      result[index2] = handleTableRowAsData(children[index2], state, info25);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info24) {
+  function handleTableRowAsData(node2, state, info25) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info24);
+      result[index2] = handleTableCell(children[index2], node2, state, info25);
     }
     subexit();
     return result;
@@ -38952,16 +38952,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info24) {
+function listItemWithTaskListItem(node2, parent, state, info25) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info24);
+  const tracker = state.createTracker(info25);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info24,
+    ...info25,
     ...tracker.current()
   });
   if (checkable) {
@@ -41513,6 +41513,8 @@ var TriggerTypeSchema = external_exports.enum([
   "pr-merged",
   "deployed-stage",
   "deployed-prod",
+  "deployed-stage-failed",
+  "deployed-prod-failed",
   // Discussion triggers
   "discussion-created",
   "discussion-comment",
@@ -42116,7 +42118,9 @@ var IssueTriggerTypeSchema = external_exports.enum([
   "merge-queue-failed",
   "pr-merged",
   "deployed-stage",
-  "deployed-prod"
+  "deployed-prod",
+  "deployed-stage-failed",
+  "deployed-prod-failed"
 ]);
 var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
 
@@ -42186,8 +42190,14 @@ var JobTypeSchema = external_exports.enum([
   "pr-review-approved",
   "pr-response",
   "pr-human-response",
-  // Merge queue
+  // Merge queue and deployment logging
   "merge-queue-logging",
+  "merge-queue-failure-logging",
+  "merged-logging",
+  "deployed-stage-logging",
+  "deployed-prod-logging",
+  "deployed-stage-failure-logging",
+  "deployed-prod-failure-logging",
   // Discussion jobs
   "discussion-research",
   "discussion-respond",
@@ -46413,6 +46423,12 @@ function triggeredByDeployedStage({ context: context2 }) {
 function triggeredByDeployedProd({ context: context2 }) {
   return context2.trigger === "deployed-prod";
 }
+function triggeredByDeployedStageFailure({ context: context2 }) {
+  return context2.trigger === "deployed-stage-failed";
+}
+function triggeredByDeployedProdFailure({ context: context2 }) {
+  return context2.trigger === "deployed-prod-failed";
+}
 function needsTriage({ context: context2 }) {
   return !context2.issue.labels.includes("triaged");
 }
@@ -46513,6 +46529,8 @@ var guards = {
   triggeredByPRMerged,
   triggeredByDeployedStage,
   triggeredByDeployedProd,
+  triggeredByDeployedStageFailure,
+  triggeredByDeployedProdFailure,
   // Triage guards
   needsTriage,
   isTriaged,
@@ -47491,6 +47509,42 @@ function emitDeployedProd({ context: context2 }) {
     }
   ];
 }
+function emitDeployedStageFailure({
+  context: context2
+}) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u274C Stage deploy failed",
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
+function emitDeployedProdFailure({
+  context: context2
+}) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    {
+      type: "appendHistory",
+      token: "code",
+      issueNumber,
+      iteration,
+      phase,
+      message: "\u274C Prod deploy failed",
+      runLink: context2.ciRunUrl ?? void 0
+    }
+  ];
+}
 function emitPushToDraft({ context: context2 }) {
   const actions = [];
   if (context2.pr) {
@@ -47684,6 +47738,8 @@ var claudeMachine = setup({
     triggeredByPRMerged: ({ context: context2 }) => guards.triggeredByPRMerged({ context: context2 }),
     triggeredByDeployedStage: ({ context: context2 }) => guards.triggeredByDeployedStage({ context: context2 }),
     triggeredByDeployedProd: ({ context: context2 }) => guards.triggeredByDeployedProd({ context: context2 }),
+    triggeredByDeployedStageFailure: ({ context: context2 }) => guards.triggeredByDeployedStageFailure({ context: context2 }),
+    triggeredByDeployedProdFailure: ({ context: context2 }) => guards.triggeredByDeployedProdFailure({ context: context2 }),
     needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 }),
     // Grooming guards
     triggeredByGroom: ({ context: context2 }) => guards.triggeredByGroom({ context: context2 }),
@@ -47794,6 +47850,8 @@ var claudeMachine = setup({
     logMerged: emit2(emitMerged),
     logDeployedStage: emit2(emitDeployedStage),
     logDeployedProd: emit2(emitDeployedProd),
+    logDeployedStageFailure: emit2(emitDeployedStageFailure),
+    logDeployedProdFailure: emit2(emitDeployedProdFailure),
     // Push to draft action
     pushToDraft: emit2(emitPushToDraft),
     // Reset action
@@ -47856,6 +47914,14 @@ var claudeMachine = setup({
           { target: "processingMerge", guard: "triggeredByPRMerged" },
           { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
           { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
+          {
+            target: "deployedStageFailureLogging",
+            guard: "triggeredByDeployedStageFailure"
+          },
+          {
+            target: "deployedProdFailureLogging",
+            guard: "triggeredByDeployedProdFailure"
+          },
           // Check if this is a triage request
           {
             target: "triaging",
@@ -48331,6 +48397,20 @@ var claudeMachine = setup({
       type: "final"
     },
     /**
+     * Log stage deployment failure
+     */
+    deployedStageFailureLogging: {
+      entry: ["logDeployedStageFailure"],
+      type: "final"
+    },
+    /**
+     * Log production deployment failure
+     */
+    deployedProdFailureLogging: {
+      entry: ["logDeployedProdFailure"],
+      type: "final"
+    },
+    /**
      * All work complete
      */
     done: {
@@ -48340,7 +48420,7 @@ var claudeMachine = setup({
   }
 });
 
-// src/claude/executor.ts
+// ../claude/src/executor.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
 
@@ -52690,7 +52770,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core25 = [
+  var core26 = [
     "$schema",
     "$id",
     "$defs",
@@ -52700,7 +52780,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core25;
+  exports2.default = core26;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -66742,292 +66822,11 @@ var core16 = __toESM(require_core(), 1);
 // src/runner/executors/pivot.ts
 var core17 = __toESM(require_core(), 1);
 
-// src/test-runner/poller.ts
-var core20 = __toESM(require_core(), 1);
-var exec7 = __toESM(require_exec(), 1);
-
-// src/test-runner/configurable/types.ts
-var StateNameSchema = external_exports.enum([
-  // Transient states (routing decisions)
-  "detecting",
-  "initializing",
-  "orchestrating",
-  "processingCI",
-  "processingReview",
-  "processingMerge",
-  "transitioningToReview",
-  // Final states (work is done or stopped)
-  "triaging",
-  "grooming",
-  "resetting",
-  "commenting",
-  "pivoting",
-  "prReviewing",
-  "prResponding",
-  "prRespondingHuman",
-  "prPush",
-  "orchestrationRunning",
-  "orchestrationWaiting",
-  "orchestrationComplete",
-  "awaitingMerge",
-  "iterating",
-  "iteratingFix",
-  "reviewing",
-  "blocked",
-  "error",
-  "done",
-  // Logging states
-  "mergeQueueLogging",
-  "mergeQueueFailureLogging",
-  "mergedLogging",
-  "deployedStageLogging",
-  "deployedProdLogging"
-]);
-var ClaudeMockSchema = external_exports.object({
-  /** Optional description of what this mock represents */
-  description: external_exports.string().optional(),
-  /** The structured output to return when this mock is used */
-  output: external_exports.record(external_exports.unknown())
-});
-var TestSubIssueSchema = external_exports.object({
-  number: external_exports.number().int().nonnegative(),
-  // 0 = placeholder
-  title: external_exports.string(),
-  body: external_exports.string(),
-  state: external_exports.enum(["OPEN", "CLOSED"]),
-  projectStatus: external_exports.string().nullable(),
-  branch: external_exports.string().nullable().optional(),
-  pr: external_exports.object({
-    number: external_exports.number().int().nonnegative(),
-    // 0 = placeholder
-    state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
-    isDraft: external_exports.boolean(),
-    title: external_exports.string(),
-    headRef: external_exports.string(),
-    baseRef: external_exports.string()
-  }).nullable().optional(),
-  todos: external_exports.object({
-    total: external_exports.number().int().nonnegative(),
-    completed: external_exports.number().int().nonnegative(),
-    uncheckedNonManual: external_exports.number().int().nonnegative()
-  }).optional()
-});
-var TestPRSchema = external_exports.object({
-  number: external_exports.number().int().nonnegative(),
-  // 0 = create new PR
-  state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
-  isDraft: external_exports.boolean(),
-  title: external_exports.string(),
-  body: external_exports.string().optional(),
-  headRef: external_exports.string().optional(),
-  // Branch name (will use test branch if not specified)
-  baseRef: external_exports.string().default("main")
-});
-var TestParentIssueSchema = external_exports.object({
-  number: external_exports.number().int().nonnegative(),
-  // Allow 0 as placeholder
-  title: external_exports.string(),
-  state: external_exports.enum(["OPEN", "CLOSED"]),
-  body: external_exports.string(),
-  projectStatus: external_exports.string().nullable(),
-  iteration: external_exports.number().int().nonnegative(),
-  failures: external_exports.number().int().nonnegative(),
-  assignees: external_exports.array(external_exports.string()),
-  labels: external_exports.array(external_exports.string()),
-  subIssues: external_exports.array(TestSubIssueSchema),
-  // Now typed for test fixtures
-  hasSubIssues: external_exports.boolean(),
-  history: external_exports.array(external_exports.unknown()),
-  // Simplified for fixtures
-  todos: external_exports.object({
-    total: external_exports.number().int().nonnegative(),
-    completed: external_exports.number().int().nonnegative(),
-    uncheckedNonManual: external_exports.number().int().nonnegative()
-  }),
-  /** PR linked to this issue (optional, for states that need a PR) */
-  pr: TestPRSchema.nullable().optional()
-});
-var TestCommentSchema = external_exports.object({
-  id: external_exports.number().int().nonnegative(),
-  // 0 = placeholder
-  body: external_exports.string(),
-  author: external_exports.string()
-});
-var StateFixtureSchema = external_exports.object({
-  /** The state name this fixture represents */
-  state: StateNameSchema,
-  /** Optional description of this fixture state */
-  description: external_exports.string().optional(),
-  /** Explicit trigger type to use (optional, overrides auto-detection) */
-  trigger: IssueTriggerTypeSchema.optional(),
-  /** CI result to inject for this transition (optional) */
-  ciResult: CIResultSchema.optional(),
-  /** Review decision to inject for this transition (optional) */
-  reviewDecision: external_exports.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]).optional(),
-  /** Issue state - uses test-specific schema allowing placeholder values */
-  issue: TestParentIssueSchema,
-  /** Comment that triggered this state (for comment/pivot scenarios) */
-  comment: TestCommentSchema.optional(),
-  /** Pivot description from /pivot command (for pivot scenarios) */
-  pivotDescription: external_exports.string().optional(),
-  /** Reference to a claude mock file (when mock_claude=true) */
-  claudeMock: external_exports.string().optional(),
-  /** Multiple claude mock references (for states that call multiple Claude prompts, like grooming) */
-  claudeMocks: external_exports.array(external_exports.string()).optional(),
-  /** Expected results for this state transition (optional, for validation) */
-  expected: external_exports.record(external_exports.unknown()).optional()
-});
-var ScenarioConfigSchema = external_exports.object({
-  name: external_exports.string(),
-  description: external_exports.string()
-});
-var TestRunnerInputsSchema = external_exports.object({
-  /** false = stop after one step, true = run to completion */
-  continue: external_exports.boolean().default(true),
-  /** Start at a specific state name (e.g., "iteratingFix") */
-  startStep: external_exports.string().optional(),
-  /** true = use fixture outputs, false = run real Claude */
-  mockClaude: external_exports.boolean().default(true),
-  /** true = CI passes/fails immediately, false = run real CI */
-  mockCI: external_exports.boolean().default(true),
-  /** true = include all tasks (multi sub-issues), false = pick one random task */
-  multiIssue: external_exports.boolean().default(true)
-});
-var StateTransitionResultSchema = external_exports.object({
-  /** Starting state */
-  fromState: StateNameSchema,
-  /** Ending state */
-  toState: StateNameSchema,
-  /** Whether the transition succeeded */
-  success: external_exports.boolean(),
-  /** Error message if failed */
-  error: external_exports.string().optional(),
-  /** Duration in milliseconds */
-  durationMs: external_exports.number(),
-  /** Verification failures if any */
-  verificationErrors: external_exports.array(external_exports.string()).optional()
-});
-var ConfigurableTestResultSchema = external_exports.object({
-  /** Overall status */
-  status: external_exports.enum(["completed", "paused", "failed", "error"]),
-  /** Current state (if paused) */
-  currentState: StateNameSchema.optional(),
-  /** Next state (if paused) */
-  nextState: StateNameSchema.optional(),
-  /** Issue number used for test */
-  issueNumber: external_exports.number(),
-  /** All state transitions executed */
-  transitions: external_exports.array(StateTransitionResultSchema),
-  /** Total duration in milliseconds */
-  totalDurationMs: external_exports.number(),
-  /** Error message if status is error */
-  error: external_exports.string().optional()
-});
-
-// src/test-runner/configurable/loader.ts
+// src/runner/derive.ts
 var core21 = __toESM(require_core(), 1);
 
-// src/discussion/actions.ts
-var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
-var BaseActionSchema2 = external_exports.object({
-  type: external_exports.string(),
-  token: TokenTypeSchema2
-});
-var ArtifactSchema2 = external_exports.object({
-  name: external_exports.string(),
-  path: external_exports.string()
-});
-var AddDiscussionCommentActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("addDiscussionComment"),
-  discussionNodeId: external_exports.string(),
-  body: external_exports.string(),
-  replyToNodeId: external_exports.string().optional()
-});
-var UpdateDiscussionBodyActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("updateDiscussionBody"),
-  discussionNodeId: external_exports.string(),
-  newBody: external_exports.string()
-});
-var AddDiscussionReactionActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("addDiscussionReaction"),
-  subjectId: external_exports.string(),
-  content: external_exports.enum([
-    "THUMBS_UP",
-    "THUMBS_DOWN",
-    "LAUGH",
-    "HOORAY",
-    "CONFUSED",
-    "HEART",
-    "ROCKET",
-    "EYES"
-  ])
-});
-var CreateIssuesFromDiscussionActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("createIssuesFromDiscussion"),
-  discussionNumber: external_exports.number().int().positive(),
-  issues: external_exports.array(
-    external_exports.object({
-      title: external_exports.string(),
-      body: external_exports.string(),
-      labels: external_exports.array(external_exports.string())
-    })
-  )
-});
-var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionResearchOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var ApplyDiscussionRespondOutputActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionRespondOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  replyToNodeId: external_exports.string().optional(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var ApplyDiscussionSummarizeOutputActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionSummarizeOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var ApplyDiscussionPlanOutputActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionPlanOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var RunClaudeActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("runClaude"),
-  promptDir: external_exports.string(),
-  promptsBase: external_exports.string().optional(),
-  promptVars: external_exports.record(external_exports.string()),
-  issueNumber: external_exports.number().int().positive().optional(),
-  producesArtifact: ArtifactSchema2.optional()
-});
-var LogActionSchema2 = BaseActionSchema2.extend({
-  type: external_exports.literal("log"),
-  level: external_exports.enum(["debug", "info", "warning", "error"]),
-  message: external_exports.string()
-});
-var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
-  AddDiscussionCommentActionSchema2,
-  UpdateDiscussionBodyActionSchema2,
-  AddDiscussionReactionActionSchema2,
-  CreateIssuesFromDiscussionActionSchema2,
-  ApplyDiscussionResearchOutputActionSchema2,
-  ApplyDiscussionRespondOutputActionSchema2,
-  ApplyDiscussionSummarizeOutputActionSchema2,
-  ApplyDiscussionPlanOutputActionSchema2,
-  RunClaudeActionSchema2,
-  LogActionSchema2
-]);
+// src/discussion/context-builder.ts
+var core20 = __toESM(require_core(), 1);
 
 // src/discussion/guards.ts
 function triggeredByDiscussionCreated({ context: context2 }) {
@@ -67506,23 +67305,307 @@ var discussionMachine = setup({
   }
 });
 
-// src/discussion/context-builder.ts
+// src/test-runner/poller.ts
 var core22 = __toESM(require_core(), 1);
+var exec7 = __toESM(require_exec(), 1);
+
+// src/test-runner/configurable/types.ts
+var StateNameSchema = external_exports.enum([
+  // Transient states (routing decisions)
+  "detecting",
+  "initializing",
+  "orchestrating",
+  "processingCI",
+  "processingReview",
+  "processingMerge",
+  "transitioningToReview",
+  // Final states (work is done or stopped)
+  "triaging",
+  "grooming",
+  "resetting",
+  "commenting",
+  "pivoting",
+  "prReviewing",
+  "prResponding",
+  "prRespondingHuman",
+  "prPush",
+  "orchestrationRunning",
+  "orchestrationWaiting",
+  "orchestrationComplete",
+  "awaitingMerge",
+  "iterating",
+  "iteratingFix",
+  "reviewing",
+  "blocked",
+  "error",
+  "done",
+  // Logging states
+  "mergeQueueLogging",
+  "mergeQueueFailureLogging",
+  "mergedLogging",
+  "deployedStageLogging",
+  "deployedProdLogging"
+]);
+var ClaudeMockSchema = external_exports.object({
+  /** Optional description of what this mock represents */
+  description: external_exports.string().optional(),
+  /** The structured output to return when this mock is used */
+  output: external_exports.record(external_exports.unknown())
+});
+var TestSubIssueSchema = external_exports.object({
+  number: external_exports.number().int().nonnegative(),
+  // 0 = placeholder
+  title: external_exports.string(),
+  body: external_exports.string(),
+  state: external_exports.enum(["OPEN", "CLOSED"]),
+  projectStatus: external_exports.string().nullable(),
+  branch: external_exports.string().nullable().optional(),
+  pr: external_exports.object({
+    number: external_exports.number().int().nonnegative(),
+    // 0 = placeholder
+    state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
+    isDraft: external_exports.boolean(),
+    title: external_exports.string(),
+    headRef: external_exports.string(),
+    baseRef: external_exports.string()
+  }).nullable().optional(),
+  todos: external_exports.object({
+    total: external_exports.number().int().nonnegative(),
+    completed: external_exports.number().int().nonnegative(),
+    uncheckedNonManual: external_exports.number().int().nonnegative()
+  }).optional()
+});
+var TestPRSchema = external_exports.object({
+  number: external_exports.number().int().nonnegative(),
+  // 0 = create new PR
+  state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  body: external_exports.string().optional(),
+  headRef: external_exports.string().optional(),
+  // Branch name (will use test branch if not specified)
+  baseRef: external_exports.string().default("main")
+});
+var TestParentIssueSchema = external_exports.object({
+  number: external_exports.number().int().nonnegative(),
+  // Allow 0 as placeholder
+  title: external_exports.string(),
+  state: external_exports.enum(["OPEN", "CLOSED"]),
+  body: external_exports.string(),
+  projectStatus: external_exports.string().nullable(),
+  iteration: external_exports.number().int().nonnegative(),
+  failures: external_exports.number().int().nonnegative(),
+  assignees: external_exports.array(external_exports.string()),
+  labels: external_exports.array(external_exports.string()),
+  subIssues: external_exports.array(TestSubIssueSchema),
+  // Now typed for test fixtures
+  hasSubIssues: external_exports.boolean(),
+  history: external_exports.array(external_exports.unknown()),
+  // Simplified for fixtures
+  todos: external_exports.object({
+    total: external_exports.number().int().nonnegative(),
+    completed: external_exports.number().int().nonnegative(),
+    uncheckedNonManual: external_exports.number().int().nonnegative()
+  }),
+  /** PR linked to this issue (optional, for states that need a PR) */
+  pr: TestPRSchema.nullable().optional()
+});
+var TestCommentSchema = external_exports.object({
+  id: external_exports.number().int().nonnegative(),
+  // 0 = placeholder
+  body: external_exports.string(),
+  author: external_exports.string()
+});
+var StateFixtureSchema = external_exports.object({
+  /** The state name this fixture represents */
+  state: StateNameSchema,
+  /** Optional description of this fixture state */
+  description: external_exports.string().optional(),
+  /** Explicit trigger type to use (optional, overrides auto-detection) */
+  trigger: IssueTriggerTypeSchema.optional(),
+  /** CI result to inject for this transition (optional) */
+  ciResult: CIResultSchema.optional(),
+  /** Review decision to inject for this transition (optional) */
+  reviewDecision: external_exports.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]).optional(),
+  /** Issue state - uses test-specific schema allowing placeholder values */
+  issue: TestParentIssueSchema,
+  /** Comment that triggered this state (for comment/pivot scenarios) */
+  comment: TestCommentSchema.optional(),
+  /** Pivot description from /pivot command (for pivot scenarios) */
+  pivotDescription: external_exports.string().optional(),
+  /** Reference to a claude mock file (when mock_claude=true) */
+  claudeMock: external_exports.string().optional(),
+  /** Multiple claude mock references (for states that call multiple Claude prompts, like grooming) */
+  claudeMocks: external_exports.array(external_exports.string()).optional(),
+  /** Expected results for this state transition (optional, for validation) */
+  expected: external_exports.record(external_exports.unknown()).optional()
+});
+var ScenarioConfigSchema = external_exports.object({
+  name: external_exports.string(),
+  description: external_exports.string()
+});
+var TestRunnerInputsSchema = external_exports.object({
+  /** false = stop after one step, true = run to completion */
+  continue: external_exports.boolean().default(true),
+  /** Start at a specific state name (e.g., "iteratingFix") */
+  startStep: external_exports.string().optional(),
+  /** true = use fixture outputs, false = run real Claude */
+  mockClaude: external_exports.boolean().default(true),
+  /** true = CI passes/fails immediately, false = run real CI */
+  mockCI: external_exports.boolean().default(true),
+  /** true = include all tasks (multi sub-issues), false = pick one random task */
+  multiIssue: external_exports.boolean().default(true)
+});
+var StateTransitionResultSchema = external_exports.object({
+  /** Starting state */
+  fromState: StateNameSchema,
+  /** Ending state */
+  toState: StateNameSchema,
+  /** Whether the transition succeeded */
+  success: external_exports.boolean(),
+  /** Error message if failed */
+  error: external_exports.string().optional(),
+  /** Duration in milliseconds */
+  durationMs: external_exports.number(),
+  /** Verification failures if any */
+  verificationErrors: external_exports.array(external_exports.string()).optional()
+});
+var ConfigurableTestResultSchema = external_exports.object({
+  /** Overall status */
+  status: external_exports.enum(["completed", "paused", "failed", "error"]),
+  /** Current state (if paused) */
+  currentState: StateNameSchema.optional(),
+  /** Next state (if paused) */
+  nextState: StateNameSchema.optional(),
+  /** Issue number used for test */
+  issueNumber: external_exports.number(),
+  /** All state transitions executed */
+  transitions: external_exports.array(StateTransitionResultSchema),
+  /** Total duration in milliseconds */
+  totalDurationMs: external_exports.number(),
+  /** Error message if status is error */
+  error: external_exports.string().optional()
+});
+
+// src/test-runner/configurable/loader.ts
+var core23 = __toESM(require_core(), 1);
+
+// src/discussion/actions.ts
+var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
+var BaseActionSchema2 = external_exports.object({
+  type: external_exports.string(),
+  token: TokenTypeSchema2
+});
+var ArtifactSchema2 = external_exports.object({
+  name: external_exports.string(),
+  path: external_exports.string()
+});
+var AddDiscussionCommentActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("addDiscussionComment"),
+  discussionNodeId: external_exports.string(),
+  body: external_exports.string(),
+  replyToNodeId: external_exports.string().optional()
+});
+var UpdateDiscussionBodyActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("updateDiscussionBody"),
+  discussionNodeId: external_exports.string(),
+  newBody: external_exports.string()
+});
+var AddDiscussionReactionActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("addDiscussionReaction"),
+  subjectId: external_exports.string(),
+  content: external_exports.enum([
+    "THUMBS_UP",
+    "THUMBS_DOWN",
+    "LAUGH",
+    "HOORAY",
+    "CONFUSED",
+    "HEART",
+    "ROCKET",
+    "EYES"
+  ])
+});
+var CreateIssuesFromDiscussionActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("createIssuesFromDiscussion"),
+  discussionNumber: external_exports.number().int().positive(),
+  issues: external_exports.array(
+    external_exports.object({
+      title: external_exports.string(),
+      body: external_exports.string(),
+      labels: external_exports.array(external_exports.string())
+    })
+  )
+});
+var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionResearchOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string(),
+  promptVars: external_exports.record(external_exports.string()).optional(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
+});
+var ApplyDiscussionRespondOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionRespondOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string(),
+  replyToNodeId: external_exports.string().optional(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
+});
+var ApplyDiscussionSummarizeOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionSummarizeOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
+});
+var ApplyDiscussionPlanOutputActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("applyDiscussionPlanOutput"),
+  discussionNumber: external_exports.number().int().positive(),
+  discussionNodeId: external_exports.string(),
+  filePath: external_exports.string().optional(),
+  consumesArtifact: ArtifactSchema2.optional()
+});
+var RunClaudeActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("runClaude"),
+  promptDir: external_exports.string(),
+  promptsBase: external_exports.string().optional(),
+  promptVars: external_exports.record(external_exports.string()),
+  issueNumber: external_exports.number().int().positive().optional(),
+  producesArtifact: ArtifactSchema2.optional()
+});
+var LogActionSchema2 = BaseActionSchema2.extend({
+  type: external_exports.literal("log"),
+  level: external_exports.enum(["debug", "info", "warning", "error"]),
+  message: external_exports.string()
+});
+var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
+  AddDiscussionCommentActionSchema2,
+  UpdateDiscussionBodyActionSchema2,
+  AddDiscussionReactionActionSchema2,
+  CreateIssuesFromDiscussionActionSchema2,
+  ApplyDiscussionResearchOutputActionSchema2,
+  ApplyDiscussionRespondOutputActionSchema2,
+  ApplyDiscussionSummarizeOutputActionSchema2,
+  ApplyDiscussionPlanOutputActionSchema2,
+  RunClaudeActionSchema2,
+  LogActionSchema2
+]);
 
 // src/action-utils.ts
-var core23 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
-  const value = core23.getInput(name);
+  const value = core24.getInput(name);
   return value === "" ? void 0 : value;
 }
 function getRequiredInput(name) {
-  return core23.getInput(name, { required: true });
+  return core24.getInput(name, { required: true });
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== void 0) {
-      core23.setOutput(key, value);
+      core24.setOutput(key, value);
     }
   }
 }
@@ -67787,18 +67870,18 @@ async function addLabelsToDiscussion(octokit, owner, repo, discussionId, labelNa
     if (label) {
       labelIds.push(label.id);
     } else {
-      core24.warning(`Label "${labelName}" not found in repository`);
+      core25.warning(`Label "${labelName}" not found in repository`);
     }
   }
   if (labelIds.length === 0) {
-    core24.warning("No valid labels found to add to discussion");
+    core25.warning("No valid labels found to add to discussion");
     return;
   }
   await octokit.graphql(ADD_LABELS_TO_LABELABLE_MUTATION, {
     labelableId: discussionId,
     labelIds
   });
-  core24.info(`Added ${labelIds.length} labels to discussion`);
+  core25.info(`Added ${labelIds.length} labels to discussion`);
 }
 async function createFixture(octokit, owner, repo, fixture, projectNumber, reviewOctokit) {
   const result = {
@@ -67806,9 +67889,9 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     sub_issue_numbers: []
   };
   if (!fixture.parent_issue) {
-    core24.info("No parent_issue in fixture - creating discussion-only fixture");
+    core25.info("No parent_issue in fixture - creating discussion-only fixture");
     if (fixture.discussion) {
-      core24.info(`Creating discussion: ${fixture.discussion.title}`);
+      core25.info(`Creating discussion: ${fixture.discussion.title}`);
       const categoriesResponse = await octokit.graphql(
         GET_DISCUSSION_CATEGORIES_QUERY2,
         { owner, repo }
@@ -67820,7 +67903,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
       );
       if (!repoId || !category) {
-        core24.warning(
+        core25.warning(
           `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
         );
       } else {
@@ -67836,7 +67919,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         const discussion = discussionResponse.createDiscussion?.discussion;
         if (discussion) {
           result.discussion_number = discussion.number;
-          core24.info(
+          core25.info(
             `Created discussion #${discussion.number}: ${discussion.url}`
           );
           if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
@@ -67853,7 +67936,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               discussionId: discussion.id,
               body: fixture.comment.body
             });
-            core24.info("Added comment to discussion");
+            core25.info("Added comment to discussion");
           }
         }
       }
@@ -67865,7 +67948,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     "test:automation",
     ...fixture.parent_issue.labels || []
   ];
-  core24.info(`Creating parent issue: ${parentTitle}`);
+  core25.info(`Creating parent issue: ${parentTitle}`);
   const createResult = await createIssue(
     owner,
     repo,
@@ -67878,8 +67961,8 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
   );
   result.issue_number = createResult.issueNumber;
   const issueNodeId = createResult.issueId;
-  core24.info(`Created parent issue #${createResult.issueNumber}`);
-  core24.info(`Issue node_id: ${issueNodeId}`);
+  core25.info(`Created parent issue #${createResult.issueNumber}`);
+  core25.info(`Issue node_id: ${issueNodeId}`);
   let projectFields = null;
   try {
     const projectResponse = await octokit.graphql(
@@ -67913,21 +67996,21 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       }
     );
     const projectData = projectResponse.organization?.projectV2;
-    core24.info(
+    core25.info(
       `Project query result - org: ${owner}, projectNumber: ${projectNumber}`
     );
-    core24.info(`Project data: ${JSON.stringify(projectData)}`);
+    core25.info(`Project data: ${JSON.stringify(projectData)}`);
     projectFields = parseProjectFields(projectData);
     if (projectFields) {
-      core24.info(
+      core25.info(
         `Parsed project fields - projectId: ${projectFields.projectId}`
       );
     }
   } catch (error7) {
-    core24.warning(
+    core25.warning(
       `Could not access project #${projectNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
-    core24.warning("Continuing without project field setup");
+    core25.warning("Continuing without project field setup");
   }
   if (projectFields && fixture.parent_issue.project_fields) {
     try {
@@ -67952,7 +68035,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.statusFieldId,
               value: { singleSelectOptionId: optionId }
             });
-            core24.info(`Set parent Status to ${statusValue}`);
+            core25.info(`Set parent Status to ${statusValue}`);
           }
         }
         if (fixture.parent_issue.project_fields.Iteration !== void 0 && projectFields.iterationFieldId) {
@@ -67962,11 +68045,11 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             fieldId: projectFields.iterationFieldId,
             value: { number: fixture.parent_issue.project_fields.Iteration }
           });
-          core24.info(
+          core25.info(
             `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`
           );
         } else if (fixture.parent_issue.project_fields.Iteration !== void 0) {
-          core24.warning(
+          core25.warning(
             "Iteration field not found in project - skipping Iteration update"
           );
         }
@@ -67977,17 +68060,17 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             fieldId: projectFields.failuresFieldId,
             value: { number: fixture.parent_issue.project_fields.Failures }
           });
-          core24.info(
+          core25.info(
             `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`
           );
         } else if (fixture.parent_issue.project_fields.Failures !== void 0) {
-          core24.warning(
+          core25.warning(
             "Failures field not found in project - skipping Failures update"
           );
         }
       }
     } catch (error7) {
-      core24.warning(
+      core25.warning(
         `Failed to set project fields for parent issue: ${error7 instanceof Error ? error7.message : String(error7)}`
       );
     }
@@ -67997,7 +68080,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       const subConfig = fixture.sub_issues[i];
       if (!subConfig) continue;
       const subTitle = `[Phase ${i + 1}] ${subConfig.title}`;
-      core24.info(`Creating sub-issue: ${subTitle}`);
+      core25.info(`Creating sub-issue: ${subTitle}`);
       const bodyWithParent = subConfig.body.replace(
         /\{PARENT_NUMBER\}/g,
         String(createResult.issueNumber)
@@ -68034,17 +68117,17 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         await updateSub(updatedSubState);
       }
       result.sub_issue_numbers.push(subCreateResult.issueNumber);
-      core24.info(`Created sub-issue #${subCreateResult.issueNumber}`);
+      core25.info(`Created sub-issue #${subCreateResult.issueNumber}`);
       try {
         await octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
           parentId: issueNodeId,
           subIssueId: subCreateResult.issueId
         });
-        core24.info(
+        core25.info(
           `Linked sub-issue #${subCreateResult.issueNumber} to parent #${createResult.issueNumber}`
         );
       } catch (error7) {
-        core24.warning(`Failed to link sub-issue: ${error7}`);
+        core25.warning(`Failed to link sub-issue: ${error7}`);
       }
       if (subConfig.project_fields && projectFields) {
         const addResult = await octokit.graphql(
@@ -68068,7 +68151,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
                 fieldId: projectFields.statusFieldId,
                 value: { singleSelectOptionId: optionId }
               });
-              core24.info(
+              core25.info(
                 `Set sub-issue #${subCreateResult.issueNumber} Status to ${subStatus}`
               );
             }
@@ -68080,7 +68163,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.iterationFieldId,
               value: { number: subConfig.project_fields.Iteration }
             });
-            core24.info(
+            core25.info(
               `Set sub-issue #${subCreateResult.issueNumber} Iteration to ${subConfig.project_fields.Iteration}`
             );
           }
@@ -68091,7 +68174,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.failuresFieldId,
               value: { number: subConfig.project_fields.Failures }
             });
-            core24.info(
+            core25.info(
               `Set sub-issue #${subCreateResult.issueNumber} Failures to ${subConfig.project_fields.Failures}`
             );
           }
@@ -68102,7 +68185,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
   if (fixture.branch) {
     const branchName = `test/${fixture.branch.name}`;
     result.branch_name = branchName;
-    core24.info(`Creating branch: ${branchName}`);
+    core25.info(`Creating branch: ${branchName}`);
     const { data: baseBranch } = await octokit.rest.repos.getBranch({
       owner,
       repo,
@@ -68114,7 +68197,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       ref: `refs/heads/${branchName}`,
       sha: baseBranch.commit.sha
     });
-    core24.info(`Created branch ${branchName} from ${fixture.branch.from}`);
+    core25.info(`Created branch ${branchName} from ${fixture.branch.from}`);
     if (fixture.branch.commits && fixture.branch.commits.length > 0) {
       for (const commit2 of fixture.branch.commits) {
         const { data: currentRef } = await octokit.rest.git.getRef({
@@ -68179,12 +68262,12 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           ref: `heads/${branchName}`,
           sha: newCommit.sha
         });
-        core24.info(`Added commit: ${commit2.message}`);
+        core25.info(`Added commit: ${commit2.message}`);
       }
     }
   }
   if (fixture.pr && result.branch_name) {
-    core24.info(`Creating PR: ${fixture.pr.title}`);
+    core25.info(`Creating PR: ${fixture.pr.title}`);
     const firstSubIssueNumber = result.sub_issue_numbers[0];
     let prBody = fixture.pr.body;
     if (firstSubIssueNumber) {
@@ -68205,7 +68288,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       // Default to draft
     });
     result.pr_number = pr.number;
-    core24.info(`Created PR #${pr.number}`);
+    core25.info(`Created PR #${pr.number}`);
     await setLabels(
       owner,
       repo,
@@ -68221,14 +68304,14 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           pull_number: pr.number,
           reviewers: ["nopo-bot"]
         });
-        core24.info("Requested nopo-bot as reviewer");
+        core25.info("Requested nopo-bot as reviewer");
       } catch (error7) {
-        core24.warning(`Failed to request reviewer: ${error7}`);
+        core25.warning(`Failed to request reviewer: ${error7}`);
       }
     }
   }
   if (fixture.comment && result.issue_number) {
-    core24.info("Adding comment to issue");
+    core25.info("Adding comment to issue");
     const { commentId } = await createComment(
       owner,
       repo,
@@ -68237,7 +68320,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       asOctokitLike(octokit)
     );
     result.comment_id = String(commentId);
-    core24.info(`Created comment ${commentId}`);
+    core25.info(`Created comment ${commentId}`);
   }
   if (fixture.review && result.pr_number) {
     if (!reviewOctokit) {
@@ -68245,7 +68328,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         "Test fixture requires review but no github_review_token provided. Set CLAUDE_REVIEWER_PAT secret or remove 'review' from fixture."
       );
     }
-    core24.info(`Submitting review with state: ${fixture.review.state}`);
+    core25.info(`Submitting review with state: ${fixture.review.state}`);
     const eventMap = {
       approve: "APPROVE",
       request_changes: "REQUEST_CHANGES",
@@ -68258,10 +68341,10 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       body: fixture.review.body,
       event: eventMap[fixture.review.state]
     });
-    core24.info("Review submitted");
+    core25.info("Review submitted");
   }
   if (fixture.discussion) {
-    core24.info(`Creating discussion: ${fixture.discussion.title}`);
+    core25.info(`Creating discussion: ${fixture.discussion.title}`);
     const categoriesResponse = await octokit.graphql(
       GET_DISCUSSION_CATEGORIES_QUERY2,
       { owner, repo }
@@ -68273,7 +68356,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
     );
     if (!repoId || !category) {
-      core24.warning(
+      core25.warning(
         `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
       );
     } else {
@@ -68289,7 +68372,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       const discussion = discussionResponse.createDiscussion?.discussion;
       if (discussion) {
         result.discussion_number = discussion.number;
-        core24.info(
+        core25.info(
           `Created discussion #${discussion.number}: ${discussion.url}`
         );
         if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
@@ -68306,7 +68389,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             discussionId: discussion.id,
             body: fixture.comment.body
           });
-          core24.info("Added comment to discussion");
+          core25.info("Added comment to discussion");
         }
       }
     }
@@ -68532,7 +68615,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
       }
     }
     if (fixture.discussion) {
-      core24.info(
+      core25.info(
         "Discussion verification not yet implemented - skipping discussion checks"
       );
     }
@@ -68693,7 +68776,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
   };
 }
 async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
-  core24.info(`Checking for running workflows related to issue #${issueNumber}`);
+  core25.info(`Checking for running workflows related to issue #${issueNumber}`);
   try {
     const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
@@ -68711,7 +68794,7 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
     const currentRunId = github.context.runId;
     for (const run2 of allRuns) {
       if (run2.id === currentRunId) {
-        core24.debug(`Skipping current run ${run2.id}`);
+        core25.debug(`Skipping current run ${run2.id}`);
         continue;
       }
       const runName = run2.name || "";
@@ -68721,7 +68804,7 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
       displayTitle.includes(`[TEST]`) || // Check head_branch for claude/issue/{N} pattern
       run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
       if (isRelated) {
-        core24.info(
+        core25.info(
           `Force cancelling workflow run ${run2.id}: ${run2.name} - ${run2.display_title}`
         );
         try {
@@ -68733,14 +68816,14 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
               run_id: run2.id
             }
           );
-          core24.info(`\u2705 Force cancelled run ${run2.id}`);
+          core25.info(`\u2705 Force cancelled run ${run2.id}`);
         } catch (cancelError) {
-          core24.debug(`Could not force cancel run ${run2.id}: ${cancelError}`);
+          core25.debug(`Could not force cancel run ${run2.id}: ${cancelError}`);
         }
       }
     }
   } catch (error7) {
-    core24.warning(`Failed to check/cancel related workflows: ${error7}`);
+    core25.warning(`Failed to check/cancel related workflows: ${error7}`);
   }
 }
 async function deleteBranch(octokit, owner, repo, branch) {
@@ -68750,10 +68833,10 @@ async function deleteBranch(octokit, owner, repo, branch) {
       repo,
       ref: `heads/${branch}`
     });
-    core24.info(`Deleted branch: ${branch}`);
+    core25.info(`Deleted branch: ${branch}`);
   } catch (error7) {
     if (error7 && typeof error7 === "object" && "status" in error7 && error7.status === 404) {
-      core24.info(`Branch already deleted: ${branch}`);
+      core25.info(`Branch already deleted: ${branch}`);
       return;
     }
     throw error7;
@@ -68777,13 +68860,13 @@ async function closeIssue(octokit, owner, repo, issueNumber) {
         }
       };
       await closeUpdate(closedState);
-      core24.info(`Closed issue #${issueNumber}`);
+      core25.info(`Closed issue #${issueNumber}`);
     } else {
-      core24.info(`Issue #${issueNumber} already closed`);
+      core25.info(`Issue #${issueNumber} already closed`);
     }
   } catch (error7) {
     if (error7 && typeof error7 === "object" && "status" in error7 && (error7.status === 404 || error7.status === 410)) {
-      core24.info(`Issue #${issueNumber} already gone`);
+      core25.info(`Issue #${issueNumber} already gone`);
       return;
     }
     throw error7;
@@ -68797,7 +68880,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     skipped: 0,
     errors: []
   };
-  core24.info(
+  core25.info(
     `Cleaning up test resources for issue #${issueNumber} via parseIssue`
   );
   const { data } = await parseIssue(owner, repo, issueNumber, {
@@ -68812,7 +68895,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
       `SAFETY: Issue #${issueNumber} title "${data.issue.title}" doesn't start with [TEST]. Only test issues can be cleaned up to prevent accidentally deleting real issues.`
     );
   }
-  core24.info(
+  core25.info(
     `Safety check passed: Issue #${issueNumber} title starts with [TEST]`
   );
   const summaryLines = [
@@ -68833,7 +68916,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     }
     summaryLines.push("");
   }
-  await core24.summary.addRaw(summaryLines.join("\n")).write();
+  await core25.summary.addRaw(summaryLines.join("\n")).write();
   await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
   for (const sub of data.issue.subIssues) {
     try {
@@ -68844,7 +68927,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
           pull_number: sub.pr.number,
           state: "closed"
         });
-        core24.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
+        core25.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
         result.cleaned++;
       }
       if (sub.branch) {
@@ -68855,7 +68938,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
       result.cleaned++;
     } catch (error7) {
       const msg = error7 instanceof Error ? error7.message : String(error7);
-      core24.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
+      core25.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
       result.failed++;
       result.errors.push(`Sub-issue #${sub.number}: ${msg}`);
       result.success = false;
@@ -68869,7 +68952,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
         pull_number: data.issue.pr.number,
         state: "closed"
       });
-      core24.info(`Closed parent PR #${data.issue.pr.number}`);
+      core25.info(`Closed parent PR #${data.issue.pr.number}`);
       result.cleaned++;
     }
     if (data.issue.branch) {
@@ -68880,12 +68963,12 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     result.cleaned++;
   } catch (error7) {
     const msg = error7 instanceof Error ? error7.message : String(error7);
-    core24.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
+    core25.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
     result.failed++;
     result.errors.push(`Parent issue #${issueNumber}: ${msg}`);
     result.success = false;
   }
-  core24.info(
+  core25.info(
     `Cleanup result: cleaned=${result.cleaned}, failed=${result.failed}`
   );
   return result;
@@ -68900,13 +68983,13 @@ async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, 
   );
   if (!result.success) {
     const errorMsg = `Cleanup had failures: cleaned=${result.cleaned}, failed=${result.failed}. Errors: ${result.errors.join("; ")}`;
-    await core24.summary.addRaw("\n\n## Cleanup Warnings\n\n").addRaw(`${errorMsg}
+    await core25.summary.addRaw("\n\n## Cleanup Warnings\n\n").addRaw(`${errorMsg}
 `).write();
-    core24.warning(errorMsg);
+    core25.warning(errorMsg);
   }
 }
 async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
-  core24.info(`Resetting issue #${issueNumber} to initial state`);
+  core25.info(`Resetting issue #${issueNumber} to initial state`);
   let resetCount = 0;
   let projectFields = null;
   try {
@@ -68943,7 +69026,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
     const projectData = projectResponse.organization?.projectV2;
     projectFields = parseProjectFields(projectData);
   } catch (error7) {
-    core24.warning(
+    core25.warning(
       `Could not access project #${projectNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
   }
@@ -68954,7 +69037,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
     { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false }
   );
   if (resetData.issue.state === "CLOSED") {
-    core24.info(`Re-opening parent issue #${issueNumber}`);
+    core25.info(`Re-opening parent issue #${issueNumber}`);
     const reopenedState = {
       ...resetData,
       issue: { ...resetData.issue, state: "OPEN" }
@@ -68971,7 +69054,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
       "Backlog",
       projectFields
     );
-    core24.info(`Set parent issue #${issueNumber} status to Backlog`);
+    core25.info(`Set parent issue #${issueNumber} status to Backlog`);
   }
   const subResponse = await octokit.graphql(
     GET_SUB_ISSUES_QUERY2,
@@ -68995,7 +69078,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
         }
       );
       if (subResetData.issue.state === "CLOSED") {
-        core24.info(`Re-opening sub-issue #${subIssue.number}`);
+        core25.info(`Re-opening sub-issue #${subIssue.number}`);
         const subReopenedState = {
           ...subResetData,
           issue: { ...subResetData.issue, state: "OPEN" }
@@ -69012,15 +69095,15 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
           "Ready",
           projectFields
         );
-        core24.info(`Set sub-issue #${subIssue.number} status to Ready`);
+        core25.info(`Set sub-issue #${subIssue.number} status to Ready`);
       }
     }
   }
-  core24.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
+  core25.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
   return { reset_count: resetCount };
 }
 async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
-  core24.info(`Deleting issue #${issueNumber} and all sub-issues`);
+  core25.info(`Deleting issue #${issueNumber} and all sub-issues`);
   let deleteCount = 0;
   const { data: deleteCheckData } = await parseIssue(owner, repo, issueNumber, {
     octokit: asOctokitLike(octokit),
@@ -69069,7 +69152,7 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
   const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
   for (const subIssue of subIssues) {
     if (subIssue.node_id) {
-      core24.info(`Deleting sub-issue #${subIssue.number}`);
+      core25.info(`Deleting sub-issue #${subIssue.number}`);
       try {
         await octokit.graphql(
           `mutation DeleteIssue($issueId: ID!) {
@@ -69081,13 +69164,13 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
         );
         deleteCount++;
       } catch (error7) {
-        core24.warning(
+        core25.warning(
           `Failed to delete sub-issue #${subIssue.number}: ${error7 instanceof Error ? error7.message : String(error7)}`
         );
       }
     }
   }
-  core24.info(`Deleting parent issue #${issueNumber}`);
+  core25.info(`Deleting parent issue #${issueNumber}`);
   try {
     await octokit.graphql(
       `mutation DeleteIssue($issueId: ID!) {
@@ -69099,7 +69182,7 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
     );
     deleteCount++;
   } catch (error7) {
-    core24.warning(
+    core25.warning(
       `Failed to delete parent issue #${issueNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
     throw error7;
@@ -69119,7 +69202,7 @@ async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, 
   );
   const issueNodeId = issueIdResponse.repository?.issue?.id;
   if (!issueNodeId) {
-    core24.warning(`Could not get node ID for issue #${issueNumber}`);
+    core25.warning(`Could not get node ID for issue #${issueNumber}`);
     return;
   }
   const projectItemsResponse = await octokit.graphql(
@@ -69152,7 +69235,7 @@ async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, 
     projectItemId = addResult.addProjectV2ItemById?.item?.id;
   }
   if (!projectItemId) {
-    core24.warning(`Could not get project item ID for issue #${issueNumber}`);
+    core25.warning(`Could not get project item ID for issue #${issueNumber}`);
     return;
   }
   const optionId = projectFields.statusOptions[status] || Object.entries(projectFields.statusOptions).find(
@@ -69236,7 +69319,7 @@ async function commitE2EConfigFile(octokit, owner, repo, branchName, filePath, c
     ref: `heads/${branchName}`,
     sha: newCommit.sha
   });
-  core24.info(
+  core25.info(
     `Committed ${existingFileSha ? "updated" : "new"} e2e config to ${branchName}: ${newCommit.sha}`
   );
 }
@@ -69256,25 +69339,25 @@ async function run() {
     if (action === "create" || action === "verify") {
       try {
         const { data: codeUser } = await octokit.rest.users.getAuthenticated();
-        core24.info(`Code token authenticated as: ${codeUser.login}`);
+        core25.info(`Code token authenticated as: ${codeUser.login}`);
         if (reviewOctokit) {
           const { data: reviewUser } = await reviewOctokit.rest.users.getAuthenticated();
-          core24.info(`Review token authenticated as: ${reviewUser.login}`);
+          core25.info(`Review token authenticated as: ${reviewUser.login}`);
           if (codeUser.login === reviewUser.login) {
-            core24.warning(
+            core25.warning(
               `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`
             );
           }
         }
       } catch (authError) {
-        core24.debug(`Could not verify token identity: ${authError}`);
+        core25.debug(`Could not verify token identity: ${authError}`);
       }
     }
     if (action === "create") {
       const fixtureJson = getRequiredInput("fixture_json");
       const fixture = JSON.parse(fixtureJson);
-      core24.info(`Creating test fixture: ${fixture.name}`);
-      core24.info(`Description: ${fixture.description}`);
+      core25.info(`Creating test fixture: ${fixture.name}`);
+      core25.info(`Description: ${fixture.description}`);
       const result = await createFixture(
         octokit,
         owner,
@@ -69291,14 +69374,14 @@ async function run() {
         discussion_number: result.discussion_number ? String(result.discussion_number) : "",
         comment_id: result.comment_id || ""
       });
-      core24.info("Fixture creation complete");
+      core25.info("Fixture creation complete");
       return;
     }
     if (action === "verify") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getRequiredInput("fixture_json");
       const fixture = JSON.parse(fixtureJson);
-      core24.info(`Verifying fixture for issue #${issueNumber}`);
+      core25.info(`Verifying fixture for issue #${issueNumber}`);
       const result = await verifyFixture(
         octokit,
         owner,
@@ -69308,13 +69391,13 @@ async function run() {
         projectNumber
       );
       if (result.passed) {
-        core24.info("All verifications passed!");
+        core25.info("All verifications passed!");
       } else {
-        core24.warning(
+        core25.warning(
           `Verification failed with ${result.errors.length} errors:`
         );
         for (const error7 of result.errors) {
-          core24.warning(
+          core25.warning(
             `  ${error7.field}: expected ${error7.expected}, got ${error7.actual}`
           );
         }
@@ -69324,7 +69407,7 @@ async function run() {
         verification_errors: JSON.stringify(result.errors)
       });
       if (!result.passed) {
-        core24.setFailed(
+        core25.setFailed(
           `Verification failed with ${result.errors.length} errors`
         );
       }
@@ -69398,10 +69481,10 @@ async function run() {
       if (!outcomes.review || outcomes.review.length === 0) {
         outcomes.review = ["approved"];
       }
-      core24.info(
+      core25.info(
         `${action === "create_e2e_config" ? "Creating" : "Updating"} e2e config with run_id=${e2eRunId}, iteration=${iteration}`
       );
-      core24.info(`Outcomes: ${JSON.stringify(outcomes)}`);
+      core25.info(`Outcomes: ${JSON.stringify(outcomes)}`);
       const configContent = createE2EConfigContent(
         e2eRunId,
         outcomes,
@@ -69425,7 +69508,7 @@ async function run() {
     }
     if (action === "sweep") {
       const manifestDir = path2.resolve(getRequiredInput("manifest_dir"));
-      core24.info(`Sweeping test resources from manifests in ${manifestDir}`);
+      core25.info(`Sweeping test resources from manifests in ${manifestDir}`);
       const parentIssues = /* @__PURE__ */ new Set();
       if (fs2.existsSync(manifestDir)) {
         const files = fs2.readdirSync(manifestDir);
@@ -69440,16 +69523,16 @@ async function run() {
             if (typeof parsed.parentIssue === "number" && parsed.parentIssue > 0) {
               parentIssues.add(parsed.parentIssue);
             } else {
-              core24.warning(
+              core25.warning(
                 `Invalid manifest in ${file}: missing or invalid parentIssue`
               );
             }
           } catch (err) {
-            core24.warning(`Failed to read manifest ${file}: ${err}`);
+            core25.warning(`Failed to read manifest ${file}: ${err}`);
           }
         }
       }
-      core24.info(
+      core25.info(
         `Found ${parentIssues.size} unique parent issues to sweep: ${[...parentIssues].join(", ")}`
       );
       let totalCleaned = 0;
@@ -69469,12 +69552,12 @@ async function run() {
           sweepErrors.push(...result.errors);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          core24.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
+          core25.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
           sweepErrors.push(`Issue #${issueNum}: ${msg}`);
           totalFailed++;
         }
       }
-      await core24.summary.addRaw(
+      await core25.summary.addRaw(
         `## Sweep Summary
 
 Issues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Failed: ${totalFailed}
@@ -69485,18 +69568,18 @@ Issues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Fa
         delete_count: String(totalCleaned)
       });
       if (totalFailed > 0) {
-        core24.warning(
+        core25.warning(
           `Sweep completed with ${totalFailed} failures: ${sweepErrors.join("; ")}`
         );
       }
       return;
     }
-    core24.setFailed(`Unknown action: ${action}`);
+    core25.setFailed(`Unknown action: ${action}`);
   } catch (error7) {
     if (error7 instanceof Error) {
-      core24.setFailed(error7.message);
+      core25.setFailed(error7.message);
     } else {
-      core24.setFailed("An unexpected error occurred");
+      core25.setFailed("An unexpected error occurred");
     }
   }
 }

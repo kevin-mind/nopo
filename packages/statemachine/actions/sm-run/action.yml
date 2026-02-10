@@ -1,0 +1,67 @@
+name: "State Machine Run"
+description: |
+  Unified state machine action that performs the complete run cycle:
+  1. Build machine context and derive actions (state machine transition)
+  2. Log run start (append history entry)
+  3. Execute all derived actions sequentially
+  4. Log run end (update history with outcome)
+  5. Determine retrigger decision
+
+  Replaces the previous multi-job pipeline (derive-context → log-run-start →
+  derive-actions → exec-state-actions → log-run-end → check-retrigger).
+
+inputs:
+  context_json:
+    description: Unified JSON context from the detect step (see sm-plan)
+    required: true
+  github_code_token:
+    description: PAT for code operations (push, PR, project fields)
+    required: true
+  github_review_token:
+    description: PAT for review operations (submit reviews)
+    required: false
+    default: ""
+  project_number:
+    description: GitHub Project number
+    required: false
+    default: "1"
+  max_retries:
+    description: Maximum Claude retries before blocking
+    required: false
+    default: "5"
+  dry_run:
+    description: Run in dry-run mode (log actions without executing)
+    required: false
+    default: "false"
+  continue:
+    description: Continue to next state (true) or stop after this iteration (false)
+    required: false
+    default: "true"
+  e2e_mode:
+    description: Whether E2E test mode is active
+    required: false
+    default: "false"
+  e2e_review_outcome:
+    description: Simulated review outcome for E2E testing (approved/changes_requested/comment)
+    required: false
+    default: "approved"
+
+outputs:
+  final_state:
+    description: Final state after machine execution
+  transition_name:
+    description: Human-readable transition name
+  actions_json:
+    description: JSON array of actions that were derived
+  action_count:
+    description: Number of actions derived
+  success:
+    description: Whether execution completed successfully
+  should_retrigger:
+    description: Whether the workflow should retrigger to continue the loop
+  issue_number:
+    description: The issue number from context (for retrigger)
+
+runs:
+  using: node20
+  main: dist/index.cjs

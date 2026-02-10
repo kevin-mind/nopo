@@ -1,0 +1,37 @@
+name: Claude State Machine Plan
+description: >
+  Detects GitHub events and outputs planning context (contexts, concurrency, skip).
+  Use before calling sm-runner to get context_json and concurrency settings.
+
+inputs:
+  github_token:
+    description: GitHub token for API operations
+    required: true
+  project_number:
+    description: GitHub Project number
+    required: false
+    default: "1"
+  resource_number:
+    description: Resource number for workflow_dispatch events
+    required: false
+    default: ''
+  trigger_type:
+    description: Override trigger (e.g. deployed-stage, deployed-prod, pr-merged) when dispatching from release.yml
+    required: false
+    default: ''
+
+outputs:
+  context_json:
+    description: WorkflowContext as JSON (pass to sm-run)
+  skip:
+    description: Whether to skip processing (true/false string)
+  skip_reason:
+    description: Reason for skipping
+  concurrency_group:
+    description: Concurrency group name for workflow-level concurrency
+  cancel_in_progress:
+    description: Whether to cancel in-progress runs (true/false string)
+
+runs:
+  using: node20
+  main: dist/index.cjs

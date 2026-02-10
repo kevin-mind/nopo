@@ -37,5 +37,15 @@ export {
 // Signaler exports
 export { signalStart, signalEnd } from "./signaler.js";
 
+// Derive functions (machine derivation without output-setting)
+export {
+  deriveIssueActions,
+  deriveDiscussionActions,
+  getTransitionName,
+  type DeriveResult,
+  type DeriveIssueOptions,
+  type DeriveDiscussionOptions,
+} from "./derive.js";
+
 // All executor exports for direct use
 export * from "./executors/index.js";

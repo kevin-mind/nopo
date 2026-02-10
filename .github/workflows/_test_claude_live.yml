@@ -73,17 +73,22 @@ jobs:
           fi
           echo "category=$CATEGORY" >> "$GITHUB_OUTPUT"
 
+      - name: Build prompt templates
+        run: pnpm --filter @more/prompts exec tsx scripts/render-templates.ts
+
       - name: Scout for improvement
         id: scout
-        uses: ./packages/statemachine/actions/sm-claude
+        uses: ./packages/claude/actions/claude
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           CLAUDE_CODE_PATH: /home/runner/.local/bin/claude
         with:
-          prompt_dir: live-issue-scout
+          prompt_file: packages/prompts/prompts/live-issue-scout.txt
           prompt_vars: >-
-            {"CATEGORY": "${{ steps.category.outputs.category }}"}
+            {"CATEGORY":"${{ steps.category.outputs.category }}"}
           allowed_tools: "Read,Glob,Grep"
+          output_schema: >-
+            {"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"}},"required":["title","body"]}
 
       - name: Parse scout output
         id: parse

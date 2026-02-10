@@ -47,8 +47,14 @@ export const JobTypeSchema = z.enum([
   "pr-review-approved",
   "pr-response",
   "pr-human-response",
-  // Merge queue
+  // Merge queue and deployment logging
   "merge-queue-logging",
+  "merge-queue-failure-logging",
+  "merged-logging",
+  "deployed-stage-logging",
+  "deployed-prod-logging",
+  "deployed-stage-failure-logging",
+  "deployed-prod-failure-logging",
   // Discussion jobs
   "discussion-research",
   "discussion-respond",
