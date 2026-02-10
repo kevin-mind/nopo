@@ -348,19 +348,31 @@ function getEffectiveDependencies(
   // Determine which dependencies to use based on command type
   let serviceDeps: string[];
   if (isBuildCommand(commandName)) {
-    // For build commands, prefer build.depends_on if defined (even if empty)
+    // For build commands, prefer build.depends_on if defined
     const buildDeps = service.build?.depends_on;
-    serviceDeps =
-      buildDeps !== undefined
-        ? extractDependencyNames(buildDeps)
-        : service.dependencies;
+    if (buildDeps === undefined) {
+      // Not specified, use service.dependencies
+      serviceDeps = service.dependencies;
+    } else if (Array.isArray(buildDeps) && buildDeps.length === 0) {
+      // Empty array [], fall back to service.dependencies
+      serviceDeps = service.dependencies;
+    } else {
+      // Non-empty array or object (including empty object {})
+      serviceDeps = extractDependencyNames(buildDeps);
+    }
   } else {
-    // For runtime commands, prefer runtime.depends_on if defined (even if empty)
+    // For runtime commands, prefer runtime.depends_on if defined
     const runtimeDeps = service.runtime?.depends_on;
-    serviceDeps =
-      runtimeDeps !== undefined
-        ? extractDependencyNames(runtimeDeps)
-        : service.dependencies;
+    if (runtimeDeps === undefined) {
+      // Not specified, use service.dependencies
+      serviceDeps = service.dependencies;
+    } else if (Array.isArray(runtimeDeps) && runtimeDeps.length === 0) {
+      // Empty array [], fall back to service.dependencies
+      serviceDeps = service.dependencies;
+    } else {
+      // Non-empty array or object (including empty object {})
+      serviceDeps = extractDependencyNames(runtimeDeps);
+    }
   }
 
   // Map to command dependency specs with the same command

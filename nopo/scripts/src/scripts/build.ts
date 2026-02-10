@@ -216,12 +216,19 @@ export default class BuildScript extends TargetScript {
       const service = this.runner.config.project.services.entries[targetName];
       if (!service) return;
 
-      // Use build.depends_on if defined (even if empty), fallback to service.dependencies
+      // Use build.depends_on if defined, fallback to service.dependencies for undefined or empty array
       const buildDepsField = service.build?.depends_on;
-      const deps =
-        buildDepsField !== undefined
-          ? extractDependencyNames(buildDepsField)
-          : service.dependencies;
+      let deps: string[];
+      if (buildDepsField === undefined) {
+        // Not specified, use service.dependencies
+        deps = service.dependencies;
+      } else if (Array.isArray(buildDepsField) && buildDepsField.length === 0) {
+        // Empty array [], fall back to service.dependencies
+        deps = service.dependencies;
+      } else {
+        // Non-empty array or object (including empty object {})
+        deps = extractDependencyNames(buildDepsField);
+      }
       for (const dep of deps) {
         if (allPackages.includes(dep)) {
           packageDeps.add(dep);
@@ -261,12 +268,19 @@ export default class BuildScript extends TargetScript {
       const service = this.runner.config.project.services.entries[name];
       if (service) {
         // Visit dependencies first (only those that are also packages to build)
-        // Use build.depends_on if defined (even if empty), fallback to service.dependencies
+        // Use build.depends_on if defined, fallback to service.dependencies for undefined or empty array
         const buildDepsField = service.build?.depends_on;
-        const deps =
-          buildDepsField !== undefined
-            ? extractDependencyNames(buildDepsField)
-            : service.dependencies;
+        let deps: string[];
+        if (buildDepsField === undefined) {
+          // Not specified, use service.dependencies
+          deps = service.dependencies;
+        } else if (Array.isArray(buildDepsField) && buildDepsField.length === 0) {
+          // Empty array [], fall back to service.dependencies
+          deps = service.dependencies;
+        } else {
+          // Non-empty array or object (including empty object {})
+          deps = extractDependencyNames(buildDepsField);
+        }
         for (const dep of deps) {
           if (packageSet.has(dep)) {
             visit(dep);
