@@ -565,13 +565,17 @@ gh pr create --draft --reviewer nopo-bot \\
   --body "Fixes #${issueNumber}"
 \`\`\``;
 
-  // Note: ISSUE_BODY and ISSUE_COMMENTS are NOT included here to avoid
-  // "may contain secret" masking when passing through actions_json output.
-  // The workflow fetches these at runtime before passing to Claude.
-  // For test runner: issue context is provided via RunnerContext.issueContext
+  // Format issue body and comments from context
+  const issueBodyAst =
+    context.currentSubIssue?.bodyAst ?? context.issue.bodyAst;
+  const issueComments = formatCommentsForPrompt(context.issue.comments ?? []);
+
+  // All required variables are included directly from context
   return {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issueTitle,
+    ISSUE_BODY: JSON.stringify(issueBodyAst),
+    ISSUE_COMMENTS: issueComments,
     ITERATION: String(iteration),
     LAST_CI_RESULT: ciResult,
     CONSECUTIVE_FAILURES: String(failures),
@@ -674,12 +678,16 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
 export function emitRunClaudeTriage({ context }: ActionContext): ActionResult {
   const issueNumber = context.issue.number;
 
+  // Format comments for prompt
+  const issueComments = formatCommentsForPrompt(context.issue.comments ?? []);
+
   // The triage prompt uses these template variables
-  // Note: ISSUE_BODY and ISSUE_COMMENTS are fetched at runtime by workflow.
-  // For test runner: issue context is provided via RunnerContext.issueContext
+  // All required variables are included directly from context
   const promptVars: Record<string, string> = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context.issue.title,
+    ISSUE_BODY: JSON.stringify(context.issue.bodyAst),
+    ISSUE_COMMENTS: issueComments,
     AGENT_NOTES: "", // Injected by workflow from previous runs
   };
 
@@ -1513,14 +1521,17 @@ export function emitPushToDraft({ context }: ActionContext): ActionResult {
 
 /**
  * Build prompt variables for grooming prompts
- * Note: ISSUE_BODY and ISSUE_COMMENTS fetched at runtime by workflow
  */
 function buildGroomingPromptVars(
   context: MachineContext,
 ): Record<string, string> {
+  const issueComments = formatCommentsForPrompt(context.issue.comments ?? []);
+
   return {
     ISSUE_NUMBER: String(context.issue.number),
     ISSUE_TITLE: context.issue.title,
+    ISSUE_BODY: JSON.stringify(context.issue.bodyAst),
+    ISSUE_COMMENTS: issueComments,
     ISSUE_LABELS: context.issue.labels.join(", "),
   };
 }

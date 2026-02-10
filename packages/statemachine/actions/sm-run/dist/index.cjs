@@ -47504,9 +47504,13 @@ gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle}" \\
   --body "Fixes #${issueNumber}"
 \`\`\``;
+  const issueBodyAst = context2.currentSubIssue?.bodyAst ?? context2.issue.bodyAst;
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
   return {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issueTitle,
+    ISSUE_BODY: JSON.stringify(issueBodyAst),
+    ISSUE_COMMENTS: issueComments,
     ITERATION: String(iteration),
     LAST_CI_RESULT: ciResult,
     CONSECUTIVE_FAILURES: String(failures),
@@ -47581,9 +47585,12 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
 }
 function emitRunClaudeTriage({ context: context2 }) {
   const issueNumber = context2.issue.number;
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
+    ISSUE_COMMENTS: issueComments,
     AGENT_NOTES: ""
     // Injected by workflow from previous runs
   };
@@ -48155,9 +48162,12 @@ function emitPushToDraft({ context: context2 }) {
   return actions;
 }
 function buildGroomingPromptVars(context2) {
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
   return {
     ISSUE_NUMBER: String(context2.issue.number),
     ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: JSON.stringify(context2.issue.bodyAst),
+    ISSUE_COMMENTS: issueComments,
     ISSUE_LABELS: context2.issue.labels.join(", ")
   };
 }
