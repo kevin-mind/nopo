@@ -1787,7 +1787,9 @@ image: postgres:16
       expect(deps).not.toContainEqual(
         expect.objectContaining({ service: "backend" }),
       );
-      expect(deps).not.toContainEqual(expect.objectContaining({ service: "db" }));
+      expect(deps).not.toContainEqual(
+        expect.objectContaining({ service: "db" }),
+      );
     });
 
     it("uses build.depends_on for test commands", () => {
@@ -1830,7 +1832,9 @@ image: postgres:16
       // test is a build command, should use build.depends_on
       expect(deps).toHaveLength(1);
       expect(deps).toContainEqual({ service: "shared", command: "test" });
-      expect(deps).not.toContainEqual(expect.objectContaining({ service: "db" }));
+      expect(deps).not.toContainEqual(
+        expect.objectContaining({ service: "db" }),
+      );
     });
 
     it("uses build.depends_on for check commands", () => {
@@ -2290,7 +2294,10 @@ dockerfile: Dockerfile
 
       // Command-specific dependencies should override build.depends_on
       expect(deps).toHaveLength(1);
-      expect(deps).toContainEqual({ service: "custom-dep", command: "compile" });
+      expect(deps).toContainEqual({
+        service: "custom-dep",
+        command: "compile",
+      });
       expect(deps).not.toContainEqual(
         expect.objectContaining({ service: "build-dep" }),
       );

@@ -323,9 +323,7 @@ export type CommandDependencies =
  * extractDependencyNames({ backend: ['build'], db: ['migrate'] }) // ['backend', 'db']
  * extractDependencyNames(undefined) // []
  */
-export function extractDependencyNames(
-  deps: CommandDependencies,
-): string[] {
+export function extractDependencyNames(deps: CommandDependencies): string[] {
   if (!deps) return [];
   if (Array.isArray(deps)) return deps;
   return Object.keys(deps);

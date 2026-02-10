@@ -19,7 +19,6 @@ import {
   extractDependencyNames,
   type NormalizedService,
   type VirtualBuildableService,
-  type CommandDependencies,
 } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
@@ -274,7 +273,10 @@ export default class BuildScript extends TargetScript {
         if (buildDepsField === undefined) {
           // Not specified, use service.dependencies
           deps = service.dependencies;
-        } else if (Array.isArray(buildDepsField) && buildDepsField.length === 0) {
+        } else if (
+          Array.isArray(buildDepsField) &&
+          buildDepsField.length === 0
+        ) {
           // Empty array [], fall back to service.dependencies
           deps = service.dependencies;
         } else {
