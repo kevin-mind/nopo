@@ -185,6 +185,46 @@ export type CombinedGroomingOutput = z.infer<
   typeof CombinedGroomingOutputSchema
 >;
 
+export const GroomingSummaryOutputSchema = z.object({
+  summary: z.string(),
+  consensus: z.array(z.string()).optional(),
+  conflicts: z
+    .array(
+      z.object({
+        issue: z.string(),
+        resolution: z.string(),
+      }),
+    )
+    .optional(),
+  decision: z.enum(["ready", "needs_info", "blocked"]),
+  decision_rationale: z.string(),
+  consolidated_questions: z
+    .array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        description: z.string(),
+        sources: z.array(z.enum(["pm", "engineer", "qa", "research"])),
+        priority: z.enum(["critical", "important", "nice-to-have"]),
+      }),
+    )
+    .optional(),
+  answered_questions: z
+    .array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        answer_summary: z.string(),
+      }),
+    )
+    .optional(),
+  blocker_reason: z.string().optional(),
+  next_steps: z.array(z.string()).optional(),
+  agent_notes: z.array(z.string()).optional(),
+});
+
+export type GroomingSummaryOutput = z.infer<typeof GroomingSummaryOutputSchema>;
+
 // ============================================================================
 // Triage Output
 // ============================================================================

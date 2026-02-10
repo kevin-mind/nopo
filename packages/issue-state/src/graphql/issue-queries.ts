@@ -82,6 +82,7 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
       comments(first: 50) {
         nodes {
           id
+          databaseId
           author {
             login
           }

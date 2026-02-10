@@ -134,6 +134,7 @@ function parseIssueComments(
     const author = c.author?.login ?? "unknown";
     return {
       id: c.id ?? "",
+      databaseId: c.databaseId,
       author,
       body: c.body ?? "",
       createdAt: c.createdAt ?? "",

@@ -26,6 +26,7 @@ export interface SubIssueNode {
 
 export interface IssueCommentNode {
   id?: string;
+  databaseId?: number;
   author?: { login?: string };
   body?: string;
   createdAt?: string;

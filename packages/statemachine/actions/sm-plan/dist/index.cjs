@@ -28086,6 +28086,7 @@ var MdastRootSchema = external_exports.object({
 // ../issue-state/src/schemas/comment.ts
 var IssueCommentSchema = external_exports.object({
   id: external_exports.string(),
+  databaseId: external_exports.number().optional(),
   author: external_exports.string(),
   body: external_exports.string(),
   createdAt: external_exports.string(),
@@ -40408,6 +40409,7 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
       comments(first: 50) {
         nodes {
           id
+          databaseId
           author {
             login
           }
@@ -40884,6 +40886,7 @@ function parseIssueComments(commentNodes, botUsername) {
     const author = c.author?.login ?? "unknown";
     return {
       id: c.id ?? "",
+      databaseId: c.databaseId,
       author,
       body: c.body ?? "",
       createdAt: c.createdAt ?? "",
@@ -65895,7 +65898,8 @@ var GroomingSummary = promptFactory().inputs((z) => ({
   pmOutput: z.string(),
   engineerOutput: z.string(),
   qaOutput: z.string(),
-  researchOutput: z.string()
+  researchOutput: z.string(),
+  previousQuestions: z.string().optional()
 })).outputs((z) => ({
   summary: z.string(),
   consensus: z.array(z.string()).optional(),
@@ -65907,11 +65911,20 @@ var GroomingSummary = promptFactory().inputs((z) => ({
   ).optional(),
   decision: z.enum(["ready", "needs_info", "blocked"]),
   decision_rationale: z.string(),
-  questions: z.array(
+  consolidated_questions: z.array(
     z.object({
-      question: z.string(),
-      source: z.enum(["pm", "engineer", "qa", "research"]),
+      id: z.string(),
+      title: z.string(),
+      description: z.string(),
+      sources: z.array(z.enum(["pm", "engineer", "qa", "research"])),
       priority: z.enum(["critical", "important", "nice-to-have"])
+    })
+  ).optional(),
+  answered_questions: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      answer_summary: z.string()
     })
   ).optional(),
   blocker_reason: z.string().optional(),
@@ -65928,13 +65941,24 @@ var GroomingSummary = promptFactory().inputs((z) => ({
     /* @__PURE__ */ jsx("section", { title: "QA Analysis", children: inputs.qaOutput }),
     /* @__PURE__ */ jsx("section", { title: "Research Findings", children: inputs.researchOutput })
   ] }),
+  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Previous Grooming Questions", children: `The following questions were posted in a previous grooming run. Compare them with the current agent analyses to determine which have been answered:
+
+${inputs.previousQuestions ?? ""}` }) }),
   "---",
   /* @__PURE__ */ jsx("section", { title: "Your Task", children: `Synthesize the analyses from all four agents and make a final decision:
 
 1. **Summary**: Combine key insights from all agents
 2. **Consensus**: Where do agents agree?
 3. **Conflicts**: Where do agents disagree? How should conflicts be resolved?
-4. **Decision**: Based on all input, is this issue ready?` }),
+4. **Decision**: Based on all input, is this issue ready?
+5. **Consolidated Questions**: Deduplicate questions across agents into distinct decision themes` }),
+  /* @__PURE__ */ jsx("section", { title: "Question Consolidation Rules", children: `When consolidating questions from agents:
+- Deduplicate similar questions across agents into a single question per decision theme
+- Use a stable, short \`id\` slug for each question (e.g., "auth-strategy", "db-migration-plan") so questions can be tracked across runs
+- Provide a short title (5-10 words) and a 2-3 sentence description with context
+- List which agents raised the question in the \`sources\` array
+- Assign priority: "critical" (blocks implementation), "important" (affects design), "nice-to-have" (minor clarification)` }),
+  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Answer Tracking", children: `Compare previous questions with current agent analyses. If a question from a previous run is no longer raised by any agent, or the issue body/comments now contain the answer, mark it as answered in \`answered_questions\` with a brief summary of the answer. Keep the same \`id\` slug from the previous run.` }) }),
   /* @__PURE__ */ jsx("section", { title: "Decision Criteria", children: `- **ready**: All agents agree ready, OR conflicts are minor and resolvable, AND Engineer has provided recommended_phases
 - **needs_info**: Any agent has critical questions, unclear requirements
 - **blocked**: Technical blockers, dependencies not met, scope issues
@@ -65945,8 +65969,9 @@ var GroomingSummary = promptFactory().inputs((z) => ({
 - Without phases, there's nothing to iterate on` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with your synthesis and final decision.
 
-If decision is "needs_info", consolidate all questions from agents into a prioritized list.
-If decision is "blocked", clearly state what's blocking and what needs to happen.` })
+If decision is "needs_info", provide \`consolidated_questions\` with deduplicated, prioritized questions grouped by decision theme.
+If decision is "blocked", clearly state what's blocking and what needs to happen.
+If previous questions were provided, include \`answered_questions\` for any that are now resolved.` })
 ] }));
 
 // ../prompts/src/prompts/discussion/research.tsx
@@ -66448,6 +66473,37 @@ var CombinedGroomingOutputSchema = external_exports.object({
   engineer: GroomingAgentOutputSchema,
   qa: GroomingAgentOutputSchema,
   research: GroomingAgentOutputSchema
+});
+var GroomingSummaryOutputSchema = external_exports.object({
+  summary: external_exports.string(),
+  consensus: external_exports.array(external_exports.string()).optional(),
+  conflicts: external_exports.array(
+    external_exports.object({
+      issue: external_exports.string(),
+      resolution: external_exports.string()
+    })
+  ).optional(),
+  decision: external_exports.enum(["ready", "needs_info", "blocked"]),
+  decision_rationale: external_exports.string(),
+  consolidated_questions: external_exports.array(
+    external_exports.object({
+      id: external_exports.string(),
+      title: external_exports.string(),
+      description: external_exports.string(),
+      sources: external_exports.array(external_exports.enum(["pm", "engineer", "qa", "research"])),
+      priority: external_exports.enum(["critical", "important", "nice-to-have"])
+    })
+  ).optional(),
+  answered_questions: external_exports.array(
+    external_exports.object({
+      id: external_exports.string(),
+      title: external_exports.string(),
+      answer_summary: external_exports.string()
+    })
+  ).optional(),
+  blocker_reason: external_exports.string().optional(),
+  next_steps: external_exports.array(external_exports.string()).optional(),
+  agent_notes: external_exports.array(external_exports.string()).optional()
 });
 var TriageClassificationSchema = external_exports.object({
   type: external_exports.string(),

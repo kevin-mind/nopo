@@ -28090,6 +28090,7 @@ var MdastRootSchema = external_exports.object({
 // ../issue-state/src/schemas/comment.ts
 var IssueCommentSchema = external_exports.object({
   id: external_exports.string(),
+  databaseId: external_exports.number().optional(),
   author: external_exports.string(),
   body: external_exports.string(),
   createdAt: external_exports.string(),
@@ -40412,6 +40413,7 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
       comments(first: 50) {
         nodes {
           id
+          databaseId
           author {
             login
           }
@@ -41039,6 +41041,7 @@ function parseIssueComments(commentNodes, botUsername) {
     const author = c.author?.login ?? "unknown";
     return {
       id: c.id ?? "",
+      databaseId: c.databaseId,
       author,
       body: c.body ?? "",
       createdAt: c.createdAt ?? "",
@@ -41703,6 +41706,14 @@ async function createComment(owner, repo, issueNumber, body, octokit) {
     body
   });
   return { commentId: result.data.id };
+}
+async function updateComment(owner, repo, commentId, body, octokit) {
+  await octokit.rest.issues.updateComment({
+    owner,
+    repo,
+    comment_id: commentId,
+    body
+  });
 }
 
 // ../issue-state/src/issue-ops.ts
@@ -68009,7 +68020,8 @@ var GroomingSummary = promptFactory().inputs((z) => ({
   pmOutput: z.string(),
   engineerOutput: z.string(),
   qaOutput: z.string(),
-  researchOutput: z.string()
+  researchOutput: z.string(),
+  previousQuestions: z.string().optional()
 })).outputs((z) => ({
   summary: z.string(),
   consensus: z.array(z.string()).optional(),
@@ -68021,11 +68033,20 @@ var GroomingSummary = promptFactory().inputs((z) => ({
   ).optional(),
   decision: z.enum(["ready", "needs_info", "blocked"]),
   decision_rationale: z.string(),
-  questions: z.array(
+  consolidated_questions: z.array(
     z.object({
-      question: z.string(),
-      source: z.enum(["pm", "engineer", "qa", "research"]),
+      id: z.string(),
+      title: z.string(),
+      description: z.string(),
+      sources: z.array(z.enum(["pm", "engineer", "qa", "research"])),
       priority: z.enum(["critical", "important", "nice-to-have"])
+    })
+  ).optional(),
+  answered_questions: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      answer_summary: z.string()
     })
   ).optional(),
   blocker_reason: z.string().optional(),
@@ -68042,13 +68063,24 @@ var GroomingSummary = promptFactory().inputs((z) => ({
     /* @__PURE__ */ jsx("section", { title: "QA Analysis", children: inputs.qaOutput }),
     /* @__PURE__ */ jsx("section", { title: "Research Findings", children: inputs.researchOutput })
   ] }),
+  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Previous Grooming Questions", children: `The following questions were posted in a previous grooming run. Compare them with the current agent analyses to determine which have been answered:
+
+${inputs.previousQuestions ?? ""}` }) }),
   "---",
   /* @__PURE__ */ jsx("section", { title: "Your Task", children: `Synthesize the analyses from all four agents and make a final decision:
 
 1. **Summary**: Combine key insights from all agents
 2. **Consensus**: Where do agents agree?
 3. **Conflicts**: Where do agents disagree? How should conflicts be resolved?
-4. **Decision**: Based on all input, is this issue ready?` }),
+4. **Decision**: Based on all input, is this issue ready?
+5. **Consolidated Questions**: Deduplicate questions across agents into distinct decision themes` }),
+  /* @__PURE__ */ jsx("section", { title: "Question Consolidation Rules", children: `When consolidating questions from agents:
+- Deduplicate similar questions across agents into a single question per decision theme
+- Use a stable, short \`id\` slug for each question (e.g., "auth-strategy", "db-migration-plan") so questions can be tracked across runs
+- Provide a short title (5-10 words) and a 2-3 sentence description with context
+- List which agents raised the question in the \`sources\` array
+- Assign priority: "critical" (blocks implementation), "important" (affects design), "nice-to-have" (minor clarification)` }),
+  /* @__PURE__ */ jsx(Conditional, { when: inputs.previousQuestions, children: /* @__PURE__ */ jsx("section", { title: "Answer Tracking", children: `Compare previous questions with current agent analyses. If a question from a previous run is no longer raised by any agent, or the issue body/comments now contain the answer, mark it as answered in \`answered_questions\` with a brief summary of the answer. Keep the same \`id\` slug from the previous run.` }) }),
   /* @__PURE__ */ jsx("section", { title: "Decision Criteria", children: `- **ready**: All agents agree ready, OR conflicts are minor and resolvable, AND Engineer has provided recommended_phases
 - **needs_info**: Any agent has critical questions, unclear requirements
 - **blocked**: Technical blockers, dependencies not met, scope issues
@@ -68059,8 +68091,9 @@ var GroomingSummary = promptFactory().inputs((z) => ({
 - Without phases, there's nothing to iterate on` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with your synthesis and final decision.
 
-If decision is "needs_info", consolidate all questions from agents into a prioritized list.
-If decision is "blocked", clearly state what's blocking and what needs to happen.` })
+If decision is "needs_info", provide \`consolidated_questions\` with deduplicated, prioritized questions grouped by decision theme.
+If decision is "blocked", clearly state what's blocking and what needs to happen.
+If previous questions were provided, include \`answered_questions\` for any that are now resolved.` })
 ] }));
 var summary_default = GroomingSummary;
 
@@ -69928,6 +69961,37 @@ var CombinedGroomingOutputSchema = external_exports.object({
   qa: GroomingAgentOutputSchema,
   research: GroomingAgentOutputSchema
 });
+var GroomingSummaryOutputSchema = external_exports.object({
+  summary: external_exports.string(),
+  consensus: external_exports.array(external_exports.string()).optional(),
+  conflicts: external_exports.array(
+    external_exports.object({
+      issue: external_exports.string(),
+      resolution: external_exports.string()
+    })
+  ).optional(),
+  decision: external_exports.enum(["ready", "needs_info", "blocked"]),
+  decision_rationale: external_exports.string(),
+  consolidated_questions: external_exports.array(
+    external_exports.object({
+      id: external_exports.string(),
+      title: external_exports.string(),
+      description: external_exports.string(),
+      sources: external_exports.array(external_exports.enum(["pm", "engineer", "qa", "research"])),
+      priority: external_exports.enum(["critical", "important", "nice-to-have"])
+    })
+  ).optional(),
+  answered_questions: external_exports.array(
+    external_exports.object({
+      id: external_exports.string(),
+      title: external_exports.string(),
+      answer_summary: external_exports.string()
+    })
+  ).optional(),
+  blocker_reason: external_exports.string().optional(),
+  next_steps: external_exports.array(external_exports.string()).optional(),
+  agent_notes: external_exports.array(external_exports.string()).optional()
+});
 var TriageClassificationSchema = external_exports.object({
   type: external_exports.string(),
   priority: external_exports.string().nullable().optional(),
@@ -71065,19 +71129,19 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   const allReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
   const decision = allReady ? "ready" : "needs_info";
   core16.info(`Grooming decision: ${decision}`);
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit: asOctokitLike6(ctx),
+      fetchPRs: false,
+      fetchParent: false
+    }
+  );
   let subIssuesCreated = 0;
   if (decision === "ready") {
     try {
-      const { data, update } = await parseIssue(
-        ctx.owner,
-        ctx.repo,
-        action.issueNumber,
-        {
-          octokit: asOctokitLike6(ctx),
-          fetchPRs: false,
-          fetchParent: false
-        }
-      );
       await update({
         ...data,
         issue: {
@@ -71103,29 +71167,129 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       engineerOutput.recommended_phases
     );
   } else {
-    const questions = [];
-    for (const [agentType, output] of Object.entries(groomingOutput)) {
-      const agentOutput = output;
-      if (agentOutput.questions && agentOutput.questions.length > 0) {
-        questions.push(`**${agentType}:**`);
-        questions.push(...agentOutput.questions.map((q) => `- ${q}`));
+    const previousComment = data.issue.comments.find(
+      (c) => c.body.startsWith("## Grooming Questions")
+    );
+    const summaryOutput = await runGroomingSummary(
+      action,
+      groomingOutput,
+      data,
+      previousComment?.body
+    );
+    const commentBody = buildGroomingQuestionsComment(summaryOutput);
+    if (commentBody) {
+      if (previousComment?.databaseId) {
+        await updateComment(
+          ctx.owner,
+          ctx.repo,
+          previousComment.databaseId,
+          commentBody,
+          asOctokitLike6(ctx)
+        );
+        core16.info(
+          `Updated existing grooming questions comment (id: ${previousComment.databaseId})`
+        );
+      } else {
+        await createComment(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          commentBody,
+          asOctokitLike6(ctx)
+        );
+        core16.info(`Created new grooming questions comment`);
       }
-    }
-    if (questions.length > 0) {
-      await createComment(
-        ctx.owner,
-        ctx.repo,
-        action.issueNumber,
-        `## Grooming Questions
-
-The following questions need to be addressed before this issue is ready:
-
-${questions.join("\n")}`,
-        asOctokitLike6(ctx)
-      );
     }
   }
   return { applied: true, decision, subIssuesCreated };
+}
+var GROOMING_QUESTIONS_HEADING = "## Grooming Questions";
+async function runGroomingSummary(action, groomingOutput, data, previousQuestions) {
+  const resolved = resolvePrompt({
+    promptDir: "grooming/summary",
+    promptVars: {
+      issueNumber: String(action.issueNumber),
+      issueTitle: data.issue.title,
+      issueBody: JSON.stringify(data.issue.bodyAst),
+      issueComments: data.issue.comments.map((c) => c.body).join("\n---\n"),
+      pmOutput: JSON.stringify(groomingOutput.pm),
+      engineerOutput: JSON.stringify(groomingOutput.engineer),
+      qaOutput: JSON.stringify(groomingOutput.qa),
+      researchOutput: JSON.stringify(groomingOutput.research),
+      ...previousQuestions ? { previousQuestions } : {}
+    }
+  });
+  core16.startGroup("Grooming Summary");
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: process.cwd(),
+    outputSchema: resolved.outputSchema
+  });
+  core16.endGroup();
+  if (!result.success || !result.structuredOutput) {
+    core16.warning(
+      `Grooming summary failed: ${result.error || "no structured output"}`
+    );
+    return buildFallbackSummary(groomingOutput);
+  }
+  return parseOutput(
+    GroomingSummaryOutputSchema,
+    result.structuredOutput,
+    "grooming summary"
+  );
+}
+function buildFallbackSummary(groomingOutput) {
+  const consolidated = [];
+  let idx = 0;
+  for (const [agentType, output] of Object.entries(groomingOutput)) {
+    if (output.questions && output.questions.length > 0) {
+      for (const q of output.questions) {
+        consolidated.push({
+          id: `fallback-${idx++}`,
+          title: q.length > 60 ? q.slice(0, 57) + "..." : q,
+          description: q,
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- agentType is a known key
+          sources: [agentType],
+          priority: "important"
+        });
+      }
+    }
+  }
+  return {
+    summary: "Grooming summary prompt failed, showing raw agent questions.",
+    decision: "needs_info",
+    decision_rationale: "Summary prompt failed; falling back to raw questions.",
+    consolidated_questions: consolidated
+  };
+}
+function buildGroomingQuestionsComment(summary) {
+  const lines = [GROOMING_QUESTIONS_HEADING];
+  lines.push("");
+  lines.push(
+    "The following questions need to be addressed before this issue is ready:"
+  );
+  lines.push("");
+  const pending = summary.consolidated_questions ?? [];
+  const answered = summary.answered_questions ?? [];
+  if (pending.length === 0 && answered.length === 0) {
+    return null;
+  }
+  for (const q of pending) {
+    const sources = q.sources.join(", ");
+    const priority = q.priority === "critical" ? " **[critical]**" : "";
+    lines.push(
+      `- [ ] **${q.title}**${priority} - ${q.description} _(${sources})_`
+    );
+  }
+  if (answered.length > 0) {
+    lines.push("");
+    lines.push("### Resolved");
+    lines.push("");
+    for (const q of answered) {
+      lines.push(`- [x] ~~${q.title}~~ - ${q.answer_summary}`);
+    }
+  }
+  return lines.join("\n");
 }
 async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
   let created = 0;

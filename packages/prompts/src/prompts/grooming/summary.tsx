@@ -10,6 +10,7 @@ const GroomingSummary = promptFactory()
     engineerOutput: z.string(),
     qaOutput: z.string(),
     researchOutput: z.string(),
+    previousQuestions: z.string().optional(),
   }))
   .outputs((z) => ({
     summary: z.string(),
@@ -24,12 +25,23 @@ const GroomingSummary = promptFactory()
       .optional(),
     decision: z.enum(["ready", "needs_info", "blocked"]),
     decision_rationale: z.string(),
-    questions: z
+    consolidated_questions: z
       .array(
         z.object({
-          question: z.string(),
-          source: z.enum(["pm", "engineer", "qa", "research"]),
+          id: z.string(),
+          title: z.string(),
+          description: z.string(),
+          sources: z.array(z.enum(["pm", "engineer", "qa", "research"])),
           priority: z.enum(["critical", "important", "nice-to-have"]),
+        }),
+      )
+      .optional(),
+    answered_questions: z
+      .array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          answer_summary: z.string(),
         }),
       )
       .optional(),
@@ -56,6 +68,14 @@ const GroomingSummary = promptFactory()
         <section title="Research Findings">{inputs.researchOutput}</section>
       </section>
 
+      <Conditional when={inputs.previousQuestions}>
+        <section title="Previous Grooming Questions">
+          {`The following questions were posted in a previous grooming run. Compare them with the current agent analyses to determine which have been answered:
+
+${inputs.previousQuestions ?? ""}`}
+        </section>
+      </Conditional>
+
       {"---"}
 
       <section title="Your Task">
@@ -64,8 +84,24 @@ const GroomingSummary = promptFactory()
 1. **Summary**: Combine key insights from all agents
 2. **Consensus**: Where do agents agree?
 3. **Conflicts**: Where do agents disagree? How should conflicts be resolved?
-4. **Decision**: Based on all input, is this issue ready?`}
+4. **Decision**: Based on all input, is this issue ready?
+5. **Consolidated Questions**: Deduplicate questions across agents into distinct decision themes`}
       </section>
+
+      <section title="Question Consolidation Rules">
+        {`When consolidating questions from agents:
+- Deduplicate similar questions across agents into a single question per decision theme
+- Use a stable, short \`id\` slug for each question (e.g., "auth-strategy", "db-migration-plan") so questions can be tracked across runs
+- Provide a short title (5-10 words) and a 2-3 sentence description with context
+- List which agents raised the question in the \`sources\` array
+- Assign priority: "critical" (blocks implementation), "important" (affects design), "nice-to-have" (minor clarification)`}
+      </section>
+
+      <Conditional when={inputs.previousQuestions}>
+        <section title="Answer Tracking">
+          {`Compare previous questions with current agent analyses. If a question from a previous run is no longer raised by any agent, or the issue body/comments now contain the answer, mark it as answered in \`answered_questions\` with a brief summary of the answer. Keep the same \`id\` slug from the previous run.`}
+        </section>
+      </Conditional>
 
       <section title="Decision Criteria">
         {`- **ready**: All agents agree ready, OR conflicts are minor and resolvable, AND Engineer has provided recommended_phases
@@ -81,8 +117,9 @@ const GroomingSummary = promptFactory()
       <section title="Output">
         {`Return structured JSON with your synthesis and final decision.
 
-If decision is "needs_info", consolidate all questions from agents into a prioritized list.
-If decision is "blocked", clearly state what's blocking and what needs to happen.`}
+If decision is "needs_info", provide \`consolidated_questions\` with deduplicated, prioritized questions grouped by decision theme.
+If decision is "blocked", clearly state what's blocking and what needs to happen.
+If previous questions were provided, include \`answered_questions\` for any that are now resolved.`}
       </section>
     </prompt>
   ));

@@ -15,6 +15,7 @@ import {
   createTodoList,
   parseIssue,
   createComment,
+  updateComment,
   type OctokitLike,
   type ProjectStatus,
 } from "@more/issue-state";
@@ -28,8 +29,10 @@ import { appendAgentNotes } from "../../parser/index.js";
 import {
   CombinedGroomingOutputSchema,
   EngineerOutputSchema,
+  GroomingSummaryOutputSchema,
   parseOutput,
   type CombinedGroomingOutput,
+  type GroomingSummaryOutput,
   type RecommendedPhase,
 } from "./output-schemas.js";
 
@@ -200,6 +203,18 @@ export async function executeApplyGroomingOutput(
   const decision = allReady ? "ready" : "needs_info";
   core.info(`Grooming decision: ${decision}`);
 
+  // Parse issue data (used by both branches)
+  const { data, update } = await parseIssue(
+    ctx.owner,
+    ctx.repo,
+    action.issueNumber,
+    {
+      octokit: asOctokitLike(ctx),
+      fetchPRs: false,
+      fetchParent: false,
+    },
+  );
+
   // Track sub-issues created
   let subIssuesCreated = 0;
 
@@ -207,17 +222,6 @@ export async function executeApplyGroomingOutput(
   if (decision === "ready") {
     // Add 'groomed' label to indicate issue is ready for implementation
     try {
-      const { data, update } = await parseIssue(
-        ctx.owner,
-        ctx.repo,
-        action.issueNumber,
-        {
-          octokit: asOctokitLike(ctx),
-          fetchPRs: false,
-          fetchParent: false,
-        },
-      );
-
       await update({
         ...data,
         issue: {
@@ -246,29 +250,180 @@ export async function executeApplyGroomingOutput(
       engineerOutput.recommended_phases,
     );
   } else {
-    // Collect questions from agents
-    const questions: string[] = [];
-    for (const [agentType, output] of Object.entries(groomingOutput)) {
-      const agentOutput = output;
-      if (agentOutput.questions && agentOutput.questions.length > 0) {
-        questions.push(`**${agentType}:**`);
-        questions.push(...agentOutput.questions.map((q) => `- ${q}`));
-      }
-    }
+    // Find previous grooming questions comment
+    const previousComment = data.issue.comments.find((c) =>
+      c.body.startsWith("## Grooming Questions"),
+    );
 
-    // Post comment with questions
-    if (questions.length > 0) {
-      await createComment(
-        ctx.owner,
-        ctx.repo,
-        action.issueNumber,
-        `## Grooming Questions\n\nThe following questions need to be addressed before this issue is ready:\n\n${questions.join("\n")}`,
-        asOctokitLike(ctx),
-      );
+    // Run summary prompt with consolidated question logic
+    const summaryOutput = await runGroomingSummary(
+      action,
+      groomingOutput,
+      data,
+      previousComment?.body,
+    );
+
+    // Build the consolidated comment body
+    const commentBody = buildGroomingQuestionsComment(summaryOutput);
+
+    if (commentBody) {
+      // Upsert: update existing comment or create new one
+      if (previousComment?.databaseId) {
+        await updateComment(
+          ctx.owner,
+          ctx.repo,
+          previousComment.databaseId,
+          commentBody,
+          asOctokitLike(ctx),
+        );
+        core.info(
+          `Updated existing grooming questions comment (id: ${previousComment.databaseId})`,
+        );
+      } else {
+        await createComment(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          commentBody,
+          asOctokitLike(ctx),
+        );
+        core.info(`Created new grooming questions comment`);
+      }
     }
   }
 
   return { applied: true, decision, subIssuesCreated };
+}
+
+// ============================================================================
+// Grooming Summary
+// ============================================================================
+
+export const GROOMING_QUESTIONS_HEADING = "## Grooming Questions";
+
+/**
+ * Run the grooming summary prompt to consolidate questions from all agents.
+ */
+async function runGroomingSummary(
+  action: ApplyGroomingOutputAction,
+  groomingOutput: CombinedGroomingOutput,
+  data: {
+    issue: { title: string; bodyAst: Root; comments: Array<{ body: string }> };
+  },
+  previousQuestions?: string,
+): Promise<GroomingSummaryOutput> {
+  const resolved = resolvePrompt({
+    promptDir: "grooming/summary",
+    promptVars: {
+      issueNumber: String(action.issueNumber),
+      issueTitle: data.issue.title,
+      issueBody: JSON.stringify(data.issue.bodyAst),
+      issueComments: data.issue.comments.map((c) => c.body).join("\n---\n"),
+      pmOutput: JSON.stringify(groomingOutput.pm),
+      engineerOutput: JSON.stringify(groomingOutput.engineer),
+      qaOutput: JSON.stringify(groomingOutput.qa),
+      researchOutput: JSON.stringify(groomingOutput.research),
+      ...(previousQuestions ? { previousQuestions } : {}),
+    },
+  });
+
+  core.startGroup("Grooming Summary");
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: process.cwd(),
+    outputSchema: resolved.outputSchema,
+  });
+  core.endGroup();
+
+  if (!result.success || !result.structuredOutput) {
+    core.warning(
+      `Grooming summary failed: ${result.error || "no structured output"}`,
+    );
+    // Fall back to basic question collection from agents
+    return buildFallbackSummary(groomingOutput);
+  }
+
+  return parseOutput(
+    GroomingSummaryOutputSchema,
+    result.structuredOutput,
+    "grooming summary",
+  );
+}
+
+/**
+ * Build a fallback summary when the summary prompt fails.
+ * Collects raw questions from agents as consolidated questions.
+ */
+export function buildFallbackSummary(
+  groomingOutput: CombinedGroomingOutput,
+): GroomingSummaryOutput {
+  const consolidated: GroomingSummaryOutput["consolidated_questions"] = [];
+  let idx = 0;
+
+  for (const [agentType, output] of Object.entries(groomingOutput)) {
+    if (output.questions && output.questions.length > 0) {
+      for (const q of output.questions) {
+        consolidated.push({
+          id: `fallback-${idx++}`,
+          title: q.length > 60 ? q.slice(0, 57) + "..." : q,
+          description: q,
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- agentType is a known key
+          sources: [agentType as "pm" | "engineer" | "qa" | "research"],
+          priority: "important",
+        });
+      }
+    }
+  }
+
+  return {
+    summary: "Grooming summary prompt failed, showing raw agent questions.",
+    decision: "needs_info",
+    decision_rationale: "Summary prompt failed; falling back to raw questions.",
+    consolidated_questions: consolidated,
+  };
+}
+
+/**
+ * Build the markdown comment body from summary output.
+ * Returns null if there are no questions to display.
+ */
+export function buildGroomingQuestionsComment(
+  summary: GroomingSummaryOutput,
+): string | null {
+  const lines: string[] = [GROOMING_QUESTIONS_HEADING];
+  lines.push("");
+  lines.push(
+    "The following questions need to be addressed before this issue is ready:",
+  );
+  lines.push("");
+
+  const pending = summary.consolidated_questions ?? [];
+  const answered = summary.answered_questions ?? [];
+
+  if (pending.length === 0 && answered.length === 0) {
+    return null;
+  }
+
+  // Pending questions as unchecked items
+  for (const q of pending) {
+    const sources = q.sources.join(", ");
+    const priority = q.priority === "critical" ? " **[critical]**" : "";
+    lines.push(
+      `- [ ] **${q.title}**${priority} - ${q.description} _(${sources})_`,
+    );
+  }
+
+  // Answered questions as checked items
+  if (answered.length > 0) {
+    lines.push("");
+    lines.push("### Resolved");
+    lines.push("");
+    for (const q of answered) {
+      lines.push(`- [x] ~~${q.title}~~ - ${q.answer_summary}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 // ============================================================================

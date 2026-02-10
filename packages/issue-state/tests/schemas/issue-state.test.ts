@@ -46,6 +46,29 @@ describe("IssueCommentSchema", () => {
     });
     expect(result.isBot).toBe(true);
   });
+
+  it("accepts optional databaseId", () => {
+    const result = IssueCommentSchema.parse({
+      id: "IC_123",
+      databaseId: 456789,
+      author: "nopo-bot",
+      body: "Working on it",
+      createdAt: "2026-01-22T19:04:52Z",
+      isBot: true,
+    });
+    expect(result.databaseId).toBe(456789);
+  });
+
+  it("validates without databaseId", () => {
+    const result = IssueCommentSchema.parse({
+      id: "IC_123",
+      author: "user",
+      body: "Hello",
+      createdAt: "2026-01-22T19:04:52Z",
+      isBot: false,
+    });
+    expect(result.databaseId).toBeUndefined();
+  });
 });
 
 describe("LinkedPRSchema", () => {
