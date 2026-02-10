@@ -71208,15 +71208,15 @@ async function runGroomingSummary(action, groomingOutput, data, previousQuestion
   const resolved = resolvePrompt({
     promptDir: "grooming/summary",
     promptVars: {
-      issueNumber: String(action.issueNumber),
-      issueTitle: data.issue.title,
-      issueBody: JSON.stringify(data.issue.bodyAst),
-      issueComments: data.issue.comments.map((c) => c.body).join("\n---\n"),
-      pmOutput: JSON.stringify(groomingOutput.pm),
-      engineerOutput: JSON.stringify(groomingOutput.engineer),
-      qaOutput: JSON.stringify(groomingOutput.qa),
-      researchOutput: JSON.stringify(groomingOutput.research),
-      ...previousQuestions ? { previousQuestions } : {}
+      ISSUE_NUMBER: String(action.issueNumber),
+      ISSUE_TITLE: data.issue.title,
+      ISSUE_BODY: JSON.stringify(data.issue.bodyAst),
+      ISSUE_COMMENTS: data.issue.comments.map((c) => c.body).join("\n---\n"),
+      PM_OUTPUT: JSON.stringify(groomingOutput.pm),
+      ENGINEER_OUTPUT: JSON.stringify(groomingOutput.engineer),
+      QA_OUTPUT: JSON.stringify(groomingOutput.qa),
+      RESEARCH_OUTPUT: JSON.stringify(groomingOutput.research),
+      ...previousQuestions ? { PREVIOUS_QUESTIONS: previousQuestions } : {}
     }
   });
   core16.startGroup("Grooming Summary");
