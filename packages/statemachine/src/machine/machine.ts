@@ -427,7 +427,10 @@ export const claudeMachine = setup({
             target: "grooming",
             guard: "needsGrooming",
           },
-          // Check for multi-phase work
+          // Sub-issues always iterate - check BEFORE hasSubIssues to prevent
+          // sub-issues from being routed to orchestration
+          { target: "iterating", guard: "isSubIssue" },
+          // Check for multi-phase work (parent issues only)
           { target: "initializing", guard: "needsSubIssues" },
           { target: "orchestrating", guard: "hasSubIssues" },
           // Check current state
@@ -435,8 +438,6 @@ export const claudeMachine = setup({
           // Check if ready for review (CI passed + todos done) from any trigger
           // This allows the state machine to "catch up" when re-triggered
           { target: "transitioningToReview", guard: "readyForReview" },
-          // Only sub-issues can iterate directly - parent issues must have sub-issues
-          { target: "iterating", guard: "isSubIssue" },
           // FATAL: Parent issue without sub-issues cannot iterate
           // This catches misconfigured issues that weren't properly groomed
           { target: "invalidIteration" },
