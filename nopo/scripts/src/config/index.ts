@@ -223,29 +223,6 @@ const ServiceFileSchema = z
         "Cannot specify both top-level 'dependencies' and 'build.depends_on' or 'runtime.depends_on'. " +
         "Move dependencies to the appropriate section.",
     },
-  )
-  .refine(
-    (data) => {
-      const hasTopLevelDeps = data.dependencies && data.dependencies.length > 0;
-      const hasBuildDeps = data.build?.depends_on !== undefined;
-      const hasRuntimeDeps = data.runtime?.depends_on !== undefined;
-
-      // Warn if top-level dependencies exists alone (migration needed)
-      if (hasTopLevelDeps && !hasBuildDeps && !hasRuntimeDeps) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message:
-        "Top-level 'dependencies' field is deprecated. Move to 'build.depends_on' or 'runtime.depends_on'. " +
-        "Example:\n" +
-        "build:\n" +
-        "  depends_on: ['backend']\n" +
-        "or\n" +
-        "runtime:\n" +
-        "  depends_on: ['backend']",
-    },
   );
 
 const ServicesSchema = z

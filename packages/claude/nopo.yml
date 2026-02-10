@@ -17,3 +17,4 @@ commands:
   fix:
     commands:
       lint: pnpm exec eslint --fix
+  test: echo "No tests for claude package"
