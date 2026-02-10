@@ -18,6 +18,7 @@ import {
   type OctokitLike,
   type ProjectStatus,
 } from "@more/issue-state";
+import { executeClaudeSDK, resolvePrompt } from "@more/claude";
 import type {
   RunClaudeGroomingAction,
   ApplyGroomingOutputAction,
@@ -44,10 +45,46 @@ function asOctokitLike(ctx: RunnerContext): OctokitLike {
 // ============================================================================
 
 /**
+ * Run a single grooming agent via Claude SDK
+ */
+async function runGroomingAgent(
+  agentName: string,
+  promptVars: Record<string, string>,
+): Promise<unknown> {
+  core.info(`Starting grooming agent: ${agentName}`);
+
+  const resolved = resolvePrompt({
+    promptDir: `grooming/${agentName}`,
+    promptVars,
+  });
+
+  core.startGroup(`Grooming Agent: ${agentName}`);
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: process.cwd(),
+    outputSchema: resolved.outputSchema,
+  });
+  core.endGroup();
+
+  if (!result.success || !result.structuredOutput) {
+    core.warning(
+      `Grooming agent ${agentName} failed: ${result.error || "no structured output"}`,
+    );
+    return {
+      ready: false,
+      questions: [`Agent ${agentName} failed to complete analysis`],
+    };
+  }
+
+  core.info(
+    `Grooming agent ${agentName} completed (${result.numTurns} turns, $${result.costUsd?.toFixed(4) ?? "?"})`,
+  );
+  return result.structuredOutput;
+}
+
+/**
  * Run Claude grooming agents in parallel
  * Executes PM, Engineer, QA, and Research agents and collects their outputs.
- *
- * TODO: Full implementation with parallel Claude calls
  */
 export async function executeRunClaudeGrooming(
   action: RunClaudeGroomingAction,
@@ -79,16 +116,29 @@ export async function executeRunClaudeGrooming(
     };
   }
 
-  // TODO: Run 4 Claude agents in parallel (PM, Engineer, QA, Research)
-  // For now, return placeholder outputs
-  const outputs: CombinedGroomingOutput = {
-    pm: { ready: true, questions: [] },
-    engineer: { ready: true, questions: [] },
-    qa: { ready: true, questions: [] },
-    research: { ready: true, questions: [] },
-  };
+  const promptVars = action.promptVars ?? {};
 
-  core.info("Grooming agents completed (placeholder implementation)");
+  // Run all 4 grooming agents in parallel
+  const [pmResult, engineerResult, qaResult, researchResult] =
+    await Promise.all([
+      runGroomingAgent("pm", promptVars),
+      runGroomingAgent("engineer", promptVars),
+      runGroomingAgent("qa", promptVars),
+      runGroomingAgent("research", promptVars),
+    ]);
+
+  const outputs = parseOutput(
+    CombinedGroomingOutputSchema,
+    {
+      pm: pmResult,
+      engineer: engineerResult,
+      qa: qaResult,
+      research: researchResult,
+    },
+    "combined grooming",
+  );
+
+  core.info("All grooming agents completed");
   return { outputs };
 }
 
@@ -180,26 +230,21 @@ export async function executeApplyGroomingOutput(
       core.warning(`Failed to add 'groomed' label: ${error}`);
     }
 
-    // Check if engineer recommends splitting into phases
+    // Create sub-issues from engineer's recommended phases
+    // Phases are always required - work happens on sub-issues, not parent issues
     const engineerOutput = parseOutput(
       EngineerOutputSchema,
       groomingOutput.engineer,
       "engineer",
     );
-    if (
-      engineerOutput.scope_recommendation === "split" &&
-      engineerOutput.recommended_phases &&
-      engineerOutput.recommended_phases.length > 0
-    ) {
-      core.info(
-        `Engineer recommends splitting into ${engineerOutput.recommended_phases.length} phases`,
-      );
-      subIssuesCreated = await createSubIssuesForPhases(
-        ctx,
-        action.issueNumber,
-        engineerOutput.recommended_phases,
-      );
-    }
+    core.info(
+      `Creating ${engineerOutput.recommended_phases.length} sub-issues`,
+    );
+    subIssuesCreated = await createSubIssuesForPhases(
+      ctx,
+      action.issueNumber,
+      engineerOutput.recommended_phases,
+    );
   } else {
     // Collect questions from agents
     const questions: string[] = [];

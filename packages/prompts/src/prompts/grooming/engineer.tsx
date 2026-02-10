@@ -26,33 +26,29 @@ const GroomingEngineer = promptFactory()
         }),
       )
       .optional(),
-    scope_recommendation: z.enum(["keep", "split", "expand"]),
-    scope_rationale: z.string().optional(),
-    recommended_phases: z
-      .array(
-        z.object({
-          phase_number: z.number(),
-          title: z.string(),
-          description: z.string(),
-          affected_areas: z
-            .array(
-              z.object({
-                path: z.string(),
-                change_type: z.enum(["create", "modify", "delete"]),
-                description: z.string(),
-              }),
-            )
-            .optional(),
-          todos: z.array(
+    recommended_phases: z.array(
+      z.object({
+        phase_number: z.number(),
+        title: z.string(),
+        description: z.string(),
+        affected_areas: z
+          .array(
             z.object({
-              task: z.string(),
-              manual: z.boolean(),
+              path: z.string(),
+              change_type: z.enum(["create", "modify", "delete"]),
+              description: z.string(),
             }),
-          ),
-          depends_on: z.array(z.number()).optional(),
-        }),
-      )
-      .optional(),
+          )
+          .optional(),
+        todos: z.array(
+          z.object({
+            task: z.string(),
+            manual: z.boolean(),
+          }),
+        ),
+        depends_on: z.array(z.number()).optional(),
+      }),
+    ),
     ready: z.boolean(),
     blockers: z.array(z.string()).optional(),
     questions: z.array(z.string()).optional(),
@@ -79,8 +75,7 @@ const GroomingEngineer = promptFactory()
 1. **Implementation Plan**: High-level approach to solving this
 2. **Affected Areas**: Files, modules, or systems that need changes
 3. **Technical Risks**: Complexity, performance concerns, breaking changes
-4. **Scope Assessment**: Is the scope appropriate? Too large to split?
-5. **Missing Information**: What technical details are unclear?`}
+4. **Missing Information**: What technical details are unclear?`}
       </section>
 
       <section title="Codebase Exploration">
@@ -98,13 +93,6 @@ const GroomingEngineer = promptFactory()
 - **Blocked**: Depends on other work, infrastructure not ready
 
 If not ready, specify what information or decisions are needed.`}
-      </section>
-
-      <section title="Scope Recommendation">
-        {`Suggest if the issue should be:
-- **keep**: Scope is appropriate as-is (single phase)
-- **split**: Issue is too large, recommend splitting into phases
-- **expand**: Issue is too small, could combine with related work`}
       </section>
 
       <section title="Phase Planning (REQUIRED)">

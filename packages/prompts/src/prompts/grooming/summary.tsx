@@ -75,9 +75,7 @@ const GroomingSummary = promptFactory()
 **CRITICAL**: An issue can ONLY be marked "ready" if the Engineer analysis includes \`recommended_phases\` with at least one phase. This is because:
 - Work happens on sub-issues, not parent issues directly
 - Sub-issues are created from the recommended_phases
-- Without phases, there's nothing to iterate on
-
-If Engineer's scope_recommendation is "keep" (single phase), they MUST still provide one phase in recommended_phases.`}
+- Without phases, there's nothing to iterate on`}
       </section>
 
       <section title="Output">

@@ -25,7 +25,6 @@
     ],
     "scope": "large",
     "scope_rationale": "Multi-phase feature requiring coordination across design, implementation, and testing",
-    "scope_recommendation": "split",
     "technical_risks": ["Coordination between phases", "Design decisions in phase 1 affect later phases"],
     "dependencies": [],
     "ready": true,

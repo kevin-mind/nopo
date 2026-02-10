@@ -171,8 +171,7 @@ const RecommendedPhaseSchema = z.object({
 export type RecommendedPhase = z.infer<typeof RecommendedPhaseSchema>;
 
 export const EngineerOutputSchema = GroomingAgentOutputSchema.extend({
-  scope_recommendation: z.enum(["direct", "split"]).optional(),
-  recommended_phases: z.array(RecommendedPhaseSchema).optional(),
+  recommended_phases: z.array(RecommendedPhaseSchema),
 });
 
 export const CombinedGroomingOutputSchema = z.object({

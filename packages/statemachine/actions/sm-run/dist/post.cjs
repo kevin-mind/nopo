@@ -65588,8 +65588,6 @@ var GroomingEngineer = promptFactory().inputs((z) => ({
       mitigation: z.string().optional()
     })
   ).optional(),
-  scope_recommendation: z.enum(["keep", "split", "expand"]),
-  scope_rationale: z.string().optional(),
   recommended_phases: z.array(
     z.object({
       phase_number: z.number(),
@@ -65610,7 +65608,7 @@ var GroomingEngineer = promptFactory().inputs((z) => ({
       ),
       depends_on: z.array(z.number()).optional()
     })
-  ).optional(),
+  ),
   ready: z.boolean(),
   blockers: z.array(z.string()).optional(),
   questions: z.array(z.string()).optional()
@@ -65625,8 +65623,7 @@ var GroomingEngineer = promptFactory().inputs((z) => ({
 1. **Implementation Plan**: High-level approach to solving this
 2. **Affected Areas**: Files, modules, or systems that need changes
 3. **Technical Risks**: Complexity, performance concerns, breaking changes
-4. **Scope Assessment**: Is the scope appropriate? Too large to split?
-5. **Missing Information**: What technical details are unclear?` }),
+4. **Missing Information**: What technical details are unclear?` }),
   /* @__PURE__ */ jsx("section", { title: "Codebase Exploration", children: `You may explore the codebase to understand:
 - Current implementation patterns
 - Related code that might be affected
@@ -65638,10 +65635,6 @@ var GroomingEngineer = promptFactory().inputs((z) => ({
 - **Blocked**: Depends on other work, infrastructure not ready
 
 If not ready, specify what information or decisions are needed.` }),
-  /* @__PURE__ */ jsx("section", { title: "Scope Recommendation", children: `Suggest if the issue should be:
-- **keep**: Scope is appropriate as-is (single phase)
-- **split**: Issue is too large, recommend splitting into phases
-- **expand**: Issue is too small, could combine with related work` }),
   /* @__PURE__ */ jsx("section", { title: "Phase Planning (REQUIRED)", children: `You MUST provide \`recommended_phases\` with at least one phase. This is REQUIRED because:
 - Work happens on sub-issues (phases), not parent issues directly
 - Sub-issues are created from your recommended_phases
@@ -65900,9 +65893,7 @@ var GroomingSummary = promptFactory().inputs((z) => ({
 **CRITICAL**: An issue can ONLY be marked "ready" if the Engineer analysis includes \`recommended_phases\` with at least one phase. This is because:
 - Work happens on sub-issues, not parent issues directly
 - Sub-issues are created from the recommended_phases
-- Without phases, there's nothing to iterate on
-
-If Engineer's scope_recommendation is "keep" (single phase), they MUST still provide one phase in recommended_phases.` }),
+- Without phases, there's nothing to iterate on` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with your synthesis and final decision.
 
 If decision is "needs_info", consolidate all questions from agents into a prioritized list.
@@ -66401,8 +66392,7 @@ var RecommendedPhaseSchema = external_exports.object({
   depends_on: external_exports.array(external_exports.number()).optional()
 });
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
-  scope_recommendation: external_exports.enum(["direct", "split"]).optional(),
-  recommended_phases: external_exports.array(RecommendedPhaseSchema).optional()
+  recommended_phases: external_exports.array(RecommendedPhaseSchema)
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
