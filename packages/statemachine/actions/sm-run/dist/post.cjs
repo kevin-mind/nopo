@@ -41854,6 +41854,7 @@ var JobTypeSchema = external_exports.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  "issue-pivot",
   // PR jobs
   "pr-push",
   "pr-review-requested",

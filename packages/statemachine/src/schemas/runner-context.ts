@@ -40,6 +40,7 @@ export const JobTypeSchema = z.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  "issue-pivot",
   // PR jobs
   "pr-push",
   "pr-review-requested", // When someone requests a review from the bot
