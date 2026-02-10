@@ -6,6 +6,7 @@ import type {
   CommandDependencies,
   CommandContext,
 } from "../config/index.ts";
+import { extractDependencyNames } from "../config/index.ts";
 
 /**
  * Represents a command to execute on a specific service.
@@ -304,18 +305,6 @@ export function resolveCommandDependencies(
   }
 
   return result;
-}
-
-/**
- * Extract dependency service names from CommandDependencies format.
- * Handles both array format and object format.
- */
-function extractDependencyNames(
-  deps: CommandDependencies | undefined,
-): string[] {
-  if (!deps) return [];
-  if (Array.isArray(deps)) return deps;
-  return Object.keys(deps);
 }
 
 /**

@@ -329,6 +329,26 @@ export type CommandDependencies =
   | Record<string, string[]> // Object with service -> commands mapping
   | undefined;
 
+/**
+ * Extract dependency service names from CommandDependencies format.
+ * Handles both array format and object format.
+ *
+ * @param deps - The dependencies to extract names from
+ * @returns Array of service names
+ *
+ * @example
+ * extractDependencyNames(['backend', 'db']) // ['backend', 'db']
+ * extractDependencyNames({ backend: ['build'], db: ['migrate'] }) // ['backend', 'db']
+ * extractDependencyNames(undefined) // []
+ */
+export function extractDependencyNames(
+  deps: CommandDependencies,
+): string[] {
+  if (!deps) return [];
+  if (Array.isArray(deps)) return deps;
+  return Object.keys(deps);
+}
+
 // Execution context type
 export type CommandContext = "host" | "container";
 
@@ -770,18 +790,6 @@ function discoverServices(
     }
     entries[serviceId] = normalized;
   }
-}
-
-/**
- * Extract service names from CommandDependencies format.
- * Handles both array format (["backend", "worker"]) and object format ({ backend: ["build"] }).
- */
-function extractDependencyNames(
-  deps: CommandDependencies | undefined,
-): string[] {
-  if (!deps) return [];
-  if (Array.isArray(deps)) return deps;
-  return Object.keys(deps);
 }
 
 /**

@@ -16,6 +16,7 @@ import {
   isPackageService,
   isVirtualBuildableService,
   requiresBuild,
+  extractDependencyNames,
   type NormalizedService,
   type VirtualBuildableService,
   type CommandDependencies,
@@ -198,18 +199,6 @@ export default class BuildScript extends TargetScript {
   }
 
   /**
-   * Extract dependency service names from CommandDependencies format.
-   * Handles both array format and object format.
-   */
-  private extractDependencyNames(
-    deps: CommandDependencies | undefined,
-  ): string[] {
-    if (!deps) return [];
-    if (Array.isArray(deps)) return deps;
-    return Object.keys(deps);
-  }
-
-  /**
    * Resolve package dependencies for a set of targets.
    * Returns all packages that are dependencies of the given targets.
    */
@@ -228,7 +217,7 @@ export default class BuildScript extends TargetScript {
       if (!service) return;
 
       // Use build.depends_on if available, fallback to service.dependencies
-      const buildDeps = this.extractDependencyNames(service.build?.depends_on);
+      const buildDeps = extractDependencyNames(service.build?.depends_on);
       const deps = buildDeps.length > 0 ? buildDeps : service.dependencies;
       for (const dep of deps) {
         if (allPackages.includes(dep)) {
@@ -270,7 +259,7 @@ export default class BuildScript extends TargetScript {
       if (service) {
         // Visit dependencies first (only those that are also packages to build)
         // Use build.depends_on if available, fallback to service.dependencies
-        const buildDeps = this.extractDependencyNames(service.build?.depends_on);
+        const buildDeps = extractDependencyNames(service.build?.depends_on);
         const deps = buildDeps.length > 0 ? buildDeps : service.dependencies;
         for (const dep of deps) {
           if (packageSet.has(dep)) {

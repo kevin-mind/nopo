@@ -1734,4 +1734,658 @@ commands:
       expect(project.services.entries.root?.paths.root).toBe(root);
     });
   });
+
+  describe("Context-specific dependencies (build.depends_on/runtime.depends_on)", () => {
+    it("uses build.depends_on for build commands (compile)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - backend
+  - db
+build:
+  depends_on:
+    - prompts
+commands:
+  compile:
+    command: npm run compile
+`,
+          backend: `
+name: backend
+dockerfile: Dockerfile
+commands:
+  compile:
+    command: python -m compileall .
+`,
+          prompts: `
+name: prompts
+dockerfile: Dockerfile
+commands:
+  compile:
+    command: echo "compile prompts"
+`,
+          db: `
+name: db
+image: postgres:16
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "compile", "web");
+
+      // Should use build.depends_on (only prompts), not service dependencies (backend, db)
+      expect(deps).toHaveLength(1);
+      expect(deps).toContainEqual({ service: "prompts", command: "compile" });
+      expect(deps).not.toContainEqual(
+        expect.objectContaining({ service: "backend" }),
+      );
+      expect(deps).not.toContainEqual(expect.objectContaining({ service: "db" }));
+    });
+
+    it("uses build.depends_on for test commands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          api: `
+name: api
+dockerfile: Dockerfile
+dependencies:
+  - db
+build:
+  depends_on:
+    - shared
+commands:
+  test:
+    command: npm test
+`,
+          shared: `
+name: shared
+dockerfile: Dockerfile
+commands:
+  test:
+    command: npm test
+`,
+          db: `
+name: db
+image: postgres:16
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "test", "api");
+
+      // test is a build command, should use build.depends_on
+      expect(deps).toHaveLength(1);
+      expect(deps).toContainEqual({ service: "shared", command: "test" });
+      expect(deps).not.toContainEqual(expect.objectContaining({ service: "db" }));
+    });
+
+    it("uses build.depends_on for check commands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - backend
+build:
+  depends_on:
+    - ui
+commands:
+  check:
+    commands:
+      lint: eslint .
+      types: tsc --noEmit
+`,
+          ui: `
+name: ui
+dockerfile: Dockerfile
+commands:
+  check:
+    commands:
+      lint: eslint .
+`,
+          backend: `
+name: backend
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "check", "web");
+
+      // check is a build command, should use build.depends_on
+      expect(deps).toHaveLength(1);
+      expect(deps).toContainEqual({ service: "ui", command: "check" });
+    });
+
+    it("uses runtime.depends_on for runtime commands (dev)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - backend
+  - db
+  - prompts
+runtime:
+  depends_on:
+    - backend
+    - db
+commands:
+  dev:
+    command: npm run dev
+`,
+          backend: `
+name: backend
+dockerfile: Dockerfile
+commands:
+  dev:
+    command: python manage.py runserver
+`,
+          db: `
+name: db
+image: postgres:16
+commands:
+  dev:
+    command: echo "db is running"
+`,
+          prompts: `
+name: prompts
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "dev", "web");
+
+      // Should use runtime.depends_on (backend, db), not service dependencies (includes prompts)
+      expect(deps).toHaveLength(2);
+      expect(deps).toContainEqual({ service: "backend", command: "dev" });
+      expect(deps).toContainEqual({ service: "db", command: "dev" });
+      expect(deps).not.toContainEqual(
+        expect.objectContaining({ service: "prompts" }),
+      );
+    });
+
+    it("uses runtime.depends_on for start commands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          app: `
+name: app
+dockerfile: Dockerfile
+dependencies:
+  - api
+  - cache
+  - shared
+runtime:
+  depends_on:
+    - api
+    - cache
+commands:
+  start:
+    command: node server.js
+`,
+          api: `
+name: api
+dockerfile: Dockerfile
+commands:
+  start:
+    command: node api.js
+`,
+          cache: `
+name: cache
+image: redis:alpine
+commands:
+  start:
+    command: redis-server
+`,
+          shared: `
+name: shared
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "start", "app");
+
+      // start is a runtime command, should use runtime.depends_on
+      expect(deps).toHaveLength(2);
+      expect(deps).toContainEqual({ service: "api", command: "start" });
+      expect(deps).toContainEqual({ service: "cache", command: "start" });
+      expect(deps).not.toContainEqual(
+        expect.objectContaining({ service: "shared" }),
+      );
+    });
+
+    it("falls back to service.dependencies when build.depends_on is empty", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - backend
+build:
+  depends_on: []
+commands:
+  compile:
+    command: npm run compile
+`,
+          backend: `
+name: backend
+dockerfile: Dockerfile
+commands:
+  compile:
+    command: python setup.py build
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "compile", "web");
+
+      // build.depends_on is empty array, should fall back to service.dependencies
+      expect(deps).toHaveLength(1);
+      expect(deps).toContainEqual({ service: "backend", command: "compile" });
+    });
+
+    it("falls back to service.dependencies when runtime.depends_on is empty", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          app: `
+name: app
+dockerfile: Dockerfile
+dependencies:
+  - api
+runtime:
+  depends_on: []
+commands:
+  dev:
+    command: npm run dev
+`,
+          api: `
+name: api
+dockerfile: Dockerfile
+commands:
+  dev:
+    command: node api.js
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "dev", "app");
+
+      // runtime.depends_on is empty array, should fall back to service.dependencies
+      expect(deps).toHaveLength(1);
+      expect(deps).toContainEqual({ service: "api", command: "dev" });
+    });
+
+    it("handles empty object {} for depends_on (no dependencies)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - backend
+build:
+  depends_on: {}
+commands:
+  compile:
+    command: npm run compile
+`,
+          backend: `
+name: backend
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "compile", "web");
+
+      // Empty object {} means no dependencies
+      expect(deps).toEqual([]);
+    });
+
+    it("isBuildCommand correctly identifies build commands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - runtime-dep
+build:
+  depends_on:
+    - build-dep
+commands:
+  build:
+    command: npm run build
+  compile:
+    command: tsc
+  test:
+    command: npm test
+  check:
+    command: npm run check
+  lint:
+    command: eslint .
+  format:
+    command: prettier --write .
+  types:
+    command: tsc --noEmit
+  typecheck:
+    command: tsc --noEmit
+  clean:
+    command: rm -rf dist
+`,
+          "build-dep": `
+name: build-dep
+dockerfile: Dockerfile
+commands:
+  build:
+    command: echo "build"
+  compile:
+    command: echo "compile"
+  test:
+    command: echo "test"
+  check:
+    command: echo "check"
+  lint:
+    command: echo "lint"
+  format:
+    command: echo "format"
+  types:
+    command: echo "types"
+  typecheck:
+    command: echo "typecheck"
+  clean:
+    command: echo "clean"
+`,
+          "runtime-dep": `
+name: runtime-dep
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      // All these should use build.depends_on (build-dep)
+      const buildCommands = [
+        "build",
+        "compile",
+        "test",
+        "check",
+        "lint",
+        "format",
+        "types",
+        "typecheck",
+        "clean",
+      ];
+
+      for (const cmd of buildCommands) {
+        const deps = resolveCommandDependencies(project, cmd, "web");
+        expect(deps).toHaveLength(1);
+        expect(deps[0]?.service).toBe("build-dep");
+      }
+    });
+
+    it("isBuildCommand correctly identifies runtime commands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - build-dep
+runtime:
+  depends_on:
+    - runtime-dep
+commands:
+  dev:
+    command: npm run dev
+  start:
+    command: node server.js
+  run:
+    command: npm start
+  serve:
+    command: npx serve dist
+`,
+          "runtime-dep": `
+name: runtime-dep
+dockerfile: Dockerfile
+commands:
+  dev:
+    command: echo "dev"
+  start:
+    command: echo "start"
+  run:
+    command: echo "run"
+  serve:
+    command: echo "serve"
+`,
+          "build-dep": `
+name: build-dep
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+
+      // All these should use runtime.depends_on (runtime-dep)
+      const runtimeCommands = ["dev", "start", "run", "serve"];
+
+      for (const cmd of runtimeCommands) {
+        const deps = resolveCommandDependencies(project, cmd, "web");
+        expect(deps).toHaveLength(1);
+        expect(deps[0]?.service).toBe("runtime-dep");
+      }
+    });
+
+    it("command-specific dependencies override context-specific dependencies", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+dependencies:
+  - service-dep
+build:
+  depends_on:
+    - build-dep
+runtime:
+  depends_on:
+    - runtime-dep
+commands:
+  compile:
+    dependencies:
+      - custom-dep
+    command: npm run compile
+`,
+          "custom-dep": `
+name: custom-dep
+dockerfile: Dockerfile
+commands:
+  compile:
+    command: echo "custom compile"
+`,
+          "build-dep": `
+name: build-dep
+dockerfile: Dockerfile
+`,
+          "runtime-dep": `
+name: runtime-dep
+dockerfile: Dockerfile
+`,
+          "service-dep": `
+name: service-dep
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "compile", "web");
+
+      // Command-specific dependencies should override build.depends_on
+      expect(deps).toHaveLength(1);
+      expect(deps).toContainEqual({ service: "custom-dep", command: "compile" });
+      expect(deps).not.toContainEqual(
+        expect.objectContaining({ service: "build-dep" }),
+      );
+    });
+
+    it("handles object format for build.depends_on", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+build:
+  depends_on:
+    ui:
+      - compile
+      - test
+commands:
+  compile:
+    command: npm run compile
+`,
+          ui: `
+name: ui
+dockerfile: Dockerfile
+commands:
+  compile:
+    command: npm run compile
+  test:
+    command: npm test
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "compile", "web");
+
+      // Object format: ui has specific commands (compile, test)
+      // For compile command on web, it should depend on ui:compile
+      expect(deps).toContainEqual({ service: "ui", command: "compile" });
+    });
+
+    it("resolves transitive dependencies using context-specific depends_on", () => {
+      const root = createProject({
+        rootConfig: `
+name: Test Project
+services:
+  dir: ./apps
+`,
+        services: {
+          app: `
+name: app
+dockerfile: Dockerfile
+build:
+  depends_on:
+    - web
+commands:
+  compile:
+    command: npm run compile
+`,
+          web: `
+name: web
+dockerfile: Dockerfile
+build:
+  depends_on:
+    - ui
+commands:
+  compile:
+    command: npm run compile
+`,
+          ui: `
+name: ui
+dockerfile: Dockerfile
+commands:
+  compile:
+    command: npm run compile
+`,
+        },
+      });
+
+      const project = loadProjectConfig(root);
+      const deps = resolveCommandDependencies(project, "compile", "app");
+
+      // Should resolve transitively: app -> web -> ui
+      expect(deps).toHaveLength(2);
+      expect(deps).toContainEqual({ service: "web", command: "compile" });
+      expect(deps).toContainEqual({ service: "ui", command: "compile" });
+    });
+  });
 });
