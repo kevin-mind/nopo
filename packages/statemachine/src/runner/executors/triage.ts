@@ -12,6 +12,7 @@ import {
   parseIssue,
   createComment,
   parseMarkdown,
+  serializeMarkdown,
   type OctokitLike,
 } from "@more/issue-state";
 import type { Root, RootContent } from "mdast";
@@ -276,7 +277,8 @@ function extractPreservedSections(ast: Root): RootContent[] {
  *
  * Builds a fresh body from Requirements, Approach, and Questions sections,
  * preserving only Iteration History and Agent Notes from the existing body.
- * All sections are parsed as markdown to avoid remark-stringify escaping issues.
+ * Sets the body directly via API to avoid remark-stringify escaping underscores
+ * and brackets in text nodes (e.g. depends_on → depends\_on).
  */
 async function updateIssueStructure(
   ctx: RunnerContext,
@@ -286,19 +288,13 @@ async function updateIssueStructure(
   initialQuestions?: string[],
 ): Promise<void> {
   try {
-    const { data, update } = await parseIssue(
-      ctx.owner,
-      ctx.repo,
-      issueNumber,
-      {
-        octokit: asOctokitLike(ctx),
-        fetchPRs: false,
-        fetchParent: false,
-      },
-    );
+    const { data } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
+      octokit: asOctokitLike(ctx),
+      fetchPRs: false,
+      fetchParent: false,
+    });
 
-    // Build new body as markdown, then parse to get properly-formed AST.
-    // This avoids escaping issues from createBulletList/createParagraph text nodes.
+    // Build new body as raw markdown strings.
     const sections: string[] = [];
 
     if (requirements.length > 0) {
@@ -318,17 +314,27 @@ async function updateIssueStructure(
       sections.push(`## Questions\n\n${questionLines}`);
     }
 
-    // Parse the triage sections as markdown
-    const newBodyAst = parseMarkdown(sections.join("\n\n"));
-
-    // Preserve Iteration History and Agent Notes from existing body
+    // Serialize preserved sections (Iteration History, Agent Notes) from
+    // existing MDAST. These sections contain tables/links that serialize fine.
     const preservedNodes = extractPreservedSections(data.issue.bodyAst);
-    for (const node of preservedNodes) {
-      newBodyAst.children.push(node);
+    let preservedMarkdown = "";
+    if (preservedNodes.length > 0) {
+      const preservedAst: Root = { type: "root", children: preservedNodes };
+      preservedMarkdown = serializeMarkdown(preservedAst);
     }
 
-    const state = replaceBody({ bodyAst: newBodyAst }, data);
-    await update(state);
+    // Combine into final body — bypass MDAST round-trip to avoid escaping
+    const newBody = [sections.join("\n\n"), preservedMarkdown]
+      .filter(Boolean)
+      .join("\n\n");
+
+    // Set body directly via API to preserve original markdown formatting
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body: newBody,
+    });
     core.info(`Updated issue #${issueNumber} with structured sections`);
   } catch (error) {
     core.warning(`Failed to update issue structure: ${error}`);

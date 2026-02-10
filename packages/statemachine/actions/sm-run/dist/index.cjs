@@ -70424,16 +70424,11 @@ function extractPreservedSections(ast) {
 }
 async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
   try {
-    const { data, update } = await parseIssue(
-      ctx.owner,
-      ctx.repo,
-      issueNumber,
-      {
-        octokit: asOctokitLike2(ctx),
-        fetchPRs: false,
-        fetchParent: false
-      }
-    );
+    const { data } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
+      octokit: asOctokitLike2(ctx),
+      fetchPRs: false,
+      fetchParent: false
+    });
     const sections = [];
     if (requirements.length > 0) {
       sections.push(
@@ -70453,13 +70448,19 @@ ${initialApproach}`);
 
 ${questionLines}`);
     }
-    const newBodyAst = parseMarkdown(sections.join("\n\n"));
     const preservedNodes = extractPreservedSections(data.issue.bodyAst);
-    for (const node2 of preservedNodes) {
-      newBodyAst.children.push(node2);
+    let preservedMarkdown = "";
+    if (preservedNodes.length > 0) {
+      const preservedAst = { type: "root", children: preservedNodes };
+      preservedMarkdown = serializeMarkdown(preservedAst);
     }
-    const state = replaceBody({ bodyAst: newBodyAst }, data);
-    await update(state);
+    const newBody = [sections.join("\n\n"), preservedMarkdown].filter(Boolean).join("\n\n");
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body: newBody
+    });
     core8.info(`Updated issue #${issueNumber} with structured sections`);
   } catch (error8) {
     core8.warning(`Failed to update issue structure: ${error8}`);
