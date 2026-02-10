@@ -1,8 +1,9 @@
 name: statemachine
 description: State machine for GitHub issue automation
 
-dependencies:
-  - prompts
+build:
+  depends_on:
+    - prompts
 
 commands:
   compile:

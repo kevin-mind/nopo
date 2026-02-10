@@ -8,12 +8,11 @@ runtime:
   cpu: "1"
   memory: "256Mi"
   port: 4000
-
-# Depends on both a service (minimal) and packages (shared, utils)
-dependencies:
-  - minimal
-  - shared
-  - utils
+  # Runtime dependencies - these services/packages must be available at runtime
+  depends_on:
+    - minimal
+    - shared
+    - utils
 
 commands:
   test:
