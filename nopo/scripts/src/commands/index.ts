@@ -6,6 +6,7 @@ import type {
   CommandDependencies,
   CommandContext,
 } from "../config/index.ts";
+import { extractDependencyNames } from "../config/index.ts";
 
 /**
  * Represents a command to execute on a specific service.
@@ -307,8 +308,30 @@ export function resolveCommandDependencies(
 }
 
 /**
+ * Determine if a command is build-related based on its name.
+ * Build commands include: build, compile, check, test, clean, lint, format, etc.
+ * Runtime commands include: dev, start, run, serve, etc.
+ */
+function isBuildCommand(commandName: string): boolean {
+  const buildKeywords = [
+    "build",
+    "compile",
+    "check",
+    "test",
+    "clean",
+    "lint",
+    "format",
+    "types",
+    "typecheck",
+  ];
+  return buildKeywords.some((keyword) => commandName.includes(keyword));
+}
+
+/**
  * Get effective dependencies for a service command.
  * Command-specific dependencies override service-level dependencies.
+ * For service-level dependencies, uses build.depends_on for build commands
+ * and runtime.depends_on for runtime commands, with fallback to service.dependencies.
  */
 function getEffectiveDependencies(
   service: NormalizedService,
@@ -322,8 +345,38 @@ function getEffectiveDependencies(
     return normalizeDependencies(commandDeps, commandName);
   }
 
-  // Otherwise, use service-level dependencies with the same command
-  return service.dependencies.map((dep) => ({
+  // Determine which dependencies to use based on command type
+  let serviceDeps: string[];
+  if (isBuildCommand(commandName)) {
+    // For build commands, prefer build.depends_on if defined
+    const buildDeps = service.build?.depends_on;
+    if (buildDeps === undefined) {
+      // Not specified, use service.dependencies
+      serviceDeps = service.dependencies;
+    } else if (Array.isArray(buildDeps) && buildDeps.length === 0) {
+      // Empty array [], fall back to service.dependencies
+      serviceDeps = service.dependencies;
+    } else {
+      // Non-empty array or object (including empty object {})
+      serviceDeps = extractDependencyNames(buildDeps);
+    }
+  } else {
+    // For runtime commands, prefer runtime.depends_on if defined
+    const runtimeDeps = service.runtime?.depends_on;
+    if (runtimeDeps === undefined) {
+      // Not specified, use service.dependencies
+      serviceDeps = service.dependencies;
+    } else if (Array.isArray(runtimeDeps) && runtimeDeps.length === 0) {
+      // Empty array [], fall back to service.dependencies
+      serviceDeps = service.dependencies;
+    } else {
+      // Non-empty array or object (including empty object {})
+      serviceDeps = extractDependencyNames(runtimeDeps);
+    }
+  }
+
+  // Map to command dependency specs with the same command
+  return serviceDeps.map((dep) => ({
     service: dep,
     command: commandName,
   }));

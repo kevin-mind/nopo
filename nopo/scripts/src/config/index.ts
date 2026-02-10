@@ -205,24 +205,6 @@ const ServiceFileSchema = z
       message:
         "Cannot specify both 'dockerfile' and 'image', or 'dockerfile' at both top-level and in 'build'",
     },
-  )
-  .refine(
-    (data) => {
-      const hasTopLevelDeps = data.dependencies && data.dependencies.length > 0;
-      const hasBuildDeps = data.build?.depends_on !== undefined;
-      const hasRuntimeDeps = data.runtime?.depends_on !== undefined;
-
-      // Error if top-level dependencies exists alongside build.depends_on or runtime.depends_on
-      if (hasTopLevelDeps && (hasBuildDeps || hasRuntimeDeps)) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message:
-        "Cannot specify both top-level 'dependencies' and 'build.depends_on' or 'runtime.depends_on'. " +
-        "Move dependencies to the appropriate section.",
-    },
   );
 
 const ServicesSchema = z
@@ -328,6 +310,26 @@ export type CommandDependencies =
   | string[] // Array of service names (same command)
   | Record<string, string[]> // Object with service -> commands mapping
   | undefined;
+
+/**
+ * Extract dependency service names from CommandDependencies format.
+ * Handles both array format and object format.
+ *
+ * @param deps - The dependencies to extract names from
+ * @returns Array of service names
+ *
+ * @example
+ * extractDependencyNames(['backend', 'db']) // ['backend', 'db']
+ * extractDependencyNames({ backend: ['build'], db: ['migrate'] }) // ['backend', 'db']
+ * extractDependencyNames(undefined) // []
+ */
+export function extractDependencyNames(
+  deps: CommandDependencies,
+): string[] {
+  if (!deps) return [];
+  if (Array.isArray(deps)) return deps;
+  return Object.keys(deps);
+}
 
 // Execution context type
 export type CommandContext = "host" | "container";
@@ -770,18 +772,6 @@ function discoverServices(
     }
     entries[serviceId] = normalized;
   }
-}
-
-/**
- * Extract service names from CommandDependencies format.
- * Handles both array format (["backend", "worker"]) and object format ({ backend: ["build"] }).
- */
-function extractDependencyNames(
-  deps: CommandDependencies | undefined,
-): string[] {
-  if (!deps) return [];
-  if (Array.isArray(deps)) return deps;
-  return Object.keys(deps);
 }
 
 /**
