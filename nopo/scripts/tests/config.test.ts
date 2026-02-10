@@ -328,6 +328,205 @@ image: postgres:16
     expect(db?.runtime).toBeUndefined();
   });
 
+  describe("build.depends_on", () => {
+    it("parses build.depends_on as array format", () => {
+      const root = createProject({
+        rootConfig: `
+name: Build Dependencies Array
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+build:
+  command: pnpm build
+  depends_on: ["ui", "shared"]
+runtime:
+  port: 3000
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.build?.depends_on).toEqual(["ui", "shared"]);
+    });
+
+    it("parses build.depends_on as object format", () => {
+      const root = createProject({
+        rootConfig: `
+name: Build Dependencies Object
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+build:
+  command: pnpm build
+  depends_on:
+    ui: ["compile", "test"]
+    shared: ["build"]
+runtime:
+  port: 3000
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.build?.depends_on).toEqual({
+        ui: ["compile", "test"],
+        shared: ["build"],
+      });
+    });
+  });
+
+  describe("runtime.depends_on", () => {
+    it("parses runtime.depends_on as array format", () => {
+      const root = createProject({
+        rootConfig: `
+name: Runtime Dependencies Array
+services:
+  dir: ./apps
+`,
+        services: {
+          backend: `
+name: backend
+dockerfile: Dockerfile
+runtime:
+  port: 8080
+  depends_on: ["db", "cache"]
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const backend = config.services.entries.backend;
+
+      expect(backend).toBeDefined();
+      expect(backend?.runtime?.depends_on).toEqual(["db", "cache"]);
+    });
+
+    it("parses runtime.depends_on as object format", () => {
+      const root = createProject({
+        rootConfig: `
+name: Runtime Dependencies Object
+services:
+  dir: ./apps
+`,
+        services: {
+          backend: `
+name: backend
+dockerfile: Dockerfile
+runtime:
+  port: 8080
+  depends_on:
+    db: ["migrate"]
+    cache: ["healthcheck"]
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const backend = config.services.entries.backend;
+
+      expect(backend).toBeDefined();
+      expect(backend?.runtime?.depends_on).toEqual({
+        db: ["migrate"],
+        cache: ["healthcheck"],
+      });
+    });
+  });
+
+  describe("context-specific dependencies (build and runtime)", () => {
+    it("supports both build.depends_on and runtime.depends_on simultaneously", () => {
+      const root = createProject({
+        rootConfig: `
+name: Context-specific Dependencies
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+build:
+  command: pnpm build
+  depends_on: ["ui", "shared"]
+runtime:
+  port: 3000
+  depends_on: ["backend", "cache"]
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.build?.depends_on).toEqual(["ui", "shared"]);
+      expect(web?.runtime?.depends_on).toEqual(["backend", "cache"]);
+    });
+
+    it("allows build.depends_on without runtime.depends_on (package)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Build-only Dependencies
+services:
+  dir: ./apps
+`,
+        services: {
+          ui: `
+name: ui
+build:
+  command: pnpm build
+  depends_on: ["shared"]
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const ui = config.services.entries.ui;
+
+      expect(ui).toBeDefined();
+      expect(ui?.type).toBe("package");
+      expect(ui?.build?.depends_on).toEqual(["shared"]);
+      expect(ui?.runtime).toBeUndefined();
+    });
+
+    it("allows runtime.depends_on without build.depends_on (service)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Runtime-only Dependencies
+services:
+  dir: ./apps
+`,
+        services: {
+          backend: `
+name: backend
+dockerfile: Dockerfile
+runtime:
+  port: 8080
+  depends_on: ["db"]
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const backend = config.services.entries.backend;
+
+      expect(backend).toBeDefined();
+      expect(backend?.type).toBe("service");
+      expect(backend?.runtime?.depends_on).toEqual(["db"]);
+      expect(backend?.build?.depends_on).toBeUndefined();
+    });
+  });
+
   describe("multi-directory discovery", () => {
     it("discovers services from multiple directories", () => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), "nopo-config-"));
