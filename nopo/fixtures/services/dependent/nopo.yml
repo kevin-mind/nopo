@@ -8,9 +8,13 @@ runtime:
   cpu: "1"
   memory: "256Mi"
   port: 4000
-  # Runtime dependencies - these services/packages must be available at runtime
+  # Runtime dependencies - these services must be available at runtime
   depends_on:
     - minimal
+
+# Build dependencies - packages needed at build time
+build:
+  depends_on:
     - shared
     - utils
 
