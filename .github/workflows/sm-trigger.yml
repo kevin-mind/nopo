@@ -126,6 +126,7 @@ jobs:
   # STEP 2: sm-run (state machine runner)
   # ============================================================================
   sm-run:
+    name: "sm-run (${{ fromJson(needs.sm-plan.outputs.context_json).trigger_type }})"
     needs: sm-plan
     if: |
       needs.sm-plan.outputs.context_json != '' &&
