@@ -71483,18 +71483,67 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   const allAgentsReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
   const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
   const allReady = allAgentsReady && questionStats.unanswered === 0;
-  const decision = allReady ? "ready" : "needs_info";
+  let decision = allReady ? "ready" : "needs_info";
   core16.info(
-    `Grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`
+    `Initial grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`
   );
   let subIssuesCreated = 0;
+  if (decision === "needs_info") {
+    const existingQuestions = extractQuestionItems(data.issue.bodyAst);
+    const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
+    const summaryOutput = await runGroomingSummary(
+      action,
+      groomingOutput,
+      data,
+      previousQuestionsText
+    );
+    const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
+    if (content3.length > 0) {
+      let updatedData = upsertSection2({ title: "Questions", content: content3 }, data);
+      const questionCount = (summaryOutput.consolidated_questions ?? []).length;
+      const answeredCount = (summaryOutput.answered_questions ?? []).length;
+      const notes = [
+        `Grooming decision: ${summaryOutput.decision}`,
+        `${questionCount} pending question(s), ${answeredCount} answered`,
+        summaryOutput.decision_rationale
+      ];
+      updatedData = appendAgentNotes2(
+        {
+          runId: `grooming-${Date.now()}`,
+          runLink: "",
+          notes
+        },
+        updatedData
+      );
+      await update(updatedData);
+      core16.info(
+        `Updated Questions section and agent notes in issue #${action.issueNumber} body`
+      );
+    }
+    if (allAgentsReady && summaryOutput.decision === "ready") {
+      core16.info(
+        `Summary upgraded decision to "ready" \u2014 all agents ready and questions resolved`
+      );
+      decision = "ready";
+    }
+  }
   if (decision === "ready") {
+    const { data: readyData, update: readyUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit: asOctokitLike6(ctx),
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
     try {
-      await update({
-        ...data,
+      await readyUpdate({
+        ...readyData,
         issue: {
-          ...data.issue,
-          labels: [...data.issue.labels, "groomed"]
+          ...readyData.issue,
+          labels: [...readyData.issue.labels, "groomed"]
         }
       });
       core16.info(`Added 'groomed' label to issue #${action.issueNumber}`);
@@ -71514,38 +71563,6 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       action.issueNumber,
       engineerOutput.recommended_phases
     );
-  } else {
-    const existingQuestions = extractQuestionItems(data.issue.bodyAst);
-    const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
-    const summaryOutput = await runGroomingSummary(
-      action,
-      groomingOutput,
-      data,
-      previousQuestionsText
-    );
-    const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
-    if (content3.length > 0) {
-      let updatedData = upsertSection2({ title: "Questions", content: content3 }, data);
-      const questionCount = (summaryOutput.consolidated_questions ?? []).length;
-      const answeredCount = (summaryOutput.answered_questions ?? []).length;
-      const notes = [
-        `Grooming decision: needs_info`,
-        `${questionCount} pending question(s), ${answeredCount} answered`,
-        summaryOutput.decision_rationale
-      ];
-      updatedData = appendAgentNotes2(
-        {
-          runId: `grooming-${Date.now()}`,
-          runLink: "",
-          notes
-        },
-        updatedData
-      );
-      await update(updatedData);
-      core16.info(
-        `Updated Questions section and agent notes in issue #${action.issueNumber} body`
-      );
-    }
   }
   return { applied: true, decision, subIssuesCreated };
 }

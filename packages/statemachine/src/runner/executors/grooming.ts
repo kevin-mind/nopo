@@ -220,46 +220,18 @@ export async function executeApplyGroomingOutput(
   const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
   const allReady = allAgentsReady && questionStats.unanswered === 0;
 
-  const decision = allReady ? "ready" : "needs_info";
+  let decision: string = allReady ? "ready" : "needs_info";
   core.info(
-    `Grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`,
+    `Initial grooming decision: ${decision} (agents=${allAgentsReady}, questions=${questionStats.unanswered} unanswered)`,
   );
 
   // Track sub-issues created
   let subIssuesCreated = 0;
 
-  // Apply the decision
-  if (decision === "ready") {
-    // Add 'groomed' label to indicate issue is ready for implementation
-    try {
-      await update({
-        ...data,
-        issue: {
-          ...data.issue,
-          labels: [...data.issue.labels, "groomed"],
-        },
-      });
-      core.info(`Added 'groomed' label to issue #${action.issueNumber}`);
-    } catch (error) {
-      core.warning(`Failed to add 'groomed' label: ${error}`);
-    }
-
-    // Create sub-issues from engineer's recommended phases
-    // Phases are always required - work happens on sub-issues, not parent issues
-    const engineerOutput = parseOutput(
-      EngineerOutputSchema,
-      groomingOutput.engineer,
-      "engineer",
-    );
-    core.info(
-      `Creating ${engineerOutput.recommended_phases.length} sub-issues`,
-    );
-    subIssuesCreated = await createSubIssuesForPhases(
-      ctx,
-      action.issueNumber,
-      engineerOutput.recommended_phases,
-    );
-  } else {
+  // When agents are ready but body has unanswered questions, run the summary
+  // to check if questions were answered in comments. The summary may upgrade
+  // the decision to "ready".
+  if (decision === "needs_info") {
     // Extract existing questions from body for context
     const existingQuestions = extractQuestionItems(data.issue.bodyAst);
 
@@ -289,7 +261,7 @@ export async function executeApplyGroomingOutput(
       const questionCount = (summaryOutput.consolidated_questions ?? []).length;
       const answeredCount = (summaryOutput.answered_questions ?? []).length;
       const notes = [
-        `Grooming decision: needs_info`,
+        `Grooming decision: ${summaryOutput.decision}`,
         `${questionCount} pending question(s), ${answeredCount} answered`,
         summaryOutput.decision_rationale,
       ];
@@ -307,6 +279,61 @@ export async function executeApplyGroomingOutput(
         `Updated Questions section and agent notes in issue #${action.issueNumber} body`,
       );
     }
+
+    // If the summary determined everything is ready (e.g. questions were
+    // answered in comments), upgrade the decision so we proceed to create
+    // sub-issues and add the groomed label.
+    if (allAgentsReady && summaryOutput.decision === "ready") {
+      core.info(
+        `Summary upgraded decision to "ready" — all agents ready and questions resolved`,
+      );
+      decision = "ready";
+    }
+  }
+
+  // Apply the "ready" decision (either initially or upgraded by summary)
+  if (decision === "ready") {
+    // Re-parse the issue to get fresh state (body may have been updated above)
+    const { data: readyData, update: readyUpdate } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      action.issueNumber,
+      {
+        octokit: asOctokitLike(ctx),
+        fetchPRs: false,
+        fetchParent: false,
+      },
+    );
+
+    // Add 'groomed' label to indicate issue is ready for implementation
+    try {
+      await readyUpdate({
+        ...readyData,
+        issue: {
+          ...readyData.issue,
+          labels: [...readyData.issue.labels, "groomed"],
+        },
+      });
+      core.info(`Added 'groomed' label to issue #${action.issueNumber}`);
+    } catch (error) {
+      core.warning(`Failed to add 'groomed' label: ${error}`);
+    }
+
+    // Create sub-issues from engineer's recommended phases
+    // Phases are always required - work happens on sub-issues, not parent issues
+    const engineerOutput = parseOutput(
+      EngineerOutputSchema,
+      groomingOutput.engineer,
+      "engineer",
+    );
+    core.info(
+      `Creating ${engineerOutput.recommended_phases.length} sub-issues`,
+    );
+    subIssuesCreated = await createSubIssuesForPhases(
+      ctx,
+      action.issueNumber,
+      engineerOutput.recommended_phases,
+    );
   }
 
   return { applied: true, decision, subIssuesCreated };
