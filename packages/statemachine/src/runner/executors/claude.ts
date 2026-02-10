@@ -223,6 +223,9 @@ export async function executeRunClaude(
   });
 
   core.info(`Running Claude SDK for issue #${action.issueNumber}`);
+  core.startGroup("Claude Prompt");
+  core.info(resolved.prompt);
+  core.endGroup();
 
   // Determine working directory
   // In production, worktree is a branch name (e.g., "main") and the workflow handles checkout
