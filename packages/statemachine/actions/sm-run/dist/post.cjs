@@ -41646,7 +41646,9 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
 });
 var ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("reconcileSubIssues"),
-  issueNumber: external_exports.number().int().positive()
+  issueNumber: external_exports.number().int().positive(),
+  /** Bot username to assign to parent after reconciliation (triggers orchestration) */
+  botUsername: external_exports.string().optional()
 });
 var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyPivotOutput"),
@@ -47068,6 +47070,14 @@ function emitOrchestrate({ context: context2 }) {
       subIssueToAssign = null;
     }
   }
+  if (!context2.issue.assignees.includes(context2.botUsername)) {
+    actions.push({
+      type: "assignUser",
+      token: "code",
+      issueNumber: context2.issue.number,
+      username: context2.botUsername
+    });
+  }
   if (subIssueToAssign) {
     actions.push({
       type: "assignUser",
@@ -47372,7 +47382,8 @@ function emitRunClaudeGrooming({
     {
       type: "reconcileSubIssues",
       token: "code",
-      issueNumber
+      issueNumber,
+      botUsername: context2.botUsername
     }
   ];
 }

@@ -1135,6 +1135,16 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
     }
   }
 
+  // Assign nopo-bot to the parent issue for visibility
+  if (!context.issue.assignees.includes(context.botUsername)) {
+    actions.push({
+      type: "assignUser",
+      token: "code",
+      issueNumber: context.issue.number,
+      username: context.botUsername,
+    });
+  }
+
   // Assign nopo-bot to the sub-issue to trigger iteration
   if (subIssueToAssign) {
     actions.push({
@@ -1587,6 +1597,7 @@ export function emitRunClaudeGrooming({
       type: "reconcileSubIssues",
       token: "code",
       issueNumber,
+      botUsername: context.botUsername,
     },
   ];
 }

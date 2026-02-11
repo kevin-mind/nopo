@@ -241,6 +241,26 @@ export async function executeReconcileSubIssues(
       action.issueNumber,
       recommendedPhases,
     );
+
+    // Assign bot to parent to trigger orchestration workflow
+    if (created > 0 && action.botUsername) {
+      try {
+        await ctx.octokit.rest.issues.addAssignees({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: action.issueNumber,
+          assignees: [action.botUsername],
+        });
+        core.info(
+          `Assigned ${action.botUsername} to parent #${action.issueNumber} to trigger orchestration`,
+        );
+      } catch (error) {
+        core.warning(
+          `Failed to assign ${action.botUsername} to parent: ${error}`,
+        );
+      }
+    }
+
     return { reconciled: true, created, updated: 0, deleted: 0 };
   }
 
@@ -531,6 +551,25 @@ export async function executeReconcileSubIssues(
       );
     } catch (error) {
       core.warning(`Failed to update parent issue body: ${error}`);
+    }
+  }
+
+  // Assign bot to parent to trigger orchestration workflow
+  if ((created > 0 || updated > 0) && action.botUsername) {
+    try {
+      await ctx.octokit.rest.issues.addAssignees({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        assignees: [action.botUsername],
+      });
+      core.info(
+        `Assigned ${action.botUsername} to parent #${action.issueNumber} to trigger orchestration`,
+      );
+    } catch (error) {
+      core.warning(
+        `Failed to assign ${action.botUsername} to parent: ${error}`,
+      );
     }
   }
 

@@ -42171,7 +42171,9 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
 });
 var ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("reconcileSubIssues"),
-  issueNumber: external_exports.number().int().positive()
+  issueNumber: external_exports.number().int().positive(),
+  /** Bot username to assign to parent after reconciliation (triggers orchestration) */
+  botUsername: external_exports.string().optional()
 });
 var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyPivotOutput"),
@@ -48085,6 +48087,14 @@ function emitOrchestrate({ context: context2 }) {
       subIssueToAssign = null;
     }
   }
+  if (!context2.issue.assignees.includes(context2.botUsername)) {
+    actions.push({
+      type: "assignUser",
+      token: "code",
+      issueNumber: context2.issue.number,
+      username: context2.botUsername
+    });
+  }
   if (subIssueToAssign) {
     actions.push({
       type: "assignUser",
@@ -48389,7 +48399,8 @@ function emitRunClaudeGrooming({
     {
       type: "reconcileSubIssues",
       token: "code",
-      issueNumber
+      issueNumber,
+      botUsername: context2.botUsername
     }
   ];
 }
@@ -72042,6 +72053,23 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
       action.issueNumber,
       recommendedPhases
     );
+    if (created2 > 0 && action.botUsername) {
+      try {
+        await ctx.octokit.rest.issues.addAssignees({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: action.issueNumber,
+          assignees: [action.botUsername]
+        });
+        core17.info(
+          `Assigned ${action.botUsername} to parent #${action.issueNumber} to trigger orchestration`
+        );
+      } catch (error8) {
+        core17.warning(
+          `Failed to assign ${action.botUsername} to parent: ${error8}`
+        );
+      }
+    }
     return { reconciled: true, created: created2, updated: 0, deleted: 0 };
   }
   core17.info(
@@ -72276,6 +72304,23 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
       );
     } catch (error8) {
       core17.warning(`Failed to update parent issue body: ${error8}`);
+    }
+  }
+  if ((created > 0 || updated > 0) && action.botUsername) {
+    try {
+      await ctx.octokit.rest.issues.addAssignees({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: action.issueNumber,
+        assignees: [action.botUsername]
+      });
+      core17.info(
+        `Assigned ${action.botUsername} to parent #${action.issueNumber} to trigger orchestration`
+      );
+    } catch (error8) {
+      core17.warning(
+        `Failed to assign ${action.botUsername} to parent: ${error8}`
+      );
     }
   }
   return { reconciled: true, created, updated, deleted };

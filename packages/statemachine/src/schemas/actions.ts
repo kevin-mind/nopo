@@ -796,6 +796,8 @@ export type ApplyGroomingOutputAction = z.infer<
 export const ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
   type: z.literal("reconcileSubIssues"),
   issueNumber: z.number().int().positive(),
+  /** Bot username to assign to parent after reconciliation (triggers orchestration) */
+  botUsername: z.string().optional(),
 });
 
 export type ReconcileSubIssuesAction = z.infer<
