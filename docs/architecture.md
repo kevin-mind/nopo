@@ -1,6 +1,6 @@
 # Nopo Architecture
 
-This document provides a comprehensive overview of the Nopo (monoреpo) project architecture, covering the system design, component interactions, and key architectural decisions.
+This document provides a comprehensive overview of the Nopo (monorepo) project architecture, covering the system design, component interactions, and key architectural decisions.
 
 ## Table of Contents
 
