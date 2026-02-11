@@ -71547,12 +71547,13 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       "engineer"
     );
     core16.info(
-      `Creating ${engineerOutput.recommended_phases.length} sub-issues`
+      `Upserting ${engineerOutput.recommended_phases.length} sub-issues`
     );
-    subIssuesCreated = await createSubIssuesForPhases(
+    subIssuesCreated = await upsertSubIssuesForPhases(
       ctx,
       action.issueNumber,
-      engineerOutput.recommended_phases
+      engineerOutput.recommended_phases,
+      readyData.issue.subIssues
     );
   }
   return { applied: true, decision, subIssuesCreated };
@@ -71688,39 +71689,171 @@ function buildQuestionsContent(summary2, existingQuestions) {
   };
   return [list4];
 }
-async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
-  let created = 0;
-  for (const phase of phases) {
-    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
-    const body = buildPhaseIssueBody(phase);
-    const projectStatus = phase.phase_number === 1 ? "Ready" : void 0;
-    try {
-      const result = await addSubIssueToParent(
-        ctx.owner,
-        ctx.repo,
-        parentIssueNumber2,
-        { title, body },
-        {
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
-          octokit: ctx.octokit,
-          projectNumber: ctx.projectNumber,
-          projectStatus
-        }
-      );
-      core16.info(`Created sub-issue #${result.issueNumber}: ${title}`);
-      created++;
-      if (phase.phase_number === 1 && projectStatus) {
-        core16.info(
-          `Set Phase 1 sub-issue #${result.issueNumber} to ${projectStatus} status`
-        );
+function parsePhaseNumber(title) {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+function extractExistingTodos(bodyAst) {
+  const result = [];
+  for (const node2 of bodyAst.children) {
+    if (node2.type === "heading") {
+      const firstChild = node2.children[0];
+      if (firstChild?.type === "text" && (firstChild.value === "Todo" || firstChild.value === "Todos")) {
+        continue;
       }
-    } catch (error8) {
-      core16.error(
-        `Failed to create sub-issue for phase ${phase.phase_number}: ${error8}`
-      );
+    }
+    if (node2.type === "list") {
+      for (const item of node2.children) {
+        if (item.type === "listItem" && typeof item.checked === "boolean") {
+          const text5 = item.children.map((child) => {
+            if ("children" in child && Array.isArray(child.children)) {
+              return child.children.map((n) => {
+                if (n.type === "text") return n.value;
+                if (n.type === "inlineCode") return n.value;
+                return "";
+              }).join("");
+            }
+            return "";
+          }).join("");
+          result.push({ text: text5, checked: item.checked });
+        }
+      }
     }
   }
-  if (created > 0) {
+  return result;
+}
+function normalizeTodoText(text5) {
+  return text5.toLowerCase().replace(/\s+/g, " ").trim();
+}
+function mergeTodos(newTodos, existingTodos) {
+  const existingByNorm = /* @__PURE__ */ new Map();
+  for (const t of existingTodos) {
+    existingByNorm.set(normalizeTodoText(t.text), t);
+  }
+  const merged = [];
+  const usedExisting = /* @__PURE__ */ new Set();
+  for (const newTodo of newTodos) {
+    const norm = normalizeTodoText(newTodo.task);
+    const existing = existingByNorm.get(norm);
+    if (existing) {
+      merged.push({
+        text: newTodo.task,
+        checked: existing.checked,
+        manual: newTodo.manual || false
+      });
+      usedExisting.add(norm);
+    } else {
+      merged.push({
+        text: newTodo.task,
+        checked: false,
+        manual: newTodo.manual || false
+      });
+    }
+  }
+  for (const existing of existingTodos) {
+    const norm = normalizeTodoText(existing.text);
+    if (!usedExisting.has(norm)) {
+      merged.push({
+        text: existing.text,
+        checked: existing.checked,
+        manual: false
+      });
+    }
+  }
+  return merged;
+}
+async function upsertSubIssuesForPhases(ctx, parentIssueNumber2, phases, existingSubIssues) {
+  const existingByPhase = /* @__PURE__ */ new Map();
+  for (const sub of existingSubIssues) {
+    const phaseNum = parsePhaseNumber(sub.title);
+    if (phaseNum !== null) {
+      existingByPhase.set(phaseNum, sub);
+    }
+  }
+  let created = 0;
+  let updated = 0;
+  for (const phase of phases) {
+    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
+    const existingSub = existingByPhase.get(phase.phase_number);
+    if (existingSub) {
+      try {
+        const { data: subData, update: subUpdate } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          existingSub.number,
+          {
+            octokit: asOctokitLike6(ctx),
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const existingTodos = extractExistingTodos(subData.issue.bodyAst);
+        const mergedTodos = mergeTodos(phase.todos ?? [], existingTodos);
+        const newBody = buildPhaseIssueBody({
+          ...phase,
+          todos: mergedTodos.map((t) => ({
+            task: t.text,
+            manual: t.manual
+          }))
+        });
+        for (const node2 of newBody.children) {
+          if (node2.type === "list") {
+            for (let i = 0; i < node2.children.length; i++) {
+              const item = node2.children[i];
+              const merged = mergedTodos[i];
+              if (item && merged && item.type === "listItem" && typeof item.checked === "boolean") {
+                item.checked = merged.checked;
+              }
+            }
+          }
+        }
+        await subUpdate({
+          ...subData,
+          issue: {
+            ...subData.issue,
+            title,
+            bodyAst: newBody
+          }
+        });
+        core16.info(
+          `Updated sub-issue #${existingSub.number}: ${title} (${existingTodos.length} existing todos merged)`
+        );
+        updated++;
+      } catch (error8) {
+        core16.error(
+          `Failed to update sub-issue #${existingSub.number} for phase ${phase.phase_number}: ${error8}`
+        );
+      }
+    } else {
+      const body = buildPhaseIssueBody(phase);
+      const projectStatus = phase.phase_number === 1 && existingSubIssues.length === 0 ? "Ready" : void 0;
+      try {
+        const result = await addSubIssueToParent(
+          ctx.owner,
+          ctx.repo,
+          parentIssueNumber2,
+          { title, body },
+          {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+            octokit: ctx.octokit,
+            projectNumber: ctx.projectNumber,
+            projectStatus
+          }
+        );
+        core16.info(`Created sub-issue #${result.issueNumber}: ${title}`);
+        created++;
+      } catch (error8) {
+        core16.error(
+          `Failed to create sub-issue for phase ${phase.phase_number}: ${error8}`
+        );
+      }
+    }
+  }
+  const changes = [
+    created > 0 ? `${created} created` : "",
+    updated > 0 ? `${updated} updated` : ""
+  ].filter(Boolean).join(", ");
+  if (changes) {
     try {
       const { data: parentData, update: parentUpdate } = await parseIssue(
         ctx.owner,
@@ -71736,9 +71869,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
         {
           runId: `grooming-${Date.now()}`,
           runLink: "",
-          notes: [
-            "Grooming complete. Sub-issues created for phased implementation."
-          ]
+          notes: [`Grooming complete. Sub-issues: ${changes}.`]
         },
         parentData
       );
@@ -71750,7 +71881,7 @@ async function createSubIssuesForPhases(ctx, parentIssueNumber2, phases) {
       core16.warning(`Failed to update parent issue body: ${error8}`);
     }
   }
-  return created;
+  return created + updated;
 }
 function buildPhaseIssueBody(phase) {
   const children = [];
