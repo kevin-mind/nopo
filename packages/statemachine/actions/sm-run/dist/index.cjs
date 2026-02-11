@@ -73947,10 +73947,24 @@ function determineOutcome(params) {
 function asOctokitLike9(octokit) {
   return octokit;
 }
-function shouldRetrigger(finalState, actions, continueFlag) {
+function shouldRetrigger(finalState, actions, continueFlag, runnerResult) {
   if (!continueFlag) return false;
   const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun) return false;
+  if (hasClaudeRun) {
+    const hasAllDone = runnerResult?.results.some((r) => {
+      if (r.result && typeof r.result === "object" && "status" in r.result && r.result.status === "all_done") {
+        return true;
+      }
+      return false;
+    });
+    if (hasAllDone) {
+      core26.info(
+        "Claude returned all_done \u2014 retriggering for review transition"
+      );
+      return true;
+    }
+    return false;
+  }
   const noRetriggerStates = /* @__PURE__ */ new Set([
     "done",
     "blocked",
@@ -74350,6 +74364,7 @@ async function run() {
       core26.endGroup();
     }
     let execSuccess = true;
+    let runnerResult;
     const actions = deriveResult.pendingActions;
     if (actions.length > 0) {
       core26.startGroup("Step 3: Execute Actions");
@@ -74363,7 +74378,7 @@ async function run() {
           );
         }
       }
-      const result = await executeAllActions(
+      runnerResult = await executeAllActions(
         actions,
         codeOctokit,
         reviewOctokit,
@@ -74374,9 +74389,9 @@ async function run() {
         e2eMode,
         e2eReviewOutcome
       );
-      execSuccess = result.success;
+      execSuccess = runnerResult.success;
       if (!execSuccess) {
-        const failedCount = result.results.filter(
+        const failedCount = runnerResult.results.filter(
           (r) => !r.success && !r.skipped
         ).length;
         core26.error(`${failedCount} action(s) failed`);
@@ -74398,7 +74413,12 @@ async function run() {
       );
       core26.endGroup();
     }
-    const retrigger = execSuccess && !dryRun && shouldRetrigger(deriveResult.finalState, actions, continueFlag);
+    const retrigger = execSuccess && !dryRun && shouldRetrigger(
+      deriveResult.finalState,
+      actions,
+      continueFlag,
+      runnerResult
+    );
     setOutputs({
       final_state: deriveResult.finalState,
       transition_name: deriveResult.transitionName,

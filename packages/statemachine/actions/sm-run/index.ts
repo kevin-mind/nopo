@@ -63,12 +63,34 @@ function shouldRetrigger(
   finalState: string,
   actions: Action[],
   continueFlag: boolean,
+  runnerResult?: RunnerResult,
 ): boolean {
   if (!continueFlag) return false;
 
   // Don't retrigger if we just ran Claude (waiting for push → CI)
+  // UNLESS Claude returned all_done — no new code was pushed, so CI won't
+  // retrigger. We need to retrigger so the next run can transition to review.
   const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun) return false;
+  if (hasClaudeRun) {
+    const hasAllDone = runnerResult?.results.some((r) => {
+      if (
+        r.result &&
+        typeof r.result === "object" &&
+        "status" in r.result &&
+        (r.result satisfies { status: unknown }).status === "all_done"
+      ) {
+        return true;
+      }
+      return false;
+    });
+    if (hasAllDone) {
+      core.info(
+        "Claude returned all_done — retriggering for review transition",
+      );
+      return true;
+    }
+    return false;
+  }
 
   // Terminal/waiting states that should not retrigger
   const noRetriggerStates = new Set([
@@ -660,6 +682,7 @@ async function run(): Promise<void> {
     // STEP 3: Execute Actions
     // ====================================================================
     let execSuccess = true;
+    let runnerResult: RunnerResult | undefined;
     const actions = deriveResult.pendingActions;
 
     if (actions.length > 0) {
@@ -677,7 +700,7 @@ async function run(): Promise<void> {
         }
       }
 
-      const result = await executeAllActions(
+      runnerResult = await executeAllActions(
         actions,
         codeOctokit,
         reviewOctokit,
@@ -689,10 +712,10 @@ async function run(): Promise<void> {
         e2eReviewOutcome,
       );
 
-      execSuccess = result.success;
+      execSuccess = runnerResult.success;
 
       if (!execSuccess) {
-        const failedCount = result.results.filter(
+        const failedCount = runnerResult.results.filter(
           (r) => !r.success && !r.skipped,
         ).length;
         core.error(`${failedCount} action(s) failed`);
@@ -726,7 +749,12 @@ async function run(): Promise<void> {
     const retrigger =
       execSuccess &&
       !dryRun &&
-      shouldRetrigger(deriveResult.finalState, actions, continueFlag);
+      shouldRetrigger(
+        deriveResult.finalState,
+        actions,
+        continueFlag,
+        runnerResult,
+      );
 
     setOutputs({
       final_state: deriveResult.finalState,
