@@ -71,6 +71,19 @@ export function isSubIssue({ context }: GuardContext): boolean {
 }
 
 /**
+ * Check if a sub-issue can iterate (has a parent AND bot is assigned)
+ *
+ * This prevents grooming/reconciliation edits from cascading into iteration.
+ * Bot assignment is the explicit signal that orchestration has started work
+ * on this phase. Bot-initiated edits (reconciliation, triage) don't assign
+ * nopo-bot, so they won't trigger iteration.
+ */
+function subIssueCanIterate({ context }: GuardContext): boolean {
+  if (context.parentIssue === null) return false;
+  return context.issue.assignees.includes(context.botUsername);
+}
+
+/**
  * Check if the issue needs sub-issues created
  * (This would be determined by issue content/labels - placeholder for now)
  */
@@ -634,6 +647,7 @@ export const guards = {
   // Sub-issue guards
   hasSubIssues,
   isSubIssue,
+  subIssueCanIterate,
   needsSubIssues,
   allPhasesDone,
   // Orchestration guards

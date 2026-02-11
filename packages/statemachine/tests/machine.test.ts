@@ -88,6 +88,59 @@ describe("emit helper", () => {
 });
 
 // ============================================================================
+// Sub-issue context helper
+// ============================================================================
+
+function createSubIssueContext(
+  overrides: Partial<MachineContext> = {},
+): MachineContext {
+  const issue = ParentIssueSchema.parse({
+    number: 100,
+    title: "[Phase 1]: Implementation",
+    state: "OPEN",
+    bodyAst: parseMarkdown("# Task\n\n- [ ] implement feature"),
+    projectStatus: "Ready",
+    iteration: 0,
+    failures: 0,
+    assignees: [],
+    labels: ["triaged", "groomed"],
+    subIssues: [],
+    hasSubIssues: false,
+    comments: [],
+    branch: null,
+    pr: null,
+    parentIssueNumber: 99,
+  });
+
+  const parentIssue = ParentIssueSchema.parse({
+    number: 99,
+    title: "Parent Issue",
+    state: "OPEN",
+    bodyAst: parseMarkdown("# Parent"),
+    projectStatus: "In progress",
+    iteration: 0,
+    failures: 0,
+    assignees: ["nopo-bot"],
+    labels: ["triaged", "groomed"],
+    subIssues: [],
+    hasSubIssues: true,
+    comments: [],
+    branch: null,
+    pr: null,
+    parentIssueNumber: null,
+  });
+
+  return createMachineContext({
+    trigger: "issue-edited",
+    owner: "test-owner",
+    repo: "test-repo",
+    issue,
+    parentIssue,
+    ...overrides,
+  });
+}
+
+// ============================================================================
 // Machine integration tests (verify emit refactor preserves behavior)
 // ============================================================================
 
@@ -110,5 +163,70 @@ describe("claudeMachine with emit helper", () => {
     const actionTypes = actions.map((a) => a.type);
     expect(actionTypes).toContain("log");
     expect(actionTypes).toContain("runClaude");
+  });
+});
+
+// ============================================================================
+// Sub-issue routing tests
+// ============================================================================
+
+describe("sub-issue routing", () => {
+  it("iterates when sub-issue has bot assigned", () => {
+    const issue = ParentIssueSchema.parse({
+      number: 100,
+      title: "[Phase 1]: Implementation",
+      state: "OPEN",
+      bodyAst: parseMarkdown("# Task\n\n- [ ] implement feature"),
+      projectStatus: "Ready",
+      iteration: 0,
+      failures: 0,
+      assignees: ["nopo-bot"],
+      labels: ["triaged", "groomed"],
+      subIssues: [],
+      hasSubIssues: false,
+      comments: [],
+      branch: null,
+      pr: null,
+      parentIssueNumber: 99,
+    });
+
+    const context = createSubIssueContext({ issue });
+    const actor = createActor(claudeMachine, { input: context });
+
+    actor.start();
+    actor.send({ type: "DETECT" });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.value).toBe("iterating");
+
+    const actionTypes = snapshot.context.pendingActions.map((a) => a.type);
+    expect(actionTypes).toContain("runClaude");
+  });
+
+  it("goes to subIssueIdle when sub-issue has NO bot assigned", () => {
+    const context = createSubIssueContext();
+    const actor = createActor(claudeMachine, { input: context });
+
+    actor.start();
+    actor.send({ type: "DETECT" });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.value).toBe("subIssueIdle");
+
+    const logActions = snapshot.context.pendingActions.filter(
+      (a) => a.type === "log",
+    );
+    const hasSkipMessage = logActions.some(
+      (a) =>
+        "message" in a &&
+        typeof a.message === "string" &&
+        a.message.includes("not assigned"),
+    );
+    expect(hasSkipMessage).toBe(true);
+
+    // Should NOT have runClaude or iteration actions
+    const actionTypes = snapshot.context.pendingActions.map((a) => a.type);
+    expect(actionTypes).not.toContain("runClaude");
+    expect(actionTypes).not.toContain("incrementIteration");
   });
 });

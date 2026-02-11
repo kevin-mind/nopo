@@ -46005,6 +46005,10 @@ function hasSubIssues({ context: context2 }) {
 function isSubIssue({ context: context2 }) {
   return context2.parentIssue !== null;
 }
+function subIssueCanIterate({ context: context2 }) {
+  if (context2.parentIssue === null) return false;
+  return context2.issue.assignees.includes(context2.botUsername);
+}
 function needsSubIssues(_guardContext) {
   return false;
 }
@@ -46229,6 +46233,7 @@ var guards = {
   // Sub-issue guards
   hasSubIssues,
   isSubIssue,
+  subIssueCanIterate,
   needsSubIssues,
   allPhasesDone,
   // Orchestration guards
@@ -47478,6 +47483,7 @@ var claudeMachine = setup({
     needsSubIssues: ({ context: context2 }) => guards.needsSubIssues({ context: context2 }),
     hasSubIssues: ({ context: context2 }) => guards.hasSubIssues({ context: context2 }),
     isSubIssue: ({ context: context2 }) => guards.isSubIssue({ context: context2 }),
+    subIssueCanIterate: ({ context: context2 }) => guards.subIssueCanIterate({ context: context2 }),
     isInReview: ({ context: context2 }) => guards.isInReview({ context: context2 }),
     allPhasesDone: ({ context: context2 }) => guards.allPhasesDone({ context: context2 }),
     currentPhaseNeedsWork: ({ context: context2 }) => guards.currentPhaseNeedsWork({ context: context2 }),
@@ -47752,9 +47758,11 @@ var claudeMachine = setup({
             target: "triaging",
             guard: "needsTriage"
           },
-          // Sub-issues always iterate - check BEFORE grooming and orchestration
+          // Sub-issues with bot assigned iterate - check BEFORE grooming and orchestration
           // to prevent sub-issues from being groomed or routed to orchestration
-          { target: "iterating", guard: "isSubIssue" },
+          { target: "iterating", guard: "subIssueCanIterate" },
+          // Sub-issues without bot assignment: no-op (bot edits, reconciliation, etc.)
+          { target: "subIssueIdle", guard: "isSubIssue" },
           // Check if this is a grooming trigger (parent issues only)
           {
             target: "grooming",
@@ -48115,6 +48123,24 @@ var claudeMachine = setup({
      * Unrecoverable error
      */
     error: {
+      type: "final"
+    },
+    /**
+     * Sub-issue edited but not assigned to bot - skip silently
+     *
+     * This handles bot-initiated edits (reconciliation, triage body updates)
+     * that fire issues:edited events on sub-issues. Without bot assignment,
+     * these should not trigger iteration.
+     */
+    subIssueIdle: {
+      entry: [
+        emit2(
+          (ctx) => emitLog(
+            ctx,
+            `Sub-issue #${ctx.context.issue.number} edited but not assigned \u2014 skipping`
+          )
+        )
+      ],
       type: "final"
     },
     /**
