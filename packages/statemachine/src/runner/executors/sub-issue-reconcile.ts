@@ -15,7 +15,6 @@ import {
   createTodoList,
   parseIssue,
   type OctokitLike,
-  type ProjectStatus,
 } from "@more/issue-state";
 import { executeClaudeSDK, resolvePrompt } from "@more/claude";
 import type { ReconcileSubIssuesAction } from "../../schemas/index.js";
@@ -241,7 +240,6 @@ export async function executeReconcileSubIssues(
       ctx,
       action.issueNumber,
       recommendedPhases,
-      data.issue.subIssues.length === 0,
     );
     return { reconciled: true, created, updated: 0, deleted: 0 };
   }
@@ -277,7 +275,6 @@ export async function executeReconcileSubIssues(
       ctx,
       action.issueNumber,
       recommendedPhases,
-      false,
     );
     return { reconciled: true, created, updated: 0, deleted: 0 };
   }
@@ -299,7 +296,6 @@ export async function executeReconcileSubIssues(
     try {
       const body = buildPhaseIssueBody(spec);
       const title = `[Phase ${spec.phase_number}]: ${spec.title}`;
-      const projectStatus: ProjectStatus | undefined = undefined;
 
       const createResult = await addSubIssueToParent(
         ctx.owner,
@@ -312,7 +308,6 @@ export async function executeReconcileSubIssues(
             typeof addSubIssueToParent
           >[4]["octokit"],
           projectNumber: ctx.projectNumber,
-          projectStatus,
         },
       );
 
@@ -476,15 +471,12 @@ async function createAllPhases(
   ctx: RunnerContext,
   parentIssueNumber: number,
   phases: SubIssueSpec[],
-  isFirstBatch: boolean,
 ): Promise<number> {
   let created = 0;
 
   for (const phase of phases) {
     const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
     const body = buildPhaseIssueBody(phase);
-    const projectStatus: ProjectStatus | undefined =
-      phase.phase_number === 1 && isFirstBatch ? "Ready" : undefined;
 
     try {
       const result = await addSubIssueToParent(
@@ -498,7 +490,6 @@ async function createAllPhases(
             typeof addSubIssueToParent
           >[4]["octokit"],
           projectNumber: ctx.projectNumber,
-          projectStatus,
         },
       );
 

@@ -71697,8 +71697,7 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
     const created2 = await createAllPhases(
       ctx,
       action.issueNumber,
-      recommendedPhases,
-      data.issue.subIssues.length === 0
+      recommendedPhases
     );
     return { reconciled: true, created: created2, updated: 0, deleted: 0 };
   }
@@ -71728,8 +71727,7 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
     const created2 = await createAllPhases(
       ctx,
       action.issueNumber,
-      recommendedPhases,
-      false
+      recommendedPhases
     );
     return { reconciled: true, created: created2, updated: 0, deleted: 0 };
   }
@@ -71747,7 +71745,6 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
     try {
       const body = buildPhaseIssueBody(spec);
       const title = `[Phase ${spec.phase_number}]: ${spec.title}`;
-      const projectStatus = void 0;
       const createResult = await addSubIssueToParent(
         ctx.owner,
         ctx.repo,
@@ -71756,8 +71753,7 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
         {
           // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
           octokit: ctx.octokit,
-          projectNumber: ctx.projectNumber,
-          projectStatus
+          projectNumber: ctx.projectNumber
         }
       );
       core17.info(`Created sub-issue #${createResult.issueNumber}: ${title}`);
@@ -71882,12 +71878,11 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   }
   return { reconciled: true, created, updated, deleted };
 }
-async function createAllPhases(ctx, parentIssueNumber2, phases, isFirstBatch) {
+async function createAllPhases(ctx, parentIssueNumber2, phases) {
   let created = 0;
   for (const phase of phases) {
     const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
     const body = buildPhaseIssueBody(phase);
-    const projectStatus = phase.phase_number === 1 && isFirstBatch ? "Ready" : void 0;
     try {
       const result = await addSubIssueToParent(
         ctx.owner,
@@ -71897,8 +71892,7 @@ async function createAllPhases(ctx, parentIssueNumber2, phases, isFirstBatch) {
         {
           // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
           octokit: ctx.octokit,
-          projectNumber: ctx.projectNumber,
-          projectStatus
+          projectNumber: ctx.projectNumber
         }
       );
       core17.info(`Created sub-issue #${result.issueNumber}: ${title}`);
