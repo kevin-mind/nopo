@@ -54064,11 +54064,11 @@ var require_format = __commonJS2((exports2) => {
         }
         function getFormat(fmtDef) {
           const code3 = fmtDef instanceof RegExp ? (0, codegen_1.regexpCode)(fmtDef) : opts.code.formats ? (0, codegen_1._)`${opts.code.formats}${(0, codegen_1.getProperty)(schema)}` : void 0;
-          const fmt = gen.scopeValue("formats", { key: schema, ref: fmtDef, code: code3 });
+          const fmt2 = gen.scopeValue("formats", { key: schema, ref: fmtDef, code: code3 });
           if (typeof fmtDef == "object" && !(fmtDef instanceof RegExp)) {
-            return [fmtDef.type || "string", fmtDef.validate, (0, codegen_1._)`${fmt}.validate`];
+            return [fmtDef.type || "string", fmtDef.validate, (0, codegen_1._)`${fmt2}.validate`];
           }
-          return ["string", fmtDef, fmt];
+          return ["string", fmtDef, fmt2];
         }
         function validCondition() {
           if (typeof formatDef == "object" && !(formatDef instanceof RegExp) && formatDef.async) {
@@ -54663,8 +54663,8 @@ var require_limit = __commonJS2((exports2) => {
           ref: self2.formats,
           code: opts.code.formats
         });
-        const fmt = gen.const("fmt", (0, codegen_1._)`${fmts}[${fCxt.schemaCode}]`);
-        cxt.fail$data((0, codegen_1.or)((0, codegen_1._)`typeof ${fmt} != "object"`, (0, codegen_1._)`${fmt} instanceof RegExp`, (0, codegen_1._)`typeof ${fmt}.compare != "function"`, compareCode(fmt)));
+        const fmt2 = gen.const("fmt", (0, codegen_1._)`${fmts}[${fCxt.schemaCode}]`);
+        cxt.fail$data((0, codegen_1.or)((0, codegen_1._)`typeof ${fmt2} != "object"`, (0, codegen_1._)`${fmt2} instanceof RegExp`, (0, codegen_1._)`typeof ${fmt2}.compare != "function"`, compareCode(fmt2)));
       }
       function validateFormat() {
         const format = fCxt.schema;
@@ -54674,15 +54674,15 @@ var require_limit = __commonJS2((exports2) => {
         if (typeof fmtDef != "object" || fmtDef instanceof RegExp || typeof fmtDef.compare != "function") {
           throw new Error(`"${keyword}": format "${format}" does not define "compare" function`);
         }
-        const fmt = gen.scopeValue("formats", {
+        const fmt2 = gen.scopeValue("formats", {
           key: format,
           ref: fmtDef,
           code: opts.code.formats ? (0, codegen_1._)`${opts.code.formats}${(0, codegen_1.getProperty)(format)}` : void 0
         });
-        cxt.fail$data(compareCode(fmt));
+        cxt.fail$data(compareCode(fmt2));
       }
-      function compareCode(fmt) {
-        return (0, codegen_1._)`${fmt}.compare(${data}, ${schemaCode}) ${KWDs[keyword].fail} 0`;
+      function compareCode(fmt2) {
+        return (0, codegen_1._)`${fmt2}.compare(${data}, ${schemaCode}) ${KWDs[keyword].fail} 0`;
       }
     },
     dependencies: ["format"]
@@ -68476,65 +68476,330 @@ function setOutputs(outputs) {
 function asOctokitLike(octokit) {
   return octokit;
 }
-function logTree(label, tree) {
-  core26.startGroup(`${label}: Issue #${tree.issue.number}`);
-  core26.info(`  state:         ${tree.issue.state}`);
-  core26.info(`  projectStatus: ${tree.issue.projectStatus}`);
-  core26.info(`  iteration:     ${tree.issue.iteration}`);
-  core26.info(`  failures:      ${tree.issue.failures}`);
-  core26.info(`  labels:        [${tree.issue.labels.join(", ")}]`);
-  core26.info(`  assignees:     [${tree.issue.assignees.join(", ")}]`);
-  core26.info(`  hasBranch:     ${tree.issue.hasBranch}`);
-  core26.info(`  hasPR:         ${tree.issue.hasPR}`);
-  if (tree.issue.pr) {
-    core26.info(`  pr.isDraft:    ${tree.issue.pr.isDraft}`);
-    core26.info(`  pr.state:      ${tree.issue.pr.state}`);
+function fmt(v) {
+  if (v === null || v === void 0) return "null";
+  if (Array.isArray(v)) return `[${v.join(", ")}]`;
+  return String(v);
+}
+function buildComparisonTable(expected, actual) {
+  const rows = [];
+  const ei = expected.issue;
+  const ai = actual.issue;
+  rows.push({
+    field: "issue.state",
+    expected: fmt(ei.state),
+    actual: fmt(ai.state),
+    rule: "exact",
+    pass: ei.state === ai.state
+  });
+  rows.push({
+    field: "issue.projectStatus",
+    expected: fmt(ei.projectStatus),
+    actual: fmt(ai.projectStatus),
+    rule: "exact",
+    pass: ei.projectStatus === ai.projectStatus
+  });
+  rows.push({
+    field: "issue.iteration",
+    expected: fmt(ei.iteration),
+    actual: fmt(ai.iteration),
+    rule: "actual >= expected",
+    pass: ai.iteration >= ei.iteration
+  });
+  const failuresPass = ei.failures === ai.failures || ai.failures === 0;
+  rows.push({
+    field: "issue.failures",
+    expected: fmt(ei.failures),
+    actual: fmt(ai.failures),
+    rule: "exact or 0",
+    pass: failuresPass
+  });
+  const missingLabels = ei.labels.filter((l) => !ai.labels.includes(l));
+  rows.push({
+    field: "issue.labels",
+    expected: fmt(ei.labels),
+    actual: fmt(ai.labels),
+    rule: "expected \u2286 actual",
+    pass: missingLabels.length === 0
+  });
+  const missingAssignees = ei.assignees.filter(
+    (a) => !ai.assignees.includes(a)
+  );
+  rows.push({
+    field: "issue.assignees",
+    expected: fmt(ei.assignees),
+    actual: fmt(ai.assignees),
+    rule: "expected \u2286 actual",
+    pass: missingAssignees.length === 0
+  });
+  rows.push({
+    field: "issue.hasBranch",
+    expected: fmt(ei.hasBranch),
+    actual: fmt(ai.hasBranch),
+    rule: "if expected=true",
+    pass: !ei.hasBranch || ai.hasBranch
+  });
+  rows.push({
+    field: "issue.hasPR",
+    expected: fmt(ei.hasPR),
+    actual: fmt(ai.hasPR),
+    rule: "if expected=true",
+    pass: !ei.hasPR || ai.hasPR
+  });
+  if (ei.pr && ai.pr) {
+    rows.push({
+      field: "issue.pr.isDraft",
+      expected: fmt(ei.pr.isDraft),
+      actual: fmt(ai.pr.isDraft),
+      rule: "exact",
+      pass: ei.pr.isDraft === ai.pr.isDraft
+    });
+    rows.push({
+      field: "issue.pr.state",
+      expected: fmt(ei.pr.state),
+      actual: fmt(ai.pr.state),
+      rule: "exact",
+      pass: ei.pr.state === ai.pr.state
+    });
+  } else if (ei.pr && !ai.pr) {
+    rows.push({
+      field: "issue.pr",
+      expected: "present",
+      actual: "null",
+      rule: "exact",
+      pass: false
+    });
   }
-  core26.info("");
-  core26.info("  Body structure:");
-  const body = tree.issue.body;
-  const flags = [
-    ["hasDescription", body.hasDescription],
-    ["hasRequirements", body.hasRequirements],
-    ["hasApproach", body.hasApproach],
-    ["hasAcceptanceCriteria", body.hasAcceptanceCriteria],
-    ["hasTesting", body.hasTesting],
-    ["hasRelated", body.hasRelated],
-    ["hasTodos", body.hasTodos],
-    ["hasHistory", body.hasHistory],
-    ["hasAgentNotes", body.hasAgentNotes],
-    ["hasQuestions", body.hasQuestions],
-    ["hasAffectedAreas", body.hasAffectedAreas]
+  const eb = ei.body;
+  const ab = ai.body;
+  const bodyFlags = [
+    "hasDescription",
+    "hasTodos",
+    "hasHistory",
+    "hasAgentNotes",
+    "hasQuestions",
+    "hasAffectedAreas",
+    "hasRequirements",
+    "hasApproach",
+    "hasAcceptanceCriteria",
+    "hasTesting",
+    "hasRelated"
   ];
-  for (const [name, value] of flags) {
-    if (value) core26.info(`    ${name}: ${String(value)}`);
+  for (const flag of bodyFlags) {
+    const expVal = eb[flag];
+    const actVal = ab[flag];
+    const pass = !expVal || actVal;
+    rows.push({
+      field: `issue.body.${flag}`,
+      expected: fmt(expVal),
+      actual: fmt(actVal),
+      rule: "if expected=true",
+      pass
+    });
   }
-  if (body.todoStats) {
-    core26.info(
-      `    todoStats: total=${body.todoStats.total} completed=${body.todoStats.completed}`
-    );
-  }
-  if (body.questionStats) {
-    core26.info(
-      `    questionStats: total=${body.questionStats.total} answered=${body.questionStats.answered}`
-    );
-  }
-  if (body.historyEntries.length > 0) {
-    core26.info(`    historyEntries: ${body.historyEntries.length}`);
-    for (const entry of body.historyEntries) {
-      core26.info(`      [${entry.iteration}] ${entry.phase}: ${entry.action}`);
+  if (eb.todoStats) {
+    if (ab.todoStats) {
+      rows.push({
+        field: "issue.body.todoStats.total",
+        expected: fmt(eb.todoStats.total),
+        actual: fmt(ab.todoStats.total),
+        rule: "actual >= expected",
+        pass: ab.todoStats.total >= eb.todoStats.total
+      });
+      rows.push({
+        field: "issue.body.todoStats.completed",
+        expected: fmt(eb.todoStats.completed),
+        actual: fmt(ab.todoStats.completed),
+        rule: "actual >= expected",
+        pass: ab.todoStats.completed >= eb.todoStats.completed
+      });
+      rows.push({
+        field: "issue.body.todoStats.uncheckedNonManual",
+        expected: fmt(eb.todoStats.uncheckedNonManual),
+        actual: fmt(ab.todoStats.uncheckedNonManual),
+        rule: "actual <= expected",
+        pass: ab.todoStats.uncheckedNonManual <= eb.todoStats.uncheckedNonManual
+      });
+    } else {
+      rows.push({
+        field: "issue.body.todoStats",
+        expected: "present",
+        actual: "null",
+        rule: "present",
+        pass: false
+      });
     }
   }
-  if (tree.subIssues.length > 0) {
-    core26.info("");
-    core26.info(`  Sub-issues: ${tree.subIssues.length}`);
-    for (const sub of tree.subIssues) {
-      core26.info(
-        `    #${sub.number}: status=${sub.projectStatus}, state=${sub.state}`
+  if (eb.questionStats) {
+    if (ab.questionStats) {
+      rows.push({
+        field: "issue.body.questionStats.total",
+        expected: fmt(eb.questionStats.total),
+        actual: fmt(ab.questionStats.total),
+        rule: "actual >= expected",
+        pass: ab.questionStats.total >= eb.questionStats.total
+      });
+      rows.push({
+        field: "issue.body.questionStats.answered",
+        expected: fmt(eb.questionStats.answered),
+        actual: fmt(ab.questionStats.answered),
+        rule: "actual >= expected",
+        pass: ab.questionStats.answered >= eb.questionStats.answered
+      });
+    } else {
+      rows.push({
+        field: "issue.body.questionStats",
+        expected: "present",
+        actual: "null",
+        rule: "present",
+        pass: false
+      });
+    }
+  }
+  for (const expEntry of eb.historyEntries) {
+    const found = ab.historyEntries.some(
+      (act) => act.iteration === expEntry.iteration && act.phase === expEntry.phase && act.action.startsWith(expEntry.action.charAt(0))
+    );
+    rows.push({
+      field: `issue.body.history[${expEntry.iteration}/${expEntry.phase}]`,
+      expected: expEntry.action,
+      actual: found ? "(matched)" : fmt(ab.historyEntries.map((e) => e.action)),
+      rule: "entry present",
+      pass: found
+    });
+  }
+  for (const expSub of expected.subIssues) {
+    const actSub = actual.subIssues.find((s) => s.number === expSub.number);
+    if (!actSub) {
+      rows.push({
+        field: `sub[#${expSub.number}]`,
+        expected: "present",
+        actual: "missing",
+        rule: "exists",
+        pass: false
+      });
+      continue;
+    }
+    const prefix = `sub[#${expSub.number}]`;
+    rows.push({
+      field: `${prefix}.state`,
+      expected: fmt(expSub.state),
+      actual: fmt(actSub.state),
+      rule: "exact",
+      pass: expSub.state === actSub.state
+    });
+    rows.push({
+      field: `${prefix}.projectStatus`,
+      expected: fmt(expSub.projectStatus),
+      actual: fmt(actSub.projectStatus),
+      rule: "exact",
+      pass: expSub.projectStatus === actSub.projectStatus
+    });
+    const subMissingLabels = expSub.labels.filter(
+      (l) => !actSub.labels.includes(l)
+    );
+    rows.push({
+      field: `${prefix}.labels`,
+      expected: fmt(expSub.labels),
+      actual: fmt(actSub.labels),
+      rule: "expected \u2286 actual",
+      pass: subMissingLabels.length === 0
+    });
+    rows.push({
+      field: `${prefix}.hasBranch`,
+      expected: fmt(expSub.hasBranch),
+      actual: fmt(actSub.hasBranch),
+      rule: "if expected=true",
+      pass: !expSub.hasBranch || actSub.hasBranch
+    });
+    rows.push({
+      field: `${prefix}.hasPR`,
+      expected: fmt(expSub.hasPR),
+      actual: fmt(actSub.hasPR),
+      rule: "if expected=true",
+      pass: !expSub.hasPR || actSub.hasPR
+    });
+    if (expSub.pr && actSub.pr) {
+      rows.push({
+        field: `${prefix}.pr.isDraft`,
+        expected: fmt(expSub.pr.isDraft),
+        actual: fmt(actSub.pr.isDraft),
+        rule: "exact",
+        pass: expSub.pr.isDraft === actSub.pr.isDraft
+      });
+      rows.push({
+        field: `${prefix}.pr.state`,
+        expected: fmt(expSub.pr.state),
+        actual: fmt(actSub.pr.state),
+        rule: "exact",
+        pass: expSub.pr.state === actSub.pr.state
+      });
+    }
+    const subBodyFlags = [
+      "hasDescription",
+      "hasTodos",
+      "hasHistory",
+      "hasAgentNotes",
+      "hasQuestions",
+      "hasAffectedAreas"
+    ];
+    for (const flag of subBodyFlags) {
+      const expVal = expSub.body[flag];
+      const actVal = actSub.body[flag];
+      rows.push({
+        field: `${prefix}.body.${flag}`,
+        expected: fmt(expVal),
+        actual: fmt(actVal),
+        rule: "if expected=true",
+        pass: !expVal || actVal
+      });
+    }
+    for (const expEntry of expSub.body.historyEntries) {
+      const found = actSub.body.historyEntries.some(
+        (act) => act.iteration === expEntry.iteration && act.phase === expEntry.phase && act.action.startsWith(expEntry.action.charAt(0))
       );
+      rows.push({
+        field: `${prefix}.body.history[${expEntry.iteration}/${expEntry.phase}]`,
+        expected: expEntry.action,
+        actual: found ? "(matched)" : fmt(actSub.body.historyEntries.map((e) => e.action)),
+        rule: "entry present",
+        pass: found
+      });
+    }
+  }
+  return rows;
+}
+function logComparisonTable(outcomeIndex, rows) {
+  const passed = rows.filter((r) => r.pass).length;
+  const failed = rows.filter((r) => !r.pass).length;
+  const total = rows.length;
+  const icon = failed === 0 ? "\u2705" : "\u274C";
+  core26.startGroup(
+    `${icon} Outcome ${outcomeIndex}: ${passed}/${total} checks passed, ${failed} failed`
+  );
+  const maxField = Math.max(...rows.map((r) => r.field.length), 5);
+  for (const row of rows) {
+    const status = row.pass ? "\u2705" : "\u274C";
+    const paddedField = row.field.padEnd(maxField);
+    const line = `  ${status}  ${paddedField}  expected=${row.expected}  actual=${row.actual}  (${row.rule})`;
+    if (row.pass) {
+      core26.info(line);
+    } else {
+      core26.error(line);
     }
   }
   core26.endGroup();
+  let md = `### Outcome ${outcomeIndex}: ${passed}/${total} passed, ${failed} failed
+
+`;
+  md += "| | Field | Expected | Actual | Rule |\n";
+  md += "|---|---|---|---|---|\n";
+  for (const row of rows) {
+    const status = row.pass ? "\u2705" : "\u274C";
+    md += `| ${status} | \`${row.field}\` | \`${row.expected}\` | \`${row.actual}\` | ${row.rule} |
+`;
+  }
+  return md;
 }
 async function run() {
   try {
@@ -68560,9 +68825,6 @@ async function run() {
     core26.info(`  outcomes:          ${expected.outcomes.length}`);
     core26.info(`  timestamp:         ${expected.timestamp}`);
     core26.endGroup();
-    for (let i = 0; i < expected.outcomes.length; i++) {
-      logTree(`Step 1: Expected Outcome ${i}`, expected.outcomes[i]);
-    }
     core26.startGroup("Step 2: Fetch actual issue state");
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
@@ -68579,7 +68841,7 @@ async function run() {
     core26.info(`  Issue state: ${data.issue.state}`);
     core26.info(`  Project status: ${data.issue.projectStatus}`);
     core26.endGroup();
-    core26.startGroup("Step 3: Build MachineContext and extract actual tree");
+    core26.startGroup("Step 3: Extract actual state tree");
     const machineContext = createMachineContext({
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- trigger from expected state is a valid TriggerType
       trigger: expected.trigger,
@@ -68591,59 +68853,41 @@ async function run() {
     const actualTree = verify_exports.extractPredictableTree(machineContext);
     core26.info("  Actual tree extracted successfully");
     core26.endGroup();
-    logTree("Step 3: Actual State", actualTree);
-    core26.startGroup("Step 4: Compare expected vs actual");
     const result = verify_exports.compareStateTree(expected.outcomes, actualTree);
-    if (result.pass) {
-      core26.info(
-        `  Result: PASSED (matched outcome ${result.matchedOutcomeIndex})`
-      );
-    } else {
-      core26.info(
-        `  Result: FAILED (best match: outcome ${result.bestMatch.outcomeIndex}, ${result.bestMatch.diffs.length} diff(s))`
-      );
+    core26.info("");
+    core26.info(
+      `=== Comparison: ${expected.outcomes.length} outcome(s) vs actual ===`
+    );
+    core26.info("");
+    const summaryParts = [];
+    for (let i = 0; i < expected.outcomes.length; i++) {
+      const outcome = expected.outcomes[i];
+      const rows = buildComparisonTable(outcome, actualTree);
+      const md = logComparisonTable(i, rows);
+      summaryParts.push(md);
     }
-    core26.endGroup();
     if (result.pass) {
       core26.info("");
       core26.info(
         `\u2705 Verification PASSED (matched outcome ${result.matchedOutcomeIndex})`
       );
-      await core26.summary.addHeading("Verification Passed", 1).addRaw(
-        `Matched expected outcome **${result.matchedOutcomeIndex}** of ${expected.outcomes.length} for \`${expected.finalState}\` transition.`
-      ).write();
-      setOutputs({ verified: "true", diff_json: "{}" });
-    } else {
-      const diffJson = JSON.stringify(result.bestMatch, null, 2);
-      core26.info("");
-      core26.error(
-        `\u274C Verification FAILED: ${result.bestMatch.diffs.length} diff(s) in best match (outcome ${result.bestMatch.outcomeIndex})`
-      );
-      core26.startGroup("Diffs");
-      for (const diff of result.bestMatch.diffs) {
-        core26.error(
-          `  ${diff.path}:  expected=${JSON.stringify(diff.expected)}  actual=${JSON.stringify(diff.actual)}  (${diff.comparison})`
-        );
-      }
-      core26.endGroup();
-      await core26.summary.addHeading("Verification Failed", 1).addRaw(
-        `Transition \`${expected.finalState}\` \u2014 best match was outcome **${result.bestMatch.outcomeIndex}** of ${expected.outcomes.length} with **${result.bestMatch.diffs.length}** diff(s).
+      await core26.summary.addHeading("\u2705 Verification Passed", 1).addRaw(
+        `Matched expected outcome **${result.matchedOutcomeIndex}** of ${expected.outcomes.length} for \`${expected.finalState}\` transition.
 
 `
-      ).addTable([
-        [
-          { data: "Path", header: true },
-          { data: "Expected", header: true },
-          { data: "Actual", header: true },
-          { data: "Comparison", header: true }
-        ],
-        ...result.bestMatch.diffs.map((d) => [
-          `\`${d.path}\``,
-          `\`${JSON.stringify(d.expected)}\``,
-          `\`${JSON.stringify(d.actual)}\``,
-          d.comparison
-        ])
-      ]).write();
+      ).addRaw(summaryParts.join("\n")).write();
+      setOutputs({ verified: "true", diff_json: "{}" });
+    } else {
+      core26.info("");
+      core26.error(
+        `\u274C Verification FAILED \u2014 no outcome matched (best: outcome ${result.bestMatch.outcomeIndex} with ${result.bestMatch.diffs.length} diff(s))`
+      );
+      const diffJson = JSON.stringify(result.bestMatch, null, 2);
+      await core26.summary.addHeading("\u274C Verification Failed", 1).addRaw(
+        `Transition \`${expected.finalState}\` \u2014 no outcome matched. Best was outcome **${result.bestMatch.outcomeIndex}** with **${result.bestMatch.diffs.length}** diff(s).
+
+`
+      ).addRaw(summaryParts.join("\n")).write();
       try {
         const { data: issueData, update } = await parseIssue(
           owner,
