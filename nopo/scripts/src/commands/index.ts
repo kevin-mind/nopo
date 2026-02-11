@@ -278,7 +278,7 @@ export function resolveCommandDependencies(
   // Determine which dependencies to use
   const commandDeps = command?.dependencies;
 
-  // Empty object means explicitly no dependencies (override service-level)
+  // Empty object means explicitly no dependencies
   if (
     commandDeps !== undefined &&
     typeof commandDeps === "object" &&
