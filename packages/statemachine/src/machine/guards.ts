@@ -536,9 +536,11 @@ function triggeredByDeployedProdFailure({ context }: GuardContext): boolean {
 // ============================================================================
 
 /**
- * Check if the issue needs triage (doesn't have "triaged" label)
+ * Check if the issue needs triage (doesn't have "triaged" label).
+ * Sub-issues are never triaged — they get their structure from grooming.
  */
 export function needsTriage({ context }: GuardContext): boolean {
+  if (context.parentIssue !== null) return false;
   return !context.issue.labels.includes("triaged");
 }
 

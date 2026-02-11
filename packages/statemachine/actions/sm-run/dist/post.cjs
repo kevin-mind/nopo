@@ -46145,6 +46145,7 @@ function triggeredByDeployedProdFailure({ context: context2 }) {
   return context2.trigger === "deployed-prod-failed";
 }
 function needsTriage({ context: context2 }) {
+  if (context2.parentIssue !== null) return false;
   return !context2.issue.labels.includes("triaged");
 }
 function isTriaged({ context: context2 }) {
