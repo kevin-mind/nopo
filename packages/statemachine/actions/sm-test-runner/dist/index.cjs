@@ -42257,9 +42257,7 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
 });
 var ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("reconcileSubIssues"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Bot username to assign to parent after reconciliation (triggers orchestration) */
-  botUsername: external_exports.string().optional()
+  issueNumber: external_exports.number().int().positive()
 });
 var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyPivotOutput"),
@@ -48110,8 +48108,7 @@ function emitRunClaudeGrooming({
     {
       type: "reconcileSubIssues",
       token: "code",
-      issueNumber,
-      botUsername: context2.botUsername
+      issueNumber
     }
   ];
 }
@@ -71764,23 +71761,6 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
       action.issueNumber,
       recommendedPhases
     );
-    if (created2 > 0 && action.botUsername) {
-      try {
-        await ctx.octokit.rest.issues.addAssignees({
-          owner: ctx.owner,
-          repo: ctx.repo,
-          issue_number: action.issueNumber,
-          assignees: [action.botUsername]
-        });
-        core17.info(
-          `Assigned ${action.botUsername} to parent #${action.issueNumber} to trigger orchestration`
-        );
-      } catch (error11) {
-        core17.warning(
-          `Failed to assign ${action.botUsername} to parent: ${error11}`
-        );
-      }
-    }
     return { reconciled: true, created: created2, updated: 0, deleted: 0 };
   }
   core17.info(
@@ -72015,23 +71995,6 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
       );
     } catch (error11) {
       core17.warning(`Failed to update parent issue body: ${error11}`);
-    }
-  }
-  if ((created > 0 || updated > 0) && action.botUsername) {
-    try {
-      await ctx.octokit.rest.issues.addAssignees({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: action.issueNumber,
-        assignees: [action.botUsername]
-      });
-      core17.info(
-        `Assigned ${action.botUsername} to parent #${action.issueNumber} to trigger orchestration`
-      );
-    } catch (error11) {
-      core17.warning(
-        `Failed to assign ${action.botUsername} to parent: ${error11}`
-      );
     }
   }
   return { reconciled: true, created, updated, deleted };

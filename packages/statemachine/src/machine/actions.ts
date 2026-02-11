@@ -1597,7 +1597,6 @@ export function emitRunClaudeGrooming({
       type: "reconcileSubIssues",
       token: "code",
       issueNumber,
-      botUsername: context.botUsername,
     },
   ];
 }

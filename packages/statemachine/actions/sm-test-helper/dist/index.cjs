@@ -41973,9 +41973,7 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
 });
 var ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("reconcileSubIssues"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Bot username to assign to parent after reconciliation (triggers orchestration) */
-  botUsername: external_exports.string().optional()
+  issueNumber: external_exports.number().int().positive()
 });
 var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyPivotOutput"),
@@ -47709,8 +47707,7 @@ function emitRunClaudeGrooming({
     {
       type: "reconcileSubIssues",
       token: "code",
-      issueNumber,
-      botUsername: context2.botUsername
+      issueNumber
     }
   ];
 }
