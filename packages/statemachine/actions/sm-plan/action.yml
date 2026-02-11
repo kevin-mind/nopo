@@ -31,6 +31,8 @@ outputs:
     description: Concurrency group name for workflow-level concurrency
   cancel_in_progress:
     description: Whether to cancel in-progress runs (true/false string)
+  expected_state_json:
+    description: Predicted post-run state as JSON (pass to sm-verify)
 
 runs:
   using: node20

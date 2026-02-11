@@ -1,6 +1,7 @@
 // @more/statemachine - State machine for GitHub issue automation
 // This package contains the core state machine logic, schemas, and runners
 
+export * from "./constants.js";
 export * from "./schemas/index.js";
 export * from "./parser/index.js";
 export * from "./machine/index.js";
@@ -10,6 +11,9 @@ export * from "@more/claude";
 
 // Runner infrastructure and executors
 export * from "./runner/index.js";
+
+// Verification infrastructure
+export * as Verify from "./verify/index.js";
 
 // Test runner infrastructure
 export * as TestRunner from "./test-runner/index.js";

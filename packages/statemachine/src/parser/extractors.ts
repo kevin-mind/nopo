@@ -11,6 +11,8 @@ import {
   HistoryEntrySchema,
   AgentNotesEntrySchema,
   type TodoStats,
+  type HistoryEntry,
+  type AgentNotesEntry,
 } from "@more/issue-state";
 import type { ExistingSubIssue } from "../runner/executors/output-schemas.js";
 import { z } from "zod";
@@ -25,6 +27,13 @@ import type {
   InlineCode,
 } from "mdast";
 import { isList, childrenAsRootContent } from "./type-guards.js";
+import {
+  SECTION_NAMES,
+  SubIssueBodyStructureSchema,
+  ParentIssueBodyStructureSchema,
+  type SubIssueBodyStructure,
+  type ParentIssueBodyStructure,
+} from "../constants.js";
 
 // ============================================================================
 // MDAST Helpers
@@ -40,7 +49,7 @@ function findHeadingIndex(ast: Root, text: string): number {
 }
 
 /** Find index of a heading matching any of the given texts */
-function findHeadingIndexAny(ast: Root, texts: string[]): number {
+function findHeadingIndexAny(ast: Root, texts: readonly string[]): number {
   return ast.children.findIndex((node) => {
     if (node.type !== "heading") return false;
     const firstChild = node.children[0];
@@ -86,7 +95,7 @@ function getLinkUrl(
  */
 export const todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   const ast = data.issue.bodyAst;
-  const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+  const todosIdx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
 
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
@@ -128,7 +137,7 @@ export const todosExtractor = createExtractor(TodoStatsSchema, (data) => {
  * Supports both "Todo" (singular) and "Todos" (plural) headings.
  */
 export function extractTodosFromAst(bodyAst: Root): TodoStats {
-  const todosIdx = findHeadingIndexAny(bodyAst, ["Todo", "Todos"]);
+  const todosIdx = findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES);
 
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
@@ -187,7 +196,7 @@ export const historyExtractor = createExtractor(
   z.array(HistoryEntrySchema),
   (data) => {
     const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex(ast, "Iteration History");
+    const historyIdx = findHeadingIndex(ast, SECTION_NAMES.ITERATION_HISTORY);
 
     if (historyIdx === -1) return [];
 
@@ -256,7 +265,7 @@ export const questionsExtractor = createExtractor(
  * Finds the ## Questions heading, counts checklist items.
  */
 export function extractQuestionsFromAst(bodyAst: Root): QuestionStats {
-  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
 
   if (questionsIdx === -1) {
     return { total: 0, answered: 0, unanswered: 0 };
@@ -310,7 +319,7 @@ function parseQuestionId(item: ListItem): string | null {
  * Returns QuestionItem[] with IDs parsed from `id:slug` inline code.
  */
 export function extractQuestionItems(bodyAst: Root): QuestionItem[] {
-  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
 
   if (questionsIdx === -1) {
     return [];
@@ -391,7 +400,7 @@ function extractAffectedAreas(ast: Root): Array<{
   change_type?: string;
   description?: string;
 }> {
-  const idx = findHeadingIndex(ast, "Affected Areas");
+  const idx = findHeadingIndex(ast, SECTION_NAMES.AFFECTED_AREAS);
   if (idx === -1) return [];
 
   const listNode = ast.children[idx + 1];
@@ -419,7 +428,7 @@ function extractAffectedAreas(ast: Root): Array<{
 function extractTodoItems(
   ast: Root,
 ): Array<{ task: string; manual?: boolean }> {
-  const idx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+  const idx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
   if (idx === -1) return [];
 
   const listNode = ast.children[idx + 1];
@@ -462,7 +471,10 @@ export function extractSubIssueSpecs(
       const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
       // Strip [Phase N]: prefix from title
       const title = sub.title.replace(/^\[Phase\s+\d+\]:\s*/, "");
-      const description = extractSectionText(sub.bodyAst, "Description");
+      const description = extractSectionText(
+        sub.bodyAst,
+        SECTION_NAMES.DESCRIPTION,
+      );
       const affectedAreas = extractAffectedAreas(sub.bodyAst);
       const todos = extractTodoItems(sub.bodyAst);
 
@@ -483,7 +495,7 @@ export const agentNotesExtractor = createExtractor(
   z.array(AgentNotesEntrySchema),
   (data) => {
     const ast = data.issue.bodyAst;
-    const notesIdx = findHeadingIndex(ast, "Agent Notes");
+    const notesIdx = findHeadingIndex(ast, SECTION_NAMES.AGENT_NOTES);
 
     if (notesIdx === -1) return [];
 
@@ -533,4 +545,146 @@ export const agentNotesExtractor = createExtractor(
 
     return entries;
   },
+);
+
+// ============================================================================
+// Body Structure Extractors
+// ============================================================================
+
+/**
+ * Extract history entries directly from a bodyAst.
+ */
+function extractHistoryFromAst(bodyAst: Root): HistoryEntry[] {
+  const historyIdx = findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY);
+  if (historyIdx === -1) return [];
+
+  // Find table after the heading
+  const tableNode = bodyAst.children
+    .slice(historyIdx + 1)
+    .find((n): n is Table => n.type === "table");
+
+  if (!tableNode) return [];
+
+  return tableNode.children.slice(1).map((row: TableRow) => {
+    const timestamp = getCellText(row, 0) || null;
+    const iterationStr = getCellText(row, 1) || "0";
+    const phase = getCellText(row, 2) || "";
+    const action = getCellText(row, 3) || "";
+    const sha = getCellText(row, 4) || null;
+    const runLink = getCellLinkUrl(row, 5);
+
+    return {
+      timestamp: timestamp === "-" ? null : timestamp,
+      iteration: parseInt(iterationStr, 10) || 0,
+      phase,
+      action,
+      sha: sha === "-" ? null : sha,
+      runLink,
+    };
+  });
+}
+
+/**
+ * Extract agent notes entries directly from a bodyAst.
+ */
+function extractAgentNotesFromAst(bodyAst: Root): AgentNotesEntry[] {
+  const notesIdx = findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES);
+  if (notesIdx === -1) return [];
+
+  const entries: AgentNotesEntry[] = [];
+
+  for (let i = notesIdx + 1; i < bodyAst.children.length; i++) {
+    const node = bodyAst.children[i];
+    if (!node) continue;
+    if (node.type === "heading" && node.depth === 2) break;
+
+    if (node.type === "heading" && node.depth === 3) {
+      const linkNode = node.children[0];
+      if (!linkNode || linkNode.type !== "link") continue;
+
+      const linkText = getNodeText(linkNode);
+      const runMatch = linkText.match(/Run\s+(\d+)/);
+      if (!runMatch || !runMatch[1]) continue;
+
+      const runId = runMatch[1];
+      const runLink = linkNode.url;
+      const headingText = getNodeText(node);
+      const timestampMatch = headingText.match(/-\s*(.+)$/);
+      const timestamp = timestampMatch?.[1]?.trim() || "";
+
+      const listNode = bodyAst.children[i + 1];
+      const notes =
+        listNode && isList(listNode)
+          ? listNode.children.map((item: ListItem) => getNodeText(item))
+          : [];
+
+      entries.push({ runId, runLink, timestamp, notes });
+    }
+  }
+
+  return entries;
+}
+
+/**
+ * Extract the body structure of a sub-issue from its MDAST.
+ */
+export function extractSubIssueBodyStructure(
+  bodyAst: Root,
+): SubIssueBodyStructure {
+  const todoStats = extractTodosFromAst(bodyAst);
+  const questionStats = extractQuestionsFromAst(bodyAst);
+  const historyEntries = extractHistoryFromAst(bodyAst);
+  const agentNotesEntries = extractAgentNotesFromAst(bodyAst);
+
+  return SubIssueBodyStructureSchema.parse({
+    hasDescription: findHeadingIndex(bodyAst, SECTION_NAMES.DESCRIPTION) !== -1,
+    hasTodos: findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES) !== -1,
+    hasHistory:
+      findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY) !== -1,
+    hasAgentNotes: findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES) !== -1,
+    hasQuestions: findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS) !== -1,
+    hasAffectedAreas:
+      findHeadingIndex(bodyAst, SECTION_NAMES.AFFECTED_AREAS) !== -1,
+    todoStats: todoStats.total > 0 ? todoStats : null,
+    questionStats: questionStats.total > 0 ? questionStats : null,
+    historyEntries,
+    agentNotesEntries,
+  });
+}
+
+/**
+ * Extract the body structure of a parent issue from its MDAST.
+ * Extends sub-issue structure with parent-only section flags.
+ */
+export function extractParentIssueBodyStructure(
+  bodyAst: Root,
+): ParentIssueBodyStructure {
+  const base = extractSubIssueBodyStructure(bodyAst);
+
+  return ParentIssueBodyStructureSchema.parse({
+    ...base,
+    hasRequirements:
+      findHeadingIndex(bodyAst, SECTION_NAMES.REQUIREMENTS) !== -1,
+    hasApproach: findHeadingIndex(bodyAst, SECTION_NAMES.APPROACH) !== -1,
+    hasAcceptanceCriteria:
+      findHeadingIndex(bodyAst, SECTION_NAMES.ACCEPTANCE_CRITERIA) !== -1,
+    hasTesting: findHeadingIndex(bodyAst, SECTION_NAMES.TESTING) !== -1,
+    hasRelated: findHeadingIndex(bodyAst, SECTION_NAMES.RELATED) !== -1,
+  });
+}
+
+/**
+ * Extractor for sub-issue body structure (for use with createExtractor pattern).
+ */
+export const subIssueBodyStructureExtractor = createExtractor(
+  SubIssueBodyStructureSchema,
+  (data) => extractSubIssueBodyStructure(data.issue.bodyAst),
+);
+
+/**
+ * Extractor for parent issue body structure (for use with createExtractor pattern).
+ */
+export const parentIssueBodyStructureExtractor = createExtractor(
+  ParentIssueBodyStructureSchema,
+  (data) => extractParentIssueBodyStructure(data.issue.bodyAst),
 );

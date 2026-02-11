@@ -111,6 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       context_json: ${{ steps.sm-plan.outputs.context_json }}
+      expected_state_json: ${{ steps.sm-plan.outputs.expected_state_json }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -138,6 +139,7 @@ jobs:
     uses: ./.github/workflows/sm-runner.yml
     with:
       context_json: ${{ needs.sm-plan.outputs.context_json }}
+      expected_state_json: ${{ needs.sm-plan.outputs.expected_state_json || '' }}
       dry_run: false
       # For workflow_run and other events (no inputs), always continue
       # For workflow_dispatch, use the explicit input value

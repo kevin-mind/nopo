@@ -51,6 +51,11 @@ export {
   QuestionStatsSchema,
   type QuestionStats,
   type QuestionItem,
+  // Body structure extractors
+  extractSubIssueBodyStructure,
+  extractParentIssueBodyStructure,
+  subIssueBodyStructureExtractor,
+  parentIssueBodyStructureExtractor,
 } from "./extractors.js";
 
 // MDAST-based mutators (work directly with JSON, return new IssueStateData)

@@ -1,6 +1,7 @@
 import type { MachineContext, Action, IssueComment } from "../schemas/index.js";
 import { serializeMarkdown } from "@more/issue-state";
 import { deriveBranchName, extractTodosFromAst } from "../parser/index.js";
+import { HISTORY_ICONS, HISTORY_MESSAGES } from "../constants.js";
 
 /**
  * Format issue comments for inclusion in prompts
@@ -125,10 +126,7 @@ export function emitSetError({ context }: ActionContext): ActionResult {
 export function emitLogInvalidIteration({
   context,
 }: ActionContext): ActionResult {
-  const message =
-    "❌ FATAL: Cannot iterate on parent issue without sub-issues. " +
-    "Only sub-issues can be iterated on directly. " +
-    "Run grooming to create sub-issues first.";
+  const message = HISTORY_MESSAGES.INVALID_ITERATION;
 
   return [
     {
@@ -342,8 +340,8 @@ function emitLogCIFailure({ context }: ActionContext): ActionResult {
       issueNumber: context.issue.number,
       matchIteration: context.issue.iteration,
       matchPhase: String(context.currentPhase ?? "-"),
-      matchPattern: "⏳",
-      newMessage: "❌ CI Failed",
+      matchPattern: HISTORY_ICONS.ITERATING,
+      newMessage: HISTORY_MESSAGES.CI_FAILED,
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
@@ -358,7 +356,7 @@ function emitLogCIFailure({ context }: ActionContext): ActionResult {
 export function emitLogIterationStarted({
   context,
 }: ActionContext): ActionResult {
-  return emitAppendHistory({ context }, "⏳ Iterating...");
+  return emitAppendHistory({ context }, HISTORY_MESSAGES.ITERATING);
 }
 
 /**
@@ -372,8 +370,8 @@ export function emitLogCISuccess({ context }: ActionContext): ActionResult {
       issueNumber: context.issue.number,
       matchIteration: context.issue.iteration,
       matchPhase: String(context.currentPhase ?? "-"),
-      matchPattern: "⏳",
-      newMessage: "✅ CI Passed",
+      matchPattern: HISTORY_ICONS.ITERATING,
+      newMessage: HISTORY_MESSAGES.CI_PASSED,
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
@@ -387,7 +385,7 @@ export function emitLogCISuccess({ context }: ActionContext): ActionResult {
 export function emitLogReviewRequested({
   context,
 }: ActionContext): ActionResult {
-  return emitAppendHistory({ context }, "👀 Review requested");
+  return emitAppendHistory({ context }, HISTORY_MESSAGES.REVIEW_REQUESTED);
 }
 
 // ============================================================================
@@ -1029,7 +1027,7 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
     issueNumber: context.issue.number,
     iteration: context.issue.iteration,
     phase: "1",
-    message: `🚀 Initialized with ${context.issue.subIssues.length} phase(s)`,
+    message: HISTORY_MESSAGES.initialized(context.issue.subIssues.length),
     timestamp: context.workflowStartedAt ?? undefined,
   });
 
@@ -1083,7 +1081,7 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
       issueNumber: context.issue.number,
       iteration: context.issue.iteration,
       phase: String(nextPhase),
-      message: `⏭️ Phase ${nextPhase} started`,
+      message: HISTORY_MESSAGES.phaseStarted(nextPhase),
       timestamp: context.workflowStartedAt ?? undefined,
     });
   }
@@ -1202,7 +1200,7 @@ export function emitAllPhasesDone({ context }: ActionContext): ActionResult {
     issueNumber: context.issue.number,
     iteration: context.issue.iteration,
     phase: "-",
-    message: "✅ All phases complete",
+    message: HISTORY_MESSAGES.ALL_PHASES_COMPLETE,
     timestamp: context.workflowStartedAt ?? undefined,
   });
 
@@ -1308,7 +1306,7 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
   actions.push(
     ...emitAppendHistory(
       { context },
-      `🚫 Blocked: Max failures reached (${context.issue.failures})`,
+      HISTORY_MESSAGES.blocked(context.issue.failures),
     ),
   );
 
@@ -1338,7 +1336,7 @@ export function emitMergeQueueEntry({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration,
       phase,
-      message: "🚀 Entered queue",
+      message: HISTORY_MESSAGES.ENTERED_QUEUE,
       timestamp: context.workflowStartedAt ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
     },
@@ -1362,7 +1360,7 @@ export function emitMergeQueueFailure({
       issueNumber,
       iteration,
       phase,
-      message: "❌ Removed from queue",
+      message: HISTORY_MESSAGES.REMOVED_FROM_QUEUE,
       timestamp: context.workflowStartedAt ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
     },
@@ -1384,7 +1382,7 @@ export function emitMerged({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration,
       phase,
-      message: "🚢 Merged",
+      message: HISTORY_MESSAGES.MERGED,
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
@@ -1407,7 +1405,7 @@ export function emitDeployedStage({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration,
       phase,
-      message: "✅ Deployed to stage",
+      message: HISTORY_MESSAGES.DEPLOYED_STAGE,
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
@@ -1430,7 +1428,7 @@ export function emitDeployedProd({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration,
       phase,
-      message: "✅ Released to production",
+      message: HISTORY_MESSAGES.RELEASED_PROD,
       timestamp: context.workflowStartedAt ?? undefined,
       commitSha: context.ciCommitSha ?? undefined,
       runLink: context.ciRunUrl ?? undefined,
@@ -1455,7 +1453,7 @@ export function emitDeployedStageFailure({
       issueNumber,
       iteration,
       phase,
-      message: "❌ Stage deploy failed",
+      message: HISTORY_MESSAGES.STAGE_DEPLOY_FAILED,
       runLink: context.ciRunUrl ?? undefined,
     },
   ];
@@ -1478,7 +1476,7 @@ export function emitDeployedProdFailure({
       issueNumber,
       iteration,
       phase,
-      message: "❌ Prod deploy failed",
+      message: HISTORY_MESSAGES.PROD_DEPLOY_FAILED,
       runLink: context.ciRunUrl ?? undefined,
     },
   ];
@@ -1524,7 +1522,7 @@ export function emitPushToDraft({ context }: ActionContext): ActionResult {
     issueNumber,
     iteration: 0, // Push-to-draft doesn't have iteration context
     phase,
-    message: "📝 Code pushed - converting to draft",
+    message: HISTORY_MESSAGES.CODE_PUSHED,
     commitSha: context.ciCommitSha ?? undefined,
     runLink: context.ciRunUrl ?? undefined,
   });
@@ -1578,7 +1576,7 @@ export function emitRunClaudeGrooming({
       issueNumber,
       iteration: 0, // Grooming is pre-iteration
       phase: "groom",
-      message: "⏳ grooming...",
+      message: HISTORY_MESSAGES.GROOMING,
       timestamp: context.workflowStartedAt ?? undefined,
       runLink: context.workflowRunUrl ?? context.ciRunUrl ?? undefined,
     },
@@ -1732,7 +1730,7 @@ export function emitRunClaudePivot({ context }: ActionContext): ActionResult {
       issueNumber,
       iteration: context.issue.iteration,
       phase: "pivot",
-      message: "⏳ Analyzing pivot request...",
+      message: HISTORY_MESSAGES.ANALYZING_PIVOT,
       timestamp: context.workflowStartedAt ?? undefined,
       runLink: context.workflowRunUrl ?? context.ciRunUrl ?? undefined,
     },

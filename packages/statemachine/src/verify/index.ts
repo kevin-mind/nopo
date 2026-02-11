@@ -1,0 +1,31 @@
+/**
+ * Verification module.
+ *
+ * Provides prediction → execution → verification loop for the state machine.
+ */
+
+// Predictable state schemas and extraction
+export {
+  PredictablePRStateSchema,
+  PredictableSubIssueStateSchema,
+  PredictableIssueStateSchema,
+  PredictableStateTreeSchema,
+  ExpectedStateSchema,
+  extractPredictableTree,
+  buildExpectedState,
+  type PredictablePRState,
+  type PredictableSubIssueState,
+  type PredictableIssueState,
+  type PredictableStateTree,
+  type ExpectedState,
+} from "./predictable-state.js";
+
+// Mutators
+export { getMutator, hasMutator, type StateMutator } from "./mutators/index.js";
+
+// Comparison engine
+export {
+  compareStateTree,
+  type VerifyResult,
+  type FieldDiff,
+} from "./compare.js";

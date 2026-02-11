@@ -30,97 +30,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../node_modules/.pnpm/extend@3.0.2/node_modules/extend/index.js
-var require_extend = __commonJS({
-  "../../node_modules/.pnpm/extend@3.0.2/node_modules/extend/index.js"(exports2, module2) {
-    "use strict";
-    var hasOwn = Object.prototype.hasOwnProperty;
-    var toStr = Object.prototype.toString;
-    var defineProperty = Object.defineProperty;
-    var gOPD = Object.getOwnPropertyDescriptor;
-    var isArray2 = function isArray3(arr) {
-      if (typeof Array.isArray === "function") {
-        return Array.isArray(arr);
-      }
-      return toStr.call(arr) === "[object Array]";
-    };
-    var isPlainObject3 = function isPlainObject4(obj) {
-      if (!obj || toStr.call(obj) !== "[object Object]") {
-        return false;
-      }
-      var hasOwnConstructor = hasOwn.call(obj, "constructor");
-      var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, "isPrototypeOf");
-      if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
-        return false;
-      }
-      var key;
-      for (key in obj) {
-      }
-      return typeof key === "undefined" || hasOwn.call(obj, key);
-    };
-    var setProperty = function setProperty2(target, options) {
-      if (defineProperty && options.name === "__proto__") {
-        defineProperty(target, options.name, {
-          enumerable: true,
-          configurable: true,
-          value: options.newValue,
-          writable: true
-        });
-      } else {
-        target[options.name] = options.newValue;
-      }
-    };
-    var getProperty = function getProperty2(obj, name) {
-      if (name === "__proto__") {
-        if (!hasOwn.call(obj, name)) {
-          return void 0;
-        } else if (gOPD) {
-          return gOPD(obj, name).value;
-        }
-      }
-      return obj[name];
-    };
-    module2.exports = function extend3() {
-      var options, name, src, copy, copyIsArray, clone2;
-      var target = arguments[0];
-      var i = 1;
-      var length = arguments.length;
-      var deep = false;
-      if (typeof target === "boolean") {
-        deep = target;
-        target = arguments[1] || {};
-        i = 2;
-      }
-      if (target == null || typeof target !== "object" && typeof target !== "function") {
-        target = {};
-      }
-      for (; i < length; ++i) {
-        options = arguments[i];
-        if (options != null) {
-          for (name in options) {
-            src = getProperty(target, name);
-            copy = getProperty(options, name);
-            if (target !== copy) {
-              if (deep && copy && (isPlainObject3(copy) || (copyIsArray = isArray2(copy)))) {
-                if (copyIsArray) {
-                  copyIsArray = false;
-                  clone2 = src && isArray2(src) ? src : [];
-                } else {
-                  clone2 = src && isPlainObject3(src) ? src : {};
-                }
-                setProperty(target, { name, newValue: extend3(deep, clone2, copy) });
-              } else if (typeof copy !== "undefined") {
-                setProperty(target, { name, newValue: copy });
-              }
-            }
-          }
-        }
-      }
-      return target;
-    };
-  }
-});
-
 // ../../node_modules/.pnpm/@actions+core@1.11.1/node_modules/@actions/core/lib/utils.js
 var require_utils = __commonJS({
   "../../node_modules/.pnpm/@actions+core@1.11.1/node_modules/@actions/core/lib/utils.js"(exports2) {
@@ -4357,18 +4266,18 @@ var require_webidl = __commonJS({
     webidl.errors.exception = function(message) {
       return new TypeError(`${message.header}: ${message.message}`);
     };
-    webidl.errors.conversionFailed = function(context2) {
-      const plural = context2.types.length === 1 ? "" : " one of";
-      const message = `${context2.argument} could not be converted to${plural}: ${context2.types.join(", ")}.`;
+    webidl.errors.conversionFailed = function(context3) {
+      const plural = context3.types.length === 1 ? "" : " one of";
+      const message = `${context3.argument} could not be converted to${plural}: ${context3.types.join(", ")}.`;
       return webidl.errors.exception({
-        header: context2.prefix,
+        header: context3.prefix,
         message
       });
     };
-    webidl.errors.invalidArgument = function(context2) {
+    webidl.errors.invalidArgument = function(context3) {
       return webidl.errors.exception({
-        header: context2.prefix,
-        message: `"${context2.value}" is an invalid ${context2.type}.`
+        header: context3.prefix,
+        message: `"${context3.value}" is an invalid ${context3.type}.`
       });
     };
     webidl.brandCheck = function(V, I, opts = void 0) {
@@ -9694,15 +9603,15 @@ var require_api_request = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context2) {
+      onConnect(abort, context3) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context2;
+        this.context = context3;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { callback, opaque, abort, context: context2, responseHeaders, highWaterMark } = this;
+        const { callback, opaque, abort, context: context3, responseHeaders, highWaterMark } = this;
         const headers = responseHeaders === "raw" ? util3.parseRawHeaders(rawHeaders) : util3.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9729,7 +9638,7 @@ var require_api_request = __commonJS({
               trailers: this.trailers,
               opaque,
               body,
-              context: context2
+              context: context3
             });
           }
         }
@@ -9849,15 +9758,15 @@ var require_api_stream = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context2) {
+      onConnect(abort, context3) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context2;
+        this.context = context3;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { factory, opaque, context: context2, callback, responseHeaders } = this;
+        const { factory, opaque, context: context3, callback, responseHeaders } = this;
         const headers = responseHeaders === "raw" ? util3.parseRawHeaders(rawHeaders) : util3.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9885,7 +9794,7 @@ var require_api_stream = __commonJS({
             statusCode,
             headers,
             opaque,
-            context: context2
+            context: context3
           });
           if (!res || typeof res.write !== "function" || typeof res.end !== "function" || typeof res.on !== "function") {
             throw new InvalidReturnValueError("expected Writable");
@@ -10077,17 +9986,17 @@ var require_api_pipeline = __commonJS({
         this.res = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context2) {
+      onConnect(abort, context3) {
         const { ret, res } = this;
         assert2(!res, "pipeline cannot be retried");
         if (ret.destroyed) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context2;
+        this.context = context3;
       }
       onHeaders(statusCode, rawHeaders, resume) {
-        const { opaque, handler, context: context2 } = this;
+        const { opaque, handler, context: context3 } = this;
         if (statusCode < 200) {
           if (this.onInfo) {
             const headers = this.responseHeaders === "raw" ? util3.parseRawHeaders(rawHeaders) : util3.parseHeaders(rawHeaders);
@@ -10105,7 +10014,7 @@ var require_api_pipeline = __commonJS({
             headers,
             opaque,
             body: this.res,
-            context: context2
+            context: context3
           });
         } catch (err) {
           this.res.on("error", util3.nop);
@@ -10189,7 +10098,7 @@ var require_api_upgrade = __commonJS({
         this.context = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context2) {
+      onConnect(abort, context3) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
@@ -10200,7 +10109,7 @@ var require_api_upgrade = __commonJS({
         throw new SocketError("bad upgrade", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context: context2 } = this;
+        const { callback, opaque, context: context3 } = this;
         assert2.strictEqual(statusCode, 101);
         removeSignal(this);
         this.callback = null;
@@ -10209,7 +10118,7 @@ var require_api_upgrade = __commonJS({
           headers,
           socket,
           opaque,
-          context: context2
+          context: context3
         });
       }
       onError(err) {
@@ -10277,18 +10186,18 @@ var require_api_connect = __commonJS({
         this.abort = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context2) {
+      onConnect(abort, context3) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context2;
+        this.context = context3;
       }
       onHeaders() {
         throw new SocketError("bad connect", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context: context2 } = this;
+        const { callback, opaque, context: context3 } = this;
         removeSignal(this);
         this.callback = null;
         let headers = rawHeaders;
@@ -10300,7 +10209,7 @@ var require_api_connect = __commonJS({
           headers,
           socket,
           opaque,
-          context: context2
+          context: context3
         });
       }
       onError(err) {
@@ -17677,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info26 = this._prepareRequest(verb, parsedUrl, headers);
+          let info27 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info26, data);
+            response = yield this.requestRaw(info27, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17692,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info26, data);
+                return authenticationHandler.handleAuthentication(this, info27, data);
               } else {
                 return response;
               }
@@ -17715,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info26 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info26, data);
+              info27 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info27, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17745,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info26, data) {
+      requestRaw(info27, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17757,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info26, data, callbackForResult);
+            this.requestRawWithCallback(info27, data, callbackForResult);
           });
         });
       }
@@ -17767,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info26, data, onResult) {
+      requestRawWithCallback(info27, data, onResult) {
         if (typeof data === "string") {
-          if (!info26.options.headers) {
-            info26.options.headers = {};
+          if (!info27.options.headers) {
+            info27.options.headers = {};
           }
-          info26.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info27.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17781,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info26.httpModule.request(info26.options, (msg) => {
+        const req = info27.httpModule.request(info27.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17793,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info26.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info27.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17829,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info26 = {};
-        info26.parsedUrl = requestUrl;
-        const usingSsl = info26.parsedUrl.protocol === "https:";
-        info26.httpModule = usingSsl ? https : http;
+        const info27 = {};
+        info27.parsedUrl = requestUrl;
+        const usingSsl = info27.parsedUrl.protocol === "https:";
+        info27.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info26.options = {};
-        info26.options.host = info26.parsedUrl.hostname;
-        info26.options.port = info26.parsedUrl.port ? parseInt(info26.parsedUrl.port) : defaultPort;
-        info26.options.path = (info26.parsedUrl.pathname || "") + (info26.parsedUrl.search || "");
-        info26.options.method = method;
-        info26.options.headers = this._mergeHeaders(headers);
+        info27.options = {};
+        info27.options.host = info27.parsedUrl.hostname;
+        info27.options.port = info27.parsedUrl.port ? parseInt(info27.parsedUrl.port) : defaultPort;
+        info27.options.path = (info27.parsedUrl.pathname || "") + (info27.parsedUrl.search || "");
+        info27.options.method = method;
+        info27.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info26.options.headers["user-agent"] = this.userAgent;
+          info27.options.headers["user-agent"] = this.userAgent;
         }
-        info26.options.agent = this._getAgent(info26.parsedUrl);
+        info27.options.agent = this._getAgent(info27.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info26.options);
+            handler.prepareRequest(info27.options);
           }
         }
-        return info26;
+        return info27;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19831,34 +19740,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error7;
-    function warning19(message, properties = {}) {
+    function warning21(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning19;
+    exports2.warning = warning21;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info26(message) {
+    function info27(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info26;
-    function startGroup12(name) {
+    exports2.info = info27;
+    function startGroup13(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup12;
-    function endGroup12() {
+    exports2.startGroup = startGroup13;
+    function endGroup13() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup12;
+    exports2.endGroup = endGroup13;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup12(name);
+        startGroup13(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup12();
+          endGroup13();
         }
         return result;
       });
@@ -19964,7 +19873,7 @@ var require_context = __commonJS({
 });
 
 // ../../node_modules/.pnpm/@actions+github@6.0.1/node_modules/@actions/github/lib/internal/utils.js
-var require_utils4 = __commonJS({
+var require_utils3 = __commonJS({
   "../../node_modules/.pnpm/@actions+github@6.0.1/node_modules/@actions/github/lib/internal/utils.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
@@ -20383,8 +20292,8 @@ var require_dist_node2 = __commonJS({
     function isKeyOperator(operator) {
       return operator === ";" || operator === "&" || operator === "?";
     }
-    function getValues(context2, operator, key, modifier) {
-      var value = context2[key], result = [];
+    function getValues(context3, operator, key, modifier) {
+      var value = context3[key], result = [];
       if (isDefined(value) && value !== "") {
         if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
           value = value.toString();
@@ -20448,7 +20357,7 @@ var require_dist_node2 = __commonJS({
         expand: expand.bind(null, template)
       };
     }
-    function expand(template, context2) {
+    function expand(template, context3) {
       var operators = ["+", "#", ".", "/", ";", "?", "&"];
       template = template.replace(
         /\{([^\{\}]+)\}|([^\{\}]+)/g,
@@ -20462,7 +20371,7 @@ var require_dist_node2 = __commonJS({
             }
             expression.split(/,/g).forEach(function(variable) {
               var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-              values.push(getValues(context2, operator, tmp[1], tmp[2] || tmp[3]));
+              values.push(getValues(context3, operator, tmp[1], tmp[2] || tmp[3]));
             });
             if (operator && operator !== "+") {
               var separator = ",";
@@ -23870,7 +23779,7 @@ var require_dist_node10 = __commonJS({
 });
 
 // ../../node_modules/.pnpm/@actions+github@6.0.1/node_modules/@actions/github/lib/utils.js
-var require_utils5 = __commonJS({
+var require_utils4 = __commonJS({
   "../../node_modules/.pnpm/@actions+github@6.0.1/node_modules/@actions/github/lib/utils.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
@@ -23903,7 +23812,7 @@ var require_utils5 = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getOctokitOptions = exports2.GitHub = exports2.defaults = exports2.context = void 0;
     var Context = __importStar(require_context());
-    var Utils = __importStar(require_utils4());
+    var Utils = __importStar(require_utils3());
     var core_1 = require_dist_node8();
     var plugin_rest_endpoint_methods_1 = require_dist_node9();
     var plugin_paginate_rest_1 = require_dist_node10();
@@ -23963,15 +23872,110 @@ var require_github = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getOctokit = exports2.context = void 0;
     var Context = __importStar(require_context());
-    var utils_1 = require_utils5();
+    var utils_1 = require_utils4();
     exports2.context = new Context.Context();
-    function getOctokit2(token, options, ...additionalPlugins) {
+    function getOctokit3(token, options, ...additionalPlugins) {
       const GitHubWithPlugins = utils_1.GitHub.plugin(...additionalPlugins);
       return new GitHubWithPlugins((0, utils_1.getOctokitOptions)(token, options));
     }
-    exports2.getOctokit = getOctokit2;
+    exports2.getOctokit = getOctokit3;
   }
 });
+
+// ../../node_modules/.pnpm/extend@3.0.2/node_modules/extend/index.js
+var require_extend = __commonJS({
+  "../../node_modules/.pnpm/extend@3.0.2/node_modules/extend/index.js"(exports2, module2) {
+    "use strict";
+    var hasOwn = Object.prototype.hasOwnProperty;
+    var toStr = Object.prototype.toString;
+    var defineProperty = Object.defineProperty;
+    var gOPD = Object.getOwnPropertyDescriptor;
+    var isArray2 = function isArray3(arr) {
+      if (typeof Array.isArray === "function") {
+        return Array.isArray(arr);
+      }
+      return toStr.call(arr) === "[object Array]";
+    };
+    var isPlainObject3 = function isPlainObject4(obj) {
+      if (!obj || toStr.call(obj) !== "[object Object]") {
+        return false;
+      }
+      var hasOwnConstructor = hasOwn.call(obj, "constructor");
+      var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, "isPrototypeOf");
+      if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
+        return false;
+      }
+      var key;
+      for (key in obj) {
+      }
+      return typeof key === "undefined" || hasOwn.call(obj, key);
+    };
+    var setProperty = function setProperty2(target, options) {
+      if (defineProperty && options.name === "__proto__") {
+        defineProperty(target, options.name, {
+          enumerable: true,
+          configurable: true,
+          value: options.newValue,
+          writable: true
+        });
+      } else {
+        target[options.name] = options.newValue;
+      }
+    };
+    var getProperty = function getProperty2(obj, name) {
+      if (name === "__proto__") {
+        if (!hasOwn.call(obj, name)) {
+          return void 0;
+        } else if (gOPD) {
+          return gOPD(obj, name).value;
+        }
+      }
+      return obj[name];
+    };
+    module2.exports = function extend3() {
+      var options, name, src, copy, copyIsArray, clone2;
+      var target = arguments[0];
+      var i = 1;
+      var length = arguments.length;
+      var deep = false;
+      if (typeof target === "boolean") {
+        deep = target;
+        target = arguments[1] || {};
+        i = 2;
+      }
+      if (target == null || typeof target !== "object" && typeof target !== "function") {
+        target = {};
+      }
+      for (; i < length; ++i) {
+        options = arguments[i];
+        if (options != null) {
+          for (name in options) {
+            src = getProperty(target, name);
+            copy = getProperty(options, name);
+            if (target !== copy) {
+              if (deep && copy && (isPlainObject3(copy) || (copyIsArray = isArray2(copy)))) {
+                if (copyIsArray) {
+                  copyIsArray = false;
+                  clone2 = src && isArray2(src) ? src : [];
+                } else {
+                  clone2 = src && isPlainObject3(src) ? src : {};
+                }
+                setProperty(target, { name, newValue: extend3(deep, clone2, copy) });
+              } else if (typeof copy !== "undefined") {
+                setProperty(target, { name, newValue: copy });
+              }
+            }
+          }
+        }
+      }
+      return target;
+    };
+  }
+});
+
+// actions/sm-plan/index.ts
+var core28 = __toESM(require_core(), 1);
+var github2 = __toESM(require_github(), 1);
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
@@ -32137,13 +32141,13 @@ function classifyCharacter(code3) {
 }
 
 // ../../node_modules/.pnpm/micromark-util-resolve-all@2.0.1/node_modules/micromark-util-resolve-all/index.js
-function resolveAll(constructs2, events, context2) {
+function resolveAll(constructs2, events, context3) {
   const called = [];
   let index2 = -1;
   while (++index2 < constructs2.length) {
     const resolve = constructs2[index2].resolveAll;
     if (resolve && !called.includes(resolve)) {
-      events = resolve(events, context2);
+      events = resolve(events, context3);
       called.push(resolve);
     }
   }
@@ -32156,7 +32160,7 @@ var attention = {
   resolveAll: resolveAllAttention,
   tokenize: tokenizeAttention
 };
-function resolveAllAttention(events, context2) {
+function resolveAllAttention(events, context3) {
   let index2 = -1;
   let open2;
   let group;
@@ -32171,7 +32175,7 @@ function resolveAllAttention(events, context2) {
       open2 = index2;
       while (open2--) {
         if (events[open2][0] === "exit" && events[open2][1].type === "attentionSequence" && events[open2][1]._open && // If the markers are the same:
-        context2.sliceSerialize(events[open2][1]).charCodeAt(0) === context2.sliceSerialize(events[index2][1]).charCodeAt(0)) {
+        context3.sliceSerialize(events[open2][1]).charCodeAt(0) === context3.sliceSerialize(events[index2][1]).charCodeAt(0)) {
           if ((events[open2][1]._close || events[index2][1]._open) && (events[index2][1].end.offset - events[index2][1].start.offset) % 3 && !((events[open2][1].end.offset - events[open2][1].start.offset + events[index2][1].end.offset - events[index2][1].start.offset) % 3)) {
             continue;
           }
@@ -32224,14 +32228,14 @@ function resolveAllAttention(events, context2) {
           };
           nextEvents = [];
           if (events[open2][1].end.offset - events[open2][1].start.offset) {
-            nextEvents = push(nextEvents, [["enter", events[open2][1], context2], ["exit", events[open2][1], context2]]);
+            nextEvents = push(nextEvents, [["enter", events[open2][1], context3], ["exit", events[open2][1], context3]]);
           }
-          nextEvents = push(nextEvents, [["enter", group, context2], ["enter", openingSequence, context2], ["exit", openingSequence, context2], ["enter", text5, context2]]);
-          nextEvents = push(nextEvents, resolveAll(context2.parser.constructs.insideSpan.null, events.slice(open2 + 1, index2), context2));
-          nextEvents = push(nextEvents, [["exit", text5, context2], ["enter", closingSequence, context2], ["exit", closingSequence, context2], ["exit", group, context2]]);
+          nextEvents = push(nextEvents, [["enter", group, context3], ["enter", openingSequence, context3], ["exit", openingSequence, context3], ["enter", text5, context3]]);
+          nextEvents = push(nextEvents, resolveAll(context3.parser.constructs.insideSpan.null, events.slice(open2 + 1, index2), context3));
+          nextEvents = push(nextEvents, [["exit", text5, context3], ["enter", closingSequence, context3], ["exit", closingSequence, context3], ["exit", group, context3]]);
           if (events[index2][1].end.offset - events[index2][1].start.offset) {
             offset = 2;
-            nextEvents = push(nextEvents, [["enter", events[index2][1], context2], ["exit", events[index2][1], context2]]);
+            nextEvents = push(nextEvents, [["enter", events[index2][1], context3], ["exit", events[index2][1], context3]]);
           } else {
             offset = 0;
           }
@@ -32599,9 +32603,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info26(code3);
+    return info27(code3);
   }
-  function info26(code3) {
+  function info27(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32616,7 +32620,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info26;
+    return info27;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -32966,14 +32970,14 @@ var SpliceBuffer = class {
    *   Array of items.
    */
   slice(start, end) {
-    const stop = end === null || end === void 0 ? Number.POSITIVE_INFINITY : end;
-    if (stop < this.left.length) {
-      return this.left.slice(start, stop);
+    const stop2 = end === null || end === void 0 ? Number.POSITIVE_INFINITY : end;
+    if (stop2 < this.left.length) {
+      return this.left.slice(start, stop2);
     }
     if (start > this.left.length) {
-      return this.right.slice(this.right.length - stop + this.left.length, this.right.length - start + this.left.length).reverse();
+      return this.right.slice(this.right.length - stop2 + this.left.length, this.right.length - start + this.left.length).reverse();
     }
-    return this.left.slice(start).concat(this.right.slice(this.right.length - stop + this.left.length).reverse());
+    return this.left.slice(start).concat(this.right.slice(this.right.length - stop2 + this.left.length).reverse());
   }
   /**
    * Mimics the behavior of Array.prototype.splice() except for the change of
@@ -33175,12 +33179,12 @@ function subtokenize(eventsArray) {
 }
 function subcontent(events, eventIndex) {
   const token = events.get(eventIndex)[1];
-  const context2 = events.get(eventIndex)[2];
+  const context3 = events.get(eventIndex)[2];
   let startPosition = eventIndex - 1;
   const startPositions = [];
   let tokenizer = token._tokenizer;
   if (!tokenizer) {
-    tokenizer = context2.parser[token.contentType](token.start);
+    tokenizer = context3.parser[token.contentType](token.start);
     if (token._contentTypeTextTrailing) {
       tokenizer._contentTypeTextTrailing = true;
     }
@@ -33200,7 +33204,7 @@ function subcontent(events, eventIndex) {
     }
     startPositions.push(startPosition);
     if (!current._tokenizer) {
-      stream = context2.sliceStream(current);
+      stream = context3.sliceStream(current);
       if (!current.next) {
         stream.push(null);
       }
@@ -33672,7 +33676,7 @@ var headingAtx = {
   resolve: resolveHeadingAtx,
   tokenize: tokenizeHeadingAtx
 };
-function resolveHeadingAtx(events, context2) {
+function resolveHeadingAtx(events, context3) {
   let contentEnd = events.length - 2;
   let contentStart = 3;
   let content3;
@@ -33698,7 +33702,7 @@ function resolveHeadingAtx(events, context2) {
       end: events[contentEnd][1].end,
       contentType: "text"
     };
-    splice(events, contentStart, contentEnd - contentStart + 1, [["enter", content3, context2], ["enter", text5, context2], ["exit", text5, context2], ["exit", content3, context2]]);
+    splice(events, contentStart, contentEnd - contentStart + 1, [["enter", content3, context3], ["enter", text5, context3], ["exit", text5, context3], ["exit", content3, context3]]);
   }
   return events;
 }
@@ -34542,7 +34546,7 @@ function resolveAllLabelEnd(events) {
   }
   return events;
 }
-function resolveToLabelEnd(events, context2) {
+function resolveToLabelEnd(events, context3) {
   let index2 = events.length;
   let offset = 0;
   let token;
@@ -34597,13 +34601,13 @@ function resolveToLabelEnd(events, context2) {
       ...events[close - 2][1].start
     }
   };
-  media = [["enter", group, context2], ["enter", label, context2]];
+  media = [["enter", group, context3], ["enter", label, context3]];
   media = push(media, events.slice(open2 + 1, open2 + offset + 3));
-  media = push(media, [["enter", text5, context2]]);
-  media = push(media, resolveAll(context2.parser.constructs.insideSpan.null, events.slice(open2 + offset + 4, close - 3), context2));
-  media = push(media, [["exit", text5, context2], events[close - 2], events[close - 1], ["exit", label, context2]]);
+  media = push(media, [["enter", text5, context3]]);
+  media = push(media, resolveAll(context3.parser.constructs.insideSpan.null, events.slice(open2 + offset + 4, close - 3), context3));
+  media = push(media, [["exit", text5, context3], events[close - 2], events[close - 1], ["exit", label, context3]]);
   media = push(media, events.slice(close + 1));
-  media = push(media, [["exit", group, context2]]);
+  media = push(media, [["exit", group, context3]]);
   splice(events, open2, events.length, media);
   return events;
 }
@@ -34978,7 +34982,7 @@ var setextUnderline = {
   resolveTo: resolveToSetextUnderline,
   tokenize: tokenizeSetextUnderline
 };
-function resolveToSetextUnderline(events, context2) {
+function resolveToSetextUnderline(events, context3) {
   let index2 = events.length;
   let content3;
   let text5;
@@ -35012,15 +35016,15 @@ function resolveToSetextUnderline(events, context2) {
   };
   events[text5][1].type = "setextHeadingText";
   if (definition3) {
-    events.splice(text5, 0, ["enter", heading2, context2]);
-    events.splice(definition3 + 1, 0, ["exit", events[content3][1], context2]);
+    events.splice(text5, 0, ["enter", heading2, context3]);
+    events.splice(definition3 + 1, 0, ["exit", events[content3][1], context3]);
     events[content3][1].end = {
       ...events[definition3][1].end
     };
   } else {
     events[content3][1] = heading2;
   }
-  events.push(["exit", heading2, context2]);
+  events.push(["exit", heading2, context3]);
   return events;
 }
 function tokenizeSetextUnderline(effects, ok3, nok) {
@@ -35158,7 +35162,7 @@ function initializeFactory(field) {
 }
 function createResolver(extraResolver) {
   return resolveAllText;
-  function resolveAllText(events, context2) {
+  function resolveAllText(events, context3) {
     let index2 = -1;
     let enter;
     while (++index2 <= events.length) {
@@ -35176,15 +35180,15 @@ function createResolver(extraResolver) {
         enter = void 0;
       }
     }
-    return extraResolver ? extraResolver(events, context2) : events;
+    return extraResolver ? extraResolver(events, context3) : events;
   }
 }
-function resolveAllLineSuffixes(events, context2) {
+function resolveAllLineSuffixes(events, context3) {
   let eventIndex = 0;
   while (++eventIndex <= events.length) {
     if ((eventIndex === events.length || events[eventIndex][1].type === "lineEnding") && events[eventIndex - 1][1].type === "data") {
       const data = events[eventIndex - 1][1];
-      const chunks = context2.sliceStream(data);
+      const chunks = context3.sliceStream(data);
       let index2 = chunks.length;
       let bufferIndex = -1;
       let size = 0;
@@ -35208,7 +35212,7 @@ function resolveAllLineSuffixes(events, context2) {
           break;
         }
       }
-      if (context2._contentTypeTextTrailing && eventIndex === events.length) {
+      if (context3._contentTypeTextTrailing && eventIndex === events.length) {
         size = 0;
       }
       if (size) {
@@ -35231,7 +35235,7 @@ function resolveAllLineSuffixes(events, context2) {
         if (data.start.offset === data.end.offset) {
           Object.assign(data, token);
         } else {
-          events.splice(eventIndex, 0, ["enter", token, context2], ["exit", token, context2]);
+          events.splice(eventIndex, 0, ["enter", token, context3], ["exit", token, context3]);
           eventIndex += 2;
         }
       }
@@ -35340,7 +35344,7 @@ function createTokenizer(parser2, initialize, from) {
       interrupt: true
     })
   };
-  const context2 = {
+  const context3 = {
     code: null,
     containerState: {},
     defineSkip,
@@ -35352,12 +35356,12 @@ function createTokenizer(parser2, initialize, from) {
     sliceStream,
     write
   };
-  let state = initialize.tokenize.call(context2, effects);
+  let state = initialize.tokenize.call(context3, effects);
   let expectedCode;
   if (initialize.resolveAll) {
     resolveAllConstructs.push(initialize);
   }
-  return context2;
+  return context3;
   function write(slice) {
     chunks = push(chunks, slice);
     main();
@@ -35365,8 +35369,8 @@ function createTokenizer(parser2, initialize, from) {
       return [];
     }
     addResult(initialize, 0);
-    context2.events = resolveAll(resolveAllConstructs, context2.events, context2);
-    return context2.events;
+    context3.events = resolveAll(resolveAllConstructs, context3.events, context3);
+    return context3.events;
   }
   function sliceSerialize(token, expandTabs) {
     return serializeChunks(sliceStream(token), expandTabs);
@@ -35438,28 +35442,28 @@ function createTokenizer(parser2, initialize, from) {
         point3._index++;
       }
     }
-    context2.previous = code3;
+    context3.previous = code3;
     consumed = true;
   }
   function enter(type, fields) {
     const token = fields || {};
     token.type = type;
     token.start = now();
-    context2.events.push(["enter", token, context2]);
+    context3.events.push(["enter", token, context3]);
     stack.push(token);
     return token;
   }
   function exit3(type) {
     const token = stack.pop();
     token.end = now();
-    context2.events.push(["exit", token, context2]);
+    context3.events.push(["exit", token, context3]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info26) {
-    addResult(construct, info26.from);
+  function onsuccessfulconstruct(construct, info27) {
+    addResult(construct, info27.from);
   }
-  function onsuccessfulcheck(_, info26) {
-    info26.restore();
+  function onsuccessfulcheck(_, info27) {
+    info27.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35467,7 +35471,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info26;
+      let info27;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35503,19 +35507,19 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info26 = store();
+          info27 = store();
           currentConstruct = construct;
           if (!construct.partial) {
-            context2.currentConstruct = construct;
+            context3.currentConstruct = construct;
           }
-          if (construct.name && context2.parser.constructs.disable.null.includes(construct.name)) {
+          if (construct.name && context3.parser.constructs.disable.null.includes(construct.name)) {
             return nok(code3);
           }
           return construct.tokenize.call(
             // If we do have fields, create an object w/ `context` as its
             // prototype.
             // This allows a “live binding”, which is needed for `interrupt`.
-            fields ? Object.assign(Object.create(context2), fields) : context2,
+            fields ? Object.assign(Object.create(context3), fields) : context3,
             effects,
             ok3,
             nok
@@ -35524,12 +35528,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info26);
+        onreturn(currentConstruct, info27);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info26.restore();
+        info27.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -35542,17 +35546,17 @@ function createTokenizer(parser2, initialize, from) {
       resolveAllConstructs.push(construct);
     }
     if (construct.resolve) {
-      splice(context2.events, from2, context2.events.length - from2, construct.resolve(context2.events.slice(from2), context2));
+      splice(context3.events, from2, context3.events.length - from2, construct.resolve(context3.events.slice(from2), context3));
     }
     if (construct.resolveTo) {
-      context2.events = construct.resolveTo(context2.events, context2);
+      context3.events = construct.resolveTo(context3.events, context3);
     }
   }
   function store() {
     const startPoint = now();
-    const startPrevious = context2.previous;
-    const startCurrentConstruct = context2.currentConstruct;
-    const startEventsIndex = context2.events.length;
+    const startPrevious = context3.previous;
+    const startCurrentConstruct = context3.currentConstruct;
+    const startEventsIndex = context3.events.length;
     const startStack = Array.from(stack);
     return {
       from: startEventsIndex,
@@ -35560,9 +35564,9 @@ function createTokenizer(parser2, initialize, from) {
     };
     function restore() {
       point3 = startPoint;
-      context2.previous = startPrevious;
-      context2.currentConstruct = startCurrentConstruct;
-      context2.events.length = startEventsIndex;
+      context3.previous = startPrevious;
+      context3.currentConstruct = startCurrentConstruct;
+      context3.events.length = startEventsIndex;
       stack = startStack;
       accountForPotentialSkip();
     }
@@ -35885,7 +35889,7 @@ function compiler(options) {
       type: "root",
       children: []
     };
-    const context2 = {
+    const context3 = {
       stack: [tree],
       tokenStack: [],
       config: config2,
@@ -35913,13 +35917,13 @@ function compiler(options) {
       if (own3.call(handler, events[index2][1].type)) {
         handler[events[index2][1].type].call(Object.assign({
           sliceSerialize: events[index2][2].sliceSerialize
-        }, context2), events[index2][1]);
+        }, context3), events[index2][1]);
       }
     }
-    if (context2.tokenStack.length > 0) {
-      const tail = context2.tokenStack[context2.tokenStack.length - 1];
+    if (context3.tokenStack.length > 0) {
+      const tail = context3.tokenStack[context3.tokenStack.length - 1];
       const handler = tail[1] || defaultOnError;
-      handler.call(context2, void 0, tail[0]);
+      handler.call(context3, void 0, tail[0]);
     }
     tree.position = {
       start: point2(events.length > 0 ? events[0][1].start : {
@@ -36028,11 +36032,11 @@ function compiler(options) {
     events[start][1]._spread = listSpread;
     return length;
   }
-  function opener(create, and) {
+  function opener(create, and2) {
     return open2;
     function open2(token) {
       enter.call(this, create(token), token);
-      if (and) and.call(this, token);
+      if (and2) and2.call(this, token);
     }
   }
   function buffer() {
@@ -36053,10 +36057,10 @@ function compiler(options) {
       end: void 0
     };
   }
-  function closer(and) {
+  function closer(and2) {
     return close;
     function close(token) {
-      if (and) and.call(this, token);
+      if (and2) and2.call(this, token);
       exit3.call(this, token);
     }
   }
@@ -36171,14 +36175,14 @@ function compiler(options) {
     tail.position.end = point2(token.end);
   }
   function onexitlineending(token) {
-    const context2 = this.stack[this.stack.length - 1];
+    const context3 = this.stack[this.stack.length - 1];
     if (this.data.atHardBreak) {
-      const tail = context2.children[context2.children.length - 1];
+      const tail = context3.children[context3.children.length - 1];
       tail.position.end = point2(token.end);
       this.data.atHardBreak = void 0;
       return;
     }
-    if (!this.data.setextHeadingSlurpLineEnding && config2.canContainEols.includes(context2.type)) {
+    if (!this.data.setextHeadingSlurpLineEnding && config2.canContainEols.includes(context3.type)) {
       onenterdata.call(this, token);
       onexitdata.call(this, token);
     }
@@ -36998,8 +37002,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info26) {
-  const tracker = state.createTracker(info26);
+function footnoteReference(node2, _, state, info27) {
+  const tracker = state.createTracker(info27);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37037,8 +37041,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info26) {
-    const tracker = state.createTracker(info26);
+  function footnoteDefinition(node2, _, state, info27) {
+    const tracker = state.createTracker(info27);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37102,8 +37106,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info26) {
-  const tracker = state.createTracker(info26);
+function handleDelete(node2, _, state, info27) {
+  const tracker = state.createTracker(info27);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37330,9 +37334,9 @@ function map(left, right) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info26) {
+function blockquote(node2, _, state, info27) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37367,11 +37371,11 @@ function listInScope(stack, list4, none) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info26) {
+function hardBreak(_, _1, state, info27) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info26.before) ? "" : " ";
+      return /[ \t]/.test(info27.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37423,7 +37427,7 @@ function checkFence(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info26) {
+function code(node2, _, state, info27) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37433,7 +37437,7 @@ function code(node2, _, state, info26) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37486,12 +37490,12 @@ function checkQuote(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info26) {
+function definition2(node2, _, state, info27) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37601,10 +37605,10 @@ function encodeInfo(outside, inside, marker) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info26) {
+function emphasis(node2, _, state, info27) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37615,7 +37619,7 @@ function emphasis(node2, _, state, info26) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info26.before.charCodeAt(info26.before.length - 1),
+    info27.before.charCodeAt(info27.before.length - 1),
     betweenHead,
     marker
   );
@@ -37623,7 +37627,7 @@ function emphasis(node2, _, state, info26) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info27.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37676,9 +37680,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info26) {
+function heading(node2, _, state, info27) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37728,12 +37732,12 @@ function htmlPeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info26) {
+function image(node2, _, state, info27) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37785,11 +37789,11 @@ function imagePeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info26) {
+function imageReference(node2, _, state, info27) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37870,10 +37874,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info26) {
+function link(node2, _, state, info27) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37950,11 +37954,11 @@ function linkPeek(node2, _, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info26) {
+function linkReference(node2, _, state, info27) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38041,7 +38045,7 @@ function checkRule(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info26) {
+function list3(node2, parent, state, info27) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38073,7 +38077,7 @@ function list3(node2, parent, state, info26) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info26);
+  const value = state.containerFlow(node2, info27);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38092,7 +38096,7 @@ function checkListItemIndent(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info26) {
+function listItem(node2, parent, state, info27) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38102,7 +38106,7 @@ function listItem(node2, parent, state, info26) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38121,10 +38125,10 @@ function listItem(node2, parent, state, info26) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info26) {
+function paragraph(node2, _, state, info27) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info26);
+  const value = state.containerPhrasing(node2, info27);
   subexit();
   exit3();
   return value;
@@ -38159,12 +38163,12 @@ var phrasing = (
 );
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info26) {
+function root(node2, _, state, info27) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info26);
+  return container.call(state, node2, info27);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38180,10 +38184,10 @@ function checkStrong(state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info26) {
+function strong(node2, _, state, info27) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38194,7 +38198,7 @@ function strong(node2, _, state, info26) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info26.before.charCodeAt(info26.before.length - 1),
+    info27.before.charCodeAt(info27.before.length - 1),
     betweenHead,
     marker
   );
@@ -38202,7 +38206,7 @@ function strong(node2, _, state, info26) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info27.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38219,8 +38223,8 @@ function strongPeek(_, _1, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info26) {
-  return state.safe(node2.value, info26);
+function text3(node2, _, state, info27) {
+  return state.safe(node2.value, info27);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38435,15 +38439,15 @@ function compilePattern(pattern) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info26) {
+function containerPhrasing(parent, state, info27) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info26.before;
+  let before = info27.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info26);
+  let tracker = state.createTracker(info27);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38457,7 +38461,7 @@ function containerPhrasing(parent, state, info26) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info26.after;
+      after = info27.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38465,7 +38469,7 @@ function containerPhrasing(parent, state, info26) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info26);
+      tracker = state.createTracker(info27);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38494,10 +38498,10 @@ function containerPhrasing(parent, state, info26) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info26) {
+function containerFlow(parent, state, info27) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38733,11 +38737,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info26) {
-  return containerPhrasing(parent, this, info26);
+function containerPhrasingBound(parent, info27) {
+  return containerPhrasing(parent, this, info27);
 }
-function containerFlowBound(parent, info26) {
-  return containerFlow(parent, this, info26);
+function containerFlowBound(parent, info27) {
+  return containerFlow(parent, this, info27);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38834,19 +38838,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info26) {
-    return serializeData(handleTableAsData(node2, state, info26), node2.align);
+  function handleTable(node2, _, state, info27) {
+    return serializeData(handleTableAsData(node2, state, info27), node2.align);
   }
-  function handleTableRow(node2, _, state, info26) {
-    const row = handleTableRowAsData(node2, state, info26);
+  function handleTableRow(node2, _, state, info27) {
+    const row = handleTableRowAsData(node2, state, info27);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info26) {
+  function handleTableCell(node2, _, state, info27) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info26,
+      ...info27,
       before: around,
       after: around
     });
@@ -38865,24 +38869,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info26) {
+  function handleTableAsData(node2, state, info27) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info26);
+      result[index2] = handleTableRowAsData(children[index2], state, info27);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info26) {
+  function handleTableRowAsData(node2, state, info27) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info26);
+      result[index2] = handleTableCell(children[index2], node2, state, info27);
     }
     subexit();
     return result;
@@ -38948,16 +38952,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info26) {
+function listItemWithTaskListItem(node2, parent, state, info27) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info27);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info26,
+    ...info27,
     ...tracker.current()
   });
   if (checkable) {
@@ -39397,7 +39401,7 @@ function tokenizePotentialGfmFootnoteCall(effects, ok3, nok) {
     return ok3(code3);
   }
 }
-function resolveToPotentialGfmFootnoteCall(events, context2) {
+function resolveToPotentialGfmFootnoteCall(events, context3) {
   let index2 = events.length;
   let labelStart;
   while (index2--) {
@@ -39436,22 +39440,22 @@ function resolveToPotentialGfmFootnoteCall(events, context2) {
     // Take the `labelImageMarker` (now `data`, the `!`)
     events[index2 + 1],
     events[index2 + 2],
-    ["enter", call, context2],
+    ["enter", call, context3],
     // The `[`
     events[index2 + 3],
     events[index2 + 4],
     // The `^`.
-    ["enter", marker, context2],
-    ["exit", marker, context2],
+    ["enter", marker, context3],
+    ["exit", marker, context3],
     // Everything in between.
-    ["enter", string4, context2],
-    ["enter", chunk, context2],
-    ["exit", chunk, context2],
-    ["exit", string4, context2],
+    ["enter", string4, context3],
+    ["enter", chunk, context3],
+    ["exit", chunk, context3],
+    ["exit", string4, context3],
     // The ending (`]`, properly parsed and labelled).
     events[events.length - 2],
     events[events.length - 1],
-    ["exit", call, context2]
+    ["exit", call, context3]
   ];
   events.splice(index2, events.length - index2 + 1, ...replacement);
   return events;
@@ -39631,7 +39635,7 @@ function gfmStrikethrough(options) {
       null: [126]
     }
   };
-  function resolveAllStrikethrough(events, context2) {
+  function resolveAllStrikethrough(events, context3) {
     let index2 = -1;
     while (++index2 < events.length) {
       if (events[index2][0] === "enter" && events[index2][1].type === "strikethroughSequenceTemporary" && events[index2][1]._close) {
@@ -39651,12 +39655,12 @@ function gfmStrikethrough(options) {
               start: Object.assign({}, events[open2][1].end),
               end: Object.assign({}, events[index2][1].start)
             };
-            const nextEvents = [["enter", strikethrough, context2], ["enter", events[open2][1], context2], ["exit", events[open2][1], context2], ["enter", text5, context2]];
-            const insideSpan2 = context2.parser.constructs.insideSpan.null;
+            const nextEvents = [["enter", strikethrough, context3], ["enter", events[open2][1], context3], ["exit", events[open2][1], context3], ["enter", text5, context3]];
+            const insideSpan2 = context3.parser.constructs.insideSpan.null;
             if (insideSpan2) {
-              splice(nextEvents, nextEvents.length, 0, resolveAll(insideSpan2, events.slice(open2 + 1, index2), context2));
+              splice(nextEvents, nextEvents.length, 0, resolveAll(insideSpan2, events.slice(open2 + 1, index2), context3));
             }
-            splice(nextEvents, nextEvents.length, 0, [["exit", text5, context2], ["enter", events[index2][1], context2], ["exit", events[index2][1], context2], ["exit", strikethrough, context2]]);
+            splice(nextEvents, nextEvents.length, 0, [["exit", text5, context3], ["enter", events[index2][1], context3], ["exit", events[index2][1], context3], ["exit", strikethrough, context3]]);
             splice(events, open2 - 1, index2 - open2 + 3, nextEvents);
             index2 = open2 + nextEvents.length - 2;
             break;
@@ -40035,7 +40039,7 @@ function tokenizeTable(effects, ok3, nok) {
     return bodyRowData(code3);
   }
 }
-function resolveTable(events, context2) {
+function resolveTable(events, context3) {
   let index2 = -1;
   let inFirstCellAwaitingPipe = true;
   let rowKind = 0;
@@ -40054,7 +40058,7 @@ function resolveTable(events, context2) {
       if (token.type === "tableHead") {
         afterHeadAwaitingFirstBodyRow = false;
         if (lastTableEnd !== 0) {
-          flushTableEnd(map4, context2, lastTableEnd, currentTable, currentBody);
+          flushTableEnd(map4, context3, lastTableEnd, currentTable, currentBody);
           currentBody = void 0;
           lastTableEnd = 0;
         }
@@ -40064,7 +40068,7 @@ function resolveTable(events, context2) {
           // Note: correct end is set later.
           end: Object.assign({}, token.end)
         };
-        map4.add(index2, 0, [["enter", currentTable, context2]]);
+        map4.add(index2, 0, [["enter", currentTable, context3]]);
       } else if (token.type === "tableRow" || token.type === "tableDelimiterRow") {
         inFirstCellAwaitingPipe = true;
         currentCell = void 0;
@@ -40078,7 +40082,7 @@ function resolveTable(events, context2) {
             // Note: correct end is set later.
             end: Object.assign({}, token.end)
           };
-          map4.add(index2, 0, [["enter", currentBody, context2]]);
+          map4.add(index2, 0, [["enter", currentBody, context3]]);
         }
         rowKind = token.type === "tableDelimiterRow" ? 2 : currentBody ? 3 : 1;
       } else if (rowKind && (token.type === "data" || token.type === "tableDelimiterMarker" || token.type === "tableDelimiterFiller")) {
@@ -40086,7 +40090,7 @@ function resolveTable(events, context2) {
         if (cell[2] === 0) {
           if (lastCell[1] !== 0) {
             cell[0] = cell[1];
-            currentCell = flushCell(map4, context2, lastCell, rowKind, void 0, currentCell);
+            currentCell = flushCell(map4, context3, lastCell, rowKind, void 0, currentCell);
             lastCell = [0, 0, 0, 0];
           }
           cell[2] = index2;
@@ -40097,7 +40101,7 @@ function resolveTable(events, context2) {
         } else {
           if (lastCell[1] !== 0) {
             cell[0] = cell[1];
-            currentCell = flushCell(map4, context2, lastCell, rowKind, void 0, currentCell);
+            currentCell = flushCell(map4, context3, lastCell, rowKind, void 0, currentCell);
           }
           lastCell = cell;
           cell = [lastCell[1], index2, 0, 0];
@@ -40110,9 +40114,9 @@ function resolveTable(events, context2) {
       lastTableEnd = index2;
       if (lastCell[1] !== 0) {
         cell[0] = cell[1];
-        currentCell = flushCell(map4, context2, lastCell, rowKind, index2, currentCell);
+        currentCell = flushCell(map4, context3, lastCell, rowKind, index2, currentCell);
       } else if (cell[1] !== 0) {
-        currentCell = flushCell(map4, context2, cell, rowKind, index2, currentCell);
+        currentCell = flushCell(map4, context3, cell, rowKind, index2, currentCell);
       }
       rowKind = 0;
     } else if (rowKind && (token.type === "data" || token.type === "tableDelimiterMarker" || token.type === "tableDelimiterFiller")) {
@@ -40120,45 +40124,45 @@ function resolveTable(events, context2) {
     }
   }
   if (lastTableEnd !== 0) {
-    flushTableEnd(map4, context2, lastTableEnd, currentTable, currentBody);
+    flushTableEnd(map4, context3, lastTableEnd, currentTable, currentBody);
   }
-  map4.consume(context2.events);
+  map4.consume(context3.events);
   index2 = -1;
-  while (++index2 < context2.events.length) {
-    const event = context2.events[index2];
+  while (++index2 < context3.events.length) {
+    const event = context3.events[index2];
     if (event[0] === "enter" && event[1].type === "table") {
-      event[1]._align = gfmTableAlign(context2.events, index2);
+      event[1]._align = gfmTableAlign(context3.events, index2);
     }
   }
   return events;
 }
-function flushCell(map4, context2, range, rowKind, rowEnd, previousCell) {
+function flushCell(map4, context3, range, rowKind, rowEnd, previousCell) {
   const groupName = rowKind === 1 ? "tableHeader" : rowKind === 2 ? "tableDelimiter" : "tableData";
   const valueName = "tableContent";
   if (range[0] !== 0) {
-    previousCell.end = Object.assign({}, getPoint(context2.events, range[0]));
-    map4.add(range[0], 0, [["exit", previousCell, context2]]);
+    previousCell.end = Object.assign({}, getPoint(context3.events, range[0]));
+    map4.add(range[0], 0, [["exit", previousCell, context3]]);
   }
-  const now = getPoint(context2.events, range[1]);
+  const now = getPoint(context3.events, range[1]);
   previousCell = {
     type: groupName,
     start: Object.assign({}, now),
     // Note: correct end is set later.
     end: Object.assign({}, now)
   };
-  map4.add(range[1], 0, [["enter", previousCell, context2]]);
+  map4.add(range[1], 0, [["enter", previousCell, context3]]);
   if (range[2] !== 0) {
-    const relatedStart = getPoint(context2.events, range[2]);
-    const relatedEnd = getPoint(context2.events, range[3]);
+    const relatedStart = getPoint(context3.events, range[2]);
+    const relatedEnd = getPoint(context3.events, range[3]);
     const valueToken = {
       type: valueName,
       start: Object.assign({}, relatedStart),
       end: Object.assign({}, relatedEnd)
     };
-    map4.add(range[2], 0, [["enter", valueToken, context2]]);
+    map4.add(range[2], 0, [["enter", valueToken, context3]]);
     if (rowKind !== 2) {
-      const start = context2.events[range[2]];
-      const end = context2.events[range[3]];
+      const start = context3.events[range[2]];
+      const end = context3.events[range[3]];
       start[1].end = Object.assign({}, end[1].end);
       start[1].type = "chunkText";
       start[1].contentType = "text";
@@ -40168,24 +40172,24 @@ function flushCell(map4, context2, range, rowKind, rowEnd, previousCell) {
         map4.add(a, b, []);
       }
     }
-    map4.add(range[3] + 1, 0, [["exit", valueToken, context2]]);
+    map4.add(range[3] + 1, 0, [["exit", valueToken, context3]]);
   }
   if (rowEnd !== void 0) {
-    previousCell.end = Object.assign({}, getPoint(context2.events, rowEnd));
-    map4.add(rowEnd, 0, [["exit", previousCell, context2]]);
+    previousCell.end = Object.assign({}, getPoint(context3.events, rowEnd));
+    map4.add(rowEnd, 0, [["exit", previousCell, context3]]);
     previousCell = void 0;
   }
   return previousCell;
 }
-function flushTableEnd(map4, context2, index2, table, tableBody) {
+function flushTableEnd(map4, context3, index2, table, tableBody) {
   const exits = [];
-  const related = getPoint(context2.events, index2);
+  const related = getPoint(context3.events, index2);
   if (tableBody) {
     tableBody.end = Object.assign({}, related);
-    exits.push(["exit", tableBody, context2]);
+    exits.push(["exit", tableBody, context3]);
   }
   table.end = Object.assign({}, related);
-  exits.push(["exit", table, context2]);
+  exits.push(["exit", table, context3]);
   map4.add(index2 + 1, 0, exits);
 }
 function getPoint(events, index2) {
@@ -40461,6 +40465,15 @@ query GetPRForBranch($owner: String!, $repo: String!, $headRef: String!) {
           }
         }
       }
+    }
+  }
+}
+`;
+var CHECK_BRANCH_EXISTS_QUERY = `
+query CheckBranchExists($owner: String!, $repo: String!, $branchName: String!) {
+  repository(owner: $owner, name: $repo) {
+    ref(qualifiedName: $branchName) {
+      name
     }
   }
 }
@@ -41169,6 +41182,24 @@ var AgentNotesEntrySchema = external_exports.object({
   notes: external_exports.array(external_exports.string())
 });
 
+// ../issue-state/src/sections/agent-notes.ts
+function formatEntry(entry) {
+  const header = `### [Run ${entry.runId}](${entry.runLink}) - ${entry.timestamp}`;
+  const bullets = entry.notes.slice(0, 10).map((note) => {
+    const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
+    return `- ${truncated}`;
+  }).join("\n");
+  return `${header}
+${bullets}`;
+}
+function formatAgentNotesForPrompt(entries) {
+  if (!entries || entries.length === 0) {
+    return "No previous agent notes found for this issue.";
+  }
+  const recentEntries = entries.slice(0, 3);
+  return recentEntries.map(formatEntry).join("\n\n");
+}
+
 // ../issue-state/src/resolve-issue.ts
 async function issueNumberFromPR(octokit, owner, repo, prNumber) {
   const response = await octokit.graphql(
@@ -41200,6 +41231,104 @@ function createMutator(inputSchema, mutate) {
     return mutate(validated, data);
   };
 }
+
+// src/constants.ts
+var HISTORY_ICONS = {
+  ITERATING: "\u23F3",
+  CI_PASSED: "\u2705",
+  CI_FAILED: "\u274C",
+  BLOCKED: "\u{1F6AB}",
+  REVIEW_REQUESTED: "\u{1F440}",
+  MERGED: "\u{1F6A2}",
+  INITIALIZED: "\u{1F680}",
+  PHASE_ADVANCED: "\u23ED\uFE0F",
+  CODE_PUSHED: "\u{1F4DD}",
+  WARNING: "\u26A0\uFE0F"
+};
+var HISTORY_MESSAGES = {
+  // Iteration
+  ITERATING: `${HISTORY_ICONS.ITERATING} Iterating...`,
+  CI_PASSED: `${HISTORY_ICONS.CI_PASSED} CI Passed`,
+  CI_FAILED: `${HISTORY_ICONS.CI_FAILED} CI Failed`,
+  REVIEW_REQUESTED: `${HISTORY_ICONS.REVIEW_REQUESTED} Review requested`,
+  // Orchestration
+  ALL_PHASES_COMPLETE: `${HISTORY_ICONS.CI_PASSED} All phases complete`,
+  MERGED: `${HISTORY_ICONS.MERGED} Merged`,
+  // Merge queue
+  ENTERED_QUEUE: `${HISTORY_ICONS.INITIALIZED} Entered queue`,
+  REMOVED_FROM_QUEUE: `${HISTORY_ICONS.CI_FAILED} Removed from queue`,
+  // Deployment
+  DEPLOYED_STAGE: `${HISTORY_ICONS.CI_PASSED} Deployed to stage`,
+  RELEASED_PROD: `${HISTORY_ICONS.CI_PASSED} Released to production`,
+  STAGE_DEPLOY_FAILED: `${HISTORY_ICONS.CI_FAILED} Stage deploy failed`,
+  PROD_DEPLOY_FAILED: `${HISTORY_ICONS.CI_FAILED} Prod deploy failed`,
+  // Push to draft
+  CODE_PUSHED: `${HISTORY_ICONS.CODE_PUSHED} Code pushed - converting to draft`,
+  // Grooming
+  GROOMING: `${HISTORY_ICONS.ITERATING} grooming...`,
+  ANALYZING_PIVOT: `${HISTORY_ICONS.ITERATING} Analyzing pivot request...`,
+  // Invalid iteration
+  INVALID_ITERATION: `${HISTORY_ICONS.CI_FAILED} FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.`,
+  // Verification (for future sm-verify)
+  VERIFICATION_FAILED: `${HISTORY_ICONS.CI_FAILED} Verification failed`,
+  // Dynamic builders
+  initialized: (phaseCount) => `${HISTORY_ICONS.INITIALIZED} Initialized with ${phaseCount} phase(s)`,
+  phaseStarted: (phase) => `${HISTORY_ICONS.PHASE_ADVANCED} Phase ${phase} started`,
+  blocked: (failures) => `${HISTORY_ICONS.BLOCKED} Blocked: Max failures reached (${failures})`
+};
+var TODO_ALIASES = ["Todo", "Todos"];
+var SECTION_NAMES = {
+  DESCRIPTION: "Description",
+  REQUIREMENTS: "Requirements",
+  APPROACH: "Approach",
+  ACCEPTANCE_CRITERIA: "Acceptance Criteria",
+  TESTING: "Testing",
+  RELATED: "Related",
+  QUESTIONS: "Questions",
+  TODOS: "Todos",
+  AGENT_NOTES: "Agent Notes",
+  ITERATION_HISTORY: "Iteration History",
+  AFFECTED_AREAS: "Affected Areas",
+  TODO_ALIASES
+};
+var STANDARD_SECTION_ORDER2 = [
+  SECTION_NAMES.DESCRIPTION,
+  SECTION_NAMES.REQUIREMENTS,
+  SECTION_NAMES.APPROACH,
+  SECTION_NAMES.ACCEPTANCE_CRITERIA,
+  SECTION_NAMES.TESTING,
+  SECTION_NAMES.RELATED,
+  SECTION_NAMES.QUESTIONS,
+  SECTION_NAMES.TODOS,
+  SECTION_NAMES.AGENT_NOTES,
+  SECTION_NAMES.ITERATION_HISTORY
+];
+var QuestionStatsSchemaForBody = external_exports.object({
+  total: external_exports.number(),
+  answered: external_exports.number(),
+  unanswered: external_exports.number()
+});
+var SubIssueBodyStructureSchema = external_exports.object({
+  // Section existence flags
+  hasDescription: external_exports.boolean(),
+  hasTodos: external_exports.boolean(),
+  hasHistory: external_exports.boolean(),
+  hasAgentNotes: external_exports.boolean(),
+  hasQuestions: external_exports.boolean(),
+  hasAffectedAreas: external_exports.boolean(),
+  // Extracted data
+  todoStats: TodoStatsSchema.nullable(),
+  questionStats: QuestionStatsSchemaForBody.nullable(),
+  historyEntries: external_exports.array(HistoryEntrySchema),
+  agentNotesEntries: external_exports.array(AgentNotesEntrySchema)
+});
+var ParentIssueBodyStructureSchema = SubIssueBodyStructureSchema.extend({
+  hasRequirements: external_exports.boolean(),
+  hasApproach: external_exports.boolean(),
+  hasAcceptanceCriteria: external_exports.boolean(),
+  hasTesting: external_exports.boolean(),
+  hasRelated: external_exports.boolean()
+});
 
 // src/schemas/entities.ts
 var CIResultSchema = external_exports.enum([
@@ -41322,6 +41451,36 @@ var MachineContextSchema = external_exports.object({
   maxRetries: external_exports.number().int().positive().default(5),
   botUsername: external_exports.string().default("nopo-bot")
 });
+var DEFAULT_CONTEXT_VALUES = {
+  parentIssue: null,
+  currentPhase: null,
+  totalPhases: 0,
+  currentSubIssue: null,
+  ciResult: null,
+  ciRunUrl: null,
+  ciCommitSha: null,
+  workflowStartedAt: null,
+  workflowRunUrl: null,
+  reviewDecision: null,
+  reviewerId: null,
+  branch: null,
+  hasBranch: false,
+  pr: null,
+  hasPR: false,
+  commentContextType: null,
+  commentContextDescription: null,
+  pivotDescription: null,
+  releaseEvent: null,
+  discussion: null,
+  maxRetries: 5,
+  botUsername: "nopo-bot"
+};
+function createMachineContext(partial2) {
+  return MachineContextSchema.parse({
+    ...DEFAULT_CONTEXT_VALUES,
+    ...partial2
+  });
+}
 
 // src/schemas/actions.ts
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
@@ -41836,6 +41995,11 @@ var ISSUE_ACTION_SET = new Set(ISSUE_ACTION_TYPES);
 var DISCUSSION_ACTION_SET = new Set(DISCUSSION_ACTION_TYPES);
 var SHARED_ACTION_SET = new Set(SHARED_ACTION_TYPES);
 
+// src/schemas/events.ts
+function eventToTrigger(event) {
+  return event.type;
+}
+
 // src/schemas/issue-triggers.ts
 var IssueTriggerTypeSchema = external_exports.enum([
   // Issue triggers
@@ -42148,6 +42312,9 @@ var MinimalTriggerContextSchema = external_exports.object({
   /** Merge queue head SHA */
   head_sha: external_exports.string().optional()
 });
+function isDiscussionTrigger(trigger) {
+  return DiscussionTriggerTypeSchema.safeParse(trigger).success;
+}
 
 // src/parser/issue-adapter.ts
 function deriveBranchName2(parentIssueNumber3, phaseNumber) {
@@ -42205,7 +42372,7 @@ function getLinkUrl(node2) {
 }
 var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   const ast = data.issue.bodyAst;
-  const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+  const todosIdx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
@@ -42233,7 +42400,7 @@ var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   return { total, completed, uncheckedNonManual };
 });
 function extractTodosFromAst(bodyAst) {
-  const todosIdx = findHeadingIndexAny(bodyAst, ["Todo", "Todos"]);
+  const todosIdx = findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES);
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
@@ -42278,7 +42445,7 @@ var historyExtractor = createExtractor(
   external_exports.array(HistoryEntrySchema),
   (data) => {
     const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex(ast, "Iteration History");
+    const historyIdx = findHeadingIndex(ast, SECTION_NAMES.ITERATION_HISTORY);
     if (historyIdx === -1) return [];
     const tableNode = ast.children.slice(historyIdx + 1).find((n) => n.type === "table");
     if (!tableNode) return [];
@@ -42312,7 +42479,7 @@ var questionsExtractor = createExtractor(
   }
 );
 function extractQuestionsFromAst(bodyAst) {
-  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
   if (questionsIdx === -1) {
     return { total: 0, answered: 0, unanswered: 0 };
   }
@@ -42332,11 +42499,23 @@ function extractQuestionsFromAst(bodyAst) {
   }
   return { total, answered, unanswered: total - answered };
 }
+function parsePhaseNumber(title) {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+function compareByPhaseTitle2(a, b) {
+  const phaseA = parsePhaseNumber(a.title || "");
+  const phaseB = parsePhaseNumber(b.title || "");
+  if (phaseA !== null && phaseB !== null) return phaseA - phaseB;
+  if (phaseA !== null) return -1;
+  if (phaseB !== null) return 1;
+  return (a.number || 0) - (b.number || 0);
+}
 var agentNotesExtractor = createExtractor(
   external_exports.array(AgentNotesEntrySchema),
   (data) => {
     const ast = data.issue.bodyAst;
-    const notesIdx = findHeadingIndex(ast, "Agent Notes");
+    const notesIdx = findHeadingIndex(ast, SECTION_NAMES.AGENT_NOTES);
     if (notesIdx === -1) return [];
     const entries = [];
     for (let i = notesIdx + 1; i < ast.children.length; i++) {
@@ -42367,6 +42546,436 @@ var agentNotesExtractor = createExtractor(
     return entries;
   }
 );
+function extractHistoryFromAst(bodyAst) {
+  const historyIdx = findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY);
+  if (historyIdx === -1) return [];
+  const tableNode = bodyAst.children.slice(historyIdx + 1).find((n) => n.type === "table");
+  if (!tableNode) return [];
+  return tableNode.children.slice(1).map((row) => {
+    const timestamp = getCellText(row, 0) || null;
+    const iterationStr = getCellText(row, 1) || "0";
+    const phase = getCellText(row, 2) || "";
+    const action = getCellText(row, 3) || "";
+    const sha = getCellText(row, 4) || null;
+    const runLink = getCellLinkUrl(row, 5);
+    return {
+      timestamp: timestamp === "-" ? null : timestamp,
+      iteration: parseInt(iterationStr, 10) || 0,
+      phase,
+      action,
+      sha: sha === "-" ? null : sha,
+      runLink
+    };
+  });
+}
+function extractAgentNotesFromAst(bodyAst) {
+  const notesIdx = findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES);
+  if (notesIdx === -1) return [];
+  const entries = [];
+  for (let i = notesIdx + 1; i < bodyAst.children.length; i++) {
+    const node2 = bodyAst.children[i];
+    if (!node2) continue;
+    if (node2.type === "heading" && node2.depth === 2) break;
+    if (node2.type === "heading" && node2.depth === 3) {
+      const linkNode = node2.children[0];
+      if (!linkNode || linkNode.type !== "link") continue;
+      const linkText = getNodeText(linkNode);
+      const runMatch = linkText.match(/Run\s+(\d+)/);
+      if (!runMatch || !runMatch[1]) continue;
+      const runId = runMatch[1];
+      const runLink = linkNode.url;
+      const headingText = getNodeText(node2);
+      const timestampMatch = headingText.match(/-\s*(.+)$/);
+      const timestamp = timestampMatch?.[1]?.trim() || "";
+      const listNode = bodyAst.children[i + 1];
+      const notes = listNode && isList(listNode) ? listNode.children.map((item) => getNodeText(item)) : [];
+      entries.push({ runId, runLink, timestamp, notes });
+    }
+  }
+  return entries;
+}
+function extractSubIssueBodyStructure(bodyAst) {
+  const todoStats = extractTodosFromAst(bodyAst);
+  const questionStats = extractQuestionsFromAst(bodyAst);
+  const historyEntries = extractHistoryFromAst(bodyAst);
+  const agentNotesEntries = extractAgentNotesFromAst(bodyAst);
+  return SubIssueBodyStructureSchema.parse({
+    hasDescription: findHeadingIndex(bodyAst, SECTION_NAMES.DESCRIPTION) !== -1,
+    hasTodos: findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES) !== -1,
+    hasHistory: findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY) !== -1,
+    hasAgentNotes: findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES) !== -1,
+    hasQuestions: findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS) !== -1,
+    hasAffectedAreas: findHeadingIndex(bodyAst, SECTION_NAMES.AFFECTED_AREAS) !== -1,
+    todoStats: todoStats.total > 0 ? todoStats : null,
+    questionStats: questionStats.total > 0 ? questionStats : null,
+    historyEntries,
+    agentNotesEntries
+  });
+}
+function extractParentIssueBodyStructure(bodyAst) {
+  const base = extractSubIssueBodyStructure(bodyAst);
+  return ParentIssueBodyStructureSchema.parse({
+    ...base,
+    hasRequirements: findHeadingIndex(bodyAst, SECTION_NAMES.REQUIREMENTS) !== -1,
+    hasApproach: findHeadingIndex(bodyAst, SECTION_NAMES.APPROACH) !== -1,
+    hasAcceptanceCriteria: findHeadingIndex(bodyAst, SECTION_NAMES.ACCEPTANCE_CRITERIA) !== -1,
+    hasTesting: findHeadingIndex(bodyAst, SECTION_NAMES.TESTING) !== -1,
+    hasRelated: findHeadingIndex(bodyAst, SECTION_NAMES.RELATED) !== -1
+  });
+}
+var subIssueBodyStructureExtractor = createExtractor(
+  SubIssueBodyStructureSchema,
+  (data) => extractSubIssueBodyStructure(data.issue.bodyAst)
+);
+var parentIssueBodyStructureExtractor = createExtractor(
+  ParentIssueBodyStructureSchema,
+  (data) => extractParentIssueBodyStructure(data.issue.bodyAst)
+);
+
+// src/parser/state-parser.ts
+function parseProjectState2(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
+      if (parsed.success) {
+        status = parsed.data;
+      }
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+function parseSubIssueStatus2(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem?.fieldValues?.nodes) {
+    return null;
+  }
+  for (const fieldValue of projectItem.fieldValues.nodes) {
+    if (fieldValue.field?.name === "Status" && fieldValue.name) {
+      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
+      if (parsed.success) {
+        return parsed.data;
+      }
+    }
+  }
+  return null;
+}
+function deriveBranchName3(parentIssueNumber3, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber3}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber3}`;
+}
+function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber3) {
+  const status = parseSubIssueStatus2(
+    node2.projectItems?.nodes || [],
+    projectNumber
+  );
+  const body = node2.body || "";
+  const bodyAst = parseMarkdown(body);
+  return {
+    number: node2.number || 0,
+    title: node2.title || "",
+    state: IssueStateSchema.catch("OPEN").parse(node2.state?.toUpperCase()),
+    bodyAst,
+    projectStatus: status,
+    labels: node2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+    branch: deriveBranchName3(parentIssueNumber3, phaseNumber),
+    pr: null
+    // Will be populated separately
+  };
+}
+async function checkBranchExists(octokit, owner, repo, branchName) {
+  try {
+    const response = await octokit.graphql(
+      CHECK_BRANCH_EXISTS_QUERY,
+      {
+        owner,
+        repo,
+        branchName: `refs/heads/${branchName}`
+      }
+    );
+    return response.repository?.ref !== null;
+  } catch {
+    return false;
+  }
+}
+async function getPRForBranch2(octokit, owner, repo, headRef) {
+  try {
+    const response = await octokit.graphql(
+      GET_PR_FOR_BRANCH_QUERY,
+      {
+        owner,
+        repo,
+        headRef
+      }
+    );
+    const pr = response.repository?.pullRequests?.nodes?.[0];
+    if (!pr || !pr.number) {
+      return null;
+    }
+    const rawCiStatus = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
+    let ciStatus = null;
+    if (rawCiStatus) {
+      const parsed = CIStatusSchema.safeParse(rawCiStatus);
+      if (parsed.success) {
+        ciStatus = parsed.data;
+      }
+    }
+    return {
+      number: pr.number,
+      state: PRStateSchema.catch("OPEN").parse(pr.state?.toUpperCase()),
+      isDraft: pr.isDraft || false,
+      title: pr.title || "",
+      headRef: pr.headRefName || headRef,
+      baseRef: pr.baseRefName || "main",
+      ciStatus,
+      labels: [],
+      reviews: []
+    };
+  } catch {
+    return null;
+  }
+}
+function parseIssueComments2(commentNodes, botUsername) {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername
+    };
+  });
+}
+async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber, botUsername = "nopo-bot") {
+  const response = await octokit.graphql(
+    GET_ISSUE_WITH_PROJECT_QUERY,
+    {
+      owner,
+      repo,
+      issueNumber
+    }
+  );
+  const issue2 = response.repository?.issue;
+  if (!issue2) {
+    return null;
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  const { status, iteration, failures } = parseProjectState2(
+    projectItems,
+    projectNumber
+  );
+  const subIssueNodes = issue2.subIssues?.nodes || [];
+  const subIssues = [];
+  const sortedSubIssues = [...subIssueNodes].sort(compareByPhaseTitle2);
+  for (let i = 0; i < sortedSubIssues.length; i++) {
+    const node2 = sortedSubIssues[i];
+    if (!node2) continue;
+    subIssues.push(parseSubIssue(node2, projectNumber, i + 1, issueNumber));
+  }
+  const body = issue2.body || "";
+  const bodyAst = parseMarkdown(body);
+  const comments = parseIssueComments2(issue2.comments?.nodes || [], botUsername);
+  const parentIssueNumber3 = issue2.parent?.number ?? null;
+  return {
+    issue: {
+      number: issue2.number || issueNumber,
+      title: issue2.title || "",
+      state: IssueStateSchema.catch("OPEN").parse(issue2.state?.toUpperCase()),
+      bodyAst,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees: issue2.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels: issue2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      comments,
+      branch: null,
+      // Will be populated separately
+      pr: null,
+      // Will be populated separately
+      parentIssueNumber: parentIssueNumber3
+    },
+    parentIssueNumber: parentIssueNumber3
+  };
+}
+function findCurrentPhase(subIssues) {
+  for (let i = 0; i < subIssues.length; i++) {
+    const subIssue = subIssues[i];
+    if (!subIssue) continue;
+    if (subIssue.projectStatus !== "Done" && subIssue.state === "OPEN") {
+      return { phase: i + 1, subIssue };
+    }
+  }
+  return null;
+}
+async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber3, subIssues) {
+  const enriched = [];
+  for (let i = 0; i < subIssues.length; i++) {
+    const subIssue = subIssues[i];
+    if (!subIssue) continue;
+    const branchName = deriveBranchName3(parentIssueNumber3, i + 1);
+    const pr = await getPRForBranch2(octokit, owner, repo, branchName);
+    enriched.push({
+      ...subIssue,
+      branch: branchName,
+      pr
+    });
+  }
+  return enriched;
+}
+async function buildMachineContext(octokit, event, projectNumber, options = {}) {
+  const { owner, repo } = event;
+  const trigger = options.triggerOverride ?? eventToTrigger(event);
+  let issueNumber;
+  if ("issueNumber" in event) {
+    issueNumber = event.issueNumber;
+  } else if ("prNumber" in event && event.issueNumber) {
+    issueNumber = event.issueNumber;
+  }
+  if (!issueNumber) {
+    return null;
+  }
+  const botUsername = options.botUsername ?? "nopo-bot";
+  const issueResult = await fetchIssueState(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    botUsername
+  );
+  if (!issueResult) {
+    return null;
+  }
+  const { issue: issue2, parentIssueNumber: parentIssueNumber3 } = issueResult;
+  let parentIssue = null;
+  if (parentIssueNumber3) {
+    const parentResult = await fetchIssueState(
+      octokit,
+      owner,
+      repo,
+      parentIssueNumber3,
+      projectNumber,
+      botUsername
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
+  }
+  if (issue2.hasSubIssues) {
+    issue2.subIssues = await enrichSubIssuesWithPRs(
+      octokit,
+      owner,
+      repo,
+      issueNumber,
+      issue2.subIssues
+    );
+  }
+  const currentPhaseInfo = findCurrentPhase(issue2.subIssues);
+  const currentPhase = currentPhaseInfo?.phase ?? null;
+  const currentSubIssue = currentPhaseInfo?.subIssue ?? null;
+  const derivedBranch = currentPhase ? deriveBranchName3(issueNumber, currentPhase) : deriveBranchName3(issueNumber);
+  const branch = options.branch || derivedBranch;
+  const hasBranch2 = await checkBranchExists(octokit, owner, repo, branch);
+  const pr = hasBranch2 ? await getPRForBranch2(octokit, owner, repo, branch) : null;
+  let ciResult = null;
+  let ciRunUrl = options.ciRunUrl ?? null;
+  let ciCommitSha = null;
+  if (event.type === "workflow_run_completed") {
+    ciResult = event.result;
+    ciRunUrl = event.runUrl;
+    ciCommitSha = event.headSha;
+  } else if (pr?.ciStatus) {
+    switch (pr.ciStatus) {
+      case "SUCCESS":
+        ciResult = "success";
+        break;
+      case "FAILURE":
+      case "ERROR":
+        ciResult = "failure";
+        break;
+    }
+  }
+  let reviewDecision = null;
+  let reviewerId = null;
+  if (event.type === "pr_review_submitted") {
+    reviewDecision = event.decision;
+    reviewerId = event.reviewer;
+  }
+  let releaseEvent = null;
+  if (event.type === "merge_queue_entered") {
+    releaseEvent = { type: "queue_entry" };
+  } else if (event.type === "merge_queue_failed") {
+    releaseEvent = {
+      type: "queue_failure",
+      failureReason: event.failureReason
+    };
+  } else if (event.type === "pr_merged") {
+    releaseEvent = {
+      type: "merged",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_stage") {
+    releaseEvent = {
+      type: "deployed",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_prod") {
+    releaseEvent = {
+      type: "deployed",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  }
+  return createMachineContext({
+    trigger,
+    owner,
+    repo,
+    issue: issue2,
+    parentIssue,
+    currentPhase,
+    totalPhases: issue2.subIssues.length || 1,
+    currentSubIssue,
+    ciResult,
+    ciRunUrl,
+    ciCommitSha,
+    workflowStartedAt: options.workflowStartedAt ?? null,
+    workflowRunUrl: options.workflowRunUrl ?? null,
+    reviewDecision,
+    reviewerId,
+    branch,
+    hasBranch: hasBranch2,
+    pr,
+    hasPR: pr !== null,
+    commentContextType: options.commentContextType ?? null,
+    commentContextDescription: options.commentContextDescription ?? null,
+    releaseEvent,
+    maxRetries: options.maxRetries,
+    botUsername: options.botUsername
+  });
+}
 
 // src/parser/mutators.ts
 function findHeadingIndex2(ast, text5) {
@@ -42454,7 +43063,7 @@ var checkOffTodo = createMutator(
   external_exports.object({ todoText: external_exports.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
     if (!listNode || !isList(listNode)) return data;
@@ -42478,7 +43087,7 @@ var uncheckTodo = createMutator(
   external_exports.object({ todoText: external_exports.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
     if (!listNode || !isList(listNode)) return data;
@@ -42507,11 +43116,11 @@ var addTodo = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
     const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
     const newItem = createListItemNode(todoText, input.checked);
     if (todosIdx === -1) {
-      const heading2 = createHeadingNode(2, "Todos");
+      const heading2 = createHeadingNode(2, SECTION_NAMES.TODOS);
       const list4 = {
         type: "list",
         ordered: false,
@@ -42606,7 +43215,10 @@ var addHistoryEntry2 = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const historyIdx = findHeadingIndex2(newAst, "Iteration History");
+    const historyIdx = findHeadingIndex2(
+      newAst,
+      SECTION_NAMES.ITERATION_HISTORY
+    );
     const entry = {
       iteration: input.iteration,
       phase: input.phase,
@@ -42618,7 +43230,7 @@ var addHistoryEntry2 = createMutator(
     const newRow = createHistoryDataRow(entry, input.repoUrl);
     const runId = input.runLink ? extractRunIdFromUrl(input.runLink) : null;
     if (historyIdx === -1) {
-      const heading2 = createHeadingNode(2, "Iteration History");
+      const heading2 = createHeadingNode(2, SECTION_NAMES.ITERATION_HISTORY);
       const table = {
         type: "table",
         align: null,
@@ -42680,7 +43292,7 @@ var updateHistoryEntry2 = createMutator(
   }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex2(ast, "Iteration History");
+    const historyIdx = findHeadingIndex2(ast, SECTION_NAMES.ITERATION_HISTORY);
     if (historyIdx === -1) return data;
     let tableIdx = -1;
     for (let i = historyIdx + 1; i < ast.children.length; i++) {
@@ -42754,7 +43366,7 @@ var appendAgentNotes2 = createMutator(
     if (input.notes.length === 0) return data;
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const notesIdx = findHeadingIndex2(newAst, "Agent Notes");
+    const notesIdx = findHeadingIndex2(newAst, SECTION_NAMES.AGENT_NOTES);
     const formattedTimestamp = formatTimestamp(
       input.timestamp || (/* @__PURE__ */ new Date()).toISOString()
     );
@@ -42776,7 +43388,7 @@ var appendAgentNotes2 = createMutator(
       children: noteItems
     };
     if (notesIdx === -1) {
-      const sectionHeader = createHeadingNode(2, "Agent Notes");
+      const sectionHeader = createHeadingNode(2, SECTION_NAMES.AGENT_NOTES);
       newAst.children.push(sectionHeader, entryHeader, notesList);
     } else {
       newAst.children.splice(notesIdx + 1, 0, entryHeader, notesList);
@@ -42784,18 +43396,6 @@ var appendAgentNotes2 = createMutator(
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   }
 );
-var STANDARD_SECTION_ORDER2 = [
-  "Description",
-  "Requirements",
-  "Approach",
-  "Acceptance Criteria",
-  "Testing",
-  "Related",
-  "Questions",
-  "Todos",
-  "Agent Notes",
-  "Iteration History"
-];
 var upsertSection2 = createMutator(
   external_exports.object({
     title: external_exports.string(),
@@ -42855,7 +43455,7 @@ var applyTodoModifications = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
     const listNode = newAst.children[todosIdx + 1];
     if (!listNode || !isList(listNode)) return data;
@@ -43111,10 +43711,10 @@ function toArray(value) {
   }
   return toArrayStrict(value);
 }
-function resolveOutput(mapper, context2, event, self2) {
+function resolveOutput(mapper, context3, event, self2) {
   if (typeof mapper === "function") {
     return mapper({
-      context: context2,
+      context: context3,
       event,
       self: self2
     });
@@ -44018,15 +44618,15 @@ function executeStop(actorScope, actorRef) {
   });
 }
 function stopChild(actorRef) {
-  function stop(_args, _params) {
+  function stop2(_args, _params) {
   }
-  stop.type = "xstate.stopChild";
-  stop.actorRef = actorRef;
-  stop.resolve = resolveStop;
-  stop.execute = executeStop;
-  return stop;
+  stop2.type = "xstate.stopChild";
+  stop2.actorRef = actorRef;
+  stop2.resolve = resolveStop;
+  stop2.execute = executeStop;
+  return stop2;
 }
-function evaluateGuard(guard, context2, event, snapshot) {
+function evaluateGuard(guard, context3, event, snapshot) {
   const {
     machine
   } = snapshot;
@@ -44036,14 +44636,14 @@ function evaluateGuard(guard, context2, event, snapshot) {
     throw new Error(`Guard '${typeof guard === "string" ? guard : guard.type}' is not implemented.'.`);
   }
   if (typeof resolved !== "function") {
-    return evaluateGuard(resolved, context2, event, snapshot);
+    return evaluateGuard(resolved, context3, event, snapshot);
   }
   const guardArgs = {
-    context: context2,
+    context: context3,
     event
   };
   const guardParams = isInline || typeof guard === "string" ? void 0 : "params" in guard ? typeof guard.params === "function" ? guard.params({
-    context: context2,
+    context: context3,
     event
   }) : guard.params : void 0;
   if (!("check" in resolved)) {
@@ -45026,7 +45626,7 @@ function getPersistedSnapshot(snapshot, options) {
     tags,
     machine,
     children,
-    context: context2,
+    context: context3,
     can: can2,
     hasTag: hasTag2,
     matches: matches2,
@@ -45046,7 +45646,7 @@ function getPersistedSnapshot(snapshot, options) {
   }
   const persisted = {
     ...jsonValues,
-    context: persistContext(context2),
+    context: persistContext(context3),
     children: childrenJson,
     historyValue: serializeHistoryValue(jsonValues.historyValue)
   };
@@ -45164,7 +45764,7 @@ var emptyLogic = fromTransition((_) => void 0, void 0);
 // ../../node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/assign-5d7df46f.esm.js
 function createSpawner(actorScope, {
   machine,
-  context: context2
+  context: context3
 }, event, spawnedChildren) {
   const spawn = (src, options) => {
     if (typeof src === "string") {
@@ -45177,7 +45777,7 @@ function createSpawner(actorScope, {
         parent: actorScope.self,
         syncSnapshot: options?.syncSnapshot,
         input: typeof options?.input === "function" ? options.input({
-          context: context2,
+          context: context3,
           event,
           self: actorScope.self
         }) : options?.input,
@@ -45601,20 +46201,20 @@ var StateMachine = class _StateMachine {
    */
   getPreInitialState(actorScope, initEvent, internalQueue) {
     const {
-      context: context2
+      context: context3
     } = this.config;
     const preInitial = createMachineSnapshot({
-      context: typeof context2 !== "function" && context2 ? context2 : {},
+      context: typeof context3 !== "function" && context3 ? context3 : {},
       _nodes: [this.root],
       children: {},
       status: "active"
     }, this);
-    if (typeof context2 === "function") {
+    if (typeof context3 === "function") {
       const assignment = ({
         spawn,
         event,
         self: self2
-      }) => context2({
+      }) => context3({
         spawn,
         input: event.input,
         self: self2
@@ -45936,10 +46536,10 @@ function executeLog({
   }
 }
 function log(value = ({
-  context: context2,
+  context: context3,
   event
 }) => ({
-  context: context2,
+  context: context3,
   event
 }), label) {
   function log2(_args, _params) {
@@ -46004,248 +46604,248 @@ function setup({
 }
 
 // src/machine/guards.ts
-function isAlreadyDone({ context: context2 }) {
-  if (context2.issue.projectStatus === "Done" && context2.pr?.state === "MERGED") {
+function isAlreadyDone({ context: context3 }) {
+  if (context3.issue.projectStatus === "Done" && context3.pr?.state === "MERGED") {
     return true;
   }
   return false;
 }
-function isBlocked({ context: context2 }) {
-  return context2.issue.projectStatus === "Blocked";
+function isBlocked({ context: context3 }) {
+  return context3.issue.projectStatus === "Blocked";
 }
-function isError({ context: context2 }) {
-  return context2.issue.projectStatus === "Error";
+function isError({ context: context3 }) {
+  return context3.issue.projectStatus === "Error";
 }
-function isTerminal({ context: context2 }) {
-  const status = context2.issue.projectStatus;
+function isTerminal({ context: context3 }) {
+  const status = context3.issue.projectStatus;
   return status !== null && isTerminalStatus(status);
 }
-function hasSubIssues({ context: context2 }) {
-  return context2.issue.hasSubIssues;
+function hasSubIssues({ context: context3 }) {
+  return context3.issue.hasSubIssues;
 }
-function isSubIssue({ context: context2 }) {
-  return context2.parentIssue !== null;
+function isSubIssue({ context: context3 }) {
+  return context3.parentIssue !== null;
 }
-function subIssueCanIterate({ context: context2 }) {
-  if (context2.parentIssue === null) return false;
-  if (!context2.parentIssue.assignees.includes(context2.botUsername))
+function subIssueCanIterate({ context: context3 }) {
+  if (context3.parentIssue === null) return false;
+  if (!context3.parentIssue.assignees.includes(context3.botUsername))
     return false;
-  return context2.issue.assignees.includes(context2.botUsername);
+  return context3.issue.assignees.includes(context3.botUsername);
 }
 function needsSubIssues(_guardContext) {
   return false;
 }
-function allPhasesDone({ context: context2 }) {
-  const hasGroomedLabel = context2.issue.labels.some(
+function allPhasesDone({ context: context3 }) {
+  const hasGroomedLabel = context3.issue.labels.some(
     (l) => l.toLowerCase() === "groomed"
   );
   if (!hasGroomedLabel) {
     return false;
   }
-  if (context2.issue.subIssues.length === 0) {
+  if (context3.issue.subIssues.length === 0) {
     return false;
   }
-  return context2.issue.subIssues.every(
+  return context3.issue.subIssues.every(
     (s) => s.projectStatus === "Done" || s.state === "CLOSED"
   );
 }
-function needsParentInit({ context: context2 }) {
-  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
+function needsParentInit({ context: context3 }) {
+  return context3.issue.hasSubIssues && (context3.issue.projectStatus === null || context3.issue.projectStatus === "Backlog");
 }
-function currentPhaseComplete({ context: context2 }) {
-  if (!context2.currentSubIssue) {
+function currentPhaseComplete({ context: context3 }) {
+  if (!context3.currentSubIssue) {
     return false;
   }
-  const todos = extractTodosFromAst(context2.currentSubIssue.bodyAst);
+  const todos = extractTodosFromAst(context3.currentSubIssue.bodyAst);
   return todos.uncheckedNonManual === 0;
 }
-function hasNextPhase({ context: context2 }) {
-  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
+function hasNextPhase({ context: context3 }) {
+  if (!context3.issue.hasSubIssues || context3.currentPhase === null) {
     return false;
   }
-  return context2.currentPhase < context2.totalPhases;
+  return context3.currentPhase < context3.totalPhases;
 }
-function subIssueNeedsAssignment({ context: context2 }) {
-  return context2.currentSubIssue !== null;
+function subIssueNeedsAssignment({ context: context3 }) {
+  return context3.currentSubIssue !== null;
 }
-function isInReview({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    return context2.currentSubIssue.projectStatus === "In review";
+function isInReview({ context: context3 }) {
+  if (context3.currentSubIssue) {
+    return context3.currentSubIssue.projectStatus === "In review";
   }
-  return context2.issue.projectStatus === "In review";
+  return context3.issue.projectStatus === "In review";
 }
-function currentPhaseNeedsWork({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    const status = context2.currentSubIssue.projectStatus;
+function currentPhaseNeedsWork({ context: context3 }) {
+  if (context3.currentSubIssue) {
+    const status = context3.currentSubIssue.projectStatus;
     return status === "In progress" || status === "Ready";
   }
-  return context2.issue.projectStatus === "In progress";
+  return context3.issue.projectStatus === "In progress";
 }
-function currentPhaseInReview({ context: context2 }) {
-  return isInReview({ context: context2 });
+function currentPhaseInReview({ context: context3 }) {
+  return isInReview({ context: context3 });
 }
-function todosDone({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    const todos2 = extractTodosFromAst(context2.currentSubIssue.bodyAst);
+function todosDone({ context: context3 }) {
+  if (context3.currentSubIssue) {
+    const todos2 = extractTodosFromAst(context3.currentSubIssue.bodyAst);
     return todos2.uncheckedNonManual === 0;
   }
-  const todos = extractTodosFromAst(context2.issue.bodyAst);
+  const todos = extractTodosFromAst(context3.issue.bodyAst);
   return todos.uncheckedNonManual === 0;
 }
-function hasPendingTodos({ context: context2 }) {
-  return !todosDone({ context: context2 });
+function hasPendingTodos({ context: context3 }) {
+  return !todosDone({ context: context3 });
 }
-function ciPassed({ context: context2 }) {
-  return context2.ciResult === "success";
+function ciPassed({ context: context3 }) {
+  return context3.ciResult === "success";
 }
-function ciFailed({ context: context2 }) {
-  return context2.ciResult === "failure";
+function ciFailed({ context: context3 }) {
+  return context3.ciResult === "failure";
 }
-function ciCancelled({ context: context2 }) {
-  return context2.ciResult === "cancelled";
+function ciCancelled({ context: context3 }) {
+  return context3.ciResult === "cancelled";
 }
-function maxFailuresReached({ context: context2 }) {
-  return context2.issue.failures >= context2.maxRetries;
+function maxFailuresReached({ context: context3 }) {
+  return context3.issue.failures >= context3.maxRetries;
 }
-function hasFailures({ context: context2 }) {
-  return context2.issue.failures > 0;
+function hasFailures({ context: context3 }) {
+  return context3.issue.failures > 0;
 }
-function reviewApproved({ context: context2 }) {
-  return context2.reviewDecision === "APPROVED";
+function reviewApproved({ context: context3 }) {
+  return context3.reviewDecision === "APPROVED";
 }
-function reviewRequestedChanges({ context: context2 }) {
-  return context2.reviewDecision === "CHANGES_REQUESTED";
+function reviewRequestedChanges({ context: context3 }) {
+  return context3.reviewDecision === "CHANGES_REQUESTED";
 }
-function reviewCommented({ context: context2 }) {
-  return context2.reviewDecision === "COMMENTED";
+function reviewCommented({ context: context3 }) {
+  return context3.reviewDecision === "COMMENTED";
 }
-function hasPR({ context: context2 }) {
-  return context2.hasPR && context2.pr !== null;
+function hasPR({ context: context3 }) {
+  return context3.hasPR && context3.pr !== null;
 }
-function prIsDraft({ context: context2 }) {
-  return context2.pr?.isDraft === true;
+function prIsDraft({ context: context3 }) {
+  return context3.pr?.isDraft === true;
 }
-function prIsReady({ context: context2 }) {
-  return context2.pr !== null && !context2.pr.isDraft;
+function prIsReady({ context: context3 }) {
+  return context3.pr !== null && !context3.pr.isDraft;
 }
-function prIsMerged({ context: context2 }) {
-  return context2.pr?.state === "MERGED";
+function prIsMerged({ context: context3 }) {
+  return context3.pr?.state === "MERGED";
 }
-function hasBranch({ context: context2 }) {
-  return context2.hasBranch;
+function hasBranch({ context: context3 }) {
+  return context3.hasBranch;
 }
-function needsBranch({ context: context2 }) {
-  return !context2.hasBranch && context2.branch !== null;
+function needsBranch({ context: context3 }) {
+  return !context3.hasBranch && context3.branch !== null;
 }
-function botIsAssigned({ context: context2 }) {
-  return context2.issue.assignees.includes(context2.botUsername);
+function botIsAssigned({ context: context3 }) {
+  return context3.issue.assignees.includes(context3.botUsername);
 }
-function isFirstIteration({ context: context2 }) {
-  return context2.issue.iteration === 0;
+function isFirstIteration({ context: context3 }) {
+  return context3.issue.iteration === 0;
 }
-function triggeredByAssignment({ context: context2 }) {
-  return context2.trigger === "issue-assigned";
+function triggeredByAssignment({ context: context3 }) {
+  return context3.trigger === "issue-assigned";
 }
-function triggeredByEdit({ context: context2 }) {
-  return context2.trigger === "issue-edited";
+function triggeredByEdit({ context: context3 }) {
+  return context3.trigger === "issue-edited";
 }
-function triggeredByCI({ context: context2 }) {
-  return context2.trigger === "workflow-run-completed";
+function triggeredByCI({ context: context3 }) {
+  return context3.trigger === "workflow-run-completed";
 }
-function triggeredByReview({ context: context2 }) {
-  return context2.trigger === "pr-review-submitted";
+function triggeredByReview({ context: context3 }) {
+  return context3.trigger === "pr-review-submitted";
 }
-function triggeredByReviewRequest({ context: context2 }) {
-  return context2.trigger === "pr-review-requested";
+function triggeredByReviewRequest({ context: context3 }) {
+  return context3.trigger === "pr-review-requested";
 }
-function triggeredByTriage({ context: context2 }) {
-  return context2.trigger === "issue-triage";
+function triggeredByTriage({ context: context3 }) {
+  return context3.trigger === "issue-triage";
 }
-function triggeredByComment({ context: context2 }) {
-  return context2.trigger === "issue-comment";
+function triggeredByComment({ context: context3 }) {
+  return context3.trigger === "issue-comment";
 }
-function triggeredByOrchestrate({ context: context2 }) {
-  return context2.trigger === "issue-orchestrate";
+function triggeredByOrchestrate({ context: context3 }) {
+  return context3.trigger === "issue-orchestrate";
 }
-function triggeredByPRReview({ context: context2 }) {
-  return context2.trigger === "pr-review-requested" || context2.trigger === "pr-review";
+function triggeredByPRReview({ context: context3 }) {
+  return context3.trigger === "pr-review-requested" || context3.trigger === "pr-review";
 }
-function triggeredByPRResponse({ context: context2 }) {
-  return context2.trigger === "pr-response";
+function triggeredByPRResponse({ context: context3 }) {
+  return context3.trigger === "pr-response";
 }
-function triggeredByPRHumanResponse({ context: context2 }) {
-  return context2.trigger === "pr-human-response";
+function triggeredByPRHumanResponse({ context: context3 }) {
+  return context3.trigger === "pr-human-response";
 }
 function triggeredByPRReviewApproved({
-  context: context2
+  context: context3
 }) {
-  return context2.trigger === "pr-review-approved";
+  return context3.trigger === "pr-review-approved";
 }
-function triggeredByPRPush({ context: context2 }) {
-  return context2.trigger === "pr-push";
+function triggeredByPRPush({ context: context3 }) {
+  return context3.trigger === "pr-push";
 }
-function triggeredByReset({ context: context2 }) {
-  return context2.trigger === "issue-reset";
+function triggeredByReset({ context: context3 }) {
+  return context3.trigger === "issue-reset";
 }
-function triggeredByPivot({ context: context2 }) {
-  return context2.trigger === "issue-pivot";
+function triggeredByPivot({ context: context3 }) {
+  return context3.trigger === "issue-pivot";
 }
-function triggeredByMergeQueueEntry({ context: context2 }) {
-  return context2.trigger === "merge-queue-entered";
+function triggeredByMergeQueueEntry({ context: context3 }) {
+  return context3.trigger === "merge-queue-entered";
 }
 function triggeredByMergeQueueFailure({
-  context: context2
+  context: context3
 }) {
-  return context2.trigger === "merge-queue-failed";
+  return context3.trigger === "merge-queue-failed";
 }
-function triggeredByPRMerged({ context: context2 }) {
-  return context2.trigger === "pr-merged";
+function triggeredByPRMerged({ context: context3 }) {
+  return context3.trigger === "pr-merged";
 }
-function triggeredByDeployedStage({ context: context2 }) {
-  return context2.trigger === "deployed-stage";
+function triggeredByDeployedStage({ context: context3 }) {
+  return context3.trigger === "deployed-stage";
 }
-function triggeredByDeployedProd({ context: context2 }) {
-  return context2.trigger === "deployed-prod";
+function triggeredByDeployedProd({ context: context3 }) {
+  return context3.trigger === "deployed-prod";
 }
-function triggeredByDeployedStageFailure({ context: context2 }) {
-  return context2.trigger === "deployed-stage-failed";
+function triggeredByDeployedStageFailure({ context: context3 }) {
+  return context3.trigger === "deployed-stage-failed";
 }
-function triggeredByDeployedProdFailure({ context: context2 }) {
-  return context2.trigger === "deployed-prod-failed";
+function triggeredByDeployedProdFailure({ context: context3 }) {
+  return context3.trigger === "deployed-prod-failed";
 }
-function needsTriage({ context: context2 }) {
-  if (context2.parentIssue !== null) return false;
-  return !context2.issue.labels.includes("triaged");
+function needsTriage({ context: context3 }) {
+  if (context3.parentIssue !== null) return false;
+  return !context3.issue.labels.includes("triaged");
 }
-function isTriaged({ context: context2 }) {
-  return context2.issue.labels.includes("triaged");
+function isTriaged({ context: context3 }) {
+  return context3.issue.labels.includes("triaged");
 }
-function triggeredByGroom({ context: context2 }) {
-  return context2.trigger === "issue-groom";
+function triggeredByGroom({ context: context3 }) {
+  return context3.trigger === "issue-groom";
 }
-function triggeredByGroomSummary({ context: context2 }) {
-  return context2.trigger === "issue-groom-summary";
+function triggeredByGroomSummary({ context: context3 }) {
+  return context3.trigger === "issue-groom-summary";
 }
-function needsGrooming({ context: context2 }) {
-  const labels = context2.issue.labels;
+function needsGrooming({ context: context3 }) {
+  const labels = context3.issue.labels;
   const hasTriaged = labels.includes("triaged");
   const hasGroomed = labels.includes("groomed");
   return hasTriaged && !hasGroomed;
 }
-function isGroomed({ context: context2 }) {
-  return context2.issue.labels.includes("groomed");
+function isGroomed({ context: context3 }) {
+  return context3.issue.labels.includes("groomed");
 }
-function needsInfo({ context: context2 }) {
-  return context2.issue.labels.includes("needs-info");
+function needsInfo({ context: context3 }) {
+  return context3.issue.labels.includes("needs-info");
 }
-function readyForReview({ context: context2 }) {
-  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
+function readyForReview({ context: context3 }) {
+  return ciPassed({ context: context3 }) && todosDone({ context: context3 });
 }
-function shouldContinueIterating({ context: context2 }) {
-  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
+function shouldContinueIterating({ context: context3 }) {
+  return ciFailed({ context: context3 }) && !maxFailuresReached({ context: context3 });
 }
-function shouldBlock({ context: context2 }) {
-  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
+function shouldBlock({ context: context3 }) {
+  return ciFailed({ context: context3 }) && maxFailuresReached({ context: context3 });
 }
 var guards = {
   // Terminal state guards
@@ -46333,12 +46933,12 @@ var guards = {
 };
 
 // src/machine/emit-helper.ts
-function accumulateFromEmitter(existingActions, context2, emitter) {
-  return [...existingActions, ...emitter({ context: context2 })];
+function accumulateFromEmitter(existingActions, context3, emitter) {
+  return [...existingActions, ...emitter({ context: context3 })];
 }
 function emit2(emitter) {
   return assign({
-    pendingActions: ({ context: context2 }) => accumulateFromEmitter(context2.pendingActions, context2, emitter)
+    pendingActions: ({ context: context3 }) => accumulateFromEmitter(context3.pendingActions, context3, emitter)
   });
 }
 
@@ -46350,8 +46950,8 @@ function formatCommentsForPrompt(comments) {
   return comments.map((c) => `### ${c.author} (${c.createdAt})
 ${c.body}`).join("\n\n---\n\n");
 }
-function emitSetWorking({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+function emitSetWorking({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
   return [
     {
       type: "updateProjectStatus",
@@ -46361,8 +46961,8 @@ function emitSetWorking({ context: context2 }) {
     }
   ];
 }
-function emitSetReview({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+function emitSetReview({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
   return [
     {
       type: "updateProjectStatus",
@@ -46372,66 +46972,66 @@ function emitSetReview({ context: context2 }) {
     }
   ];
 }
-function emitSetInProgress({ context: context2 }) {
+function emitSetInProgress({ context: context3 }) {
   return [
     {
       type: "updateProjectStatus",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       status: "In progress"
     }
   ];
 }
-function emitSetDone({ context: context2 }) {
+function emitSetDone({ context: context3 }) {
   return [
     {
       type: "updateProjectStatus",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       status: "Done"
     }
   ];
 }
-function emitSetBlocked({ context: context2 }) {
+function emitSetBlocked({ context: context3 }) {
   return [
     {
       type: "updateProjectStatus",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       status: "Blocked"
     }
   ];
 }
-function emitSetError({ context: context2 }) {
+function emitSetError({ context: context3 }) {
   return [
     {
       type: "updateProjectStatus",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       status: "Error"
     }
   ];
 }
 function emitLogInvalidIteration({
-  context: context2
+  context: context3
 }) {
-  const message = "\u274C FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.";
+  const message = HISTORY_MESSAGES.INVALID_ITERATION;
   return [
     {
       type: "appendHistory",
       token: "code",
-      issueNumber: context2.issue.number,
-      iteration: context2.issue.iteration,
-      phase: String(context2.currentPhase ?? "-"),
+      issueNumber: context3.issue.number,
+      iteration: context3.issue.iteration,
+      phase: String(context3.currentPhase ?? "-"),
       message,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      timestamp: context3.workflowStartedAt ?? void 0,
+      commitSha: context3.ciCommitSha ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     },
     {
       type: "addComment",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       body: `## \u274C Invalid Iteration Attempt
 
 This issue cannot be iterated on directly because it has no parent issue.
@@ -46443,92 +47043,92 @@ This issue cannot be iterated on directly because it has no parent issue.
 1. Run grooming on this issue to create sub-issues
 2. Then trigger orchestration on the parent issue
 
-Issue #${context2.issue.number} has been set to Error status.`
+Issue #${context3.issue.number} has been set to Error status.`
     }
   ];
 }
 function emitIncrementIteration({
-  context: context2
+  context: context3
 }) {
   return [
     {
       type: "incrementIteration",
       token: "code",
-      issueNumber: context2.issue.number
+      issueNumber: context3.issue.number
     }
   ];
 }
-function emitRecordFailure({ context: context2 }) {
+function emitRecordFailure({ context: context3 }) {
   return [
     {
       type: "recordFailure",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       failureType: "ci"
     }
   ];
 }
-function emitClearFailures({ context: context2 }) {
+function emitClearFailures({ context: context3 }) {
   return [
     {
       type: "clearFailures",
       token: "code",
-      issueNumber: context2.issue.number
+      issueNumber: context3.issue.number
     }
   ];
 }
-function emitCloseIssue({ context: context2 }) {
+function emitCloseIssue({ context: context3 }) {
   return [
     {
       type: "closeIssue",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       reason: "completed"
     }
   ];
 }
-function emitUnassign({ context: context2 }) {
+function emitUnassign({ context: context3 }) {
   return [
     {
       type: "unassignUser",
       token: "code",
-      issueNumber: context2.issue.number,
-      username: context2.botUsername
+      issueNumber: context3.issue.number,
+      username: context3.botUsername
     }
   ];
 }
-function emitBlock({ context: context2 }) {
+function emitBlock({ context: context3 }) {
   return [
     {
       type: "block",
       token: "code",
-      issueNumber: context2.issue.number,
-      reason: `Max failures (${context2.maxRetries}) reached`
+      issueNumber: context3.issue.number,
+      reason: `Max failures (${context3.maxRetries}) reached`
     }
   ];
 }
-function emitResetIssue({ context: context2 }) {
+function emitResetIssue({ context: context3 }) {
   const actions = [
     {
       type: "resetIssue",
       token: "code",
-      issueNumber: context2.issue.number,
-      subIssueNumbers: context2.issue.subIssues.map((s) => s.number),
-      botUsername: context2.botUsername
+      issueNumber: context3.issue.number,
+      subIssueNumbers: context3.issue.subIssues.map((s) => s.number),
+      botUsername: context3.botUsername
     },
     {
       type: "updateProjectStatus",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       status: "Backlog"
     },
     {
       type: "clearFailures",
       token: "code",
-      issueNumber: context2.issue.number
+      issueNumber: context3.issue.number
     }
   ];
-  for (const subIssue of context2.issue.subIssues) {
+  for (const subIssue of context3.issue.subIssues) {
     actions.push({
       type: "updateProjectStatus",
       token: "code",
@@ -46543,66 +47143,66 @@ function emitResetIssue({ context: context2 }) {
   }
   return actions;
 }
-function emitAppendHistory({ context: context2 }, message, phase) {
-  const phaseStr = phase ?? context2.currentPhase ?? "-";
+function emitAppendHistory({ context: context3 }, message, phase) {
+  const phaseStr = phase ?? context3.currentPhase ?? "-";
   return [
     {
       type: "appendHistory",
       token: "code",
-      issueNumber: context2.issue.number,
-      iteration: context2.issue.iteration,
+      issueNumber: context3.issue.number,
+      iteration: context3.issue.iteration,
       phase: String(phaseStr),
       message,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      timestamp: context3.workflowStartedAt ?? void 0,
+      commitSha: context3.ciCommitSha ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
-function emitLogCIFailure({ context: context2 }) {
+function emitLogCIFailure({ context: context3 }) {
   return [
     {
       type: "updateHistory",
       token: "code",
-      issueNumber: context2.issue.number,
-      matchIteration: context2.issue.iteration,
-      matchPhase: String(context2.currentPhase ?? "-"),
-      matchPattern: "\u23F3",
-      newMessage: "\u274C CI Failed",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      issueNumber: context3.issue.number,
+      matchIteration: context3.issue.iteration,
+      matchPhase: String(context3.currentPhase ?? "-"),
+      matchPattern: HISTORY_ICONS.ITERATING,
+      newMessage: HISTORY_MESSAGES.CI_FAILED,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      commitSha: context3.ciCommitSha ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
 function emitLogIterationStarted({
-  context: context2
+  context: context3
 }) {
-  return emitAppendHistory({ context: context2 }, "\u23F3 Iterating...");
+  return emitAppendHistory({ context: context3 }, HISTORY_MESSAGES.ITERATING);
 }
-function emitLogCISuccess({ context: context2 }) {
+function emitLogCISuccess({ context: context3 }) {
   return [
     {
       type: "updateHistory",
       token: "code",
-      issueNumber: context2.issue.number,
-      matchIteration: context2.issue.iteration,
-      matchPhase: String(context2.currentPhase ?? "-"),
-      matchPattern: "\u23F3",
-      newMessage: "\u2705 CI Passed",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      issueNumber: context3.issue.number,
+      matchIteration: context3.issue.iteration,
+      matchPhase: String(context3.currentPhase ?? "-"),
+      matchPattern: HISTORY_ICONS.ITERATING,
+      newMessage: HISTORY_MESSAGES.CI_PASSED,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      commitSha: context3.ciCommitSha ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
 function emitLogReviewRequested({
-  context: context2
+  context: context3
 }) {
-  return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
+  return emitAppendHistory({ context: context3 }, HISTORY_MESSAGES.REVIEW_REQUESTED);
 }
-function emitCreateBranch({ context: context2 }) {
-  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
+function emitCreateBranch({ context: context3 }) {
+  const branchName = context3.branch ?? deriveBranchName2(context3.issue.number, context3.currentPhase ?? void 0);
   return [
     {
       type: "createBranch",
@@ -46614,17 +47214,17 @@ function emitCreateBranch({ context: context2 }) {
     }
   ];
 }
-function emitCreatePR({ context: context2 }) {
-  if (context2.pr) {
+function emitCreatePR({ context: context3 }) {
+  if (context3.pr) {
     return [];
   }
-  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const branchName = context3.branch ?? deriveBranchName2(context3.issue.number, context3.currentPhase ?? void 0);
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
   return [
     {
       type: "createPR",
       token: "code",
-      title: context2.currentSubIssue?.title ?? context2.issue.title,
+      title: context3.currentSubIssue?.title ?? context3.issue.title,
       body: `Fixes #${issueNumber}`,
       branchName,
       baseBranch: "main",
@@ -46633,68 +47233,68 @@ function emitCreatePR({ context: context2 }) {
     }
   ];
 }
-function emitMarkReady({ context: context2 }) {
-  if (!context2.pr) {
+function emitMarkReady({ context: context3 }) {
+  if (!context3.pr) {
     return [];
   }
   return [
     {
       type: "markPRReady",
       token: "code",
-      prNumber: context2.pr.number
+      prNumber: context3.pr.number
     }
   ];
 }
-function emitConvertToDraft({ context: context2 }) {
-  if (!context2.pr) {
+function emitConvertToDraft({ context: context3 }) {
+  if (!context3.pr) {
     return [];
   }
   return [
     {
       type: "convertPRToDraft",
       token: "code",
-      prNumber: context2.pr.number
+      prNumber: context3.pr.number
     }
   ];
 }
-function emitRequestReview({ context: context2 }) {
-  if (!context2.pr) {
+function emitRequestReview({ context: context3 }) {
+  if (!context3.pr) {
     return [];
   }
   return [
     {
       type: "requestReview",
       token: "code",
-      prNumber: context2.pr.number,
+      prNumber: context3.pr.number,
       reviewer: "nopo-reviewer"
     }
   ];
 }
-function emitMergePR({ context: context2 }) {
-  if (!context2.pr) {
+function emitMergePR({ context: context3 }) {
+  if (!context3.pr) {
     return [];
   }
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
   return [
     {
       type: "mergePR",
       token: "code",
-      prNumber: context2.pr.number,
+      prNumber: context3.pr.number,
       issueNumber,
       mergeMethod: "squash"
     }
   ];
 }
-function buildIteratePromptVars(context2, ciResultOverride) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const issueTitle2 = context2.currentSubIssue?.title ?? context2.issue.title;
-  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
-  const iteration = context2.issue.iteration;
-  const failures = context2.issue.failures;
-  const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
-  const isSubIssue3 = context2.parentIssue !== null && context2.currentPhase !== null;
-  const parentIssueNumber3 = context2.parentIssue?.number;
-  const phaseNumber = context2.currentPhase;
+function buildIteratePromptVars(context3, ciResultOverride) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const issueTitle2 = context3.currentSubIssue?.title ?? context3.issue.title;
+  const branchName = context3.branch ?? deriveBranchName2(context3.issue.number, context3.currentPhase ?? void 0);
+  const iteration = context3.issue.iteration;
+  const failures = context3.issue.failures;
+  const ciResult = ciResultOverride ?? context3.ciResult ?? "first";
+  const isSubIssue3 = context3.parentIssue !== null && context3.currentPhase !== null;
+  const parentIssueNumber3 = context3.parentIssue?.number;
+  const phaseNumber = context3.currentPhase;
   const parentContext = isSubIssue3 ? `- **Parent Issue**: #${parentIssueNumber3}
 - **Phase**: ${phaseNumber}
 
@@ -46711,8 +47311,8 @@ gh pr create --draft --reviewer nopo-bot \\
   --title "${issueTitle2}" \\
   --body "Fixes #${issueNumber}"
 \`\`\``;
-  const issueBodyAst = context2.currentSubIssue?.bodyAst ?? context2.issue.bodyAst;
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+  const issueBodyAst = context3.currentSubIssue?.bodyAst ?? context3.issue.bodyAst;
+  const issueComments = formatCommentsForPrompt(context3.issue.comments ?? []);
   return {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issueTitle2,
@@ -46729,9 +47329,9 @@ gh pr create --draft --reviewer nopo-bot \\
     // Injected by workflow from previous runs
   };
 }
-function emitRunClaude({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const promptVars = buildIteratePromptVars(context2);
+function emitRunClaude({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const promptVars = buildIteratePromptVars(context3);
   const iterateArtifact = {
     name: "claude-iterate-output",
     path: "claude-structured-output.json"
@@ -46755,17 +47355,17 @@ function emitRunClaude({ context: context2 }) {
       issueNumber,
       filePath: "claude-structured-output.json",
       consumesArtifact: iterateArtifact,
-      prNumber: context2.pr?.number,
+      prNumber: context3.pr?.number,
       reviewer: "nopo-reviewer"
     }
   ];
 }
-function emitRunClaudeFixCI({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const promptVars = buildIteratePromptVars(context2, "failure");
+function emitRunClaudeFixCI({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const promptVars = buildIteratePromptVars(context3, "failure");
   promptVars.EXISTING_BRANCH_SECTION = `## CI Failure Context
-CI Run: ${context2.ciRunUrl ?? "N/A"}
-Commit: ${context2.ciCommitSha ?? "N/A"}
+CI Run: ${context3.ciRunUrl ?? "N/A"}
+Commit: ${context3.ciCommitSha ?? "N/A"}
 
 Review the CI logs at the link above and fix the failing tests or build errors.`;
   const iterateArtifact = {
@@ -46791,18 +47391,18 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
       issueNumber,
       filePath: "claude-structured-output.json",
       consumesArtifact: iterateArtifact,
-      prNumber: context2.pr?.number,
+      prNumber: context3.pr?.number,
       reviewer: "nopo-reviewer"
     }
   ];
 }
-function emitRunClaudeTriage({ context: context2 }) {
-  const issueNumber = context2.issue.number;
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+function emitRunClaudeTriage({ context: context3 }) {
+  const issueNumber = context3.issue.number;
+  const issueComments = formatCommentsForPrompt(context3.issue.comments ?? []);
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
-    ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_TITLE: context3.issue.title,
+    ISSUE_BODY: serializeMarkdown(context3.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
     AGENT_NOTES: ""
     // Injected by workflow from previous runs
@@ -46835,12 +47435,12 @@ function emitRunClaudeTriage({ context: context2 }) {
     // Note: History entry is handled by workflow bookend logging
   ];
 }
-function emitRunClaudeComment({ context: context2 }) {
-  const issueNumber = context2.issue.number;
+function emitRunClaudeComment({ context: context3 }) {
+  const issueNumber = context3.issue.number;
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
-    CONTEXT_TYPE: context2.commentContextType ?? "issue",
-    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`
+    CONTEXT_TYPE: context3.commentContextType ?? "issue",
+    CONTEXT_DESCRIPTION: context3.commentContextDescription ?? `This is issue #${issueNumber}.`
   };
   return [
     {
@@ -46854,10 +47454,10 @@ function emitRunClaudeComment({ context: context2 }) {
   ];
 }
 function emitRunClaudePRReview({
-  context: context2
+  context: context3
 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prNumber = context2.pr?.number;
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const prNumber = context3.pr?.number;
   if (!prNumber) {
     return [
       {
@@ -46872,11 +47472,11 @@ function emitRunClaudePRReview({
   const promptVars = {
     PR_NUMBER: String(prNumber),
     ISSUE_NUMBER: String(issueNumber),
-    PR_TITLE: context2.pr?.title ?? "",
-    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
-    BASE_REF: context2.pr?.baseRef ?? "main",
-    REPO_OWNER: context2.owner,
-    REPO_NAME: context2.repo
+    PR_TITLE: context3.pr?.title ?? "",
+    HEAD_REF: context3.pr?.headRef ?? context3.branch ?? "",
+    BASE_REF: context3.pr?.baseRef ?? "main",
+    REPO_OWNER: context3.owner,
+    REPO_NAME: context3.repo
   };
   const reviewArtifact = {
     name: "claude-review-output",
@@ -46910,10 +47510,10 @@ function emitRunClaudePRReview({
   ];
 }
 function emitRunClaudePRResponse({
-  context: context2
+  context: context3
 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prNumber = context2.pr?.number;
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const prNumber = context3.pr?.number;
   if (!prNumber) {
     return [
       {
@@ -46928,12 +47528,12 @@ function emitRunClaudePRResponse({
   const promptVars = {
     PR_NUMBER: String(prNumber),
     ISSUE_NUMBER: String(issueNumber),
-    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
-    BASE_REF: context2.pr?.baseRef ?? "main",
-    REPO_OWNER: context2.owner,
-    REPO_NAME: context2.repo,
-    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A",
+    HEAD_REF: context3.pr?.headRef ?? context3.branch ?? "",
+    BASE_REF: context3.pr?.baseRef ?? "main",
+    REPO_OWNER: context3.owner,
+    REPO_NAME: context3.repo,
+    REVIEW_DECISION: context3.reviewDecision ?? "N/A",
+    REVIEWER: context3.reviewerId ?? "N/A",
     AGENT_NOTES: ""
     // Will be injected by workflow from previous runs
   };
@@ -46969,10 +47569,10 @@ function emitRunClaudePRResponse({
   ];
 }
 function emitRunClaudePRHumanResponse({
-  context: context2
+  context: context3
 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prNumber = context2.pr?.number;
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const prNumber = context3.pr?.number;
   if (!prNumber) {
     return [
       {
@@ -46987,12 +47587,12 @@ function emitRunClaudePRHumanResponse({
   const promptVars = {
     PR_NUMBER: String(prNumber),
     ISSUE_NUMBER: String(issueNumber),
-    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
-    BASE_REF: context2.pr?.baseRef ?? "main",
-    REPO_OWNER: context2.owner,
-    REPO_NAME: context2.repo,
-    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A",
+    HEAD_REF: context3.pr?.headRef ?? context3.branch ?? "",
+    BASE_REF: context3.pr?.baseRef ?? "main",
+    REPO_OWNER: context3.owner,
+    REPO_NAME: context3.repo,
+    REVIEW_DECISION: context3.reviewDecision ?? "N/A",
+    REVIEWER: context3.reviewerId ?? "N/A",
     AGENT_NOTES: ""
     // Will be injected by workflow from previous runs
   };
@@ -47022,20 +47622,20 @@ function emitRunClaudePRHumanResponse({
       issueNumber,
       filePath: "claude-structured-output.json",
       consumesArtifact: responseArtifact,
-      reviewer: context2.reviewerId ?? "nopo-reviewer",
+      reviewer: context3.reviewerId ?? "nopo-reviewer",
       worktree: "main"
     }
   ];
 }
-function emitInitializeParent({ context: context2 }) {
+function emitInitializeParent({ context: context3 }) {
   const actions = [];
   actions.push({
     type: "updateProjectStatus",
     token: "code",
-    issueNumber: context2.issue.number,
+    issueNumber: context3.issue.number,
     status: "In progress"
   });
-  const firstSubIssue = context2.issue.subIssues[0];
+  const firstSubIssue = context3.issue.subIssues[0];
   if (firstSubIssue) {
     actions.push({
       type: "updateProjectStatus",
@@ -47047,33 +47647,33 @@ function emitInitializeParent({ context: context2 }) {
   actions.push({
     type: "appendHistory",
     token: "code",
-    issueNumber: context2.issue.number,
-    iteration: context2.issue.iteration,
+    issueNumber: context3.issue.number,
+    iteration: context3.issue.iteration,
     phase: "1",
-    message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`,
-    timestamp: context2.workflowStartedAt ?? void 0
+    message: HISTORY_MESSAGES.initialized(context3.issue.subIssues.length),
+    timestamp: context3.workflowStartedAt ?? void 0
   });
   return actions;
 }
-function emitAdvancePhase({ context: context2 }) {
+function emitAdvancePhase({ context: context3 }) {
   const actions = [];
-  if (!context2.currentSubIssue || context2.currentPhase === null) {
+  if (!context3.currentSubIssue || context3.currentPhase === null) {
     return actions;
   }
   actions.push({
     type: "updateProjectStatus",
     token: "code",
-    issueNumber: context2.currentSubIssue.number,
+    issueNumber: context3.currentSubIssue.number,
     status: "Done"
   });
   actions.push({
     type: "closeIssue",
     token: "code",
-    issueNumber: context2.currentSubIssue.number,
+    issueNumber: context3.currentSubIssue.number,
     reason: "completed"
   });
-  const nextPhase = context2.currentPhase + 1;
-  const nextSubIssue = context2.issue.subIssues[nextPhase - 1];
+  const nextPhase = context3.currentPhase + 1;
+  const nextSubIssue = context3.issue.subIssues[nextPhase - 1];
   if (nextSubIssue) {
     actions.push({
       type: "updateProjectStatus",
@@ -47084,50 +47684,50 @@ function emitAdvancePhase({ context: context2 }) {
     actions.push({
       type: "appendHistory",
       token: "code",
-      issueNumber: context2.issue.number,
-      iteration: context2.issue.iteration,
+      issueNumber: context3.issue.number,
+      iteration: context3.issue.iteration,
       phase: String(nextPhase),
-      message: `\u23ED\uFE0F Phase ${nextPhase} started`,
-      timestamp: context2.workflowStartedAt ?? void 0
+      message: HISTORY_MESSAGES.phaseStarted(nextPhase),
+      timestamp: context3.workflowStartedAt ?? void 0
     });
   }
   return actions;
 }
-function emitOrchestrate({ context: context2 }) {
+function emitOrchestrate({ context: context3 }) {
   const actions = [];
   actions.push({
     type: "log",
     token: "code",
     level: "info",
-    message: `Orchestrating issue #${context2.issue.number} with ${context2.issue.subIssues.length} phases`,
+    message: `Orchestrating issue #${context3.issue.number} with ${context3.issue.subIssues.length} phases`,
     worktree: "main"
   });
-  const needsInit = context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog";
+  const needsInit = context3.issue.projectStatus === null || context3.issue.projectStatus === "Backlog";
   if (needsInit) {
-    actions.push(...emitInitializeParent({ context: context2 }));
+    actions.push(...emitInitializeParent({ context: context3 }));
   }
-  const phaseComplete = context2.currentSubIssue && context2.currentSubIssue.state === "CLOSED";
-  if (phaseComplete && context2.currentPhase !== null) {
-    const hasNext = context2.currentPhase < context2.totalPhases;
+  const phaseComplete = context3.currentSubIssue && context3.currentSubIssue.state === "CLOSED";
+  if (phaseComplete && context3.currentPhase !== null) {
+    const hasNext = context3.currentPhase < context3.totalPhases;
     if (hasNext) {
-      actions.push(...emitAdvancePhase({ context: context2 }));
+      actions.push(...emitAdvancePhase({ context: context3 }));
     }
   }
-  let subIssueToAssign = context2.currentSubIssue;
-  if (phaseComplete && context2.currentPhase !== null) {
-    const nextPhase = context2.currentPhase + 1;
-    if (nextPhase <= context2.totalPhases) {
-      subIssueToAssign = context2.issue.subIssues[nextPhase - 1] ?? null;
+  let subIssueToAssign = context3.currentSubIssue;
+  if (phaseComplete && context3.currentPhase !== null) {
+    const nextPhase = context3.currentPhase + 1;
+    if (nextPhase <= context3.totalPhases) {
+      subIssueToAssign = context3.issue.subIssues[nextPhase - 1] ?? null;
     } else {
       subIssueToAssign = null;
     }
   }
-  if (!context2.issue.assignees.includes(context2.botUsername)) {
+  if (!context3.issue.assignees.includes(context3.botUsername)) {
     actions.push({
       type: "assignUser",
       token: "code",
-      issueNumber: context2.issue.number,
-      username: context2.botUsername
+      issueNumber: context3.issue.number,
+      username: context3.botUsername
     });
   }
   if (subIssueToAssign) {
@@ -47135,40 +47735,40 @@ function emitOrchestrate({ context: context2 }) {
       type: "assignUser",
       token: "code",
       issueNumber: subIssueToAssign.number,
-      username: context2.botUsername
+      username: context3.botUsername
     });
   }
   return actions;
 }
-function emitAllPhasesDone({ context: context2 }) {
+function emitAllPhasesDone({ context: context3 }) {
   const actions = [];
   actions.push({
     type: "log",
     token: "code",
     level: "info",
-    message: `All phases complete for issue #${context2.issue.number}`,
+    message: `All phases complete for issue #${context3.issue.number}`,
     worktree: "main"
   });
   actions.push({
     type: "updateProjectStatus",
     token: "code",
-    issueNumber: context2.issue.number,
+    issueNumber: context3.issue.number,
     status: "Done"
   });
   actions.push({
     type: "closeIssue",
     token: "code",
-    issueNumber: context2.issue.number,
+    issueNumber: context3.issue.number,
     reason: "completed"
   });
   actions.push({
     type: "appendHistory",
     token: "code",
-    issueNumber: context2.issue.number,
-    iteration: context2.issue.iteration,
+    issueNumber: context3.issue.number,
+    iteration: context3.issue.iteration,
     phase: "-",
-    message: "\u2705 All phases complete",
-    timestamp: context2.workflowStartedAt ?? void 0
+    message: HISTORY_MESSAGES.ALL_PHASES_COMPLETE,
+    timestamp: context3.workflowStartedAt ?? void 0
   });
   return actions;
 }
@@ -47194,42 +47794,42 @@ function emitLog(_ctx, message, level = "info") {
   ];
 }
 function emitTransitionToReview({
-  context: context2
+  context: context3
 }) {
   const actions = [];
-  if (context2.issue.failures > 0) {
-    actions.push(...emitClearFailures({ context: context2 }));
+  if (context3.issue.failures > 0) {
+    actions.push(...emitClearFailures({ context: context3 }));
   }
-  if (context2.pr?.isDraft) {
-    actions.push(...emitMarkReady({ context: context2 }));
+  if (context3.pr?.isDraft) {
+    actions.push(...emitMarkReady({ context: context3 }));
   }
-  actions.push(...emitSetReview({ context: context2 }));
-  actions.push(...emitRequestReview({ context: context2 }));
+  actions.push(...emitSetReview({ context: context3 }));
+  actions.push(...emitRequestReview({ context: context3 }));
   return actions;
 }
-function emitHandleCIFailure({ context: context2 }) {
+function emitHandleCIFailure({ context: context3 }) {
   const actions = [];
-  actions.push(...emitRecordFailure({ context: context2 }));
-  actions.push(...emitLogCIFailure({ context: context2 }));
+  actions.push(...emitRecordFailure({ context: context3 }));
+  actions.push(...emitLogCIFailure({ context: context3 }));
   return actions;
 }
-function emitBlockIssue({ context: context2 }) {
+function emitBlockIssue({ context: context3 }) {
   const actions = [];
-  actions.push(...emitSetBlocked({ context: context2 }));
-  actions.push(...emitUnassign({ context: context2 }));
+  actions.push(...emitSetBlocked({ context: context3 }));
+  actions.push(...emitUnassign({ context: context3 }));
   actions.push(
     ...emitAppendHistory(
-      { context: context2 },
-      `\u{1F6AB} Blocked: Max failures reached (${context2.issue.failures})`
+      { context: context3 },
+      HISTORY_MESSAGES.blocked(context3.issue.failures)
     )
   );
-  actions.push(...emitBlock({ context: context2 }));
+  actions.push(...emitBlock({ context: context3 }));
   return actions;
 }
-function emitMergeQueueEntry({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
+function emitMergeQueueEntry({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration ?? 0;
   return [
     {
       type: "appendHistory",
@@ -47237,18 +47837,18 @@ function emitMergeQueueEntry({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u{1F680} Entered queue",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.ENTERED_QUEUE,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
 function emitMergeQueueFailure({
-  context: context2
+  context: context3
 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration ?? 0;
   return [
     {
       type: "appendHistory",
@@ -47256,16 +47856,16 @@ function emitMergeQueueFailure({
       issueNumber,
       iteration,
       phase,
-      message: "\u274C Removed from queue",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.REMOVED_FROM_QUEUE,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
-function emitMerged({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
+function emitMerged({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration ?? 0;
   return [
     {
       type: "appendHistory",
@@ -47273,17 +47873,17 @@ function emitMerged({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u{1F6A2} Merged",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.MERGED,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      commitSha: context3.ciCommitSha ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
-function emitDeployedStage({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
+function emitDeployedStage({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration ?? 0;
   return [
     {
       type: "appendHistory",
@@ -47291,17 +47891,17 @@ function emitDeployedStage({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u2705 Deployed to stage",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.DEPLOYED_STAGE,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      commitSha: context3.ciCommitSha ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
-function emitDeployedProd({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
+function emitDeployedProd({ context: context3 }) {
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration ?? 0;
   return [
     {
       type: "appendHistory",
@@ -47309,19 +47909,19 @@ function emitDeployedProd({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u2705 Released to production",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.RELEASED_PROD,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      commitSha: context3.ciCommitSha ?? void 0,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
 function emitDeployedStageFailure({
-  context: context2
+  context: context3
 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration ?? 0;
   return [
     {
       type: "appendHistory",
@@ -47329,17 +47929,17 @@ function emitDeployedStageFailure({
       issueNumber,
       iteration,
       phase,
-      message: "\u274C Stage deploy failed",
-      runLink: context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.STAGE_DEPLOY_FAILED,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
 function emitDeployedProdFailure({
-  context: context2
+  context: context3
 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration ?? 0;
   return [
     {
       type: "appendHistory",
@@ -47347,28 +47947,28 @@ function emitDeployedProdFailure({
       issueNumber,
       iteration,
       phase,
-      message: "\u274C Prod deploy failed",
-      runLink: context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.PROD_DEPLOY_FAILED,
+      runLink: context3.ciRunUrl ?? void 0
     }
   ];
 }
-function emitPushToDraft({ context: context2 }) {
+function emitPushToDraft({ context: context3 }) {
   const actions = [];
-  if (context2.pr) {
+  if (context3.pr) {
     actions.push({
       type: "convertPRToDraft",
       token: "code",
-      prNumber: context2.pr.number
+      prNumber: context3.pr.number
     });
     actions.push({
       type: "removeReviewer",
       token: "code",
-      prNumber: context2.pr.number,
+      prNumber: context3.pr.number,
       reviewer: "nopo-bot"
     });
   }
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
+  const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
+  const phase = String(context3.currentPhase ?? "-");
   actions.push({
     type: "appendHistory",
     token: "code",
@@ -47376,27 +47976,27 @@ function emitPushToDraft({ context: context2 }) {
     iteration: 0,
     // Push-to-draft doesn't have iteration context
     phase,
-    message: "\u{1F4DD} Code pushed - converting to draft",
-    commitSha: context2.ciCommitSha ?? void 0,
-    runLink: context2.ciRunUrl ?? void 0
+    message: HISTORY_MESSAGES.CODE_PUSHED,
+    commitSha: context3.ciCommitSha ?? void 0,
+    runLink: context3.ciRunUrl ?? void 0
   });
   return actions;
 }
-function buildGroomingPromptVars(context2) {
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+function buildGroomingPromptVars(context3) {
+  const issueComments = formatCommentsForPrompt(context3.issue.comments ?? []);
   return {
-    ISSUE_NUMBER: String(context2.issue.number),
-    ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_NUMBER: String(context3.issue.number),
+    ISSUE_TITLE: context3.issue.title,
+    ISSUE_BODY: serializeMarkdown(context3.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
-    ISSUE_LABELS: context2.issue.labels.join(", ")
+    ISSUE_LABELS: context3.issue.labels.join(", ")
   };
 }
 function emitRunClaudeGrooming({
-  context: context2
+  context: context3
 }) {
-  const issueNumber = context2.issue.number;
-  const promptVars = buildGroomingPromptVars(context2);
+  const issueNumber = context3.issue.number;
+  const promptVars = buildGroomingPromptVars(context3);
   const groomingArtifact = {
     name: "claude-grooming-output",
     path: "grooming-output.json"
@@ -47410,9 +48010,9 @@ function emitRunClaudeGrooming({
       iteration: 0,
       // Grooming is pre-iteration
       phase: "groom",
-      message: "\u23F3 grooming...",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.GROOMING,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      runLink: context3.workflowRunUrl ?? context3.ciRunUrl ?? void 0
     },
     // Run all 4 grooming agents in parallel
     {
@@ -47438,19 +48038,19 @@ function emitRunClaudeGrooming({
     }
   ];
 }
-function emitSetReady({ context: context2 }) {
+function emitSetReady({ context: context3 }) {
   return [
     {
       type: "updateProjectStatus",
       token: "code",
-      issueNumber: context2.issue.number,
+      issueNumber: context3.issue.number,
       status: "Ready"
     }
   ];
 }
-function emitRunClaudePivot({ context: context2 }) {
-  const issueNumber = context2.issue.number;
-  const subIssuesInfo = context2.issue.subIssues.map((s) => ({
+function emitRunClaudePivot({ context: context3 }) {
+  const issueNumber = context3.issue.number;
+  const subIssuesInfo = context3.issue.subIssues.map((s) => ({
     number: s.number,
     title: s.title,
     state: s.state,
@@ -47458,13 +48058,13 @@ function emitRunClaudePivot({ context: context2 }) {
     projectStatus: s.projectStatus,
     todos: extractTodosFromAst(s.bodyAst)
   }));
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+  const issueComments = formatCommentsForPrompt(context3.issue.comments ?? []);
   const promptVars = {
     ISSUE_NUMBER: String(issueNumber),
-    ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_TITLE: context3.issue.title,
+    ISSUE_BODY: serializeMarkdown(context3.issue.bodyAst),
     ISSUE_COMMENTS: issueComments,
-    PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
+    PIVOT_DESCRIPTION: context3.pivotDescription ?? "(No pivot description provided)",
     SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
   };
   const pivotArtifact = {
@@ -47477,11 +48077,11 @@ function emitRunClaudePivot({ context: context2 }) {
       type: "appendHistory",
       token: "code",
       issueNumber,
-      iteration: context2.issue.iteration,
+      iteration: context3.issue.iteration,
       phase: "pivot",
-      message: "\u23F3 Analyzing pivot request...",
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
+      message: HISTORY_MESSAGES.ANALYZING_PIVOT,
+      timestamp: context3.workflowStartedAt ?? void 0,
+      runLink: context3.workflowRunUrl ?? context3.ciRunUrl ?? void 0
     },
     // Run Claude pivot analysis
     {
@@ -47514,55 +48114,55 @@ var claudeMachine = setup({
     input: {}
   },
   guards: {
-    isAlreadyDone: ({ context: context2 }) => guards.isAlreadyDone({ context: context2 }),
-    isBlocked: ({ context: context2 }) => guards.isBlocked({ context: context2 }),
-    isError: ({ context: context2 }) => guards.isError({ context: context2 }),
-    needsSubIssues: ({ context: context2 }) => guards.needsSubIssues({ context: context2 }),
-    hasSubIssues: ({ context: context2 }) => guards.hasSubIssues({ context: context2 }),
-    isSubIssue: ({ context: context2 }) => guards.isSubIssue({ context: context2 }),
-    subIssueCanIterate: ({ context: context2 }) => guards.subIssueCanIterate({ context: context2 }),
-    isInReview: ({ context: context2 }) => guards.isInReview({ context: context2 }),
-    allPhasesDone: ({ context: context2 }) => guards.allPhasesDone({ context: context2 }),
-    currentPhaseNeedsWork: ({ context: context2 }) => guards.currentPhaseNeedsWork({ context: context2 }),
-    currentPhaseInReview: ({ context: context2 }) => guards.currentPhaseInReview({ context: context2 }),
-    todosDone: ({ context: context2 }) => guards.todosDone({ context: context2 }),
-    maxFailuresReached: ({ context: context2 }) => guards.maxFailuresReached({ context: context2 }),
-    ciPassed: ({ context: context2 }) => guards.ciPassed({ context: context2 }),
-    ciFailed: ({ context: context2 }) => guards.ciFailed({ context: context2 }),
-    reviewApproved: ({ context: context2 }) => guards.reviewApproved({ context: context2 }),
-    reviewRequestedChanges: ({ context: context2 }) => guards.reviewRequestedChanges({ context: context2 }),
-    readyForReview: ({ context: context2 }) => guards.readyForReview({ context: context2 }),
-    shouldContinueIterating: ({ context: context2 }) => guards.shouldContinueIterating({ context: context2 }),
-    shouldBlock: ({ context: context2 }) => guards.shouldBlock({ context: context2 }),
-    hasPR: ({ context: context2 }) => guards.hasPR({ context: context2 }),
-    prIsDraft: ({ context: context2 }) => guards.prIsDraft({ context: context2 }),
-    hasBranch: ({ context: context2 }) => guards.hasBranch({ context: context2 }),
-    triggeredByCI: ({ context: context2 }) => guards.triggeredByCI({ context: context2 }),
-    triggeredByReview: ({ context: context2 }) => guards.triggeredByReview({ context: context2 }),
-    triggeredByTriage: ({ context: context2 }) => guards.triggeredByTriage({ context: context2 }),
-    triggeredByComment: ({ context: context2 }) => guards.triggeredByComment({ context: context2 }),
-    triggeredByOrchestrate: ({ context: context2 }) => guards.triggeredByOrchestrate({ context: context2 }),
-    triggeredByPRReview: ({ context: context2 }) => guards.triggeredByPRReview({ context: context2 }),
-    triggeredByPRResponse: ({ context: context2 }) => guards.triggeredByPRResponse({ context: context2 }),
-    triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 }),
-    triggeredByPRReviewApproved: ({ context: context2 }) => guards.triggeredByPRReviewApproved({ context: context2 }),
-    triggeredByPRPush: ({ context: context2 }) => guards.triggeredByPRPush({ context: context2 }),
-    triggeredByReset: ({ context: context2 }) => guards.triggeredByReset({ context: context2 }),
-    triggeredByPivot: ({ context: context2 }) => guards.triggeredByPivot({ context: context2 }),
+    isAlreadyDone: ({ context: context3 }) => guards.isAlreadyDone({ context: context3 }),
+    isBlocked: ({ context: context3 }) => guards.isBlocked({ context: context3 }),
+    isError: ({ context: context3 }) => guards.isError({ context: context3 }),
+    needsSubIssues: ({ context: context3 }) => guards.needsSubIssues({ context: context3 }),
+    hasSubIssues: ({ context: context3 }) => guards.hasSubIssues({ context: context3 }),
+    isSubIssue: ({ context: context3 }) => guards.isSubIssue({ context: context3 }),
+    subIssueCanIterate: ({ context: context3 }) => guards.subIssueCanIterate({ context: context3 }),
+    isInReview: ({ context: context3 }) => guards.isInReview({ context: context3 }),
+    allPhasesDone: ({ context: context3 }) => guards.allPhasesDone({ context: context3 }),
+    currentPhaseNeedsWork: ({ context: context3 }) => guards.currentPhaseNeedsWork({ context: context3 }),
+    currentPhaseInReview: ({ context: context3 }) => guards.currentPhaseInReview({ context: context3 }),
+    todosDone: ({ context: context3 }) => guards.todosDone({ context: context3 }),
+    maxFailuresReached: ({ context: context3 }) => guards.maxFailuresReached({ context: context3 }),
+    ciPassed: ({ context: context3 }) => guards.ciPassed({ context: context3 }),
+    ciFailed: ({ context: context3 }) => guards.ciFailed({ context: context3 }),
+    reviewApproved: ({ context: context3 }) => guards.reviewApproved({ context: context3 }),
+    reviewRequestedChanges: ({ context: context3 }) => guards.reviewRequestedChanges({ context: context3 }),
+    readyForReview: ({ context: context3 }) => guards.readyForReview({ context: context3 }),
+    shouldContinueIterating: ({ context: context3 }) => guards.shouldContinueIterating({ context: context3 }),
+    shouldBlock: ({ context: context3 }) => guards.shouldBlock({ context: context3 }),
+    hasPR: ({ context: context3 }) => guards.hasPR({ context: context3 }),
+    prIsDraft: ({ context: context3 }) => guards.prIsDraft({ context: context3 }),
+    hasBranch: ({ context: context3 }) => guards.hasBranch({ context: context3 }),
+    triggeredByCI: ({ context: context3 }) => guards.triggeredByCI({ context: context3 }),
+    triggeredByReview: ({ context: context3 }) => guards.triggeredByReview({ context: context3 }),
+    triggeredByTriage: ({ context: context3 }) => guards.triggeredByTriage({ context: context3 }),
+    triggeredByComment: ({ context: context3 }) => guards.triggeredByComment({ context: context3 }),
+    triggeredByOrchestrate: ({ context: context3 }) => guards.triggeredByOrchestrate({ context: context3 }),
+    triggeredByPRReview: ({ context: context3 }) => guards.triggeredByPRReview({ context: context3 }),
+    triggeredByPRResponse: ({ context: context3 }) => guards.triggeredByPRResponse({ context: context3 }),
+    triggeredByPRHumanResponse: ({ context: context3 }) => guards.triggeredByPRHumanResponse({ context: context3 }),
+    triggeredByPRReviewApproved: ({ context: context3 }) => guards.triggeredByPRReviewApproved({ context: context3 }),
+    triggeredByPRPush: ({ context: context3 }) => guards.triggeredByPRPush({ context: context3 }),
+    triggeredByReset: ({ context: context3 }) => guards.triggeredByReset({ context: context3 }),
+    triggeredByPivot: ({ context: context3 }) => guards.triggeredByPivot({ context: context3 }),
     // Merge queue logging guards
-    triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
-    triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
-    triggeredByPRMerged: ({ context: context2 }) => guards.triggeredByPRMerged({ context: context2 }),
-    triggeredByDeployedStage: ({ context: context2 }) => guards.triggeredByDeployedStage({ context: context2 }),
-    triggeredByDeployedProd: ({ context: context2 }) => guards.triggeredByDeployedProd({ context: context2 }),
-    triggeredByDeployedStageFailure: ({ context: context2 }) => guards.triggeredByDeployedStageFailure({ context: context2 }),
-    triggeredByDeployedProdFailure: ({ context: context2 }) => guards.triggeredByDeployedProdFailure({ context: context2 }),
-    needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 }),
+    triggeredByMergeQueueEntry: ({ context: context3 }) => guards.triggeredByMergeQueueEntry({ context: context3 }),
+    triggeredByMergeQueueFailure: ({ context: context3 }) => guards.triggeredByMergeQueueFailure({ context: context3 }),
+    triggeredByPRMerged: ({ context: context3 }) => guards.triggeredByPRMerged({ context: context3 }),
+    triggeredByDeployedStage: ({ context: context3 }) => guards.triggeredByDeployedStage({ context: context3 }),
+    triggeredByDeployedProd: ({ context: context3 }) => guards.triggeredByDeployedProd({ context: context3 }),
+    triggeredByDeployedStageFailure: ({ context: context3 }) => guards.triggeredByDeployedStageFailure({ context: context3 }),
+    triggeredByDeployedProdFailure: ({ context: context3 }) => guards.triggeredByDeployedProdFailure({ context: context3 }),
+    needsTriage: ({ context: context3 }) => guards.needsTriage({ context: context3 }),
     // Grooming guards
-    triggeredByGroom: ({ context: context2 }) => guards.triggeredByGroom({ context: context2 }),
-    triggeredByGroomSummary: ({ context: context2 }) => guards.triggeredByGroomSummary({ context: context2 }),
-    needsGrooming: ({ context: context2 }) => guards.needsGrooming({ context: context2 }),
-    isGroomed: ({ context: context2 }) => guards.isGroomed({ context: context2 })
+    triggeredByGroom: ({ context: context3 }) => guards.triggeredByGroom({ context: context3 }),
+    triggeredByGroomSummary: ({ context: context3 }) => guards.triggeredByGroomSummary({ context: context3 }),
+    needsGrooming: ({ context: context3 }) => guards.needsGrooming({ context: context3 }),
+    isGroomed: ({ context: context3 }) => guards.isGroomed({ context: context3 })
   },
   actions: {
     // Log actions
@@ -47652,11 +48252,11 @@ var claudeMachine = setup({
     ),
     // Stop action (needs event.reason - inline assign)
     stopWithReason: assign({
-      pendingActions: ({ context: context2, event }) => {
+      pendingActions: ({ context: context3, event }) => {
         const reason = "reason" in event && typeof event.reason === "string" ? event.reason : "unknown";
         return accumulateFromEmitter(
-          context2.pendingActions,
-          context2,
+          context3.pendingActions,
+          context3,
           (ctx) => emitStop(ctx, reason)
         );
       }
@@ -48828,7 +49428,7 @@ var require_codegen = __commonJS2((exports2) => {
           return e instanceof If ? e : e.nodes;
         if (this.nodes.length)
           return this;
-        return new If(not(cond), e instanceof If ? [e] : e.nodes);
+        return new If(not2(cond), e instanceof If ? [e] : e.nodes);
       }
       if (cond === false || !this.nodes.length)
         return;
@@ -49250,20 +49850,20 @@ var require_codegen = __commonJS2((exports2) => {
     for (const n in from)
       names[n] = (names[n] || 0) - (from[n] || 0);
   }
-  function not(x) {
+  function not2(x) {
     return typeof x == "boolean" || typeof x == "number" || x === null ? !x : (0, code_1._)`!${par(x)}`;
   }
-  exports2.not = not;
+  exports2.not = not2;
   var andCode = mappend(exports2.operators.AND);
-  function and(...args) {
+  function and2(...args) {
     return args.reduce(andCode);
   }
-  exports2.and = and;
+  exports2.and = and2;
   var orCode = mappend(exports2.operators.OR);
-  function or(...args) {
+  function or2(...args) {
     return args.reduce(orCode);
   }
-  exports2.or = or;
+  exports2.or = or2;
   function mappend(op) {
     return (x, y) => x === code_1.nil ? y : y === code_1.nil ? x : (0, code_1._)`${par(x)} ${op} ${par(y)}`;
   }
@@ -49926,7 +50526,7 @@ var require_code2 = __commonJS2((exports2) => {
     return allSchemaProperties(schemaMap).filter((p) => !(0, util_1.alwaysValidSchema)(it, schemaMap[p]));
   }
   exports2.schemaProperties = schemaProperties;
-  function callValidateCode({ schemaCode, data, it: { gen, topSchemaRef, schemaPath, errorPath }, it }, func, context2, passSchema) {
+  function callValidateCode({ schemaCode, data, it: { gen, topSchemaRef, schemaPath, errorPath }, it }, func, context3, passSchema) {
     const dataAndSchema = passSchema ? (0, codegen_1._)`${schemaCode}, ${data}, ${topSchemaRef}${schemaPath}` : data;
     const valCxt = [
       [names_1.default.instancePath, (0, codegen_1.strConcat)(names_1.default.instancePath, errorPath)],
@@ -49937,7 +50537,7 @@ var require_code2 = __commonJS2((exports2) => {
     if (it.opts.dynamicRef)
       valCxt.push([names_1.default.dynamicAnchors, names_1.default.dynamicAnchors]);
     const args = (0, codegen_1._)`${dataAndSchema}, ${gen.object(...valCxt)}`;
-    return context2 !== codegen_1.nil ? (0, codegen_1._)`${func}.call(${context2}, ${args})` : (0, codegen_1._)`${func}(${args})`;
+    return context3 !== codegen_1.nil ? (0, codegen_1._)`${func}.call(${context3}, ${args})` : (0, codegen_1._)`${func}(${args})`;
   }
   exports2.callValidateCode = callValidateCode;
   var newRegExp = (0, codegen_1._)`new RegExp`;
@@ -51252,7 +51852,7 @@ var require_scopedChars = __commonJS2((exports2, module2) => {
     HEX
   };
 });
-var require_utils3 = __commonJS2((exports2, module2) => {
+var require_utils5 = __commonJS2((exports2, module2) => {
   var { HEX } = require_scopedChars();
   var IPV4_REG = /^(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)$/u;
   function normalizeIPv4(host) {
@@ -51625,7 +52225,7 @@ var require_schemes = __commonJS2((exports2, module2) => {
   module2.exports = SCHEMES;
 });
 var require_fast_uri = __commonJS2((exports2, module2) => {
-  var { normalizeIPv6, normalizeIPv4, removeDotSegments, recomposeAuthority, normalizeComponentEncoding } = require_utils3();
+  var { normalizeIPv6, normalizeIPv4, removeDotSegments, recomposeAuthority, normalizeComponentEncoding } = require_utils5();
   var SCHEMES = require_schemes();
   function normalize(uri, options) {
     if (typeof uri === "string") {
@@ -52608,7 +53208,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core27 = [
+  var core29 = [
     "$schema",
     "$id",
     "$defs",
@@ -52618,7 +53218,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core27;
+  exports2.default = core29;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -66817,38 +67417,38 @@ var core22 = __toESM(require_core(), 1);
 var core21 = __toESM(require_core(), 1);
 
 // src/discussion/guards.ts
-function triggeredByDiscussionCreated({ context: context2 }) {
-  return context2.trigger === "discussion-created";
+function triggeredByDiscussionCreated({ context: context3 }) {
+  return context3.trigger === "discussion-created";
 }
-function triggeredByDiscussionComment({ context: context2 }) {
-  return context2.trigger === "discussion-comment";
+function triggeredByDiscussionComment({ context: context3 }) {
+  return context3.trigger === "discussion-comment";
 }
-function triggeredByDiscussionCommand({ context: context2 }) {
-  return context2.trigger === "discussion-command";
+function triggeredByDiscussionCommand({ context: context3 }) {
+  return context3.trigger === "discussion-command";
 }
-function commandIsSummarize({ context: context2 }) {
-  return context2.discussion.command === "summarize";
+function commandIsSummarize({ context: context3 }) {
+  return context3.discussion.command === "summarize";
 }
-function commandIsPlan({ context: context2 }) {
-  return context2.discussion.command === "plan";
+function commandIsPlan({ context: context3 }) {
+  return context3.discussion.command === "plan";
 }
-function commandIsComplete({ context: context2 }) {
-  return context2.discussion.command === "complete";
+function commandIsComplete({ context: context3 }) {
+  return context3.discussion.command === "complete";
 }
-function isHumanComment({ context: context2 }) {
-  const author = context2.discussion.commentAuthor;
+function isHumanComment({ context: context3 }) {
+  const author = context3.discussion.commentAuthor;
   if (!author) return false;
-  return !author.endsWith("[bot]") && author !== context2.botUsername;
+  return !author.endsWith("[bot]") && author !== context3.botUsername;
 }
-function isBotResearchThread({ context: context2 }) {
-  const author = context2.discussion.commentAuthor;
-  return (author === context2.botUsername || author?.endsWith("[bot]") === true) && context2.trigger === "discussion-comment";
+function isBotResearchThread({ context: context3 }) {
+  const author = context3.discussion.commentAuthor;
+  return (author === context3.botUsername || author?.endsWith("[bot]") === true) && context3.trigger === "discussion-comment";
 }
-function hasDiscussionContext({ context: context2 }) {
-  return context2.discussion !== null && context2.discussion !== void 0;
+function hasDiscussionContext({ context: context3 }) {
+  return context3.discussion !== null && context3.discussion !== void 0;
 }
-function hasComment({ context: context2 }) {
-  return context2.discussion.commentId !== void 0 && context2.discussion.commentBody !== void 0;
+function hasComment({ context: context3 }) {
+  return context3.discussion.commentId !== void 0 && context3.discussion.commentBody !== void 0;
 }
 var discussionGuards = {
   // Trigger guards
@@ -66869,16 +67469,16 @@ var discussionGuards = {
 
 // src/discussion/action-emitters.ts
 function emitRunClaudeResearch({
-  context: context2
+  context: context3
 }) {
   const promptVars = {
-    DISCUSSION_NUMBER: String(context2.discussion.number),
-    DISCUSSION_NODE_ID: context2.discussion.nodeId,
-    DISCUSSION_TITLE: context2.discussion.title,
-    DISCUSSION_BODY: context2.discussion.body
+    DISCUSSION_NUMBER: String(context3.discussion.number),
+    DISCUSSION_NODE_ID: context3.discussion.nodeId,
+    DISCUSSION_TITLE: context3.discussion.title,
+    DISCUSSION_BODY: context3.discussion.body
   };
   const researchArtifact = {
-    name: `claude-research-output-${context2.discussion.number}`,
+    name: `claude-research-output-${context3.discussion.number}`,
     path: "claude-structured-output.json"
   };
   return [
@@ -66887,32 +67487,32 @@ function emitRunClaudeResearch({
       token: "code",
       promptDir: "discussion/research",
       promptVars,
-      issueNumber: context2.discussion.number,
+      issueNumber: context3.discussion.number,
       producesArtifact: researchArtifact
     },
     {
       type: "applyDiscussionResearchOutput",
       token: "code",
-      discussionNumber: context2.discussion.number,
-      discussionNodeId: context2.discussion.nodeId,
+      discussionNumber: context3.discussion.number,
+      discussionNodeId: context3.discussion.nodeId,
       promptVars,
       filePath: "claude-structured-output.json",
       consumesArtifact: researchArtifact
     }
   ];
 }
-function emitRunClaudeRespond({ context: context2 }) {
+function emitRunClaudeRespond({ context: context3 }) {
   const promptVars = {
-    DISCUSSION_NUMBER: String(context2.discussion.number),
-    DISCUSSION_NODE_ID: context2.discussion.nodeId,
-    DISCUSSION_TITLE: context2.discussion.title,
-    DISCUSSION_BODY: context2.discussion.body,
-    COMMENT_ID: context2.discussion.commentId ?? "",
-    COMMENT_BODY: context2.discussion.commentBody ?? "",
-    COMMENT_AUTHOR: context2.discussion.commentAuthor ?? ""
+    DISCUSSION_NUMBER: String(context3.discussion.number),
+    DISCUSSION_NODE_ID: context3.discussion.nodeId,
+    DISCUSSION_TITLE: context3.discussion.title,
+    DISCUSSION_BODY: context3.discussion.body,
+    COMMENT_ID: context3.discussion.commentId ?? "",
+    COMMENT_BODY: context3.discussion.commentBody ?? "",
+    COMMENT_AUTHOR: context3.discussion.commentAuthor ?? ""
   };
   const respondArtifact = {
-    name: `claude-respond-output-${context2.discussion.number}`,
+    name: `claude-respond-output-${context3.discussion.number}`,
     path: "claude-structured-output.json"
   };
   return [
@@ -66921,31 +67521,31 @@ function emitRunClaudeRespond({ context: context2 }) {
       token: "code",
       promptDir: "discussion/respond",
       promptVars,
-      issueNumber: context2.discussion.number,
+      issueNumber: context3.discussion.number,
       producesArtifact: respondArtifact
     },
     {
       type: "applyDiscussionRespondOutput",
       token: "code",
-      discussionNumber: context2.discussion.number,
-      discussionNodeId: context2.discussion.nodeId,
-      replyToNodeId: context2.discussion.commentId,
+      discussionNumber: context3.discussion.number,
+      discussionNodeId: context3.discussion.nodeId,
+      replyToNodeId: context3.discussion.commentId,
       filePath: "claude-structured-output.json",
       consumesArtifact: respondArtifact
     }
   ];
 }
 function emitRunClaudeSummarize({
-  context: context2
+  context: context3
 }) {
   const promptVars = {
-    DISCUSSION_NUMBER: String(context2.discussion.number),
-    DISCUSSION_NODE_ID: context2.discussion.nodeId,
-    DISCUSSION_TITLE: context2.discussion.title,
-    DISCUSSION_BODY: context2.discussion.body
+    DISCUSSION_NUMBER: String(context3.discussion.number),
+    DISCUSSION_NODE_ID: context3.discussion.nodeId,
+    DISCUSSION_TITLE: context3.discussion.title,
+    DISCUSSION_BODY: context3.discussion.body
   };
   const summarizeArtifact = {
-    name: `claude-summarize-output-${context2.discussion.number}`,
+    name: `claude-summarize-output-${context3.discussion.number}`,
     path: "claude-structured-output.json"
   };
   return [
@@ -66954,28 +67554,28 @@ function emitRunClaudeSummarize({
       token: "code",
       promptDir: "discussion/summarize",
       promptVars,
-      issueNumber: context2.discussion.number,
+      issueNumber: context3.discussion.number,
       producesArtifact: summarizeArtifact
     },
     {
       type: "applyDiscussionSummarizeOutput",
       token: "code",
-      discussionNumber: context2.discussion.number,
-      discussionNodeId: context2.discussion.nodeId,
+      discussionNumber: context3.discussion.number,
+      discussionNodeId: context3.discussion.nodeId,
       filePath: "claude-structured-output.json",
       consumesArtifact: summarizeArtifact
     }
   ];
 }
-function emitRunClaudePlan({ context: context2 }) {
+function emitRunClaudePlan({ context: context3 }) {
   const promptVars = {
-    DISCUSSION_NUMBER: String(context2.discussion.number),
-    DISCUSSION_NODE_ID: context2.discussion.nodeId,
-    DISCUSSION_TITLE: context2.discussion.title,
-    DISCUSSION_BODY: context2.discussion.body
+    DISCUSSION_NUMBER: String(context3.discussion.number),
+    DISCUSSION_NODE_ID: context3.discussion.nodeId,
+    DISCUSSION_TITLE: context3.discussion.title,
+    DISCUSSION_BODY: context3.discussion.body
   };
   const planArtifact = {
-    name: `claude-plan-output-${context2.discussion.number}`,
+    name: `claude-plan-output-${context3.discussion.number}`,
     path: "claude-structured-output.json"
   };
   return [
@@ -66984,86 +67584,86 @@ function emitRunClaudePlan({ context: context2 }) {
       token: "code",
       promptDir: "discussion/plan",
       promptVars,
-      issueNumber: context2.discussion.number,
+      issueNumber: context3.discussion.number,
       producesArtifact: planArtifact
     },
     {
       type: "applyDiscussionPlanOutput",
       token: "code",
-      discussionNumber: context2.discussion.number,
-      discussionNodeId: context2.discussion.nodeId,
+      discussionNumber: context3.discussion.number,
+      discussionNodeId: context3.discussion.nodeId,
       filePath: "claude-structured-output.json",
       consumesArtifact: planArtifact
     }
   ];
 }
-function emitComplete({ context: context2 }) {
+function emitComplete({ context: context3 }) {
   const actions = [];
-  if (context2.discussion.commentId) {
+  if (context3.discussion.commentId) {
     actions.push({
       type: "addDiscussionReaction",
       token: "code",
-      subjectId: context2.discussion.commentId,
+      subjectId: context3.discussion.commentId,
       content: "ROCKET"
     });
   }
   actions.push({
     type: "addDiscussionComment",
     token: "code",
-    discussionNodeId: context2.discussion.nodeId,
+    discussionNodeId: context3.discussion.nodeId,
     body: `This discussion has been marked as complete.
 
 If you have additional questions, feel free to post a new comment!`
   });
   return actions;
 }
-function emitLogResearching({ context: context2 }) {
+function emitLogResearching({ context: context3 }) {
   return [
     {
       type: "log",
       token: "code",
       level: "info",
-      message: `Researching discussion #${context2.discussion.number}`
+      message: `Researching discussion #${context3.discussion.number}`
     }
   ];
 }
-function emitLogResponding({ context: context2 }) {
+function emitLogResponding({ context: context3 }) {
   return [
     {
       type: "log",
       token: "code",
       level: "info",
-      message: `Responding to comment in discussion #${context2.discussion.number}`
+      message: `Responding to comment in discussion #${context3.discussion.number}`
     }
   ];
 }
-function emitLogSummarizing({ context: context2 }) {
+function emitLogSummarizing({ context: context3 }) {
   return [
     {
       type: "log",
       token: "code",
       level: "info",
-      message: `Summarizing discussion #${context2.discussion.number}`
+      message: `Summarizing discussion #${context3.discussion.number}`
     }
   ];
 }
-function emitLogPlanning({ context: context2 }) {
+function emitLogPlanning({ context: context3 }) {
   return [
     {
       type: "log",
       token: "code",
       level: "info",
-      message: `Creating plan from discussion #${context2.discussion.number}`
+      message: `Creating plan from discussion #${context3.discussion.number}`
     }
   ];
 }
-function emitLogCompleting({ context: context2 }) {
+function emitLogCompleting({ context: context3 }) {
   return [
     {
       type: "log",
       token: "code",
       level: "info",
-      message: `Completing discussion #${context2.discussion.number}`
+      message: `Completing discussion #${context3.discussion.number}`
     }
   ];
 }
@@ -67083,25 +67683,25 @@ var discussionMachine = setup({
   },
   guards: {
     // Trigger guards
-    triggeredByDiscussionCreated: ({ context: context2 }) => discussionGuards.triggeredByDiscussionCreated({ context: context2 }),
-    triggeredByDiscussionComment: ({ context: context2 }) => discussionGuards.triggeredByDiscussionComment({ context: context2 }),
-    triggeredByDiscussionCommand: ({ context: context2 }) => discussionGuards.triggeredByDiscussionCommand({ context: context2 }),
+    triggeredByDiscussionCreated: ({ context: context3 }) => discussionGuards.triggeredByDiscussionCreated({ context: context3 }),
+    triggeredByDiscussionComment: ({ context: context3 }) => discussionGuards.triggeredByDiscussionComment({ context: context3 }),
+    triggeredByDiscussionCommand: ({ context: context3 }) => discussionGuards.triggeredByDiscussionCommand({ context: context3 }),
     // Command guards
-    commandIsSummarize: ({ context: context2 }) => discussionGuards.commandIsSummarize({ context: context2 }),
-    commandIsPlan: ({ context: context2 }) => discussionGuards.commandIsPlan({ context: context2 }),
-    commandIsComplete: ({ context: context2 }) => discussionGuards.commandIsComplete({ context: context2 }),
+    commandIsSummarize: ({ context: context3 }) => discussionGuards.commandIsSummarize({ context: context3 }),
+    commandIsPlan: ({ context: context3 }) => discussionGuards.commandIsPlan({ context: context3 }),
+    commandIsComplete: ({ context: context3 }) => discussionGuards.commandIsComplete({ context: context3 }),
     // Author guards
-    isHumanComment: ({ context: context2 }) => discussionGuards.isHumanComment({ context: context2 }),
-    isBotResearchThread: ({ context: context2 }) => discussionGuards.isBotResearchThread({ context: context2 }),
+    isHumanComment: ({ context: context3 }) => discussionGuards.isHumanComment({ context: context3 }),
+    isBotResearchThread: ({ context: context3 }) => discussionGuards.isBotResearchThread({ context: context3 }),
     // State guards
-    hasDiscussionContext: ({ context: context2 }) => discussionGuards.hasDiscussionContext({ context: context2 }),
-    noDiscussionContext: ({ context: context2 }) => !discussionGuards.hasDiscussionContext({ context: context2 }),
-    isHumanDiscussionComment: ({ context: context2 }) => discussionGuards.triggeredByDiscussionComment({ context: context2 }) && discussionGuards.isHumanComment({ context: context2 })
+    hasDiscussionContext: ({ context: context3 }) => discussionGuards.hasDiscussionContext({ context: context3 }),
+    noDiscussionContext: ({ context: context3 }) => !discussionGuards.hasDiscussionContext({ context: context3 }),
+    isHumanDiscussionComment: ({ context: context3 }) => discussionGuards.triggeredByDiscussionComment({ context: context3 }) && discussionGuards.isHumanComment({ context: context3 })
   },
   actions: {
     // Logging actions
     logDetecting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, [
+      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -67111,44 +67711,44 @@ var discussionMachine = setup({
       ])
     }),
     logResearching: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogResearching({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitLogResearching({ context: context3 })
       )
     }),
     logResponding: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogResponding({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitLogResponding({ context: context3 })
       )
     }),
     logSummarizing: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogSummarizing({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitLogSummarizing({ context: context3 })
       )
     }),
     logPlanning: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitLogPlanning({ context: context2 }))
+      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, emitLogPlanning({ context: context3 }))
     }),
     logCompleting: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitLogCompleting({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitLogCompleting({ context: context3 })
       )
     }),
     logSkipped: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, [
+      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, [
         {
           type: "log",
           token: "code",
           level: "info",
-          message: `Skipping - bot comment or no action needed for discussion #${context2.discussion.number}`
+          message: `Skipping - bot comment or no action needed for discussion #${context3.discussion.number}`
         }
       ])
     }),
     logNoContext: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, [
+      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, [
         {
           type: "log",
           token: "code",
@@ -67159,35 +67759,35 @@ var discussionMachine = setup({
     }),
     // Research actions
     runClaudeResearch: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudeResearch({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitRunClaudeResearch({ context: context3 })
       )
     }),
     // Respond actions
     runClaudeRespond: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudeRespond({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitRunClaudeRespond({ context: context3 })
       )
     }),
     // Summarize actions
     runClaudeSummarize: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudeSummarize({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitRunClaudeSummarize({ context: context3 })
       )
     }),
     // Plan actions
     runClaudePlan: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(
-        context2.pendingActions,
-        emitRunClaudePlan({ context: context2 })
+      pendingActions: ({ context: context3 }) => accumulateActions(
+        context3.pendingActions,
+        emitRunClaudePlan({ context: context3 })
       )
     }),
     // Complete actions
     complete: assign({
-      pendingActions: ({ context: context2 }) => accumulateActions(context2.pendingActions, emitComplete({ context: context2 }))
+      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, emitComplete({ context: context3 }))
     })
   }
 }).createMachine({
@@ -67292,6 +67892,890 @@ var discussionMachine = setup({
     }
   }
 });
+
+// src/runner/derive.ts
+function getTransitionName(finalState) {
+  const stateNames = {
+    // Issue states - Triage flow
+    triaging: "Triage",
+    // Issue states - Reset flow
+    resetting: "Reset",
+    // Issue states - Comment flow
+    commenting: "Comment",
+    // Issue states - PR review flows
+    prReviewing: "PR Review",
+    prResponding: "PR Response",
+    prRespondingHuman: "PR Human Response",
+    prPush: "PR Push",
+    // Issue states - Orchestration flows
+    orchestrationRunning: "Orchestrate",
+    orchestrationWaiting: "Wait (Review)",
+    orchestrationComplete: "Complete Phases",
+    // Issue states - Iteration flows
+    iterating: "Iterate",
+    iteratingFix: "Fix CI",
+    // Issue states - Review/transition flows
+    reviewing: "In Review",
+    transitioningToReview: "Request Review",
+    // Issue states - Terminal states
+    blocked: "Blocked",
+    error: "Error",
+    done: "Done",
+    // Issue states - Merge queue logging states
+    mergeQueueLogging: "Log Queue Entry",
+    mergeQueueFailureLogging: "Log Queue Failure",
+    mergedLogging: "Log Merged",
+    deployedStageLogging: "Log Stage Deploy",
+    deployedProdLogging: "Log Prod Deploy",
+    deployedStageFailureLogging: "Log Stage Deploy Failure",
+    deployedProdFailureLogging: "Log Prod Deploy Failure",
+    // Issue states - Early detection states
+    alreadyDone: "Already Done",
+    alreadyBlocked: "Already Blocked",
+    // Issue states - Grooming flow
+    grooming: "Grooming",
+    // Discussion states
+    detecting: "Detecting",
+    researching: "Research",
+    responding: "Respond",
+    commanding: "Command",
+    summarizing: "Summarize",
+    planning: "Plan",
+    completing: "Complete",
+    skipped: "Skipped",
+    noContext: "No Context"
+  };
+  return stateNames[finalState] || finalState;
+}
+var TRIGGER_TO_EVENT_TYPE = {
+  "issue-assigned": "issue_assigned",
+  "issue-edited": "issue_edited",
+  "issue-closed": "issue_closed",
+  "issue-triage": "issue_assigned",
+  "issue-orchestrate": "issue_assigned",
+  "issue-comment": "issue_comment",
+  "issue-reset": "issue_comment",
+  "pr-review-requested": "pr_review_requested",
+  "pr-review-submitted": "pr_review_submitted",
+  "pr-review": "pr_review_submitted",
+  "pr-review-approved": "pr_review_submitted",
+  "pr-response": "pr_review_submitted",
+  "pr-human-response": "pr_review_submitted",
+  "pr-push": "pr_push",
+  "workflow-run-completed": "workflow_run_completed",
+  "merge-queue-entered": "merge_queue_entered",
+  "merge-queue-failed": "merge_queue_failed",
+  "pr-merged": "pr_merged",
+  "deployed-stage": "deployed_stage",
+  "deployed-prod": "deployed_prod",
+  "deployed-stage-failed": "deployed_stage_failed",
+  "deployed-prod-failed": "deployed_prod_failed"
+};
+async function deriveIssueActions(options) {
+  const {
+    trigger,
+    ctx,
+    octokit,
+    owner,
+    repo,
+    projectNumber,
+    maxRetries,
+    botUsername
+  } = options;
+  const issueNumber = parseInt(ctx.issue_number || "0", 10);
+  const ciResult = ctx.ci_result || null;
+  const ciRunUrl = ctx.ci_run_url || null;
+  const ciCommitSha = ctx.ci_commit_sha || null;
+  const reviewDecision = ctx.review_decision || null;
+  const reviewer = ctx.reviewer || ctx.reviewer_login || null;
+  const commentContextType = ctx.context_type?.toLowerCase() || null;
+  const commentContextDescription = ctx.context_description || null;
+  const inputBranch = ctx.branch_name || null;
+  const workflowStartedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID;
+  const workflowRunUrl = runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null;
+  core22.info(`Derive issue actions: issue=#${issueNumber}, trigger=${trigger}`);
+  const eventType = TRIGGER_TO_EVENT_TYPE[trigger] || trigger;
+  const event = {
+    type: eventType,
+    owner,
+    repo,
+    issueNumber,
+    timestamp: workflowStartedAt,
+    ...ciResult && { result: ciResult },
+    ...ciRunUrl && { runUrl: ciRunUrl },
+    ...ciCommitSha && { headSha: ciCommitSha },
+    ...reviewDecision && { decision: reviewDecision },
+    ...reviewer && { reviewer }
+  };
+  const context3 = await buildMachineContext(
+    octokit,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- event object matches buildMachineContext parameter type
+    event,
+    projectNumber,
+    {
+      maxRetries,
+      botUsername,
+      commentContextType,
+      commentContextDescription,
+      branch: inputBranch,
+      triggerOverride: trigger,
+      ciRunUrl,
+      workflowStartedAt,
+      workflowRunUrl
+    }
+  );
+  if (!context3) {
+    return null;
+  }
+  core22.info(
+    `Context built: status=${context3.issue.projectStatus}, iteration=${context3.issue.iteration}`
+  );
+  const iteration = String(context3.issue.iteration ?? 0);
+  const phase = context3.currentPhase !== null ? String(context3.currentPhase) : "-";
+  const parentIssueNum = String(
+    context3.parentIssue?.number || context3.issue.number
+  );
+  const subIssueNum = context3.currentSubIssue?.number ? String(context3.currentSubIssue.number) : "";
+  const agentNotesEntries = agentNotesExtractor({
+    owner,
+    repo,
+    issue: context3.issue,
+    parentIssue: context3.parentIssue ?? null
+  });
+  const agentNotes = formatAgentNotesForPrompt(agentNotesEntries);
+  const actor = createActor(claudeMachine, { input: context3 });
+  actor.start();
+  actor.send({ type: "DETECT" });
+  const snapshot = actor.getSnapshot();
+  const finalState = String(snapshot.value);
+  const pendingActions = snapshot.context.pendingActions;
+  const transitionName = getTransitionName(finalState);
+  core22.info(
+    `Machine: state=${finalState}, transition=${transitionName}, actions=${pendingActions.length}`
+  );
+  actor.stop();
+  return {
+    finalState,
+    transitionName,
+    pendingActions,
+    iteration,
+    phase,
+    parentIssueNumber: parentIssueNum,
+    subIssueNumber: subIssueNum,
+    prNumber: context3.pr?.number ? String(context3.pr.number) : "",
+    commitSha: context3.ciCommitSha || "",
+    agentNotes,
+    machineContext: context3
+  };
+}
+
+// src/verify/index.ts
+var verify_exports = {};
+__export(verify_exports, {
+  ExpectedStateSchema: () => ExpectedStateSchema,
+  PredictableIssueStateSchema: () => PredictableIssueStateSchema,
+  PredictablePRStateSchema: () => PredictablePRStateSchema,
+  PredictableStateTreeSchema: () => PredictableStateTreeSchema,
+  PredictableSubIssueStateSchema: () => PredictableSubIssueStateSchema,
+  buildExpectedState: () => buildExpectedState,
+  compareStateTree: () => compareStateTree,
+  extractPredictableTree: () => extractPredictableTree,
+  getMutator: () => getMutator,
+  hasMutator: () => hasMutator
+});
+
+// src/verify/predictable-state.ts
+var PredictablePRStateSchema = external_exports.object({
+  isDraft: external_exports.boolean(),
+  state: PRStateSchema
+});
+var PredictableSubIssueStateSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: IssueStateSchema,
+  projectStatus: ProjectStatusSchema.nullable(),
+  labels: external_exports.array(external_exports.string()),
+  hasBranch: external_exports.boolean(),
+  hasPR: external_exports.boolean(),
+  pr: PredictablePRStateSchema.nullable(),
+  body: SubIssueBodyStructureSchema
+});
+var PredictableIssueStateSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: IssueStateSchema,
+  projectStatus: ProjectStatusSchema.nullable(),
+  iteration: external_exports.number().int().min(0),
+  failures: external_exports.number().int().min(0),
+  labels: external_exports.array(external_exports.string()),
+  assignees: external_exports.array(external_exports.string()),
+  hasBranch: external_exports.boolean(),
+  hasPR: external_exports.boolean(),
+  pr: PredictablePRStateSchema.nullable(),
+  body: ParentIssueBodyStructureSchema
+});
+var PredictableStateTreeSchema = external_exports.object({
+  issue: PredictableIssueStateSchema,
+  subIssues: external_exports.array(PredictableSubIssueStateSchema)
+});
+var ExpectedStateSchema = external_exports.object({
+  finalState: external_exports.string(),
+  outcomes: external_exports.array(PredictableStateTreeSchema),
+  timestamp: external_exports.string(),
+  trigger: external_exports.string(),
+  issueNumber: external_exports.number().int().positive(),
+  parentIssueNumber: external_exports.number().int().positive().nullable()
+});
+function extractPRState(pr) {
+  if (!pr) return null;
+  return PredictablePRStateSchema.parse({
+    isDraft: pr.isDraft,
+    state: pr.state
+  });
+}
+function extractSubIssueState(sub) {
+  return PredictableSubIssueStateSchema.parse({
+    number: sub.number,
+    state: sub.state,
+    projectStatus: sub.projectStatus,
+    labels: sub.labels,
+    hasBranch: sub.branch !== null,
+    hasPR: sub.pr !== null,
+    pr: extractPRState(sub.pr),
+    body: extractSubIssueBodyStructure(sub.bodyAst)
+  });
+}
+function extractIssueState(issue2) {
+  return PredictableIssueStateSchema.parse({
+    number: issue2.number,
+    state: issue2.state,
+    projectStatus: issue2.projectStatus,
+    iteration: issue2.iteration,
+    failures: issue2.failures,
+    labels: issue2.labels,
+    assignees: issue2.assignees,
+    hasBranch: issue2.branch !== null,
+    hasPR: issue2.pr !== null,
+    pr: extractPRState(issue2.pr),
+    body: extractParentIssueBodyStructure(issue2.bodyAst)
+  });
+}
+function extractPredictableTree(context3) {
+  if (context3.parentIssue) {
+    const root4 = extractIssueState(context3.parentIssue);
+    const subIssues2 = context3.parentIssue.subIssues.map(extractSubIssueState);
+    return { issue: root4, subIssues: subIssues2 };
+  }
+  const root3 = extractIssueState(context3.issue);
+  const subIssues = context3.issue.subIssues.map(extractSubIssueState);
+  return { issue: root3, subIssues };
+}
+function buildExpectedState(options) {
+  return ExpectedStateSchema.parse({
+    finalState: options.finalState,
+    outcomes: options.outcomes,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    trigger: options.trigger,
+    issueNumber: options.issueNumber,
+    parentIssueNumber: options.parentIssueNumber
+  });
+}
+
+// src/verify/mutators/helpers.ts
+function cloneTree(tree) {
+  return structuredClone(tree);
+}
+function findCurrentSubIssue(tree, context3) {
+  const subNumber = context3.currentSubIssue?.number;
+  if (!subNumber) return void 0;
+  return tree.subIssues.find((s) => s.number === subNumber);
+}
+function addHistoryEntry3(issue2, entry) {
+  issue2.body.historyEntries.push({
+    iteration: entry.iteration,
+    phase: entry.phase,
+    action: entry.action,
+    timestamp: null,
+    sha: null,
+    runLink: null
+  });
+}
+function updateHistoryEntry3(issue2, matchPattern, newAction, iteration, phase) {
+  for (let i = issue2.body.historyEntries.length - 1; i >= 0; i--) {
+    const entry = issue2.body.historyEntries[i];
+    if (entry && entry.iteration === iteration && entry.phase === phase && entry.action.includes(matchPattern)) {
+      entry.action = newAction;
+      return;
+    }
+  }
+}
+
+// src/verify/mutators/terminal.ts
+var doneMutator = (current) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "Done";
+  tree.issue.state = "CLOSED";
+  return [tree];
+};
+var blockedMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "Blocked";
+  tree.issue.assignees = tree.issue.assignees.filter(
+    (a) => a !== context3.botUsername
+  );
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: HISTORY_MESSAGES.blocked(context3.issue.failures)
+  });
+  return [tree];
+};
+var errorMutator = (current) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "Error";
+  return [tree];
+};
+var noopMutator = (current) => {
+  return [cloneTree(current)];
+};
+
+// src/verify/mutators/iteration.ts
+var iteratingMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const sub = findCurrentSubIssue(tree, context3);
+  if (sub) {
+    sub.projectStatus = "In progress";
+    sub.hasBranch = true;
+    sub.hasPR = true;
+    if (sub.pr) {
+      sub.pr.isDraft = true;
+    }
+  }
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration + 1,
+    phase,
+    action: HISTORY_MESSAGES.ITERATING
+  });
+  return [tree];
+};
+var iteratingFixMutator = (current, context3) => iteratingMutator(current, context3);
+
+// src/verify/mutators/review.ts
+var reviewingMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const sub = findCurrentSubIssue(tree, context3);
+  if (sub) {
+    sub.projectStatus = "In review";
+  }
+  return [tree];
+};
+var transitioningToReviewMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const sub = findCurrentSubIssue(tree, context3);
+  if (sub) {
+    sub.projectStatus = "In review";
+    if (sub.pr) {
+      sub.pr.isDraft = false;
+    }
+  }
+  tree.issue.failures = 0;
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: HISTORY_MESSAGES.REVIEW_REQUESTED
+  });
+  return [tree];
+};
+var awaitingMergeMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const sub = findCurrentSubIssue(tree, context3);
+  if (sub) {
+    sub.projectStatus = "In review";
+  }
+  return [tree];
+};
+
+// src/verify/mutators/orchestration.ts
+var orchestrationRunningMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "In progress";
+  const needsInit = context3.issue.projectStatus === null || context3.issue.projectStatus === "Backlog";
+  if (needsInit) {
+    addHistoryEntry3(tree.issue, {
+      iteration: context3.issue.iteration,
+      phase: "1",
+      action: HISTORY_MESSAGES.initialized(context3.issue.subIssues.length)
+    });
+  }
+  return [tree];
+};
+var orchestrationWaitingMutator = (current) => {
+  return [cloneTree(current)];
+};
+var orchestrationCompleteMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "Done";
+  tree.issue.state = "CLOSED";
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase: "-",
+    action: HISTORY_MESSAGES.ALL_PHASES_COMPLETE
+  });
+  return [tree];
+};
+
+// src/verify/mutators/ai-dependent.ts
+var triagingMutator = (current) => {
+  const tree = cloneTree(current);
+  if (!tree.issue.labels.includes("triaged")) {
+    tree.issue.labels.push("triaged");
+  }
+  return [tree];
+};
+var groomingMutator = (current) => {
+  const ready = cloneTree(current);
+  if (!ready.issue.labels.includes("groomed")) {
+    ready.issue.labels.push("groomed");
+  }
+  ready.issue.projectStatus = "Ready";
+  const needsInfo2 = cloneTree(current);
+  if (!needsInfo2.issue.labels.includes("needs-info")) {
+    needsInfo2.issue.labels.push("needs-info");
+  }
+  const blocked = cloneTree(current);
+  blocked.issue.projectStatus = "Blocked";
+  return [ready, needsInfo2, blocked];
+};
+var commentingMutator = (current) => {
+  return [cloneTree(current)];
+};
+var pivotingMutator = (current) => {
+  return [cloneTree(current)];
+};
+
+// src/verify/mutators/logging.ts
+function makeLoggingMutator(message) {
+  return (current, context3) => {
+    const tree = cloneTree(current);
+    const phase = String(context3.currentPhase ?? "-");
+    addHistoryEntry3(tree.issue, {
+      iteration: context3.issue.iteration ?? 0,
+      phase,
+      action: message
+    });
+    return [tree];
+  };
+}
+var mergeQueueLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.ENTERED_QUEUE
+);
+var mergeQueueFailureLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.REMOVED_FROM_QUEUE
+);
+var mergedLoggingMutator = makeLoggingMutator(HISTORY_MESSAGES.MERGED);
+var deployedStageLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.DEPLOYED_STAGE
+);
+var deployedProdLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.RELEASED_PROD
+);
+var deployedStageFailureLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.STAGE_DEPLOY_FAILED
+);
+var deployedProdFailureLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.PROD_DEPLOY_FAILED
+);
+
+// src/verify/mutators/control.ts
+var processingCIMutator = (current, context3) => {
+  const ciPassed2 = context3.ciResult === "success";
+  const phase = String(context3.currentPhase ?? "-");
+  const iteration = context3.issue.iteration;
+  if (ciPassed2) {
+    const tree2 = cloneTree(current);
+    updateHistoryEntry3(
+      tree2.issue,
+      HISTORY_ICONS.ITERATING,
+      HISTORY_MESSAGES.CI_PASSED,
+      iteration,
+      phase
+    );
+    return [tree2];
+  }
+  const tree = cloneTree(current);
+  updateHistoryEntry3(
+    tree.issue,
+    HISTORY_ICONS.ITERATING,
+    HISTORY_MESSAGES.CI_FAILED,
+    iteration,
+    phase
+  );
+  return [tree];
+};
+var prPushMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const sub = findCurrentSubIssue(tree, context3);
+  if (sub?.pr) {
+    sub.pr.isDraft = true;
+  }
+  if (sub) {
+    sub.projectStatus = "In progress";
+  }
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: 0,
+    phase,
+    action: HISTORY_MESSAGES.CODE_PUSHED
+  });
+  return [tree];
+};
+var resettingMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "Backlog";
+  tree.issue.failures = 0;
+  tree.issue.assignees = tree.issue.assignees.filter(
+    (a) => a !== context3.botUsername
+  );
+  for (const sub of tree.subIssues) {
+    sub.projectStatus = "Ready";
+  }
+  return [tree];
+};
+var processingMergeMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "Done";
+  tree.issue.state = "CLOSED";
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration ?? 0,
+    phase,
+    action: HISTORY_MESSAGES.MERGED
+  });
+  return [tree];
+};
+var invalidIterationMutator = (current) => {
+  const tree = cloneTree(current);
+  tree.issue.projectStatus = "Error";
+  return [tree];
+};
+var subIssueIdleMutator = (current) => {
+  return [cloneTree(current)];
+};
+
+// src/verify/mutators/index.ts
+var MUTATOR_REGISTRY = {
+  // Terminal
+  done: doneMutator,
+  blocked: blockedMutator,
+  error: errorMutator,
+  alreadyDone: noopMutator,
+  alreadyBlocked: noopMutator,
+  // Iteration
+  iterating: iteratingMutator,
+  iteratingFix: iteratingFixMutator,
+  // Review
+  reviewing: reviewingMutator,
+  transitioningToReview: transitioningToReviewMutator,
+  awaitingMerge: awaitingMergeMutator,
+  // Orchestration
+  orchestrationRunning: orchestrationRunningMutator,
+  orchestrationWaiting: orchestrationWaitingMutator,
+  orchestrationComplete: orchestrationCompleteMutator,
+  // AI-dependent
+  triaging: triagingMutator,
+  grooming: groomingMutator,
+  commenting: commentingMutator,
+  pivoting: pivotingMutator,
+  // Logging
+  mergeQueueLogging: mergeQueueLoggingMutator,
+  mergeQueueFailureLogging: mergeQueueFailureLoggingMutator,
+  mergedLogging: mergedLoggingMutator,
+  deployedStageLogging: deployedStageLoggingMutator,
+  deployedProdLogging: deployedProdLoggingMutator,
+  deployedStageFailureLogging: deployedStageFailureLoggingMutator,
+  deployedProdFailureLogging: deployedProdFailureLoggingMutator,
+  // Control
+  processingCI: processingCIMutator,
+  prPush: prPushMutator,
+  resetting: resettingMutator,
+  processingMerge: processingMergeMutator,
+  invalidIteration: invalidIterationMutator,
+  subIssueIdle: subIssueIdleMutator,
+  // PR review states (AI-dependent, no predictable structural changes)
+  prReviewing: noopMutator,
+  prResponding: noopMutator,
+  prRespondingHuman: noopMutator
+};
+function getMutator(finalState) {
+  return MUTATOR_REGISTRY[finalState];
+}
+function hasMutator(finalState) {
+  return finalState in MUTATOR_REGISTRY;
+}
+
+// src/verify/compare.ts
+function diffExact(path2, expected, actual) {
+  if (expected === actual) return null;
+  return { path: path2, expected, actual, comparison: "exact" };
+}
+function diffGte(path2, expected, actual) {
+  if (actual >= expected) return null;
+  return { path: path2, expected, actual, comparison: "gte" };
+}
+function diffLte(path2, expected, actual) {
+  if (actual <= expected) return null;
+  return { path: path2, expected, actual, comparison: "lte" };
+}
+function diffSuperset(path2, expected, actual) {
+  const missing = expected.filter((e) => !actual.includes(e));
+  if (missing.length === 0) return null;
+  return { path: path2, expected: missing, actual, comparison: "superset" };
+}
+function diffBooleanFlag(path2, expected, actual) {
+  if (expected && !actual) {
+    return { path: path2, expected, actual, comparison: "exact" };
+  }
+  return null;
+}
+function diffHistoryEntries(path2, expected, actual) {
+  const diffs = [];
+  for (const exp of expected) {
+    const found = actual.some(
+      (act) => act.iteration === exp.iteration && act.phase === exp.phase && act.action.startsWith(exp.action.charAt(0))
+    );
+    if (!found) {
+      diffs.push({
+        path: `${path2}[iter=${exp.iteration},phase=${exp.phase}]`,
+        expected: exp.action,
+        actual: actual.map((a) => a.action),
+        comparison: "history_entry"
+      });
+    }
+  }
+  return diffs;
+}
+function compareSubIssueBody(path2, expected, actual) {
+  const diffs = [];
+  const flags = [
+    "hasDescription",
+    "hasTodos",
+    "hasHistory",
+    "hasAgentNotes",
+    "hasQuestions",
+    "hasAffectedAreas"
+  ];
+  for (const flag of flags) {
+    const d = diffBooleanFlag(`${path2}.${flag}`, expected[flag], actual[flag]);
+    if (d) diffs.push(d);
+  }
+  if (expected.todoStats && actual.todoStats) {
+    const d1 = diffGte(
+      `${path2}.todoStats.total`,
+      expected.todoStats.total,
+      actual.todoStats.total
+    );
+    if (d1) diffs.push(d1);
+    const d2 = diffGte(
+      `${path2}.todoStats.completed`,
+      expected.todoStats.completed,
+      actual.todoStats.completed
+    );
+    if (d2) diffs.push(d2);
+    const d3 = diffLte(
+      `${path2}.todoStats.uncheckedNonManual`,
+      expected.todoStats.uncheckedNonManual,
+      actual.todoStats.uncheckedNonManual
+    );
+    if (d3) diffs.push(d3);
+  }
+  if (expected.questionStats && actual.questionStats) {
+    const d1 = diffGte(
+      `${path2}.questionStats.total`,
+      expected.questionStats.total,
+      actual.questionStats.total
+    );
+    if (d1) diffs.push(d1);
+    const d2 = diffGte(
+      `${path2}.questionStats.answered`,
+      expected.questionStats.answered,
+      actual.questionStats.answered
+    );
+    if (d2) diffs.push(d2);
+  }
+  diffs.push(
+    ...diffHistoryEntries(
+      `${path2}.historyEntries`,
+      expected.historyEntries,
+      actual.historyEntries
+    )
+  );
+  return diffs;
+}
+function compareParentBody(path2, expected, actual) {
+  const diffs = compareSubIssueBody(path2, expected, actual);
+  const parentFlags = [
+    "hasRequirements",
+    "hasApproach",
+    "hasAcceptanceCriteria",
+    "hasTesting",
+    "hasRelated"
+  ];
+  for (const flag of parentFlags) {
+    const d = diffBooleanFlag(`${path2}.${flag}`, expected[flag], actual[flag]);
+    if (d) diffs.push(d);
+  }
+  return diffs;
+}
+function compareIssue(path2, expected, actual) {
+  const diffs = [];
+  const d1 = diffExact(`${path2}.state`, expected.state, actual.state);
+  if (d1) diffs.push(d1);
+  const d2 = diffExact(
+    `${path2}.projectStatus`,
+    expected.projectStatus,
+    actual.projectStatus
+  );
+  if (d2) diffs.push(d2);
+  const d3 = diffGte(`${path2}.iteration`, expected.iteration, actual.iteration);
+  if (d3) diffs.push(d3);
+  if (expected.failures !== actual.failures && actual.failures !== 0) {
+    diffs.push({
+      path: `${path2}.failures`,
+      expected: expected.failures,
+      actual: actual.failures,
+      comparison: "exact"
+    });
+  }
+  const d5 = diffSuperset(`${path2}.labels`, expected.labels, actual.labels);
+  if (d5) diffs.push(d5);
+  const d6 = diffSuperset(
+    `${path2}.assignees`,
+    expected.assignees,
+    actual.assignees
+  );
+  if (d6) diffs.push(d6);
+  const d7 = diffBooleanFlag(
+    `${path2}.hasBranch`,
+    expected.hasBranch,
+    actual.hasBranch
+  );
+  if (d7) diffs.push(d7);
+  const d8 = diffBooleanFlag(`${path2}.hasPR`, expected.hasPR, actual.hasPR);
+  if (d8) diffs.push(d8);
+  if (expected.pr && actual.pr) {
+    const d9 = diffExact(
+      `${path2}.pr.isDraft`,
+      expected.pr.isDraft,
+      actual.pr.isDraft
+    );
+    if (d9) diffs.push(d9);
+    const d10 = diffExact(
+      `${path2}.pr.state`,
+      expected.pr.state,
+      actual.pr.state
+    );
+    if (d10) diffs.push(d10);
+  }
+  diffs.push(...compareParentBody(`${path2}.body`, expected.body, actual.body));
+  return diffs;
+}
+function compareSubIssue(path2, expected, actual) {
+  const diffs = [];
+  const d1 = diffExact(`${path2}.state`, expected.state, actual.state);
+  if (d1) diffs.push(d1);
+  const d2 = diffExact(
+    `${path2}.projectStatus`,
+    expected.projectStatus,
+    actual.projectStatus
+  );
+  if (d2) diffs.push(d2);
+  const d3 = diffSuperset(`${path2}.labels`, expected.labels, actual.labels);
+  if (d3) diffs.push(d3);
+  const d4 = diffBooleanFlag(
+    `${path2}.hasBranch`,
+    expected.hasBranch,
+    actual.hasBranch
+  );
+  if (d4) diffs.push(d4);
+  const d5 = diffBooleanFlag(`${path2}.hasPR`, expected.hasPR, actual.hasPR);
+  if (d5) diffs.push(d5);
+  if (expected.pr && actual.pr) {
+    const d6 = diffExact(
+      `${path2}.pr.isDraft`,
+      expected.pr.isDraft,
+      actual.pr.isDraft
+    );
+    if (d6) diffs.push(d6);
+    const d7 = diffExact(
+      `${path2}.pr.state`,
+      expected.pr.state,
+      actual.pr.state
+    );
+    if (d7) diffs.push(d7);
+  }
+  diffs.push(
+    ...compareSubIssueBody(`${path2}.body`, expected.body, actual.body)
+  );
+  return diffs;
+}
+function compareTree(expected, actual) {
+  const diffs = [];
+  diffs.push(...compareIssue("issue", expected.issue, actual.issue));
+  for (const expSub of expected.subIssues) {
+    const actSub = actual.subIssues.find((s) => s.number === expSub.number);
+    if (!actSub) {
+      diffs.push({
+        path: `subIssues[${expSub.number}]`,
+        expected: expSub.number,
+        actual: null,
+        comparison: "exact"
+      });
+      continue;
+    }
+    diffs.push(
+      ...compareSubIssue(`subIssues[${expSub.number}]`, expSub, actSub)
+    );
+  }
+  return diffs;
+}
+function compareStateTree(expected, actual) {
+  if (expected.length === 0) {
+    return {
+      pass: true,
+      matchedOutcomeIndex: null,
+      bestMatch: { outcomeIndex: -1, diffs: [] }
+    };
+  }
+  let bestIndex = 0;
+  let bestDiffs = [];
+  let foundMatch = false;
+  for (let i = 0; i < expected.length; i++) {
+    const outcome = expected[i];
+    if (!outcome) continue;
+    const diffs = compareTree(outcome, actual);
+    if (diffs.length === 0) {
+      return {
+        pass: true,
+        matchedOutcomeIndex: i,
+        bestMatch: { outcomeIndex: i, diffs: [] }
+      };
+    }
+    if (!foundMatch || diffs.length < bestDiffs.length) {
+      bestIndex = i;
+      bestDiffs = diffs;
+      foundMatch = true;
+    }
+  }
+  return {
+    pass: false,
+    matchedOutcomeIndex: null,
+    bestMatch: { outcomeIndex: bestIndex, diffs: bestDiffs }
+  };
+}
 
 // src/test-runner/poller.ts
 var core23 = __toESM(require_core(), 1);
@@ -67978,7 +69462,7 @@ async function ensureBranchExists(branch) {
   core26.info(`Created and pushed branch ${branch}`);
   return true;
 }
-async function checkBranchExists(branch) {
+async function checkBranchExists2(branch) {
   const { stdout } = await execCommand(
     "git",
     ["ls-remote", "--heads", "origin", branch],
@@ -68014,8 +69498,8 @@ function issueTitle(issueState) {
   return issueState?.issue.title ?? "";
 }
 async function handleIssueEvent(octokit, owner, repo, issueState) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const action = payload.action ?? "";
   const issue2 = IssuePayloadSchema.parse(payload.issue);
   const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
@@ -68278,8 +69762,8 @@ async function handleIssueEvent(octokit, owner, repo, issueState) {
   return emptyResult(true, `Unhandled issue action: ${action}`);
 }
 async function handleIssueCommentEvent(octokit, owner, repo, resolvedIssueNumber, issueState) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const comment = IssueCommentPayloadSchema.parse(payload.comment);
   const issue2 = IssueForCommentPayloadSchema.parse(payload.issue);
   const hasTestLabel = issue2.labels.some((l) => l.name === "test:automation");
@@ -68397,7 +69881,7 @@ async function handleIssueCommentEvent(octokit, owner, repo, resolvedIssueNumber
         parentIssueNumber2(issueState),
         phaseNumber || issue2.number
       );
-      const branchExists = await checkBranchExists(branchName3);
+      const branchExists = await checkBranchExists2(branchName3);
       if (!branchExists) {
         await ensureBranchExists(branchName3);
       }
@@ -68496,7 +69980,7 @@ async function handleIssueCommentEvent(octokit, owner, repo, resolvedIssueNumber
     linkedIssueNumber = String(resolvedIssueNumber);
   } else {
     const issueBranch = `claude/issue/${issue2.number}`;
-    if (await checkBranchExists(issueBranch)) {
+    if (await checkBranchExists2(issueBranch)) {
       branchName = issueBranch;
     }
   }
@@ -68518,8 +70002,8 @@ async function handleIssueCommentEvent(octokit, owner, repo, resolvedIssueNumber
   };
 }
 async function handlePullRequestReviewCommentEvent(_issueState) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const comment = ReviewCommentPayloadSchema.parse(payload.comment);
   const pr = PullRequestForReviewCommentPayloadSchema.parse(
     payload.pull_request
@@ -68563,8 +70047,8 @@ async function handlePullRequestReviewCommentEvent(_issueState) {
   };
 }
 async function handlePushEvent(issueState) {
-  const { context: context2 } = github;
-  const ref = context2.ref;
+  const { context: context3 } = github;
+  const ref = context3.ref;
   const branch = ref.replace("refs/heads/", "");
   if (branch === "main") {
     return emptyResult(true, "Push to main branch");
@@ -68591,8 +70075,8 @@ async function handlePushEvent(issueState) {
       "Linked issue has test:automation label - skipping from normal automation"
     );
   }
-  const owner = context2.repo.owner;
-  const repo = context2.repo.repo;
+  const owner = context3.repo.owner;
+  const repo = context3.repo.repo;
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runId = process.env.GITHUB_RUN_ID || "";
   const commitSha = github.context.sha;
@@ -68618,8 +70102,8 @@ async function handlePushEvent(issueState) {
   };
 }
 async function handleWorkflowRunEvent(issueState, resolvedIssueNumber) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const workflowRun = WorkflowRunPayloadSchema.parse(payload.workflow_run);
   const conclusion = workflowRun.conclusion;
   const branch = workflowRun.head_branch;
@@ -68648,8 +70132,8 @@ async function handleWorkflowRunEvent(issueState, resolvedIssueNumber) {
       "Linked issue has test:automation label - skipping from normal automation"
     );
   }
-  const owner = context2.repo.owner;
-  const repo = context2.repo.repo;
+  const owner = context3.repo.owner;
+  const repo = context3.repo.repo;
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const ciRunUrl = `${serverUrl}/${owner}/${repo}/actions/runs/${runId}`;
   return {
@@ -68672,8 +70156,8 @@ async function handleWorkflowRunEvent(issueState, resolvedIssueNumber) {
   };
 }
 async function handlePullRequestEvent(resolvedIssueNumber) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const action = payload.action ?? "";
   const pr = PullRequestPayloadSchema.parse(payload.pull_request);
   if (shouldSkipTestResource(pr.title, pr.labels)) {
@@ -68714,8 +70198,8 @@ async function handlePullRequestEvent(resolvedIssueNumber) {
   return emptyResult(true, `Unhandled PR action: ${action}`);
 }
 async function handlePullRequestReviewEvent(resolvedIssueNumber, issueState) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const review = ReviewPayloadSchema.parse(payload.review);
   const pr = PullRequestPayloadSchema.parse(payload.pull_request);
   if (!review?.user?.login) {
@@ -68819,8 +70303,8 @@ async function handlePullRequestReviewEvent(resolvedIssueNumber, issueState) {
   };
 }
 async function handleDiscussionEvent(octokit, owner, repo) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const action = payload.action ?? "";
   const discussion = DiscussionPayloadSchema.parse(payload.discussion);
   let discussionLabels = [];
@@ -68867,12 +70351,12 @@ async function handleDiscussionEvent(octokit, owner, repo) {
   return emptyResult(true, `Unhandled discussion action: ${action}`);
 }
 async function handleMergeGroupEvent(resolvedIssueNumber, prNumber, issueState) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const mergeGroup = MergeGroupPayloadSchema.parse(payload.merge_group);
   const headRef = mergeGroup.head_ref;
-  const owner = context2.repo.owner;
-  const repo = context2.repo.repo;
+  const owner = context3.repo.owner;
+  const repo = context3.repo.repo;
   if (!prNumber) {
     return emptyResult(true, "No PR found in merge queue branch");
   }
@@ -68903,8 +70387,8 @@ async function handleMergeGroupEvent(resolvedIssueNumber, prNumber, issueState) 
   };
 }
 async function handleDiscussionCommentEvent(octokit, owner, repo) {
-  const { context: context2 } = github;
-  const payload = context2.payload;
+  const { context: context3 } = github;
+  const payload = context3.payload;
   const discussion = DiscussionPayloadSchema.parse(payload.discussion);
   const comment = DiscussionCommentPayloadSchema.parse(payload.comment);
   let discussionLabels = [];
@@ -69333,18 +70817,83 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride) {
   return unifiedContext;
 }
 
+// actions/sm-plan/lib/expected-state.ts
+var core27 = __toESM(require_core(), 1);
+function predictExpectedState(deriveResult) {
+  const { finalState, machineContext } = deriveResult;
+  if (!machineContext) {
+    core27.info("No machine context available \u2014 skipping expected state");
+    return null;
+  }
+  if (isDiscussionTrigger(machineContext.trigger)) {
+    core27.info("Discussion trigger \u2014 skipping expected state");
+    return null;
+  }
+  try {
+    const currentTree = verify_exports.extractPredictableTree(machineContext);
+    const mutator = verify_exports.getMutator(finalState);
+    const outcomes = mutator ? mutator(currentTree, machineContext) : [currentTree];
+    const issueNumber = machineContext.parentIssue?.number ?? machineContext.issue.number;
+    const parentIssueNumber3 = machineContext.parentIssue?.number ?? null;
+    const expected = verify_exports.buildExpectedState({
+      finalState,
+      outcomes,
+      trigger: machineContext.trigger,
+      issueNumber,
+      parentIssueNumber: parentIssueNumber3
+    });
+    core27.info(
+      `Expected state built: finalState=${finalState}, outcomes=${outcomes.length}`
+    );
+    return JSON.stringify(expected);
+  } catch (error7) {
+    core27.warning(`Failed to build expected state: ${error7}`);
+    return null;
+  }
+}
+
 // actions/sm-plan/index.ts
 async function run() {
   const token = getRequiredInput("github_token");
+  const projectNumber = parseInt(getOptionalInput("project_number") || "1", 10);
   const resourceNumber = getOptionalInput("resource_number") || "";
   const triggerType = getOptionalInput("trigger_type") || void 0;
   const unifiedContext = await detectEvent(token, resourceNumber, triggerType);
+  let expectedStateJson = "";
+  if (!unifiedContext.skip && !isDiscussionTrigger(unifiedContext.trigger)) {
+    core28.startGroup("Predict expected state");
+    try {
+      const octokit = github2.getOctokit(token);
+      const { owner, repo } = github2.context.repo;
+      const ctx = unifiedContext;
+      const deriveResult = await deriveIssueActions({
+        trigger: ctx.trigger,
+        ctx,
+        octokit,
+        owner,
+        repo,
+        projectNumber,
+        maxRetries: 5,
+        botUsername: "nopo-bot"
+      });
+      if (deriveResult) {
+        const result = predictExpectedState(deriveResult);
+        if (result) {
+          expectedStateJson = result;
+        }
+      }
+    } catch (error7) {
+      core28.warning(`Expected state prediction failed: ${error7}`);
+    }
+    core28.endGroup();
+  }
   setOutputs({
     context_json: JSON.stringify(unifiedContext),
     skip: String(unifiedContext.skip),
     skip_reason: unifiedContext.skip_reason,
     concurrency_group: unifiedContext.concurrency_group,
-    cancel_in_progress: String(unifiedContext.cancel_in_progress)
+    cancel_in_progress: String(unifiedContext.cancel_in_progress),
+    expected_state_json: expectedStateJson
   });
 }
 run().catch((err) => {

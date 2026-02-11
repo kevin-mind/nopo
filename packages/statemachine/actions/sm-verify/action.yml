@@ -1,0 +1,26 @@
+name: Claude State Machine Verify
+description: >
+  Verifies that sm-run produced the expected state changes.
+  Compares actual post-run issue state against the predicted outcomes from sm-plan.
+
+inputs:
+  github_token:
+    description: GitHub token for API operations (fetch current issue state)
+    required: true
+  expected_state_json:
+    description: Predicted post-run state JSON from sm-plan
+    required: true
+  project_number:
+    description: GitHub Project number (for fetching project fields)
+    required: false
+    default: "1"
+
+outputs:
+  verified:
+    description: Whether the actual state matches any expected outcome (true/false string)
+  diff_json:
+    description: Structured diff JSON showing mismatches (empty object if verified)
+
+runs:
+  using: node20
+  main: dist/index.cjs

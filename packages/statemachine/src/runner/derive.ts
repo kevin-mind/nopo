@@ -11,6 +11,7 @@ import { createActor } from "xstate";
 import type { Action } from "../schemas/actions.js";
 import type { TriggerType } from "../schemas/runner-context.js";
 import type { WorkflowContext } from "../schemas/runner-context.js";
+import type { MachineContext } from "../schemas/state.js";
 import type { DiscussionTriggerType } from "../schemas/discussion-triggers.js";
 import type { DiscussionCommand } from "../schemas/discussion-context.js";
 import { claudeMachine } from "../machine/machine.js";
@@ -42,6 +43,8 @@ export interface DeriveResult {
   commitSha: string;
   /** Formatted agent notes for prompt injection */
   agentNotes: string;
+  /** Machine context used for state derivation (available for issue derives only) */
+  machineContext?: MachineContext;
 }
 
 export interface DeriveIssueOptions {
@@ -294,6 +297,7 @@ export async function deriveIssueActions(
     prNumber: context.pr?.number ? String(context.pr.number) : "",
     commitSha: context.ciCommitSha || "",
     agentNotes,
+    machineContext: context,
   };
 }
 

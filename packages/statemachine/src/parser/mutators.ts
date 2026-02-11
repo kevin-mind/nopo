@@ -23,6 +23,7 @@ import type {
   PhrasingContent,
 } from "mdast";
 import { isList, isHeading, childrenAsRootContent } from "./type-guards.js";
+import { SECTION_NAMES, STANDARD_SECTION_ORDER } from "../constants.js";
 
 // ============================================================================
 // MDAST Helpers (shared with extractors)
@@ -38,7 +39,7 @@ function findHeadingIndex(ast: Root, text: string): number {
 }
 
 /** Find index of a heading matching any of the given texts */
-function findHeadingIndexAny(ast: Root, texts: string[]): number {
+function findHeadingIndexAny(ast: Root, texts: readonly string[]): number {
   return ast.children.findIndex((node) => {
     if (node.type !== "heading") return false;
     const firstChild = node.children[0];
@@ -156,7 +157,7 @@ export const checkOffTodo = createMutator(
   z.object({ todoText: z.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
 
     const listNode = ast.children[todosIdx + 1];
@@ -190,7 +191,7 @@ export const uncheckTodo = createMutator(
   z.object({ todoText: z.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
 
     const listNode = ast.children[todosIdx + 1];
@@ -229,14 +230,14 @@ export const addTodo = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst: Root = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny(newAst, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny(newAst, SECTION_NAMES.TODO_ALIASES);
 
     const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
     const newItem = createListItemNode(todoText, input.checked);
 
     if (todosIdx === -1) {
       // No Todos section - create one at the end
-      const heading = createHeadingNode(2, "Todos");
+      const heading = createHeadingNode(2, SECTION_NAMES.TODOS);
       const list: List = {
         type: "list",
         ordered: false,
@@ -357,7 +358,10 @@ export const addHistoryEntry = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst: Root = structuredClone(ast);
-    const historyIdx = findHeadingIndex(newAst, "Iteration History");
+    const historyIdx = findHeadingIndex(
+      newAst,
+      SECTION_NAMES.ITERATION_HISTORY,
+    );
 
     const entry: HistoryEntry = {
       iteration: input.iteration,
@@ -375,7 +379,7 @@ export const addHistoryEntry = createMutator(
 
     if (historyIdx === -1) {
       // No history section - create one
-      const heading = createHeadingNode(2, "Iteration History");
+      const heading = createHeadingNode(2, SECTION_NAMES.ITERATION_HISTORY);
       const table: Table = {
         type: "table",
         align: null,
@@ -453,7 +457,7 @@ export const updateHistoryEntry = createMutator(
   }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex(ast, "Iteration History");
+    const historyIdx = findHeadingIndex(ast, SECTION_NAMES.ITERATION_HISTORY);
     if (historyIdx === -1) return data;
 
     // Find table
@@ -563,7 +567,7 @@ export const appendAgentNotes = createMutator(
 
     const ast = data.issue.bodyAst;
     const newAst: Root = structuredClone(ast);
-    const notesIdx = findHeadingIndex(newAst, "Agent Notes");
+    const notesIdx = findHeadingIndex(newAst, SECTION_NAMES.AGENT_NOTES);
 
     const formattedTimestamp = formatTimestamp(
       input.timestamp || new Date().toISOString(),
@@ -593,7 +597,7 @@ export const appendAgentNotes = createMutator(
 
     if (notesIdx === -1) {
       // No Agent Notes section - create one at the end
-      const sectionHeader = createHeadingNode(2, "Agent Notes");
+      const sectionHeader = createHeadingNode(2, SECTION_NAMES.AGENT_NOTES);
       newAst.children.push(sectionHeader, entryHeader, notesList);
     } else {
       // Insert new entry after the section header (prepend - most recent first)
@@ -607,22 +611,6 @@ export const appendAgentNotes = createMutator(
 // ============================================================================
 // Section Mutators
 // ============================================================================
-
-/**
- * Standard section order for issue bodies
- */
-const STANDARD_SECTION_ORDER = [
-  "Description",
-  "Requirements",
-  "Approach",
-  "Acceptance Criteria",
-  "Testing",
-  "Related",
-  "Questions",
-  "Todos",
-  "Agent Notes",
-  "Iteration History",
-];
 
 /**
  * Upsert a section in the issue body.
@@ -709,7 +697,7 @@ export const applyTodoModifications = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst: Root = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny(newAst, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny(newAst, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
 
     const listNode = newAst.children[todosIdx + 1];

@@ -33,6 +33,11 @@ on:
         required: false
         type: boolean
         default: true
+      expected_state_json:
+        description: Predicted post-run state JSON from sm-plan (for verification)
+        required: false
+        type: string
+        default: ''
     outputs:
       final_state:
         description: Final state after machine execution
@@ -172,6 +177,8 @@ jobs:
       actions_json: ${{ steps.sm.outputs.actions_json }}
       action_count: ${{ steps.sm.outputs.action_count }}
       transition_name: ${{ steps.sm.outputs.transition_name }}
+      should_retrigger: ${{ steps.sm.outputs.should_retrigger }}
+      issue_number: ${{ steps.sm.outputs.issue_number }}
 
     steps:
       - name: Checkout repository
@@ -223,14 +230,57 @@ jobs:
           e2e_mode: ${{ needs.e2e-detect.outputs.e2e_mode }}
           e2e_review_outcome: ${{ needs.e2e-detect.outputs.review_outcome }}
 
+  # ============================================================================
+  # VERIFY STATE CHANGES
+  # Compares actual post-run state against predicted outcomes from sm-plan.
+  # Only runs when expected_state_json is provided (issue triggers, not discussions).
+  # ============================================================================
+  verify:
+    needs: [run]
+    if: |
+      needs.run.result == 'success' &&
+      inputs.expected_state_json != '' &&
+      !inputs.dry_run
+    runs-on: ubuntu-latest
+    outputs:
+      verified: ${{ steps.verify.outputs.verified }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          sparse-checkout: packages/statemachine/actions/sm-verify
+          sparse-checkout-cone-mode: false
+
+      - name: Verify State Changes
+        id: verify
+        uses: ./packages/statemachine/actions/sm-verify
+        with:
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+          expected_state_json: ${{ inputs.expected_state_json }}
+          project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+
+  # ============================================================================
+  # RETRIGGER
+  # Dispatches the next iteration if verification passed and sm-run says to retrigger.
+  # If verify was skipped (no expected_state_json), retrigger proceeds normally.
+  # ============================================================================
+  retrigger:
+    needs: [run, verify]
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.run.result == 'success' &&
+      needs.run.outputs.should_retrigger == 'true' &&
+      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
+      !inputs.dry_run
+    runs-on: ubuntu-latest
+    steps:
       - name: Retrigger workflow
-        if: |
-          steps.sm.outputs.should_retrigger == 'true' &&
-          !inputs.dry_run
         env:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ steps.sm.outputs.issue_number || fromJson(inputs.context_json).issue_number }}
+          ISSUE_NUMBER: ${{ needs.run.outputs.issue_number || fromJson(inputs.context_json).issue_number }}
         run: |
           echo "Retriggering workflow for issue #${ISSUE_NUMBER}"
           gh workflow run sm-trigger.yml \

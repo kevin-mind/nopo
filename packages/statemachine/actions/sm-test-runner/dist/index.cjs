@@ -41770,6 +41770,104 @@ function createMutator(inputSchema, mutate) {
   };
 }
 
+// src/constants.ts
+var HISTORY_ICONS = {
+  ITERATING: "\u23F3",
+  CI_PASSED: "\u2705",
+  CI_FAILED: "\u274C",
+  BLOCKED: "\u{1F6AB}",
+  REVIEW_REQUESTED: "\u{1F440}",
+  MERGED: "\u{1F6A2}",
+  INITIALIZED: "\u{1F680}",
+  PHASE_ADVANCED: "\u23ED\uFE0F",
+  CODE_PUSHED: "\u{1F4DD}",
+  WARNING: "\u26A0\uFE0F"
+};
+var HISTORY_MESSAGES = {
+  // Iteration
+  ITERATING: `${HISTORY_ICONS.ITERATING} Iterating...`,
+  CI_PASSED: `${HISTORY_ICONS.CI_PASSED} CI Passed`,
+  CI_FAILED: `${HISTORY_ICONS.CI_FAILED} CI Failed`,
+  REVIEW_REQUESTED: `${HISTORY_ICONS.REVIEW_REQUESTED} Review requested`,
+  // Orchestration
+  ALL_PHASES_COMPLETE: `${HISTORY_ICONS.CI_PASSED} All phases complete`,
+  MERGED: `${HISTORY_ICONS.MERGED} Merged`,
+  // Merge queue
+  ENTERED_QUEUE: `${HISTORY_ICONS.INITIALIZED} Entered queue`,
+  REMOVED_FROM_QUEUE: `${HISTORY_ICONS.CI_FAILED} Removed from queue`,
+  // Deployment
+  DEPLOYED_STAGE: `${HISTORY_ICONS.CI_PASSED} Deployed to stage`,
+  RELEASED_PROD: `${HISTORY_ICONS.CI_PASSED} Released to production`,
+  STAGE_DEPLOY_FAILED: `${HISTORY_ICONS.CI_FAILED} Stage deploy failed`,
+  PROD_DEPLOY_FAILED: `${HISTORY_ICONS.CI_FAILED} Prod deploy failed`,
+  // Push to draft
+  CODE_PUSHED: `${HISTORY_ICONS.CODE_PUSHED} Code pushed - converting to draft`,
+  // Grooming
+  GROOMING: `${HISTORY_ICONS.ITERATING} grooming...`,
+  ANALYZING_PIVOT: `${HISTORY_ICONS.ITERATING} Analyzing pivot request...`,
+  // Invalid iteration
+  INVALID_ITERATION: `${HISTORY_ICONS.CI_FAILED} FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.`,
+  // Verification (for future sm-verify)
+  VERIFICATION_FAILED: `${HISTORY_ICONS.CI_FAILED} Verification failed`,
+  // Dynamic builders
+  initialized: (phaseCount) => `${HISTORY_ICONS.INITIALIZED} Initialized with ${phaseCount} phase(s)`,
+  phaseStarted: (phase) => `${HISTORY_ICONS.PHASE_ADVANCED} Phase ${phase} started`,
+  blocked: (failures) => `${HISTORY_ICONS.BLOCKED} Blocked: Max failures reached (${failures})`
+};
+var TODO_ALIASES = ["Todo", "Todos"];
+var SECTION_NAMES = {
+  DESCRIPTION: "Description",
+  REQUIREMENTS: "Requirements",
+  APPROACH: "Approach",
+  ACCEPTANCE_CRITERIA: "Acceptance Criteria",
+  TESTING: "Testing",
+  RELATED: "Related",
+  QUESTIONS: "Questions",
+  TODOS: "Todos",
+  AGENT_NOTES: "Agent Notes",
+  ITERATION_HISTORY: "Iteration History",
+  AFFECTED_AREAS: "Affected Areas",
+  TODO_ALIASES
+};
+var STANDARD_SECTION_ORDER2 = [
+  SECTION_NAMES.DESCRIPTION,
+  SECTION_NAMES.REQUIREMENTS,
+  SECTION_NAMES.APPROACH,
+  SECTION_NAMES.ACCEPTANCE_CRITERIA,
+  SECTION_NAMES.TESTING,
+  SECTION_NAMES.RELATED,
+  SECTION_NAMES.QUESTIONS,
+  SECTION_NAMES.TODOS,
+  SECTION_NAMES.AGENT_NOTES,
+  SECTION_NAMES.ITERATION_HISTORY
+];
+var QuestionStatsSchemaForBody = external_exports.object({
+  total: external_exports.number(),
+  answered: external_exports.number(),
+  unanswered: external_exports.number()
+});
+var SubIssueBodyStructureSchema = external_exports.object({
+  // Section existence flags
+  hasDescription: external_exports.boolean(),
+  hasTodos: external_exports.boolean(),
+  hasHistory: external_exports.boolean(),
+  hasAgentNotes: external_exports.boolean(),
+  hasQuestions: external_exports.boolean(),
+  hasAffectedAreas: external_exports.boolean(),
+  // Extracted data
+  todoStats: TodoStatsSchema.nullable(),
+  questionStats: QuestionStatsSchemaForBody.nullable(),
+  historyEntries: external_exports.array(HistoryEntrySchema),
+  agentNotesEntries: external_exports.array(AgentNotesEntrySchema)
+});
+var ParentIssueBodyStructureSchema = SubIssueBodyStructureSchema.extend({
+  hasRequirements: external_exports.boolean(),
+  hasApproach: external_exports.boolean(),
+  hasAcceptanceCriteria: external_exports.boolean(),
+  hasTesting: external_exports.boolean(),
+  hasRelated: external_exports.boolean()
+});
+
 // src/schemas/entities.ts
 var CIResultSchema = external_exports.enum([
   "success",
@@ -42787,7 +42885,7 @@ function getLinkUrl(node2) {
 }
 var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   const ast = data.issue.bodyAst;
-  const todosIdx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+  const todosIdx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
@@ -42815,7 +42913,7 @@ var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
   return { total, completed, uncheckedNonManual };
 });
 function extractTodosFromAst(bodyAst) {
-  const todosIdx = findHeadingIndexAny(bodyAst, ["Todo", "Todos"]);
+  const todosIdx = findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES);
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
@@ -42860,7 +42958,7 @@ var historyExtractor = createExtractor(
   external_exports.array(HistoryEntrySchema),
   (data) => {
     const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex(ast, "Iteration History");
+    const historyIdx = findHeadingIndex(ast, SECTION_NAMES.ITERATION_HISTORY);
     if (historyIdx === -1) return [];
     const tableNode = ast.children.slice(historyIdx + 1).find((n) => n.type === "table");
     if (!tableNode) return [];
@@ -42894,7 +42992,7 @@ var questionsExtractor = createExtractor(
   }
 );
 function extractQuestionsFromAst(bodyAst) {
-  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
   if (questionsIdx === -1) {
     return { total: 0, answered: 0, unanswered: 0 };
   }
@@ -42930,7 +43028,7 @@ function parseQuestionId(item) {
   return null;
 }
 function extractQuestionItems(bodyAst) {
-  const questionsIdx = findHeadingIndex(bodyAst, "Questions");
+  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
   if (questionsIdx === -1) {
     return [];
   }
@@ -42969,7 +43067,7 @@ function extractSectionText(ast, sectionName) {
   return parts.join("\n").trim();
 }
 function extractAffectedAreas(ast) {
-  const idx = findHeadingIndex(ast, "Affected Areas");
+  const idx = findHeadingIndex(ast, SECTION_NAMES.AFFECTED_AREAS);
   if (idx === -1) return [];
   const listNode = ast.children[idx + 1];
   if (!listNode || !isList(listNode)) return [];
@@ -42987,7 +43085,7 @@ function extractAffectedAreas(ast) {
   });
 }
 function extractTodoItems(ast) {
-  const idx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+  const idx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
   if (idx === -1) return [];
   const listNode = ast.children[idx + 1];
   if (!listNode || !isList(listNode)) return [];
@@ -43003,7 +43101,10 @@ function extractSubIssueSpecs(subIssues) {
   return subIssues.filter((sub) => !sub.labels?.includes("superseded")).map((sub) => {
     const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
     const title = sub.title.replace(/^\[Phase\s+\d+\]:\s*/, "");
-    const description = extractSectionText(sub.bodyAst, "Description");
+    const description = extractSectionText(
+      sub.bodyAst,
+      SECTION_NAMES.DESCRIPTION
+    );
     const affectedAreas = extractAffectedAreas(sub.bodyAst);
     const todos = extractTodoItems(sub.bodyAst);
     return {
@@ -43022,7 +43123,7 @@ var agentNotesExtractor = createExtractor(
   external_exports.array(AgentNotesEntrySchema),
   (data) => {
     const ast = data.issue.bodyAst;
-    const notesIdx = findHeadingIndex(ast, "Agent Notes");
+    const notesIdx = findHeadingIndex(ast, SECTION_NAMES.AGENT_NOTES);
     if (notesIdx === -1) return [];
     const entries = [];
     for (let i = notesIdx + 1; i < ast.children.length; i++) {
@@ -43052,6 +43153,91 @@ var agentNotesExtractor = createExtractor(
     }
     return entries;
   }
+);
+function extractHistoryFromAst(bodyAst) {
+  const historyIdx = findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY);
+  if (historyIdx === -1) return [];
+  const tableNode = bodyAst.children.slice(historyIdx + 1).find((n) => n.type === "table");
+  if (!tableNode) return [];
+  return tableNode.children.slice(1).map((row) => {
+    const timestamp = getCellText(row, 0) || null;
+    const iterationStr = getCellText(row, 1) || "0";
+    const phase = getCellText(row, 2) || "";
+    const action = getCellText(row, 3) || "";
+    const sha = getCellText(row, 4) || null;
+    const runLink = getCellLinkUrl(row, 5);
+    return {
+      timestamp: timestamp === "-" ? null : timestamp,
+      iteration: parseInt(iterationStr, 10) || 0,
+      phase,
+      action,
+      sha: sha === "-" ? null : sha,
+      runLink
+    };
+  });
+}
+function extractAgentNotesFromAst(bodyAst) {
+  const notesIdx = findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES);
+  if (notesIdx === -1) return [];
+  const entries = [];
+  for (let i = notesIdx + 1; i < bodyAst.children.length; i++) {
+    const node2 = bodyAst.children[i];
+    if (!node2) continue;
+    if (node2.type === "heading" && node2.depth === 2) break;
+    if (node2.type === "heading" && node2.depth === 3) {
+      const linkNode = node2.children[0];
+      if (!linkNode || linkNode.type !== "link") continue;
+      const linkText = getNodeText(linkNode);
+      const runMatch = linkText.match(/Run\s+(\d+)/);
+      if (!runMatch || !runMatch[1]) continue;
+      const runId = runMatch[1];
+      const runLink = linkNode.url;
+      const headingText = getNodeText(node2);
+      const timestampMatch = headingText.match(/-\s*(.+)$/);
+      const timestamp = timestampMatch?.[1]?.trim() || "";
+      const listNode = bodyAst.children[i + 1];
+      const notes = listNode && isList(listNode) ? listNode.children.map((item) => getNodeText(item)) : [];
+      entries.push({ runId, runLink, timestamp, notes });
+    }
+  }
+  return entries;
+}
+function extractSubIssueBodyStructure(bodyAst) {
+  const todoStats = extractTodosFromAst(bodyAst);
+  const questionStats = extractQuestionsFromAst(bodyAst);
+  const historyEntries = extractHistoryFromAst(bodyAst);
+  const agentNotesEntries = extractAgentNotesFromAst(bodyAst);
+  return SubIssueBodyStructureSchema.parse({
+    hasDescription: findHeadingIndex(bodyAst, SECTION_NAMES.DESCRIPTION) !== -1,
+    hasTodos: findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES) !== -1,
+    hasHistory: findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY) !== -1,
+    hasAgentNotes: findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES) !== -1,
+    hasQuestions: findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS) !== -1,
+    hasAffectedAreas: findHeadingIndex(bodyAst, SECTION_NAMES.AFFECTED_AREAS) !== -1,
+    todoStats: todoStats.total > 0 ? todoStats : null,
+    questionStats: questionStats.total > 0 ? questionStats : null,
+    historyEntries,
+    agentNotesEntries
+  });
+}
+function extractParentIssueBodyStructure(bodyAst) {
+  const base = extractSubIssueBodyStructure(bodyAst);
+  return ParentIssueBodyStructureSchema.parse({
+    ...base,
+    hasRequirements: findHeadingIndex(bodyAst, SECTION_NAMES.REQUIREMENTS) !== -1,
+    hasApproach: findHeadingIndex(bodyAst, SECTION_NAMES.APPROACH) !== -1,
+    hasAcceptanceCriteria: findHeadingIndex(bodyAst, SECTION_NAMES.ACCEPTANCE_CRITERIA) !== -1,
+    hasTesting: findHeadingIndex(bodyAst, SECTION_NAMES.TESTING) !== -1,
+    hasRelated: findHeadingIndex(bodyAst, SECTION_NAMES.RELATED) !== -1
+  });
+}
+var subIssueBodyStructureExtractor = createExtractor(
+  SubIssueBodyStructureSchema,
+  (data) => extractSubIssueBodyStructure(data.issue.bodyAst)
+);
+var parentIssueBodyStructureExtractor = createExtractor(
+  ParentIssueBodyStructureSchema,
+  (data) => extractParentIssueBodyStructure(data.issue.bodyAst)
 );
 
 // src/parser/mutators.ts
@@ -43140,7 +43326,7 @@ var checkOffTodo = createMutator(
   external_exports.object({ todoText: external_exports.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
     if (!listNode || !isList(listNode)) return data;
@@ -43164,7 +43350,7 @@ var uncheckTodo = createMutator(
   external_exports.object({ todoText: external_exports.string() }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny2(ast, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
     const listNode = ast.children[todosIdx + 1];
     if (!listNode || !isList(listNode)) return data;
@@ -43193,11 +43379,11 @@ var addTodo = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
     const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
     const newItem = createListItemNode(todoText, input.checked);
     if (todosIdx === -1) {
-      const heading2 = createHeadingNode(2, "Todos");
+      const heading2 = createHeadingNode(2, SECTION_NAMES.TODOS);
       const list4 = {
         type: "list",
         ordered: false,
@@ -43292,7 +43478,10 @@ var addHistoryEntry2 = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const historyIdx = findHeadingIndex2(newAst, "Iteration History");
+    const historyIdx = findHeadingIndex2(
+      newAst,
+      SECTION_NAMES.ITERATION_HISTORY
+    );
     const entry = {
       iteration: input.iteration,
       phase: input.phase,
@@ -43304,7 +43493,7 @@ var addHistoryEntry2 = createMutator(
     const newRow = createHistoryDataRow(entry, input.repoUrl);
     const runId = input.runLink ? extractRunIdFromUrl(input.runLink) : null;
     if (historyIdx === -1) {
-      const heading2 = createHeadingNode(2, "Iteration History");
+      const heading2 = createHeadingNode(2, SECTION_NAMES.ITERATION_HISTORY);
       const table = {
         type: "table",
         align: null,
@@ -43366,7 +43555,7 @@ var updateHistoryEntry2 = createMutator(
   }),
   (input, data) => {
     const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex2(ast, "Iteration History");
+    const historyIdx = findHeadingIndex2(ast, SECTION_NAMES.ITERATION_HISTORY);
     if (historyIdx === -1) return data;
     let tableIdx = -1;
     for (let i = historyIdx + 1; i < ast.children.length; i++) {
@@ -43440,7 +43629,7 @@ var appendAgentNotes2 = createMutator(
     if (input.notes.length === 0) return data;
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const notesIdx = findHeadingIndex2(newAst, "Agent Notes");
+    const notesIdx = findHeadingIndex2(newAst, SECTION_NAMES.AGENT_NOTES);
     const formattedTimestamp = formatTimestamp(
       input.timestamp || (/* @__PURE__ */ new Date()).toISOString()
     );
@@ -43462,7 +43651,7 @@ var appendAgentNotes2 = createMutator(
       children: noteItems
     };
     if (notesIdx === -1) {
-      const sectionHeader = createHeadingNode(2, "Agent Notes");
+      const sectionHeader = createHeadingNode(2, SECTION_NAMES.AGENT_NOTES);
       newAst.children.push(sectionHeader, entryHeader, notesList);
     } else {
       newAst.children.splice(notesIdx + 1, 0, entryHeader, notesList);
@@ -43470,18 +43659,6 @@ var appendAgentNotes2 = createMutator(
     return { ...data, issue: { ...data.issue, bodyAst: newAst } };
   }
 );
-var STANDARD_SECTION_ORDER2 = [
-  "Description",
-  "Requirements",
-  "Approach",
-  "Acceptance Criteria",
-  "Testing",
-  "Related",
-  "Questions",
-  "Todos",
-  "Agent Notes",
-  "Iteration History"
-];
 var upsertSection2 = createMutator(
   external_exports.object({
     title: external_exports.string(),
@@ -43541,7 +43718,7 @@ var applyTodoModifications = createMutator(
   (input, data) => {
     const ast = data.issue.bodyAst;
     const newAst = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny2(newAst, ["Todo", "Todos"]);
+    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
     if (todosIdx === -1) return data;
     const listNode = newAst.children[todosIdx + 1];
     if (!listNode || !isList(listNode)) return data;
@@ -47101,7 +47278,7 @@ function emitSetError({ context: context2 }) {
 function emitLogInvalidIteration({
   context: context2
 }) {
-  const message = "\u274C FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.";
+  const message = HISTORY_MESSAGES.INVALID_ITERATION;
   return [
     {
       type: "appendHistory",
@@ -47253,8 +47430,8 @@ function emitLogCIFailure({ context: context2 }) {
       issueNumber: context2.issue.number,
       matchIteration: context2.issue.iteration,
       matchPhase: String(context2.currentPhase ?? "-"),
-      matchPattern: "\u23F3",
-      newMessage: "\u274C CI Failed",
+      matchPattern: HISTORY_ICONS.ITERATING,
+      newMessage: HISTORY_MESSAGES.CI_FAILED,
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
@@ -47264,7 +47441,7 @@ function emitLogCIFailure({ context: context2 }) {
 function emitLogIterationStarted({
   context: context2
 }) {
-  return emitAppendHistory({ context: context2 }, "\u23F3 Iterating...");
+  return emitAppendHistory({ context: context2 }, HISTORY_MESSAGES.ITERATING);
 }
 function emitLogCISuccess({ context: context2 }) {
   return [
@@ -47274,8 +47451,8 @@ function emitLogCISuccess({ context: context2 }) {
       issueNumber: context2.issue.number,
       matchIteration: context2.issue.iteration,
       matchPhase: String(context2.currentPhase ?? "-"),
-      matchPattern: "\u23F3",
-      newMessage: "\u2705 CI Passed",
+      matchPattern: HISTORY_ICONS.ITERATING,
+      newMessage: HISTORY_MESSAGES.CI_PASSED,
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
@@ -47285,7 +47462,7 @@ function emitLogCISuccess({ context: context2 }) {
 function emitLogReviewRequested({
   context: context2
 }) {
-  return emitAppendHistory({ context: context2 }, "\u{1F440} Review requested");
+  return emitAppendHistory({ context: context2 }, HISTORY_MESSAGES.REVIEW_REQUESTED);
 }
 function emitCreateBranch({ context: context2 }) {
   const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
@@ -47736,7 +47913,7 @@ function emitInitializeParent({ context: context2 }) {
     issueNumber: context2.issue.number,
     iteration: context2.issue.iteration,
     phase: "1",
-    message: `\u{1F680} Initialized with ${context2.issue.subIssues.length} phase(s)`,
+    message: HISTORY_MESSAGES.initialized(context2.issue.subIssues.length),
     timestamp: context2.workflowStartedAt ?? void 0
   });
   return actions;
@@ -47773,7 +47950,7 @@ function emitAdvancePhase({ context: context2 }) {
       issueNumber: context2.issue.number,
       iteration: context2.issue.iteration,
       phase: String(nextPhase),
-      message: `\u23ED\uFE0F Phase ${nextPhase} started`,
+      message: HISTORY_MESSAGES.phaseStarted(nextPhase),
       timestamp: context2.workflowStartedAt ?? void 0
     });
   }
@@ -47853,7 +48030,7 @@ function emitAllPhasesDone({ context: context2 }) {
     issueNumber: context2.issue.number,
     iteration: context2.issue.iteration,
     phase: "-",
-    message: "\u2705 All phases complete",
+    message: HISTORY_MESSAGES.ALL_PHASES_COMPLETE,
     timestamp: context2.workflowStartedAt ?? void 0
   });
   return actions;
@@ -47906,7 +48083,7 @@ function emitBlockIssue({ context: context2 }) {
   actions.push(
     ...emitAppendHistory(
       { context: context2 },
-      `\u{1F6AB} Blocked: Max failures reached (${context2.issue.failures})`
+      HISTORY_MESSAGES.blocked(context2.issue.failures)
     )
   );
   actions.push(...emitBlock({ context: context2 }));
@@ -47923,7 +48100,7 @@ function emitMergeQueueEntry({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u{1F680} Entered queue",
+      message: HISTORY_MESSAGES.ENTERED_QUEUE,
       timestamp: context2.workflowStartedAt ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
     }
@@ -47942,7 +48119,7 @@ function emitMergeQueueFailure({
       issueNumber,
       iteration,
       phase,
-      message: "\u274C Removed from queue",
+      message: HISTORY_MESSAGES.REMOVED_FROM_QUEUE,
       timestamp: context2.workflowStartedAt ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
     }
@@ -47959,7 +48136,7 @@ function emitMerged({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u{1F6A2} Merged",
+      message: HISTORY_MESSAGES.MERGED,
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
@@ -47977,7 +48154,7 @@ function emitDeployedStage({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u2705 Deployed to stage",
+      message: HISTORY_MESSAGES.DEPLOYED_STAGE,
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
@@ -47995,7 +48172,7 @@ function emitDeployedProd({ context: context2 }) {
       issueNumber,
       iteration,
       phase,
-      message: "\u2705 Released to production",
+      message: HISTORY_MESSAGES.RELEASED_PROD,
       timestamp: context2.workflowStartedAt ?? void 0,
       commitSha: context2.ciCommitSha ?? void 0,
       runLink: context2.ciRunUrl ?? void 0
@@ -48015,7 +48192,7 @@ function emitDeployedStageFailure({
       issueNumber,
       iteration,
       phase,
-      message: "\u274C Stage deploy failed",
+      message: HISTORY_MESSAGES.STAGE_DEPLOY_FAILED,
       runLink: context2.ciRunUrl ?? void 0
     }
   ];
@@ -48033,7 +48210,7 @@ function emitDeployedProdFailure({
       issueNumber,
       iteration,
       phase,
-      message: "\u274C Prod deploy failed",
+      message: HISTORY_MESSAGES.PROD_DEPLOY_FAILED,
       runLink: context2.ciRunUrl ?? void 0
     }
   ];
@@ -48062,7 +48239,7 @@ function emitPushToDraft({ context: context2 }) {
     iteration: 0,
     // Push-to-draft doesn't have iteration context
     phase,
-    message: "\u{1F4DD} Code pushed - converting to draft",
+    message: HISTORY_MESSAGES.CODE_PUSHED,
     commitSha: context2.ciCommitSha ?? void 0,
     runLink: context2.ciRunUrl ?? void 0
   });
@@ -48096,7 +48273,7 @@ function emitRunClaudeGrooming({
       iteration: 0,
       // Grooming is pre-iteration
       phase: "groom",
-      message: "\u23F3 grooming...",
+      message: HISTORY_MESSAGES.GROOMING,
       timestamp: context2.workflowStartedAt ?? void 0,
       runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
     },
@@ -48165,7 +48342,7 @@ function emitRunClaudePivot({ context: context2 }) {
       issueNumber,
       iteration: context2.issue.iteration,
       phase: "pivot",
-      message: "\u23F3 Analyzing pivot request...",
+      message: HISTORY_MESSAGES.ANALYZING_PIVOT,
       timestamp: context2.workflowStartedAt ?? void 0,
       runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
     },
@@ -73012,6 +73189,95 @@ var discussionMachine = setup({
     }
   }
 });
+
+// src/verify/predictable-state.ts
+var PredictablePRStateSchema = external_exports.object({
+  isDraft: external_exports.boolean(),
+  state: PRStateSchema
+});
+var PredictableSubIssueStateSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: IssueStateSchema,
+  projectStatus: ProjectStatusSchema.nullable(),
+  labels: external_exports.array(external_exports.string()),
+  hasBranch: external_exports.boolean(),
+  hasPR: external_exports.boolean(),
+  pr: PredictablePRStateSchema.nullable(),
+  body: SubIssueBodyStructureSchema
+});
+var PredictableIssueStateSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  state: IssueStateSchema,
+  projectStatus: ProjectStatusSchema.nullable(),
+  iteration: external_exports.number().int().min(0),
+  failures: external_exports.number().int().min(0),
+  labels: external_exports.array(external_exports.string()),
+  assignees: external_exports.array(external_exports.string()),
+  hasBranch: external_exports.boolean(),
+  hasPR: external_exports.boolean(),
+  pr: PredictablePRStateSchema.nullable(),
+  body: ParentIssueBodyStructureSchema
+});
+var PredictableStateTreeSchema = external_exports.object({
+  issue: PredictableIssueStateSchema,
+  subIssues: external_exports.array(PredictableSubIssueStateSchema)
+});
+var ExpectedStateSchema = external_exports.object({
+  finalState: external_exports.string(),
+  outcomes: external_exports.array(PredictableStateTreeSchema),
+  timestamp: external_exports.string(),
+  trigger: external_exports.string(),
+  issueNumber: external_exports.number().int().positive(),
+  parentIssueNumber: external_exports.number().int().positive().nullable()
+});
+
+// src/verify/mutators/helpers.ts
+function cloneTree(tree) {
+  return structuredClone(tree);
+}
+function addHistoryEntry3(issue2, entry) {
+  issue2.body.historyEntries.push({
+    iteration: entry.iteration,
+    phase: entry.phase,
+    action: entry.action,
+    timestamp: null,
+    sha: null,
+    runLink: null
+  });
+}
+
+// src/verify/mutators/logging.ts
+function makeLoggingMutator(message) {
+  return (current, context2) => {
+    const tree = cloneTree(current);
+    const phase = String(context2.currentPhase ?? "-");
+    addHistoryEntry3(tree.issue, {
+      iteration: context2.issue.iteration ?? 0,
+      phase,
+      action: message
+    });
+    return [tree];
+  };
+}
+var mergeQueueLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.ENTERED_QUEUE
+);
+var mergeQueueFailureLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.REMOVED_FROM_QUEUE
+);
+var mergedLoggingMutator = makeLoggingMutator(HISTORY_MESSAGES.MERGED);
+var deployedStageLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.DEPLOYED_STAGE
+);
+var deployedProdLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.RELEASED_PROD
+);
+var deployedStageFailureLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.STAGE_DEPLOY_FAILED
+);
+var deployedProdFailureLoggingMutator = makeLoggingMutator(
+  HISTORY_MESSAGES.PROD_DEPLOY_FAILED
+);
 
 // src/test-runner/poller.ts
 var core23 = __toESM(require_core(), 1);
