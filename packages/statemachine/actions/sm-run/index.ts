@@ -84,6 +84,7 @@ function shouldRetrigger(
     "orchestrationWaiting",
     "orchestrationComplete",
     "grooming",
+    "subIssueIdle",
   ]);
 
   return !noRetriggerStates.has(finalState);

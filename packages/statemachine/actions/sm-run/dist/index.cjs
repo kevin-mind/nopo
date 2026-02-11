@@ -73991,7 +73991,8 @@ function shouldRetrigger(finalState, actions, continueFlag) {
     "orchestrationRunning",
     "orchestrationWaiting",
     "orchestrationComplete",
-    "grooming"
+    "grooming",
+    "subIssueIdle"
   ]);
   return !noRetriggerStates.has(finalState);
 }
