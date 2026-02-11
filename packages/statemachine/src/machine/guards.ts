@@ -71,15 +71,18 @@ export function isSubIssue({ context }: GuardContext): boolean {
 }
 
 /**
- * Check if a sub-issue can iterate (has a parent AND bot is assigned)
+ * Check if a sub-issue can iterate (has a parent AND bot is assigned to both)
  *
- * This prevents grooming/reconciliation edits from cascading into iteration.
- * Bot assignment is the explicit signal that orchestration has started work
- * on this phase. Bot-initiated edits (reconciliation, triage) don't assign
- * nopo-bot, so they won't trigger iteration.
+ * Two assignment checks:
+ * 1. Bot assigned to sub-issue: explicit signal that orchestration started work
+ *    on this phase. Prevents grooming/reconciliation edits from cascading.
+ * 2. Bot assigned to parent: the human's deliberate "kick off" signal.
+ *    If parent is unassigned, all iteration exits early.
  */
 function subIssueCanIterate({ context }: GuardContext): boolean {
   if (context.parentIssue === null) return false;
+  if (!context.parentIssue.assignees.includes(context.botUsername))
+    return false;
   return context.issue.assignees.includes(context.botUsername);
 }
 

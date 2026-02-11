@@ -46024,6 +46024,8 @@ function isSubIssue({ context: context2 }) {
 }
 function subIssueCanIterate({ context: context2 }) {
   if (context2.parentIssue === null) return false;
+  if (!context2.parentIssue.assignees.includes(context2.botUsername))
+    return false;
   return context2.issue.assignees.includes(context2.botUsername);
 }
 function needsSubIssues(_guardContext) {
