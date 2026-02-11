@@ -157,7 +157,7 @@ describe("logging mutators", () => {
 });
 
 describe("AI-dependent mutators", () => {
-  it("triaging: single outcome with triaged label", () => {
+  it("triaging: two outcomes (with/without questions), correct body structure", () => {
     const context = makeContext({
       issue: {
         number: 100,
@@ -181,8 +181,20 @@ describe("AI-dependent mutators", () => {
     const mutator = getMutator("triaging")!;
     const outcomes = mutator(tree, context);
 
-    expect(outcomes).toHaveLength(1);
-    expect(outcomes[0]!.issue.labels).toContain("triaged");
+    expect(outcomes).toHaveLength(2);
+
+    // Both outcomes should have triaged label and correct body structure
+    for (const outcome of outcomes) {
+      expect(outcome.issue.labels).toContain("triaged");
+      expect(outcome.issue.body.hasDescription).toBe(false);
+      expect(outcome.issue.body.hasRequirements).toBe(true);
+      expect(outcome.issue.body.hasApproach).toBe(true);
+    }
+
+    // Outcome 0: with questions
+    expect(outcomes[0]!.issue.body.hasQuestions).toBe(true);
+    // Outcome 1: without questions
+    expect(outcomes[1]!.issue.body.hasQuestions).toBe(false);
   });
 
   it("grooming: three possible outcomes", () => {

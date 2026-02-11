@@ -22,7 +22,28 @@ export const triagingMutator: StateMutator = (current) => {
     tree.issue.labels.push("triaged");
   }
 
-  return [tree];
+  // Triage rewrites the body via updateIssueStructure() which always produces:
+  //   ## Requirements  (from requirements array — always present)
+  //   ## Approach      (from initial_approach — always present)
+  //   ## Questions     (from initial_questions — optional)
+  //   + preserved Iteration History / Agent Notes from existing body
+  //
+  // The original Description heading is replaced.
+  tree.issue.body.hasDescription = false;
+  tree.issue.body.hasRequirements = true;
+  tree.issue.body.hasApproach = true;
+  // Questions are optional — Claude may or may not produce them.
+  // Two outcomes: with and without questions.
+
+  // Outcome 1: triage with questions
+  const withQuestions = cloneTree(tree);
+  withQuestions.issue.body.hasQuestions = true;
+
+  // Outcome 2: triage without questions
+  const withoutQuestions = cloneTree(tree);
+  withoutQuestions.issue.body.hasQuestions = false;
+
+  return [withQuestions, withoutQuestions];
 };
 
 /**
