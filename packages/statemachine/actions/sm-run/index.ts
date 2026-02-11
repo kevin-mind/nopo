@@ -63,32 +63,15 @@ function shouldRetrigger(
   finalState: string,
   actions: Action[],
   continueFlag: boolean,
-  runnerResult?: RunnerResult,
 ): boolean {
   if (!continueFlag) return false;
 
-  // Don't retrigger if we just ran Claude (waiting for push → CI)
-  // UNLESS Claude returned all_done — no new code was pushed, so CI won't
-  // retrigger. We need to retrigger so the next run can transition to review.
+  // Don't retrigger if we just ran Claude — waiting for push → CI.
+  // When Claude returns all_done, applyIterateOutput handles the review
+  // transition directly (marks PR ready, requests review), so no retrigger
+  // is needed.
   const hasClaudeRun = actions.some((a) => a.type === "runClaude");
   if (hasClaudeRun) {
-    const hasAllDone = runnerResult?.results.some((r) => {
-      if (
-        r.result &&
-        typeof r.result === "object" &&
-        "status" in r.result &&
-        (r.result satisfies { status: unknown }).status === "all_done"
-      ) {
-        return true;
-      }
-      return false;
-    });
-    if (hasAllDone) {
-      core.info(
-        "Claude returned all_done — retriggering for review transition",
-      );
-      return true;
-    }
     return false;
   }
 
@@ -749,12 +732,7 @@ async function run(): Promise<void> {
     const retrigger =
       execSuccess &&
       !dryRun &&
-      shouldRetrigger(
-        deriveResult.finalState,
-        actions,
-        continueFlag,
-        runnerResult,
-      );
+      shouldRetrigger(deriveResult.finalState, actions, continueFlag);
 
     setOutputs({
       final_state: deriveResult.finalState,

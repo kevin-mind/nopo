@@ -73990,22 +73990,10 @@ function determineOutcome(params) {
 function asOctokitLike9(octokit) {
   return octokit;
 }
-function shouldRetrigger(finalState, actions, continueFlag, runnerResult) {
+function shouldRetrigger(finalState, actions, continueFlag) {
   if (!continueFlag) return false;
   const hasClaudeRun = actions.some((a) => a.type === "runClaude");
   if (hasClaudeRun) {
-    const hasAllDone = runnerResult?.results.some((r) => {
-      if (r.result && typeof r.result === "object" && "status" in r.result && r.result.status === "all_done") {
-        return true;
-      }
-      return false;
-    });
-    if (hasAllDone) {
-      core26.info(
-        "Claude returned all_done \u2014 retriggering for review transition"
-      );
-      return true;
-    }
     return false;
   }
   const noRetriggerStates = /* @__PURE__ */ new Set([
@@ -74456,12 +74444,7 @@ async function run() {
       );
       core26.endGroup();
     }
-    const retrigger = execSuccess && !dryRun && shouldRetrigger(
-      deriveResult.finalState,
-      actions,
-      continueFlag,
-      runnerResult
-    );
+    const retrigger = execSuccess && !dryRun && shouldRetrigger(deriveResult.finalState, actions, continueFlag);
     setOutputs({
       final_state: deriveResult.finalState,
       transition_name: deriveResult.transitionName,
