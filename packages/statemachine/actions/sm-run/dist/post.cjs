@@ -41237,8 +41237,8 @@ var MachineContextSchema = external_exports.object({
   /** URL to the current workflow run */
   workflowRunUrl: external_exports.string().nullable().default(null),
   // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema2.nullable(),
-  reviewerId: external_exports.string().nullable(),
+  reviewDecision: ReviewDecisionSchema2.nullable().default(null),
+  reviewerId: external_exports.string().nullable().default(null),
   // Branch info
   branch: external_exports.string().nullable(),
   hasBranch: external_exports.boolean(),
@@ -41522,7 +41522,11 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
 var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
   issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json")
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  /** PR number for review transition when all_done */
+  prNumber: external_exports.number().int().positive().optional(),
+  /** Reviewer username to request review from */
+  reviewer: external_exports.string().optional()
 });
 var AppendAgentNotesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendAgentNotes"),
@@ -46702,12 +46706,15 @@ function emitRunClaude({ context: context2 }) {
     },
     // Apply iterate output: check off completed todos, store agent notes
     // Downloads the artifact before execution
+    // Includes PR info for review transition when all_done
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
       filePath: "claude-structured-output.json",
-      consumesArtifact: iterateArtifact
+      consumesArtifact: iterateArtifact,
+      prNumber: context2.pr?.number,
+      reviewer: "nopo-reviewer"
     }
   ];
 }
@@ -46735,12 +46742,15 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
     },
     // Apply iterate output: check off completed todos, store agent notes
     // Downloads the artifact before execution
+    // Includes PR info for review transition when all_done
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
       filePath: "claude-structured-output.json",
-      consumesArtifact: iterateArtifact
+      consumesArtifact: iterateArtifact,
+      prNumber: context2.pr?.number,
+      reviewer: "nopo-reviewer"
     }
   ];
 }

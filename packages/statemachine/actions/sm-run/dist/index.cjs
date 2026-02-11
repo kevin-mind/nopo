@@ -41732,8 +41732,8 @@ var MachineContextSchema = external_exports.object({
   /** URL to the current workflow run */
   workflowRunUrl: external_exports.string().nullable().default(null),
   // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema2.nullable(),
-  reviewerId: external_exports.string().nullable(),
+  reviewDecision: ReviewDecisionSchema2.nullable().default(null),
+  reviewerId: external_exports.string().nullable().default(null),
   // Branch info
   branch: external_exports.string().nullable(),
   hasBranch: external_exports.boolean(),

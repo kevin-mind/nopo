@@ -83,8 +83,8 @@ export const MachineContextSchema = z.object({
   workflowRunUrl: z.string().nullable().default(null),
 
   // Review result (if triggered by pr_review_submitted)
-  reviewDecision: ReviewDecisionSchema.nullable(),
-  reviewerId: z.string().nullable(),
+  reviewDecision: ReviewDecisionSchema.nullable().default(null),
+  reviewerId: z.string().nullable().default(null),
 
   // Branch info
   branch: z.string().nullable(),
