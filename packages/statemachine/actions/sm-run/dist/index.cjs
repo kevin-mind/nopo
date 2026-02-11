@@ -69652,50 +69652,22 @@ async function executeAddComment(action, ctx) {
   return { commentId: result.commentId };
 }
 async function executeUnassignUser(action, ctx) {
-  const octokit = asOctokitLike(ctx);
-  const { data, update } = await parseIssue(
-    ctx.owner,
-    ctx.repo,
-    action.issueNumber,
-    {
-      octokit,
-      projectNumber: ctx.projectNumber,
-      fetchPRs: false,
-      fetchParent: false
-    }
-  );
-  const state = {
-    ...data,
-    issue: {
-      ...data.issue,
-      assignees: data.issue.assignees.filter((a) => a !== action.username)
-    }
-  };
-  await update(state);
+  await ctx.octokit.rest.issues.removeAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username]
+  });
   core5.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
   return { unassigned: true };
 }
 async function executeAssignUser(action, ctx) {
-  const octokit = asOctokitLike(ctx);
-  const { data, update } = await parseIssue(
-    ctx.owner,
-    ctx.repo,
-    action.issueNumber,
-    {
-      octokit,
-      projectNumber: ctx.projectNumber,
-      fetchPRs: false,
-      fetchParent: false
-    }
-  );
-  const state = {
-    ...data,
-    issue: {
-      ...data.issue,
-      assignees: [...data.issue.assignees, action.username]
-    }
-  };
-  await update(state);
+  await ctx.octokit.rest.issues.addAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username]
+  });
   core5.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
   return { assigned: true };
 }

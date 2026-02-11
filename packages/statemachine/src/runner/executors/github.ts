@@ -368,29 +368,12 @@ export async function executeUnassignUser(
   action: UnassignUserAction,
   ctx: RunnerContext,
 ): Promise<{ unassigned: boolean }> {
-  const octokit = asOctokitLike(ctx);
-
-  const { data, update } = await parseIssue(
-    ctx.owner,
-    ctx.repo,
-    action.issueNumber,
-    {
-      octokit,
-      projectNumber: ctx.projectNumber,
-      fetchPRs: false,
-      fetchParent: false,
-    },
-  );
-
-  const state = {
-    ...data,
-    issue: {
-      ...data.issue,
-      assignees: data.issue.assignees.filter((a) => a !== action.username),
-    },
-  };
-
-  await update(state);
+  await ctx.octokit.rest.issues.removeAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username],
+  });
 
   core.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
   return { unassigned: true };
@@ -404,29 +387,12 @@ export async function executeAssignUser(
   action: AssignUserAction,
   ctx: RunnerContext,
 ): Promise<{ assigned: boolean }> {
-  const octokit = asOctokitLike(ctx);
-
-  const { data, update } = await parseIssue(
-    ctx.owner,
-    ctx.repo,
-    action.issueNumber,
-    {
-      octokit,
-      projectNumber: ctx.projectNumber,
-      fetchPRs: false,
-      fetchParent: false,
-    },
-  );
-
-  const state = {
-    ...data,
-    issue: {
-      ...data.issue,
-      assignees: [...data.issue.assignees, action.username],
-    },
-  };
-
-  await update(state);
+  await ctx.octokit.rest.issues.addAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username],
+  });
 
   core.info(`Assigned ${action.username} to issue #${action.issueNumber}`);
   return { assigned: true };
