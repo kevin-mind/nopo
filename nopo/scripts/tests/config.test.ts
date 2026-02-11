@@ -525,6 +525,122 @@ runtime:
       expect(backend?.runtime?.depends_on).toEqual(["db"]);
       expect(backend?.build?.depends_on).toBeUndefined();
     });
+
+    it("supports object format for build.depends_on with specific commands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Build Object Dependencies
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+build:
+  command: pnpm build
+  depends_on:
+    ui:
+      - compile
+      - test
+    shared:
+      - build
+runtime:
+  port: 3000
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.build?.depends_on).toEqual({
+        ui: ["compile", "test"],
+        shared: ["build"],
+      });
+    });
+
+    it("supports object format for runtime.depends_on with specific commands", () => {
+      const root = createProject({
+        rootConfig: `
+name: Runtime Object Dependencies
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+runtime:
+  port: 3000
+  depends_on:
+    db:
+      - migrate
+      - healthcheck
+    cache:
+      - ready
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.runtime?.depends_on).toEqual({
+        db: ["migrate", "healthcheck"],
+        cache: ["ready"],
+      });
+    });
+
+    it("allows empty object for build.depends_on (explicit no dependencies)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Empty Build Dependencies
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+build:
+  command: pnpm build
+  depends_on: {}
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.build?.depends_on).toEqual({});
+    });
+
+    it("allows empty object for runtime.depends_on (explicit no dependencies)", () => {
+      const root = createProject({
+        rootConfig: `
+name: Empty Runtime Dependencies
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+dockerfile: Dockerfile
+runtime:
+  port: 3000
+  depends_on: {}
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.runtime?.depends_on).toEqual({});
+    });
   });
 
   describe("multi-directory discovery", () => {
