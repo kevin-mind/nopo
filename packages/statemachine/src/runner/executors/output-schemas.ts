@@ -172,9 +172,11 @@ export const SubIssueSpecSchema = z.object({
 
 export type SubIssueSpec = z.infer<typeof SubIssueSpecSchema>;
 
-// Existing sub-issue = spec + GitHub issue number
+// Existing sub-issue = spec + GitHub issue number + lifecycle state
 export const ExistingSubIssueSchema = SubIssueSpecSchema.extend({
   number: z.number(),
+  state: z.string().optional(),
+  merged: z.boolean().optional(),
 });
 
 export type ExistingSubIssue = z.infer<typeof ExistingSubIssueSchema>;

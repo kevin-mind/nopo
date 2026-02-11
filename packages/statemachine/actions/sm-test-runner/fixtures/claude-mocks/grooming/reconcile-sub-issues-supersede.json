@@ -1,0 +1,70 @@
+{
+  "description": "Reconciliation that matches all 3 phases: skips merged Phase 1, supersedes abandoned Phase 2, updates active Phase 3",
+  "output": {
+    "create": [],
+    "update": [
+      {
+        "number": 0,
+        "phase_number": 1,
+        "title": "Design and planning",
+        "description": "Design the architecture and create a plan.",
+        "affected_areas": [
+          {
+            "path": "docs/architecture.md",
+            "change_type": "create",
+            "description": "Architecture documentation"
+          }
+        ],
+        "todos": [
+          { "task": "Create architecture diagram", "manual": false },
+          { "task": "Define interfaces", "manual": false }
+        ],
+        "match_reason": "Same design/planning scope as existing Phase 1 (merged)"
+      },
+      {
+        "number": 0,
+        "phase_number": 2,
+        "title": "Core implementation",
+        "description": "Implement the core functionality.",
+        "affected_areas": [
+          {
+            "path": "src/core/feature.ts",
+            "change_type": "create",
+            "description": "Main feature implementation"
+          }
+        ],
+        "todos": [
+          { "task": "Implement main logic", "manual": false },
+          { "task": "Add error handling", "manual": false }
+        ],
+        "match_reason": "Same implementation scope as existing Phase 2 (abandoned/closed)"
+      },
+      {
+        "number": 0,
+        "phase_number": 3,
+        "title": "Testing and documentation",
+        "description": "Add tests and documentation.",
+        "affected_areas": [
+          {
+            "path": "src/core/feature.test.ts",
+            "change_type": "create",
+            "description": "Unit tests"
+          },
+          {
+            "path": "docs/README.md",
+            "change_type": "modify",
+            "description": "Update documentation"
+          }
+        ],
+        "todos": [
+          { "task": "Write unit tests", "manual": false },
+          { "task": "Write integration tests", "manual": false },
+          { "task": "Update documentation", "manual": false }
+        ],
+        "match_reason": "Same testing scope as existing Phase 3 (active)"
+      }
+    ],
+    "delete": [],
+    "reasoning": "All 3 expected phases match existing sub-issues: Phase 1 is completed (merged), Phase 2 was abandoned and needs replacement, Phase 3 is active and gets updated."
+  }
+}

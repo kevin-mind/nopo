@@ -81,6 +81,12 @@ Good signals for a match:
 - Similar todo items (same tasks, even if worded differently)
 - Same functional intent (both about "auth", both about "UI", etc.)
 
+**Handling closed/merged sub-issues:**
+Existing sub-issues may have \`state\` and \`merged\` fields:
+- \`merged: true\` — This phase is COMPLETED (PR was merged). Put it in the \`update\` bucket matched to its corresponding expected phase, with no content changes. This preserves the match but the executor will skip it.
+- \`state: "CLOSED"\` + \`merged: false\` (or merged absent) — This phase was ABANDONED (closed without merging). Treat it as a normal candidate for semantic matching. If matched, put it in the \`update\` bucket and the executor will handle replacement.
+- \`state: "OPEN"\` — Normal active sub-issue, handle as before.
+
 When merging for update:
 - Use the expected phase_number and title (they reflect the latest analysis)
 - Prefer the expected description but incorporate unique details from the existing one

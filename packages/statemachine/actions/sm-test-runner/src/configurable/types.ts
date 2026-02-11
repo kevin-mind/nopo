@@ -87,6 +87,7 @@ const TestSubIssueSchema = z.object({
   body: z.string(),
   state: z.enum(["OPEN", "CLOSED"]),
   projectStatus: z.string().nullable(),
+  labels: z.array(z.string()).optional(),
   branch: z.string().nullable().optional(),
   pr: z
     .object({

@@ -28135,6 +28135,7 @@ var SubIssueDataSchema = external_exports.object({
   state: IssueStateSchema,
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
+  labels: external_exports.array(external_exports.string()),
   branch: external_exports.string().nullable(),
   pr: LinkedPRSchema.nullable()
 });
@@ -40389,6 +40390,11 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           title
           body
           state
+          labels(first: 20) {
+            nodes {
+              name
+            }
+          }
           projectItems(first: 10) {
             nodes {
               project {
@@ -40849,6 +40855,18 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   return null;
 }
+function parsePhaseFromTitle(title) {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+function compareByPhaseTitle(a, b) {
+  const phaseA = parsePhaseFromTitle(a.title || "");
+  const phaseB = parsePhaseFromTitle(b.title || "");
+  if (phaseA !== null && phaseB !== null) return phaseA - phaseB;
+  if (phaseA !== null) return -1;
+  if (phaseB !== null) return 1;
+  return (a.number || 0) - (b.number || 0);
+}
 function deriveBranchName(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
@@ -40971,6 +40989,7 @@ function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber2
     state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
+    labels: node2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     branch: deriveBranchName(parentIssueNumber2, phaseNumber),
     pr: null
     // Populated separately if fetchPRs is true
@@ -40991,9 +41010,7 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
     projectNumber
   );
   const subIssueNodes = issue2.subIssues?.nodes || [];
-  const sortedSubIssues = [...subIssueNodes].sort(
-    (a, b) => (a.number || 0) - (b.number || 0)
-  );
+  const sortedSubIssues = [...subIssueNodes].sort(compareByPhaseTitle);
   const subIssues = [];
   for (let i = 0; i < sortedSubIssues.length; i++) {
     const node2 = sortedSubIssues[i];
@@ -66065,6 +66082,12 @@ Good signals for a match:
 - Similar todo items (same tasks, even if worded differently)
 - Same functional intent (both about "auth", both about "UI", etc.)
 
+**Handling closed/merged sub-issues:**
+Existing sub-issues may have \`state\` and \`merged\` fields:
+- \`merged: true\` \u2014 This phase is COMPLETED (PR was merged). Put it in the \`update\` bucket matched to its corresponding expected phase, with no content changes. This preserves the match but the executor will skip it.
+- \`state: "CLOSED"\` + \`merged: false\` (or merged absent) \u2014 This phase was ABANDONED (closed without merging). Treat it as a normal candidate for semantic matching. If matched, put it in the \`update\` bucket and the executor will handle replacement.
+- \`state: "OPEN"\` \u2014 Normal active sub-issue, handle as before.
+
 When merging for update:
 - Use the expected phase_number and title (they reflect the latest analysis)
 - Prefer the expected description but incorporate unique details from the existing one
@@ -66568,7 +66591,9 @@ var SubIssueSpecSchema = external_exports.object({
   depends_on: external_exports.array(external_exports.number()).optional()
 });
 var ExistingSubIssueSchema = SubIssueSpecSchema.extend({
-  number: external_exports.number()
+  number: external_exports.number(),
+  state: external_exports.string().optional(),
+  merged: external_exports.boolean().optional()
 });
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   recommended_phases: external_exports.array(SubIssueSpecSchema)

@@ -58,6 +58,11 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           title
           body
           state
+          labels(first: 20) {
+            nodes {
+              name
+            }
+          }
           projectItems(first: 10) {
             nodes {
               project {

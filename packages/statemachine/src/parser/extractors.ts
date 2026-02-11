@@ -345,9 +345,24 @@ export function extractQuestionItems(bodyAst: Root): QuestionItem[] {
 /**
  * Parse `[Phase N]` from a sub-issue title. Returns the phase number or null.
  */
-function parsePhaseNumber(title: string): number | null {
+export function parsePhaseNumber(title: string): number | null {
   const match = /^\[Phase\s+(\d+)\]/.exec(title);
   return match?.[1] ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Comparator: sort sub-issues by `[Phase N]` in title, falling back to issue number.
+ */
+export function compareByPhaseTitle(
+  a: { title?: string; number?: number },
+  b: { title?: string; number?: number },
+): number {
+  const phaseA = parsePhaseNumber(a.title || "");
+  const phaseB = parsePhaseNumber(b.title || "");
+  if (phaseA !== null && phaseB !== null) return phaseA - phaseB;
+  if (phaseA !== null) return -1;
+  if (phaseB !== null) return 1;
+  return (a.number || 0) - (b.number || 0);
 }
 
 /**
@@ -426,6 +441,10 @@ function extractTodoItems(
  * Extract ExistingSubIssue[] from sub-issues by parsing their body ASTs.
  * This converts GitHub SubIssueData into the canonical SubIssueSpec shape
  * (with `number`) for use in reconciliation.
+ *
+ * Filters out sub-issues labeled "superseded" (stale duplicates).
+ * Includes CLOSED sub-issues so reconciliation can see completed phases
+ * and avoid creating duplicates.
  */
 export function extractSubIssueSpecs(
   subIssues: Array<{
@@ -433,10 +452,12 @@ export function extractSubIssueSpecs(
     title: string;
     bodyAst: Root;
     state: string;
+    labels?: string[];
+    pr?: { state: string } | null;
   }>,
 ): ExistingSubIssue[] {
   return subIssues
-    .filter((sub) => sub.state !== "CLOSED")
+    .filter((sub) => !sub.labels?.includes("superseded"))
     .map((sub) => {
       const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
       // Strip [Phase N]: prefix from title
@@ -450,6 +471,8 @@ export function extractSubIssueSpecs(
         phase_number: phaseNumber,
         title,
         description,
+        state: sub.state,
+        merged: sub.state === "CLOSED" && sub.pr?.state === "MERGED",
         ...(affectedAreas.length > 0 ? { affected_areas: affectedAreas } : {}),
         ...(todos.length > 0 ? { todos } : {}),
       };

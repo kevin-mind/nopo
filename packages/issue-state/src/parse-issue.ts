@@ -116,6 +116,23 @@ function parseSubIssueStatus(
   return null;
 }
 
+function parsePhaseFromTitle(title: string): number | null {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+
+function compareByPhaseTitle(
+  a: { title?: string; number?: number },
+  b: { title?: string; number?: number },
+): number {
+  const phaseA = parsePhaseFromTitle(a.title || "");
+  const phaseB = parsePhaseFromTitle(b.title || "");
+  if (phaseA !== null && phaseB !== null) return phaseA - phaseB;
+  if (phaseA !== null) return -1;
+  if (phaseB !== null) return 1;
+  return (a.number || 0) - (b.number || 0);
+}
+
 function deriveBranchName(
   parentIssueNumber: number,
   phaseNumber?: number,
@@ -303,6 +320,7 @@ function parseSubIssueData(
     state: IssueStateSchema.parse(node.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
+    labels: node.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
     pr: null, // Populated separately if fetchPRs is true
   };
@@ -338,9 +356,7 @@ async function fetchIssueData(
   );
 
   const subIssueNodes = issue.subIssues?.nodes || [];
-  const sortedSubIssues = [...subIssueNodes].sort(
-    (a, b) => (a.number || 0) - (b.number || 0),
-  );
+  const sortedSubIssues = [...subIssueNodes].sort(compareByPhaseTitle);
 
   const subIssues: SubIssueData[] = [];
   for (let i = 0; i < sortedSubIssues.length; i++) {

@@ -10,6 +10,7 @@ import {
   type IssueCommentNode,
   type IssueResponse,
 } from "@more/issue-state";
+import { compareByPhaseTitle } from "./extractors.js";
 import {
   ProjectStatusSchema,
   IssueStateSchema,
@@ -181,6 +182,7 @@ function parseSubIssue(
     state: IssueStateSchema.catch("OPEN").parse(node.state?.toUpperCase()),
     bodyAst,
     projectStatus: status,
+    labels: node.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
     pr: null, // Will be populated separately
   };
@@ -324,10 +326,8 @@ async function fetchIssueState(
   const subIssueNodes = issue.subIssues?.nodes || [];
   const subIssues: SubIssue[] = [];
 
-  // Sort sub-issues by number to maintain phase order
-  const sortedSubIssues = [...subIssueNodes].sort(
-    (a, b) => (a.number || 0) - (b.number || 0),
-  );
+  // Sort sub-issues by [Phase N] title, falling back to issue number
+  const sortedSubIssues = [...subIssueNodes].sort(compareByPhaseTitle);
 
   for (let i = 0; i < sortedSubIssues.length; i++) {
     const node = sortedSubIssues[i];

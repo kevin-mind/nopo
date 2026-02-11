@@ -46,6 +46,8 @@ export {
   extractQuestionsFromAst,
   extractQuestionItems,
   extractSubIssueSpecs,
+  parsePhaseNumber,
+  compareByPhaseTitle,
   QuestionStatsSchema,
   type QuestionStats,
   type QuestionItem,

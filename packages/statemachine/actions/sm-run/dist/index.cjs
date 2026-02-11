@@ -28135,6 +28135,7 @@ var SubIssueDataSchema = external_exports.object({
   state: IssueStateSchema,
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
+  labels: external_exports.array(external_exports.string()),
   branch: external_exports.string().nullable(),
   pr: LinkedPRSchema.nullable()
 });
@@ -40389,6 +40390,11 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           title
           body
           state
+          labels(first: 20) {
+            nodes {
+              name
+            }
+          }
           projectItems(first: 10) {
             nodes {
               project {
@@ -41064,6 +41070,18 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   return null;
 }
+function parsePhaseFromTitle(title) {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+function compareByPhaseTitle(a, b) {
+  const phaseA = parsePhaseFromTitle(a.title || "");
+  const phaseB = parsePhaseFromTitle(b.title || "");
+  if (phaseA !== null && phaseB !== null) return phaseA - phaseB;
+  if (phaseA !== null) return -1;
+  if (phaseB !== null) return 1;
+  return (a.number || 0) - (b.number || 0);
+}
 function deriveBranchName(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
@@ -41186,6 +41204,7 @@ function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber2
     state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
+    labels: node2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     branch: deriveBranchName(parentIssueNumber2, phaseNumber),
     pr: null
     // Populated separately if fetchPRs is true
@@ -41206,9 +41225,7 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
     projectNumber
   );
   const subIssueNodes = issue2.subIssues?.nodes || [];
-  const sortedSubIssues = [...subIssueNodes].sort(
-    (a, b) => (a.number || 0) - (b.number || 0)
-  );
+  const sortedSubIssues = [...subIssueNodes].sort(compareByPhaseTitle);
   const subIssues = [];
   for (let i = 0; i < sortedSubIssues.length; i++) {
     const node2 = sortedSubIssues[i];
@@ -42654,352 +42671,6 @@ function deriveBranchName2(parentIssueNumber2, phaseNumber) {
   return `claude/issue/${parentIssueNumber2}`;
 }
 
-// src/parser/state-parser.ts
-function parseProjectState2(projectItems, projectNumber) {
-  const projectItem = projectItems.find(
-    (item) => item.project?.number === projectNumber
-  );
-  if (!projectItem) {
-    return { status: null, iteration: 0, failures: 0 };
-  }
-  let status = null;
-  let iteration = 0;
-  let failures = 0;
-  const fieldValues = projectItem.fieldValues?.nodes || [];
-  for (const fieldValue of fieldValues) {
-    const fieldName = fieldValue.field?.name;
-    if (fieldName === "Status" && fieldValue.name) {
-      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
-      if (parsed.success) {
-        status = parsed.data;
-      }
-    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
-      iteration = fieldValue.number;
-    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
-      failures = fieldValue.number;
-    }
-  }
-  return { status, iteration, failures };
-}
-function parseSubIssueStatus2(projectItems, projectNumber) {
-  const projectItem = projectItems.find(
-    (item) => item.project?.number === projectNumber
-  );
-  if (!projectItem?.fieldValues?.nodes) {
-    return null;
-  }
-  for (const fieldValue of projectItem.fieldValues.nodes) {
-    if (fieldValue.field?.name === "Status" && fieldValue.name) {
-      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
-      if (parsed.success) {
-        return parsed.data;
-      }
-    }
-  }
-  return null;
-}
-function deriveBranchName3(parentIssueNumber2, phaseNumber) {
-  if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
-  }
-  return `claude/issue/${parentIssueNumber2}`;
-}
-function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber2) {
-  const status = parseSubIssueStatus2(
-    node2.projectItems?.nodes || [],
-    projectNumber
-  );
-  const body = node2.body || "";
-  const bodyAst = parseMarkdown(body);
-  return {
-    number: node2.number || 0,
-    title: node2.title || "",
-    state: IssueStateSchema.catch("OPEN").parse(node2.state?.toUpperCase()),
-    bodyAst,
-    projectStatus: status,
-    branch: deriveBranchName3(parentIssueNumber2, phaseNumber),
-    pr: null
-    // Will be populated separately
-  };
-}
-async function checkBranchExists(octokit, owner, repo, branchName) {
-  try {
-    const response = await octokit.graphql(
-      CHECK_BRANCH_EXISTS_QUERY,
-      {
-        owner,
-        repo,
-        branchName: `refs/heads/${branchName}`
-      }
-    );
-    return response.repository?.ref !== null;
-  } catch {
-    return false;
-  }
-}
-async function getPRForBranch2(octokit, owner, repo, headRef) {
-  try {
-    const response = await octokit.graphql(
-      GET_PR_FOR_BRANCH_QUERY,
-      {
-        owner,
-        repo,
-        headRef
-      }
-    );
-    const pr = response.repository?.pullRequests?.nodes?.[0];
-    if (!pr || !pr.number) {
-      return null;
-    }
-    const rawCiStatus = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
-    let ciStatus = null;
-    if (rawCiStatus) {
-      const parsed = CIStatusSchema.safeParse(rawCiStatus);
-      if (parsed.success) {
-        ciStatus = parsed.data;
-      }
-    }
-    return {
-      number: pr.number,
-      state: PRStateSchema.catch("OPEN").parse(pr.state?.toUpperCase()),
-      isDraft: pr.isDraft || false,
-      title: pr.title || "",
-      headRef: pr.headRefName || headRef,
-      baseRef: pr.baseRefName || "main",
-      ciStatus,
-      labels: [],
-      reviews: []
-    };
-  } catch {
-    return null;
-  }
-}
-function parseIssueComments2(commentNodes, botUsername) {
-  return commentNodes.map((c) => {
-    const author = c.author?.login ?? "unknown";
-    return {
-      id: c.id ?? "",
-      author,
-      body: c.body ?? "",
-      createdAt: c.createdAt ?? "",
-      isBot: author.includes("[bot]") || author === botUsername
-    };
-  });
-}
-async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber, botUsername = "nopo-bot") {
-  const response = await octokit.graphql(
-    GET_ISSUE_WITH_PROJECT_QUERY,
-    {
-      owner,
-      repo,
-      issueNumber
-    }
-  );
-  const issue2 = response.repository?.issue;
-  if (!issue2) {
-    return null;
-  }
-  const projectItems = issue2.projectItems?.nodes || [];
-  const { status, iteration, failures } = parseProjectState2(
-    projectItems,
-    projectNumber
-  );
-  const subIssueNodes = issue2.subIssues?.nodes || [];
-  const subIssues = [];
-  const sortedSubIssues = [...subIssueNodes].sort(
-    (a, b) => (a.number || 0) - (b.number || 0)
-  );
-  for (let i = 0; i < sortedSubIssues.length; i++) {
-    const node2 = sortedSubIssues[i];
-    if (!node2) continue;
-    subIssues.push(parseSubIssue(node2, projectNumber, i + 1, issueNumber));
-  }
-  const body = issue2.body || "";
-  const bodyAst = parseMarkdown(body);
-  const comments = parseIssueComments2(issue2.comments?.nodes || [], botUsername);
-  const parentIssueNumber2 = issue2.parent?.number ?? null;
-  return {
-    issue: {
-      number: issue2.number || issueNumber,
-      title: issue2.title || "",
-      state: IssueStateSchema.catch("OPEN").parse(issue2.state?.toUpperCase()),
-      bodyAst,
-      projectStatus: status,
-      iteration,
-      failures,
-      assignees: issue2.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
-      labels: issue2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
-      subIssues,
-      hasSubIssues: subIssues.length > 0,
-      comments,
-      branch: null,
-      // Will be populated separately
-      pr: null,
-      // Will be populated separately
-      parentIssueNumber: parentIssueNumber2
-    },
-    parentIssueNumber: parentIssueNumber2
-  };
-}
-function findCurrentPhase(subIssues) {
-  for (let i = 0; i < subIssues.length; i++) {
-    const subIssue = subIssues[i];
-    if (!subIssue) continue;
-    if (subIssue.projectStatus !== "Done" && subIssue.state === "OPEN") {
-      return { phase: i + 1, subIssue };
-    }
-  }
-  return null;
-}
-async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber2, subIssues) {
-  const enriched = [];
-  for (let i = 0; i < subIssues.length; i++) {
-    const subIssue = subIssues[i];
-    if (!subIssue) continue;
-    const branchName = deriveBranchName3(parentIssueNumber2, i + 1);
-    const pr = await getPRForBranch2(octokit, owner, repo, branchName);
-    enriched.push({
-      ...subIssue,
-      branch: branchName,
-      pr
-    });
-  }
-  return enriched;
-}
-async function buildMachineContext(octokit, event, projectNumber, options = {}) {
-  const { owner, repo } = event;
-  const trigger = options.triggerOverride ?? eventToTrigger(event);
-  let issueNumber;
-  if ("issueNumber" in event) {
-    issueNumber = event.issueNumber;
-  } else if ("prNumber" in event && event.issueNumber) {
-    issueNumber = event.issueNumber;
-  }
-  if (!issueNumber) {
-    return null;
-  }
-  const botUsername = options.botUsername ?? "nopo-bot";
-  const issueResult = await fetchIssueState(
-    octokit,
-    owner,
-    repo,
-    issueNumber,
-    projectNumber,
-    botUsername
-  );
-  if (!issueResult) {
-    return null;
-  }
-  const { issue: issue2, parentIssueNumber: parentIssueNumber2 } = issueResult;
-  let parentIssue = null;
-  if (parentIssueNumber2) {
-    const parentResult = await fetchIssueState(
-      octokit,
-      owner,
-      repo,
-      parentIssueNumber2,
-      projectNumber,
-      botUsername
-    );
-    if (parentResult) {
-      parentIssue = parentResult.issue;
-    }
-  }
-  if (issue2.hasSubIssues) {
-    issue2.subIssues = await enrichSubIssuesWithPRs(
-      octokit,
-      owner,
-      repo,
-      issueNumber,
-      issue2.subIssues
-    );
-  }
-  const currentPhaseInfo = findCurrentPhase(issue2.subIssues);
-  const currentPhase = currentPhaseInfo?.phase ?? null;
-  const currentSubIssue = currentPhaseInfo?.subIssue ?? null;
-  const derivedBranch = currentPhase ? deriveBranchName3(issueNumber, currentPhase) : deriveBranchName3(issueNumber);
-  const branch = options.branch || derivedBranch;
-  const hasBranch2 = await checkBranchExists(octokit, owner, repo, branch);
-  const pr = hasBranch2 ? await getPRForBranch2(octokit, owner, repo, branch) : null;
-  let ciResult = null;
-  let ciRunUrl = options.ciRunUrl ?? null;
-  let ciCommitSha = null;
-  if (event.type === "workflow_run_completed") {
-    ciResult = event.result;
-    ciRunUrl = event.runUrl;
-    ciCommitSha = event.headSha;
-  } else if (pr?.ciStatus) {
-    switch (pr.ciStatus) {
-      case "SUCCESS":
-        ciResult = "success";
-        break;
-      case "FAILURE":
-      case "ERROR":
-        ciResult = "failure";
-        break;
-    }
-  }
-  let reviewDecision = null;
-  let reviewerId = null;
-  if (event.type === "pr_review_submitted") {
-    reviewDecision = event.decision;
-    reviewerId = event.reviewer;
-  }
-  let releaseEvent = null;
-  if (event.type === "merge_queue_entered") {
-    releaseEvent = { type: "queue_entry" };
-  } else if (event.type === "merge_queue_failed") {
-    releaseEvent = {
-      type: "queue_failure",
-      failureReason: event.failureReason
-    };
-  } else if (event.type === "pr_merged") {
-    releaseEvent = {
-      type: "merged",
-      commitSha: event.commitSha
-    };
-    ciCommitSha = event.commitSha;
-  } else if (event.type === "deployed_stage") {
-    releaseEvent = {
-      type: "deployed",
-      commitSha: event.commitSha
-    };
-    ciCommitSha = event.commitSha;
-  } else if (event.type === "deployed_prod") {
-    releaseEvent = {
-      type: "deployed",
-      commitSha: event.commitSha
-    };
-    ciCommitSha = event.commitSha;
-  }
-  return createMachineContext({
-    trigger,
-    owner,
-    repo,
-    issue: issue2,
-    parentIssue,
-    currentPhase,
-    totalPhases: issue2.subIssues.length || 1,
-    currentSubIssue,
-    ciResult,
-    ciRunUrl,
-    ciCommitSha,
-    workflowStartedAt: options.workflowStartedAt ?? null,
-    workflowRunUrl: options.workflowRunUrl ?? null,
-    reviewDecision,
-    reviewerId,
-    branch,
-    hasBranch: hasBranch2,
-    pr,
-    hasPR: pr !== null,
-    commentContextType: options.commentContextType ?? null,
-    commentContextDescription: options.commentContextDescription ?? null,
-    releaseEvent,
-    maxRetries: options.maxRetries,
-    botUsername: options.botUsername
-  });
-}
-
 // src/parser/type-guards.ts
 function isList(node2) {
   return node2.type === "list";
@@ -43217,6 +42888,14 @@ function parsePhaseNumber(title) {
   const match = /^\[Phase\s+(\d+)\]/.exec(title);
   return match?.[1] ? parseInt(match[1], 10) : null;
 }
+function compareByPhaseTitle2(a, b) {
+  const phaseA = parsePhaseNumber(a.title || "");
+  const phaseB = parsePhaseNumber(b.title || "");
+  if (phaseA !== null && phaseB !== null) return phaseA - phaseB;
+  if (phaseA !== null) return -1;
+  if (phaseB !== null) return 1;
+  return (a.number || 0) - (b.number || 0);
+}
 function extractSectionText(ast, sectionName) {
   const idx = findHeadingIndex(ast, sectionName);
   if (idx === -1) return "";
@@ -43261,7 +42940,7 @@ function extractTodoItems(ast) {
   });
 }
 function extractSubIssueSpecs(subIssues) {
-  return subIssues.filter((sub) => sub.state !== "CLOSED").map((sub) => {
+  return subIssues.filter((sub) => !sub.labels?.includes("superseded")).map((sub) => {
     const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
     const title = sub.title.replace(/^\[Phase\s+\d+\]:\s*/, "");
     const description = extractSectionText(sub.bodyAst, "Description");
@@ -43272,6 +42951,8 @@ function extractSubIssueSpecs(subIssues) {
       phase_number: phaseNumber,
       title,
       description,
+      state: sub.state,
+      merged: sub.state === "CLOSED" && sub.pr?.state === "MERGED",
       ...affectedAreas.length > 0 ? { affected_areas: affectedAreas } : {},
       ...todos.length > 0 ? { todos } : {}
     };
@@ -43312,6 +42993,351 @@ var agentNotesExtractor = createExtractor(
     return entries;
   }
 );
+
+// src/parser/state-parser.ts
+function parseProjectState2(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
+      if (parsed.success) {
+        status = parsed.data;
+      }
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+function parseSubIssueStatus2(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem?.fieldValues?.nodes) {
+    return null;
+  }
+  for (const fieldValue of projectItem.fieldValues.nodes) {
+    if (fieldValue.field?.name === "Status" && fieldValue.name) {
+      const parsed = ProjectStatusSchema.safeParse(fieldValue.name);
+      if (parsed.success) {
+        return parsed.data;
+      }
+    }
+  }
+  return null;
+}
+function deriveBranchName3(parentIssueNumber2, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber2}`;
+}
+function parseSubIssue(node2, projectNumber, phaseNumber, parentIssueNumber2) {
+  const status = parseSubIssueStatus2(
+    node2.projectItems?.nodes || [],
+    projectNumber
+  );
+  const body = node2.body || "";
+  const bodyAst = parseMarkdown(body);
+  return {
+    number: node2.number || 0,
+    title: node2.title || "",
+    state: IssueStateSchema.catch("OPEN").parse(node2.state?.toUpperCase()),
+    bodyAst,
+    projectStatus: status,
+    labels: node2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+    branch: deriveBranchName3(parentIssueNumber2, phaseNumber),
+    pr: null
+    // Will be populated separately
+  };
+}
+async function checkBranchExists(octokit, owner, repo, branchName) {
+  try {
+    const response = await octokit.graphql(
+      CHECK_BRANCH_EXISTS_QUERY,
+      {
+        owner,
+        repo,
+        branchName: `refs/heads/${branchName}`
+      }
+    );
+    return response.repository?.ref !== null;
+  } catch {
+    return false;
+  }
+}
+async function getPRForBranch2(octokit, owner, repo, headRef) {
+  try {
+    const response = await octokit.graphql(
+      GET_PR_FOR_BRANCH_QUERY,
+      {
+        owner,
+        repo,
+        headRef
+      }
+    );
+    const pr = response.repository?.pullRequests?.nodes?.[0];
+    if (!pr || !pr.number) {
+      return null;
+    }
+    const rawCiStatus = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null;
+    let ciStatus = null;
+    if (rawCiStatus) {
+      const parsed = CIStatusSchema.safeParse(rawCiStatus);
+      if (parsed.success) {
+        ciStatus = parsed.data;
+      }
+    }
+    return {
+      number: pr.number,
+      state: PRStateSchema.catch("OPEN").parse(pr.state?.toUpperCase()),
+      isDraft: pr.isDraft || false,
+      title: pr.title || "",
+      headRef: pr.headRefName || headRef,
+      baseRef: pr.baseRefName || "main",
+      ciStatus,
+      labels: [],
+      reviews: []
+    };
+  } catch {
+    return null;
+  }
+}
+function parseIssueComments2(commentNodes, botUsername) {
+  return commentNodes.map((c) => {
+    const author = c.author?.login ?? "unknown";
+    return {
+      id: c.id ?? "",
+      author,
+      body: c.body ?? "",
+      createdAt: c.createdAt ?? "",
+      isBot: author.includes("[bot]") || author === botUsername
+    };
+  });
+}
+async function fetchIssueState(octokit, owner, repo, issueNumber, projectNumber, botUsername = "nopo-bot") {
+  const response = await octokit.graphql(
+    GET_ISSUE_WITH_PROJECT_QUERY,
+    {
+      owner,
+      repo,
+      issueNumber
+    }
+  );
+  const issue2 = response.repository?.issue;
+  if (!issue2) {
+    return null;
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  const { status, iteration, failures } = parseProjectState2(
+    projectItems,
+    projectNumber
+  );
+  const subIssueNodes = issue2.subIssues?.nodes || [];
+  const subIssues = [];
+  const sortedSubIssues = [...subIssueNodes].sort(compareByPhaseTitle2);
+  for (let i = 0; i < sortedSubIssues.length; i++) {
+    const node2 = sortedSubIssues[i];
+    if (!node2) continue;
+    subIssues.push(parseSubIssue(node2, projectNumber, i + 1, issueNumber));
+  }
+  const body = issue2.body || "";
+  const bodyAst = parseMarkdown(body);
+  const comments = parseIssueComments2(issue2.comments?.nodes || [], botUsername);
+  const parentIssueNumber2 = issue2.parent?.number ?? null;
+  return {
+    issue: {
+      number: issue2.number || issueNumber,
+      title: issue2.title || "",
+      state: IssueStateSchema.catch("OPEN").parse(issue2.state?.toUpperCase()),
+      bodyAst,
+      projectStatus: status,
+      iteration,
+      failures,
+      assignees: issue2.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
+      labels: issue2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
+      subIssues,
+      hasSubIssues: subIssues.length > 0,
+      comments,
+      branch: null,
+      // Will be populated separately
+      pr: null,
+      // Will be populated separately
+      parentIssueNumber: parentIssueNumber2
+    },
+    parentIssueNumber: parentIssueNumber2
+  };
+}
+function findCurrentPhase(subIssues) {
+  for (let i = 0; i < subIssues.length; i++) {
+    const subIssue = subIssues[i];
+    if (!subIssue) continue;
+    if (subIssue.projectStatus !== "Done" && subIssue.state === "OPEN") {
+      return { phase: i + 1, subIssue };
+    }
+  }
+  return null;
+}
+async function enrichSubIssuesWithPRs(octokit, owner, repo, parentIssueNumber2, subIssues) {
+  const enriched = [];
+  for (let i = 0; i < subIssues.length; i++) {
+    const subIssue = subIssues[i];
+    if (!subIssue) continue;
+    const branchName = deriveBranchName3(parentIssueNumber2, i + 1);
+    const pr = await getPRForBranch2(octokit, owner, repo, branchName);
+    enriched.push({
+      ...subIssue,
+      branch: branchName,
+      pr
+    });
+  }
+  return enriched;
+}
+async function buildMachineContext(octokit, event, projectNumber, options = {}) {
+  const { owner, repo } = event;
+  const trigger = options.triggerOverride ?? eventToTrigger(event);
+  let issueNumber;
+  if ("issueNumber" in event) {
+    issueNumber = event.issueNumber;
+  } else if ("prNumber" in event && event.issueNumber) {
+    issueNumber = event.issueNumber;
+  }
+  if (!issueNumber) {
+    return null;
+  }
+  const botUsername = options.botUsername ?? "nopo-bot";
+  const issueResult = await fetchIssueState(
+    octokit,
+    owner,
+    repo,
+    issueNumber,
+    projectNumber,
+    botUsername
+  );
+  if (!issueResult) {
+    return null;
+  }
+  const { issue: issue2, parentIssueNumber: parentIssueNumber2 } = issueResult;
+  let parentIssue = null;
+  if (parentIssueNumber2) {
+    const parentResult = await fetchIssueState(
+      octokit,
+      owner,
+      repo,
+      parentIssueNumber2,
+      projectNumber,
+      botUsername
+    );
+    if (parentResult) {
+      parentIssue = parentResult.issue;
+    }
+  }
+  if (issue2.hasSubIssues) {
+    issue2.subIssues = await enrichSubIssuesWithPRs(
+      octokit,
+      owner,
+      repo,
+      issueNumber,
+      issue2.subIssues
+    );
+  }
+  const currentPhaseInfo = findCurrentPhase(issue2.subIssues);
+  const currentPhase = currentPhaseInfo?.phase ?? null;
+  const currentSubIssue = currentPhaseInfo?.subIssue ?? null;
+  const derivedBranch = currentPhase ? deriveBranchName3(issueNumber, currentPhase) : deriveBranchName3(issueNumber);
+  const branch = options.branch || derivedBranch;
+  const hasBranch2 = await checkBranchExists(octokit, owner, repo, branch);
+  const pr = hasBranch2 ? await getPRForBranch2(octokit, owner, repo, branch) : null;
+  let ciResult = null;
+  let ciRunUrl = options.ciRunUrl ?? null;
+  let ciCommitSha = null;
+  if (event.type === "workflow_run_completed") {
+    ciResult = event.result;
+    ciRunUrl = event.runUrl;
+    ciCommitSha = event.headSha;
+  } else if (pr?.ciStatus) {
+    switch (pr.ciStatus) {
+      case "SUCCESS":
+        ciResult = "success";
+        break;
+      case "FAILURE":
+      case "ERROR":
+        ciResult = "failure";
+        break;
+    }
+  }
+  let reviewDecision = null;
+  let reviewerId = null;
+  if (event.type === "pr_review_submitted") {
+    reviewDecision = event.decision;
+    reviewerId = event.reviewer;
+  }
+  let releaseEvent = null;
+  if (event.type === "merge_queue_entered") {
+    releaseEvent = { type: "queue_entry" };
+  } else if (event.type === "merge_queue_failed") {
+    releaseEvent = {
+      type: "queue_failure",
+      failureReason: event.failureReason
+    };
+  } else if (event.type === "pr_merged") {
+    releaseEvent = {
+      type: "merged",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_stage") {
+    releaseEvent = {
+      type: "deployed",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  } else if (event.type === "deployed_prod") {
+    releaseEvent = {
+      type: "deployed",
+      commitSha: event.commitSha
+    };
+    ciCommitSha = event.commitSha;
+  }
+  return createMachineContext({
+    trigger,
+    owner,
+    repo,
+    issue: issue2,
+    parentIssue,
+    currentPhase,
+    totalPhases: issue2.subIssues.length || 1,
+    currentSubIssue,
+    ciResult,
+    ciRunUrl,
+    ciCommitSha,
+    workflowStartedAt: options.workflowStartedAt ?? null,
+    workflowRunUrl: options.workflowRunUrl ?? null,
+    reviewDecision,
+    reviewerId,
+    branch,
+    hasBranch: hasBranch2,
+    pr,
+    hasPR: pr !== null,
+    commentContextType: options.commentContextType ?? null,
+    commentContextDescription: options.commentContextDescription ?? null,
+    releaseEvent,
+    maxRetries: options.maxRetries,
+    botUsername: options.botUsername
+  });
+}
 
 // src/parser/mutators.ts
 function findHeadingIndex2(ast, text5) {
@@ -68606,6 +68632,12 @@ Good signals for a match:
 - Similar todo items (same tasks, even if worded differently)
 - Same functional intent (both about "auth", both about "UI", etc.)
 
+**Handling closed/merged sub-issues:**
+Existing sub-issues may have \`state\` and \`merged\` fields:
+- \`merged: true\` \u2014 This phase is COMPLETED (PR was merged). Put it in the \`update\` bucket matched to its corresponding expected phase, with no content changes. This preserves the match but the executor will skip it.
+- \`state: "CLOSED"\` + \`merged: false\` (or merged absent) \u2014 This phase was ABANDONED (closed without merging). Treat it as a normal candidate for semantic matching. If matched, put it in the \`update\` bucket and the executor will handle replacement.
+- \`state: "OPEN"\` \u2014 Normal active sub-issue, handle as before.
+
 When merging for update:
 - Use the expected phase_number and title (they reflect the latest analysis)
 - Prefer the expected description but incorporate unique details from the existing one
@@ -70475,7 +70507,9 @@ var SubIssueSpecSchema = external_exports.object({
   depends_on: external_exports.array(external_exports.number()).optional()
 });
 var ExistingSubIssueSchema = SubIssueSpecSchema.extend({
-  number: external_exports.number()
+  number: external_exports.number(),
+  state: external_exports.string().optional(),
+  merged: external_exports.boolean().optional()
 });
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   recommended_phases: external_exports.array(SubIssueSpecSchema)
@@ -71995,7 +72029,7 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   }
   const { data } = await parseIssue(ctx.owner, ctx.repo, action.issueNumber, {
     octokit: asOctokitLike7(ctx),
-    fetchPRs: false,
+    fetchPRs: true,
     fetchParent: false
   });
   const existingSubIssues = extractSubIssueSpecs(data.issue.subIssues);
@@ -72031,12 +72065,27 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   core17.endGroup();
   if (!result.success || !result.structuredOutput) {
     core17.warning(
-      `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating all phases.`
+      `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating missing phases.`
+    );
+    const existingPhaseNumbers = new Set(
+      existingSubIssues.map((s) => s.phase_number).filter((n) => n > 0)
+    );
+    const missingPhases = recommendedPhases.filter(
+      (p) => !existingPhaseNumbers.has(p.phase_number)
+    );
+    if (missingPhases.length === 0) {
+      core17.info(
+        "All recommended phases already have existing counterparts, skipping fallback creation"
+      );
+      return { reconciled: true, created: 0, updated: 0, deleted: 0 };
+    }
+    core17.info(
+      `Creating ${missingPhases.length} missing phases (${recommendedPhases.length - missingPhases.length} already exist)`
     );
     const created2 = await createAllPhases(
       ctx,
       action.issueNumber,
-      recommendedPhases
+      missingPhases
     );
     return { reconciled: true, created: created2, updated: 0, deleted: 0 };
   }
@@ -72076,6 +72125,44 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   let updated = 0;
   for (const spec of reconcileOutput.update) {
     try {
+      const existingSub = existingSubIssues.find(
+        (s) => s.number === spec.number
+      );
+      if (existingSub?.merged) {
+        core17.info(
+          `Skipping completed phase #${spec.number} (merged PR, reason: ${spec.match_reason})`
+        );
+        continue;
+      }
+      if (existingSub?.state === "CLOSED" && !existingSub.merged) {
+        core17.info(
+          `Superseding abandoned sub-issue #${spec.number}, creating fresh replacement`
+        );
+        await ctx.octokit.rest.issues.addLabels({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: spec.number,
+          labels: ["superseded"]
+        });
+        const body = buildPhaseIssueBody(spec);
+        const title2 = `[Phase ${spec.phase_number}]: ${spec.title}`;
+        const createResult = await addSubIssueToParent(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          { title: title2, body },
+          {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+            octokit: ctx.octokit,
+            projectNumber: ctx.projectNumber
+          }
+        );
+        core17.info(
+          `Superseded #${spec.number}, created fresh #${createResult.issueNumber}: ${title2}`
+        );
+        created++;
+        continue;
+      }
       const { data: subData, update: subUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
@@ -72126,6 +72213,12 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   let deleted = 0;
   for (const entry of reconcileOutput.delete) {
     try {
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: entry.number,
+        labels: ["superseded"]
+      });
       await ctx.octokit.rest.issues.createComment({
         owner: ctx.owner,
         repo: ctx.repo,

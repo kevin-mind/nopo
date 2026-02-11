@@ -1109,6 +1109,7 @@ Issue: #${this.issueNumber}
         bodyAst: parseMarkdown(sub.body), // Convert body to MDAST
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
         projectStatus: sub.projectStatus as ProjectStatus | null,
+        labels: sub.labels || [],
         branch: sub.branch || null,
         pr: sub.pr || null,
       };

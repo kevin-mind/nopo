@@ -222,10 +222,10 @@ export async function executeReconcileSubIssues(
     return { reconciled: true, created: 0, updated: 0, deleted: 0 };
   }
 
-  // Fetch fresh issue data to get current sub-issues
+  // Fetch fresh issue data to get current sub-issues (with PRs for merge detection)
   const { data } = await parseIssue(ctx.owner, ctx.repo, action.issueNumber, {
     octokit: asOctokitLike(ctx),
-    fetchPRs: false,
+    fetchPRs: true,
     fetchParent: false,
   });
 
@@ -269,12 +269,28 @@ export async function executeReconcileSubIssues(
 
   if (!result.success || !result.structuredOutput) {
     core.warning(
-      `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating all phases.`,
+      `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating missing phases.`,
+    );
+    // Only create phases that don't already have a non-superseded counterpart
+    const existingPhaseNumbers = new Set(
+      existingSubIssues.map((s) => s.phase_number).filter((n) => n > 0),
+    );
+    const missingPhases = recommendedPhases.filter(
+      (p) => !existingPhaseNumbers.has(p.phase_number),
+    );
+    if (missingPhases.length === 0) {
+      core.info(
+        "All recommended phases already have existing counterparts, skipping fallback creation",
+      );
+      return { reconciled: true, created: 0, updated: 0, deleted: 0 };
+    }
+    core.info(
+      `Creating ${missingPhases.length} missing phases (${recommendedPhases.length - missingPhases.length} already exist)`,
     );
     const created = await createAllPhases(
       ctx,
       action.issueNumber,
-      recommendedPhases,
+      missingPhases,
     );
     return { reconciled: true, created, updated: 0, deleted: 0 };
   }
@@ -324,6 +340,59 @@ export async function executeReconcileSubIssues(
   let updated = 0;
   for (const spec of reconcileOutput.update) {
     try {
+      // Find the existing sub-issue data to check its state
+      const existingSub = existingSubIssues.find(
+        (s) => s.number === spec.number,
+      );
+
+      // Skip completed phases (merged PRs) - they're done, leave them alone
+      if (existingSub?.merged) {
+        core.info(
+          `Skipping completed phase #${spec.number} (merged PR, reason: ${spec.match_reason})`,
+        );
+        continue;
+      }
+
+      // Supersede and replace: CLOSED but not merged = abandoned WIP
+      if (existingSub?.state === "CLOSED" && !existingSub.merged) {
+        core.info(
+          `Superseding abandoned sub-issue #${spec.number}, creating fresh replacement`,
+        );
+
+        // Label the old issue as superseded
+        await ctx.octokit.rest.issues.addLabels({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: spec.number,
+          labels: ["superseded"],
+        });
+
+        // Create a fresh sub-issue with the expected spec
+        const body = buildPhaseIssueBody(spec);
+        const title = `[Phase ${spec.phase_number}]: ${spec.title}`;
+
+        const createResult = await addSubIssueToParent(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          { title, body },
+          {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+            octokit: ctx.octokit as Parameters<
+              typeof addSubIssueToParent
+            >[4]["octokit"],
+            projectNumber: ctx.projectNumber,
+          },
+        );
+
+        core.info(
+          `Superseded #${spec.number}, created fresh #${createResult.issueNumber}: ${title}`,
+        );
+        created++;
+        continue;
+      }
+
+      // Normal update path: OPEN sub-issues
       const { data: subData, update: subUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
@@ -389,6 +458,14 @@ export async function executeReconcileSubIssues(
   let deleted = 0;
   for (const entry of reconcileOutput.delete) {
     try {
+      // Add "superseded" label so future reconciliations ignore this issue
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: entry.number,
+        labels: ["superseded"],
+      });
+
       // Close the sub-issue with a comment
       await ctx.octokit.rest.issues.createComment({
         owner: ctx.owner,

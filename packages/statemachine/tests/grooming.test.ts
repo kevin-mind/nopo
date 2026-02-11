@@ -880,7 +880,7 @@ describe("extractSubIssueSpecs", () => {
     expect(specs[0]?.todos).toHaveLength(2);
   });
 
-  it("filters out CLOSED sub-issues", () => {
+  it("includes CLOSED sub-issues (no longer filters them out)", () => {
     const bodyAst = parseMarkdown("## Description\n\nDone.");
 
     const specs = extractSubIssueSpecs([
@@ -889,6 +889,7 @@ describe("extractSubIssueSpecs", () => {
         title: "[Phase 1]: Done phase",
         bodyAst,
         state: "CLOSED",
+        pr: { state: "MERGED" },
       },
       {
         number: 11,
@@ -898,8 +899,71 @@ describe("extractSubIssueSpecs", () => {
       },
     ]);
 
+    expect(specs).toHaveLength(2);
+    expect(specs[0]?.number).toBe(10);
+    expect(specs[0]?.state).toBe("CLOSED");
+    expect(specs[0]?.merged).toBe(true);
+    expect(specs[1]?.number).toBe(11);
+    expect(specs[1]?.state).toBe("OPEN");
+    expect(specs[1]?.merged).toBe(false);
+  });
+
+  it("filters out superseded sub-issues", () => {
+    const bodyAst = parseMarkdown("## Description\n\nStale.");
+
+    const specs = extractSubIssueSpecs([
+      {
+        number: 10,
+        title: "[Phase 1]: Superseded phase",
+        bodyAst,
+        state: "CLOSED",
+        labels: ["superseded"],
+      },
+      {
+        number: 11,
+        title: "[Phase 2]: Active phase",
+        bodyAst,
+        state: "OPEN",
+        labels: [],
+      },
+    ]);
+
     expect(specs).toHaveLength(1);
     expect(specs[0]?.number).toBe(11);
+  });
+
+  it("sets merged=true for CLOSED sub-issues with MERGED PR", () => {
+    const bodyAst = parseMarkdown("## Description\n\nCompleted.");
+
+    const specs = extractSubIssueSpecs([
+      {
+        number: 10,
+        title: "[Phase 1]: Completed",
+        bodyAst,
+        state: "CLOSED",
+        pr: { state: "MERGED" },
+      },
+    ]);
+
+    expect(specs).toHaveLength(1);
+    expect(specs[0]?.merged).toBe(true);
+  });
+
+  it("sets merged=false for CLOSED sub-issues without merged PR", () => {
+    const bodyAst = parseMarkdown("## Description\n\nAbandoned.");
+
+    const specs = extractSubIssueSpecs([
+      {
+        number: 10,
+        title: "[Phase 1]: Abandoned",
+        bodyAst,
+        state: "CLOSED",
+        pr: null,
+      },
+    ]);
+
+    expect(specs).toHaveLength(1);
+    expect(specs[0]?.merged).toBe(false);
   });
 
   it("handles sub-issues without phase prefix", () => {

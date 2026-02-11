@@ -28135,6 +28135,7 @@ var SubIssueDataSchema = external_exports.object({
   state: IssueStateSchema,
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
+  labels: external_exports.array(external_exports.string()),
   branch: external_exports.string().nullable(),
   pr: LinkedPRSchema.nullable()
 });
@@ -40389,6 +40390,11 @@ query GetIssueWithProject($owner: String!, $repo: String!, $issueNumber: Int!) {
           title
           body
           state
+          labels(first: 20) {
+            nodes {
+              name
+            }
+          }
           projectItems(first: 10) {
             nodes {
               project {
@@ -41030,6 +41036,18 @@ function parseSubIssueStatus(projectItems, projectNumber) {
   }
   return null;
 }
+function parsePhaseFromTitle(title) {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+function compareByPhaseTitle(a, b) {
+  const phaseA = parsePhaseFromTitle(a.title || "");
+  const phaseB = parsePhaseFromTitle(b.title || "");
+  if (phaseA !== null && phaseB !== null) return phaseA - phaseB;
+  if (phaseA !== null) return -1;
+  if (phaseB !== null) return 1;
+  return (a.number || 0) - (b.number || 0);
+}
 function deriveBranchName(parentIssueNumber2, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
@@ -41152,6 +41170,7 @@ function parseSubIssueData(node2, projectNumber, phaseNumber, parentIssueNumber2
     state: IssueStateSchema.parse(node2.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
+    labels: node2.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     branch: deriveBranchName(parentIssueNumber2, phaseNumber),
     pr: null
     // Populated separately if fetchPRs is true
@@ -41172,9 +41191,7 @@ async function fetchIssueData(octokit, owner, repo, issueNumber, projectNumber, 
     projectNumber
   );
   const subIssueNodes = issue2.subIssues?.nodes || [];
-  const sortedSubIssues = [...subIssueNodes].sort(
-    (a, b) => (a.number || 0) - (b.number || 0)
-  );
+  const sortedSubIssues = [...subIssueNodes].sort(compareByPhaseTitle);
   const subIssues = [];
   for (let i = 0; i < sortedSubIssues.length; i++) {
     const node2 = sortedSubIssues[i];
@@ -42979,7 +42996,7 @@ function extractTodoItems(ast) {
   });
 }
 function extractSubIssueSpecs(subIssues) {
-  return subIssues.filter((sub) => sub.state !== "CLOSED").map((sub) => {
+  return subIssues.filter((sub) => !sub.labels?.includes("superseded")).map((sub) => {
     const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
     const title = sub.title.replace(/^\[Phase\s+\d+\]:\s*/, "");
     const description = extractSectionText(sub.bodyAst, "Description");
@@ -42990,6 +43007,8 @@ function extractSubIssueSpecs(subIssues) {
       phase_number: phaseNumber,
       title,
       description,
+      state: sub.state,
+      merged: sub.state === "CLOSED" && sub.pr?.state === "MERGED",
       ...affectedAreas.length > 0 ? { affected_areas: affectedAreas } : {},
       ...todos.length > 0 ? { todos } : {}
     };
@@ -68324,6 +68343,12 @@ Good signals for a match:
 - Similar todo items (same tasks, even if worded differently)
 - Same functional intent (both about "auth", both about "UI", etc.)
 
+**Handling closed/merged sub-issues:**
+Existing sub-issues may have \`state\` and \`merged\` fields:
+- \`merged: true\` \u2014 This phase is COMPLETED (PR was merged). Put it in the \`update\` bucket matched to its corresponding expected phase, with no content changes. This preserves the match but the executor will skip it.
+- \`state: "CLOSED"\` + \`merged: false\` (or merged absent) \u2014 This phase was ABANDONED (closed without merging). Treat it as a normal candidate for semantic matching. If matched, put it in the \`update\` bucket and the executor will handle replacement.
+- \`state: "OPEN"\` \u2014 Normal active sub-issue, handle as before.
+
 When merging for update:
 - Use the expected phase_number and title (they reflect the latest analysis)
 - Prefer the expected description but incorporate unique details from the existing one
@@ -70193,7 +70218,9 @@ var SubIssueSpecSchema = external_exports.object({
   depends_on: external_exports.array(external_exports.number()).optional()
 });
 var ExistingSubIssueSchema = SubIssueSpecSchema.extend({
-  number: external_exports.number()
+  number: external_exports.number(),
+  state: external_exports.string().optional(),
+  merged: external_exports.boolean().optional()
 });
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
   recommended_phases: external_exports.array(SubIssueSpecSchema)
@@ -71713,7 +71740,7 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   }
   const { data } = await parseIssue(ctx.owner, ctx.repo, action.issueNumber, {
     octokit: asOctokitLike7(ctx),
-    fetchPRs: false,
+    fetchPRs: true,
     fetchParent: false
   });
   const existingSubIssues = extractSubIssueSpecs(data.issue.subIssues);
@@ -71749,12 +71776,27 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   core17.endGroup();
   if (!result.success || !result.structuredOutput) {
     core17.warning(
-      `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating all phases.`
+      `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating missing phases.`
+    );
+    const existingPhaseNumbers = new Set(
+      existingSubIssues.map((s) => s.phase_number).filter((n) => n > 0)
+    );
+    const missingPhases = recommendedPhases.filter(
+      (p) => !existingPhaseNumbers.has(p.phase_number)
+    );
+    if (missingPhases.length === 0) {
+      core17.info(
+        "All recommended phases already have existing counterparts, skipping fallback creation"
+      );
+      return { reconciled: true, created: 0, updated: 0, deleted: 0 };
+    }
+    core17.info(
+      `Creating ${missingPhases.length} missing phases (${recommendedPhases.length - missingPhases.length} already exist)`
     );
     const created2 = await createAllPhases(
       ctx,
       action.issueNumber,
-      recommendedPhases
+      missingPhases
     );
     return { reconciled: true, created: created2, updated: 0, deleted: 0 };
   }
@@ -71794,6 +71836,44 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   let updated = 0;
   for (const spec of reconcileOutput.update) {
     try {
+      const existingSub = existingSubIssues.find(
+        (s) => s.number === spec.number
+      );
+      if (existingSub?.merged) {
+        core17.info(
+          `Skipping completed phase #${spec.number} (merged PR, reason: ${spec.match_reason})`
+        );
+        continue;
+      }
+      if (existingSub?.state === "CLOSED" && !existingSub.merged) {
+        core17.info(
+          `Superseding abandoned sub-issue #${spec.number}, creating fresh replacement`
+        );
+        await ctx.octokit.rest.issues.addLabels({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: spec.number,
+          labels: ["superseded"]
+        });
+        const body = buildPhaseIssueBody(spec);
+        const title2 = `[Phase ${spec.phase_number}]: ${spec.title}`;
+        const createResult = await addSubIssueToParent(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          { title: title2, body },
+          {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+            octokit: ctx.octokit,
+            projectNumber: ctx.projectNumber
+          }
+        );
+        core17.info(
+          `Superseded #${spec.number}, created fresh #${createResult.issueNumber}: ${title2}`
+        );
+        created++;
+        continue;
+      }
       const { data: subData, update: subUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
@@ -71844,6 +71924,12 @@ async function executeReconcileSubIssues(action, ctx, structuredOutput) {
   let deleted = 0;
   for (const entry of reconcileOutput.delete) {
     try {
+      await ctx.octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: entry.number,
+        labels: ["superseded"]
+      });
       await ctx.octokit.rest.issues.createComment({
         owner: ctx.owner,
         repo: ctx.repo,
@@ -75438,6 +75524,7 @@ var TestSubIssueSchema2 = external_exports.object({
   body: external_exports.string(),
   state: external_exports.enum(["OPEN", "CLOSED"]),
   projectStatus: external_exports.string().nullable(),
+  labels: external_exports.array(external_exports.string()).optional(),
   branch: external_exports.string().nullable().optional(),
   pr: external_exports.object({
     number: external_exports.number().int().nonnegative(),
@@ -76440,6 +76527,7 @@ Applying side effects for: ${currentFixture.state} -> ${nextFixture.state}`
         // Convert body to MDAST
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- fixture projectStatus is string | null, maps to ProjectStatus
         projectStatus: sub.projectStatus,
+        labels: sub.labels || [],
         branch: sub.branch || null,
         pr: sub.pr || null
       };

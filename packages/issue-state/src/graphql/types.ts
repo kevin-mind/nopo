@@ -21,6 +21,7 @@ export interface SubIssueNode {
   title?: string;
   body?: string;
   state?: string;
+  labels?: { nodes?: Array<{ name?: string }> };
   projectItems?: { nodes?: ProjectItemNode[] };
 }
 
