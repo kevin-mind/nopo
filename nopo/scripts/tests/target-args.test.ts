@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { parseTargetArgs, validateTargets } from "../src/target-args.ts";
+import type { NormalizedService } from "../src/config/index.ts";
+
+function minimalServiceWithTags(tags: string[]): NormalizedService {
+  return {
+    id: "x",
+    name: "x",
+    description: "",
+    staticPath: "",
+    tags: [...tags],
+    type: "service",
+    configPath: "/nopo.yml",
+    dependencies: [],
+    commands: {},
+    paths: { root: "/", context: "/" },
+  };
+}
 
 describe("parseTargetArgs", () => {
   const availableTargets = ["backend", "web", "api"];
@@ -70,6 +86,65 @@ describe("parseTargetArgs", () => {
     expect(() => {
       parseTargetArgs("build", argv, availableTargets);
     }).toThrow("Unknown targets 'unknown1', 'unknown2'");
+  });
+
+  describe("--tags filter", () => {
+    const servicesWithTags: Record<string, NormalizedService> = {
+      backend: minimalServiceWithTags([]),
+      web: minimalServiceWithTags(["github-actions", "frontend"]),
+      api: minimalServiceWithTags(["github-actions"]),
+    };
+    const availableTargetsWithTags = ["backend", "web", "api"];
+    const projectRoot = "/project";
+
+    it("filters to targets that have any of the requested tags", () => {
+      const argv = ["--tags", "github-actions"];
+      const result = parseTargetArgs("build", argv, availableTargetsWithTags, {
+        supportsFilter: true,
+        services: servicesWithTags,
+        projectRoot,
+      });
+
+      expect(result.targets).toContain("web");
+      expect(result.targets).toContain("api");
+      expect(result.targets).not.toContain("backend");
+      expect(result.targets).toHaveLength(2);
+    });
+
+    it("with comma-separated tags matches any tag", () => {
+      const argv = ["--tags", "frontend,github-actions"];
+      const result = parseTargetArgs("build", argv, availableTargetsWithTags, {
+        supportsFilter: true,
+        services: servicesWithTags,
+        projectRoot,
+      });
+
+      expect(result.targets).toContain("web");
+      expect(result.targets).toContain("api");
+      expect(result.targets).not.toContain("backend");
+    });
+
+    it("throws when --tags is empty", () => {
+      const argv = ["--tags", ""];
+      expect(() => {
+        parseTargetArgs("build", argv, availableTargetsWithTags, {
+          supportsFilter: true,
+          services: servicesWithTags,
+          projectRoot,
+        });
+      }).toThrow("--tags requires at least one non-empty tag");
+    });
+
+    it("excludes explicit targets that do not have the tag", () => {
+      const argv = ["backend", "web", "--tags", "github-actions"];
+      const result = parseTargetArgs("build", argv, availableTargetsWithTags, {
+        supportsFilter: true,
+        services: servicesWithTags,
+        projectRoot,
+      });
+
+      expect(result.targets).toEqual(["web"]);
+    });
   });
 });
 

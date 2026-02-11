@@ -4,7 +4,7 @@ Build base image and target images using Docker Buildx Bake.
 
 ## Overview
 
-The `build` command creates Docker images for the nopo project using Docker Buildx Bake for parallel and efficient builds. It produces a reusable base image (`nopo:<tag>`) plus target-specific layers that inherit from it.
+The `build` command creates Docker images for the nopo project using Docker Buildx Bake for parallel and efficient builds. It also builds package targets that define `build.command` in their `nopo.yml`, honoring `build.depends_on` ordering before image builds.
 
 ## Usage
 
@@ -26,6 +26,7 @@ nopo build --help
 
 - `root` - The root image containing shared dependencies (configurable via `root_name` in `nopo.yml`)
 - Target names discovered from `apps/*/Dockerfile` (e.g., `backend`, `web`)
+- Package targets discovered from `services.dirs` that define `build.command` (e.g., `prompts`, `claude`)
 
 ## Options
 
@@ -35,6 +36,7 @@ nopo build --help
 | `--output <path>` | Path to write build info JSON | None |
 | `--filter <expr>` / `-F <expr>` | Filter targets by expression (can be used multiple times) | None |
 | `--since <ref>` | Git reference for `changed` filter | default branch |
+| `--tags <tags>` | Filter targets by tags (comma-separated; match any) | None |
 
 ### Filtering
 
@@ -49,9 +51,15 @@ nopo build --filter changed --since abc123
 
 # Build services with database
 nopo build --filter infrastructure.hasDatabase=true
+
+# Build only services with a given tag (e.g. CI-related packages)
+nopo build --tags github-actions
+
+# Multiple tags match any (OR)
+nopo build --tags github-actions,frontend
 ```
 
-See [`list`](./list.md) for full filter expression documentation.
+See [`list`](./list.md) for full filter expression documentation. Tags are defined per service in each service's `nopo.yml` (see [Configuration](../guides/configuration.md)).
 
 ## Environment Variables
 
@@ -145,12 +153,13 @@ nopo build --output build-info.json
 ## How It Works
 
 1. **Environment Setup**: Runs the `env` command to ensure environment variables are configured
-2. **Target Resolution**: Determines which targets to build based on arguments or defaults to all
-3. **Builder Setup**: Creates or uses an existing Docker Buildx builder (`nopo-builder`)
-4. **Bake Definition**: Generates a Docker Bake JSON definition with all targets and their configurations
-5. **Parallel Build**: Executes Docker Buildx Bake for parallel image building
-6. **Image Loading**: Loads built images into the local Docker daemon
-7. **Environment Update**: Records target image tags as `<TARGET>_IMAGE` in `.env`
+2. **Package Build Phase**: Runs package `build.command` on host for package targets and their `build.depends_on` package dependencies
+3. **Target Resolution**: Determines which image targets to build based on arguments or defaults to all
+4. **Builder Setup**: Creates or uses an existing Docker Buildx builder (`nopo-builder`)
+5. **Bake Definition**: Generates a Docker Bake JSON definition with all image targets and their configurations
+6. **Parallel Build**: Executes Docker Buildx Bake for parallel image building
+7. **Image Loading**: Loads built images into the local Docker daemon
+8. **Environment Update**: Records target image tags as `<TARGET>_IMAGE` in `.env`
 
 ### Build Arguments
 

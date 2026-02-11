@@ -1,5 +1,7 @@
 name: Utils Package
 description: Utility functions shared across services
+tags:
+  - fixture-tag
 
 # No runtime or image - this is a package
 

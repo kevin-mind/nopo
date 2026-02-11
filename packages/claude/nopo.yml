@@ -1,14 +1,14 @@
 name: claude
 description: Claude SDK and GitHub Action for running Claude Code
+tags:
+  - github-actions
 
 build:
+  command: mkdir -p actions/claude/dist && pnpm exec esbuild actions/claude/index.ts --bundle --platform=node --target=node20 --outfile=actions/claude/dist/index.cjs --format=cjs
   depends_on:
     - prompts
 
 commands:
-  compile:
-    command: mkdir -p actions/claude/dist && pnpm exec esbuild actions/claude/index.ts --bundle --platform=node --target=node20 --outfile=actions/claude/dist/index.cjs --format=cjs
-    dependencies: {}
   clean: rm -rf node_modules && rm -rf build
   check:
     commands:

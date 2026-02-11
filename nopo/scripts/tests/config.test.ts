@@ -444,6 +444,55 @@ runtime:
     });
   });
 
+  describe("tags", () => {
+    it("parses tags array and normalizes on service", () => {
+      const root = createProject({
+        rootConfig: `
+name: Tags Config
+services:
+  dir: ./apps
+`,
+        services: {
+          web: `
+name: web
+tags:
+  - github-actions
+  - frontend
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const web = config.services.entries.web;
+
+      expect(web).toBeDefined();
+      expect(web?.tags).toEqual(["github-actions", "frontend"]);
+    });
+
+    it("defaults to empty array when tags omitted", () => {
+      const root = createProject({
+        rootConfig: `
+name: No Tags
+services:
+  dir: ./apps
+`,
+        services: {
+          api: `
+name: api
+dockerfile: Dockerfile
+`,
+        },
+      });
+
+      const config = loadProjectConfig(root);
+      const api = config.services.entries.api;
+
+      expect(api).toBeDefined();
+      expect(api?.tags).toEqual([]);
+    });
+  });
+
   describe("context-specific dependencies (build and runtime)", () => {
     it("supports both build.depends_on and runtime.depends_on simultaneously", () => {
       const root = createProject({

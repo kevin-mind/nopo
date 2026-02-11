@@ -721,7 +721,9 @@ describe("list", () => {
         '.services | keys | join(",")',
       ]);
 
-      expect(output.trim()).toBe('"backend,web"');
+      expect(output.trim()).toBe(
+        '"actions-ts,backend,claude,prompts,statemachine,ui,web"',
+      );
       stdoutSpy.mockRestore();
     });
 

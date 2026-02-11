@@ -1,12 +1,13 @@
 name: ui
 description: Shared React UI components with Storybook
 
+build:
+  command: pnpm exec vite build
+  env:
+    NODE_ENV: production
+
 commands:
   clean: rm -rf node_modules && rm -rf build
-  compile:
-    command: pnpm exec vite build
-    env:
-      NODE_ENV: production
   dev: pnpm exec vite build --watch
   check:
     commands:

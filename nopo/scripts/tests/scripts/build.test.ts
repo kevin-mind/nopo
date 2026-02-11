@@ -9,24 +9,40 @@ import {
   createFixtureConfig,
 } from "../utils.ts";
 
-// Track all exec calls to docker for package builds
-const mockExecCalls: Array<{ command: string; args: string[] }> = [];
+// Track all exec calls for package builds
+const mockExecCalls: Array<{
+  command: string;
+  args: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+}> = [];
 
 // Mock the exec function from lib.ts for docker run commands
 vi.mock("../../src/lib.ts", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../src/lib.ts")>();
   return {
     ...original,
-    exec: vi.fn((command: string, args: string[]) => {
-      mockExecCalls.push({ command, args });
-      return Promise.resolve({
-        exitCode: 0,
-        stdout: "",
-        stderr: "",
-        combined: "",
-        signal: null,
-      });
-    }),
+    exec: vi.fn(
+      (
+        command: string,
+        args: string[],
+        options?: { cwd?: string; env?: Record<string, string> },
+      ) => {
+        mockExecCalls.push({
+          command,
+          args,
+          cwd: options?.cwd,
+          env: options?.env,
+        });
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          combined: "",
+          signal: null,
+        });
+      },
+    ),
   };
 });
 
@@ -391,7 +407,7 @@ describe("build", () => {
   });
 
   describe("package builds", () => {
-    it("builds packages via docker run with volume mounts", async () => {
+    it("builds packages on host with build.command", async () => {
       // Use fixture config which has packages with build commands
       const config = createFixtureConfig({
         envFile: createTmpEnv({
@@ -402,29 +418,33 @@ describe("build", () => {
 
       await runScript(BuildScript, config);
 
-      // Fixtures have packages with build.command configured
-      const dockerRunCalls = mockExecCalls.filter(
-        (call) => call.command === "docker" && call.args[0] === "run",
+      const packageBuildCalls = mockExecCalls.filter(
+        (call) => call.command === "sh" && call.args[0] === "-c",
       );
 
-      // Should have 3 docker run calls: shared, utils, and virtual packages
-      expect(dockerRunCalls).toHaveLength(3);
+      // Should have 3 host calls: shared, utils, and virtual packages
+      expect(packageBuildCalls).toHaveLength(3);
 
       // First call should be for 'shared' (dependency of 'utils')
-      const sharedCall = dockerRunCalls[0];
-      expect(sharedCall?.args).toContain("--rm");
-      expect(sharedCall?.args).toContain("test/fixtures:local");
-      expect(sharedCall?.args).toContain("sh");
-      expect(sharedCall?.args).toContain("-c");
-      expect(sharedCall?.args).toContain('echo "FIXTURE_SHARED_BUILD_SUCCESS"');
+      const sharedCall = packageBuildCalls[0];
+      expect(sharedCall?.args).toEqual([
+        "-c",
+        'echo "FIXTURE_SHARED_BUILD_SUCCESS"',
+      ]);
 
       // Second call should be for 'utils'
-      const utilsCall = dockerRunCalls[1];
-      expect(utilsCall?.args).toContain('echo "FIXTURE_UTILS_BUILD_SUCCESS"');
+      const utilsCall = packageBuildCalls[1];
+      expect(utilsCall?.args).toEqual([
+        "-c",
+        'echo "FIXTURE_UTILS_BUILD_SUCCESS"',
+      ]);
 
       // Third call should be for 'virtual'
-      const virtualCall = dockerRunCalls[2];
-      expect(virtualCall?.args).toContain('echo "Building virtual package"');
+      const virtualCall = packageBuildCalls[2];
+      expect(virtualCall?.args).toEqual([
+        "-c",
+        'echo "Building virtual package"',
+      ]);
     });
 
     it("respects dependency ordering (dependencies built first)", async () => {
@@ -437,22 +457,22 @@ describe("build", () => {
 
       await runScript(BuildScript, config);
 
-      const dockerRunCalls = mockExecCalls.filter(
-        (call) => call.command === "docker" && call.args[0] === "run",
+      const packageBuildCalls = mockExecCalls.filter(
+        (call) => call.command === "sh" && call.args[0] === "-c",
       );
 
       // 'shared' must be built before 'utils' since utils depends on shared
-      const sharedIndex = dockerRunCalls.findIndex((call) =>
+      const sharedIndex = packageBuildCalls.findIndex((call) =>
         call.args.includes('echo "FIXTURE_SHARED_BUILD_SUCCESS"'),
       );
-      const utilsIndex = dockerRunCalls.findIndex((call) =>
+      const utilsIndex = packageBuildCalls.findIndex((call) =>
         call.args.includes('echo "FIXTURE_UTILS_BUILD_SUCCESS"'),
       );
 
       expect(sharedIndex).toBeLessThan(utilsIndex);
     });
 
-    it("sets correct UID/GID for file permissions", async () => {
+    it("runs package builds from the package directory", async () => {
       const config = createFixtureConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "test/fixtures:local",
@@ -462,19 +482,26 @@ describe("build", () => {
 
       await runScript(BuildScript, config);
 
-      const dockerRunCalls = mockExecCalls.filter(
-        (call) => call.command === "docker" && call.args[0] === "run",
+      const packageBuildCalls = mockExecCalls.filter(
+        (call) => call.command === "sh" && call.args[0] === "-c",
       );
 
-      // All calls should have -u with UID:GID
-      for (const call of dockerRunCalls) {
-        const userFlagIndex = call.args.indexOf("-u");
-        expect(userFlagIndex).toBeGreaterThan(-1);
-        expect(call.args[userFlagIndex + 1]).toBe("1001:1001");
-      }
+      expect(
+        packageBuildCalls.some((call) =>
+          call.cwd?.endsWith("/packages/shared"),
+        ),
+      ).toBe(true);
+      expect(
+        packageBuildCalls.some((call) => call.cwd?.endsWith("/packages/utils")),
+      ).toBe(true);
+      expect(
+        packageBuildCalls.some((call) =>
+          call.cwd?.endsWith("/packages/virtual"),
+        ),
+      ).toBe(true);
     });
 
-    it("passes build environment variables to docker run", async () => {
+    it("passes build environment variables to host package build", async () => {
       const config = createFixtureConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "test/fixtures:local",
@@ -484,20 +511,19 @@ describe("build", () => {
 
       await runScript(BuildScript, config);
 
-      const dockerRunCalls = mockExecCalls.filter(
-        (call) => call.command === "docker" && call.args[0] === "run",
+      const packageBuildCalls = mockExecCalls.filter(
+        (call) => call.command === "sh" && call.args[0] === "-c",
       );
 
       // 'shared' package has build.env configured
-      const sharedCall = dockerRunCalls.find((call) =>
+      const sharedCall = packageBuildCalls.find((call) =>
         call.args.includes('echo "FIXTURE_SHARED_BUILD_SUCCESS"'),
       );
 
-      expect(sharedCall?.args).toContain("-e");
-      expect(sharedCall?.args).toContain("NODE_ENV=production");
+      expect(sharedCall?.env?.NODE_ENV).toBe("production");
     });
 
-    it("does not build packages that lack build.command", async () => {
+    it("does not attempt to build packages without build.command", async () => {
       mockBuilder.mockResolvedValue(null);
       const config = createTestConfig({
         envFile: createTmpEnv({
@@ -506,16 +532,45 @@ describe("build", () => {
         silent: true,
       });
 
-      await runScript(BuildScript, config);
+      await runScript(BuildScript, config, ["build", "backend"]);
 
-      // No docker run calls should be made for packages without build.command
-      const dockerRunCalls = mockExecCalls.filter(
-        (call) => call.command === "docker" && call.args[0] === "run",
+      // Building a service target should not try to build package-only targets
+      // that don't define build.command (e.g., packages/ui)
+      const uiBuildCalls = mockExecCalls.filter((call) =>
+        call.cwd?.endsWith("/packages/ui"),
       );
-      expect(dockerRunCalls).toHaveLength(0);
+      expect(uiBuildCalls).toHaveLength(0);
     });
 
-    it("mounts project root as volume", async () => {
+    it("throws for targeted package without build.command", async () => {
+      const config = createTestConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        silent: true,
+      });
+
+      await expect(
+        runScript(BuildScript, config, ["build", "prompt-factory"]),
+      ).rejects.toThrow(
+        "Package 'prompt-factory' cannot be built because it does not define build.command",
+      );
+    });
+
+    it("does not invoke docker bake for package-only targets", async () => {
+      const config = createTestConfig({
+        envFile: createTmpEnv({
+          DOCKER_TAG: "kevin-mind/nopo:local",
+        }),
+        silent: true,
+      });
+
+      await runScript(BuildScript, config, ["build", "claude"]);
+
+      expect(mockBake).toHaveBeenCalledTimes(0);
+    });
+
+    it("builds only packages matching --tags", async () => {
       const config = createFixtureConfig({
         envFile: createTmpEnv({
           DOCKER_TAG: "test/fixtures:local",
@@ -523,206 +578,22 @@ describe("build", () => {
         silent: true,
       });
 
-      await runScript(BuildScript, config);
+      await runScript(BuildScript, config, ["build", "--tags", "fixture-tag"]);
 
-      const dockerRunCalls = mockExecCalls.filter(
-        (call) => call.command === "docker" && call.args[0] === "run",
+      const packageBuildCalls = mockExecCalls.filter(
+        (call) => call.command === "sh" && call.args[0] === "-c",
       );
-
-      // All calls should have -v with project root mounted to /app
-      for (const call of dockerRunCalls) {
-        const volumeFlagIndex = call.args.indexOf("-v");
-        expect(volumeFlagIndex).toBeGreaterThan(-1);
-        const volumeValue = call.args[volumeFlagIndex + 1];
-        expect(volumeValue).toMatch(/^.*:\/app$/);
-      }
-    });
-
-    it("sets working directory to package path", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: "test/fixtures:local",
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config);
-
-      const dockerRunCalls = mockExecCalls.filter(
-        (call) => call.command === "docker" && call.args[0] === "run",
-      );
-
-      // Find call for 'shared' package
-      const sharedCall = dockerRunCalls.find((call) =>
+      expect(packageBuildCalls).toHaveLength(2);
+      const sharedIndex = packageBuildCalls.findIndex((call) =>
         call.args.includes('echo "FIXTURE_SHARED_BUILD_SUCCESS"'),
       );
-
-      const wdFlagIndex = sharedCall?.args.indexOf("-w");
-      expect(wdFlagIndex).toBeGreaterThan(-1);
-      expect(sharedCall?.args[(wdFlagIndex ?? -1) + 1]).toBe(
-        "/app/packages/shared",
+      const utilsIndex = packageBuildCalls.findIndex((call) =>
+        call.args.includes('echo "FIXTURE_UTILS_BUILD_SUCCESS"'),
       );
-    });
-  });
-
-  describe("virtual Dockerfiles", () => {
-    const baseTag = "kevin-mind/nopo:local";
-
-    it("generates inline Dockerfile for services without physical Dockerfile", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: baseTag,
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config, ["build", "virtual"]);
-
-      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
-        arg.endsWith("docker-bake.json"),
-      );
-      expect(bakeFilePath).toBeDefined();
-
-      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
-      const bakeDefinition = JSON.parse(bakeContent);
-
-      // Should have "dockerfile-inline" instead of "dockerfile"
-      expect(bakeDefinition.target.virtual).toBeDefined();
-      expect(bakeDefinition.target.virtual.dockerfile).toBeUndefined();
-      expect(bakeDefinition.target.virtual["dockerfile-inline"]).toBeDefined();
-    });
-
-    it("includes build command in generated Dockerfile", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: baseTag,
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config, ["build", "virtual"]);
-
-      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
-        arg.endsWith("docker-bake.json"),
-      );
-      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
-      const bakeDefinition = JSON.parse(bakeContent);
-
-      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      expect(dockerfile).toContain('RUN echo "Building virtual package"');
-    });
-
-    it("includes OS packages in generated Dockerfile", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: baseTag,
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config, ["build", "virtual"]);
-
-      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
-        arg.endsWith("docker-bake.json"),
-      );
-      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
-      const bakeDefinition = JSON.parse(bakeContent);
-
-      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      expect(dockerfile).toContain("RUN apk add --no-cache curl");
-    });
-
-    it("includes build environment variables in generated Dockerfile", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: baseTag,
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config, ["build", "virtual"]);
-
-      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
-        arg.endsWith("docker-bake.json"),
-      );
-      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
-      const bakeDefinition = JSON.parse(bakeContent);
-
-      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      expect(dockerfile).toContain("ENV NODE_ENV=production");
-      expect(dockerfile).toContain("ENV BUILD_FLAG=enabled");
-    });
-
-    it("generates per-output COPY statements in final stage", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: baseTag,
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config, ["build", "virtual"]);
-
-      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
-        arg.endsWith("docker-bake.json"),
-      );
-      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
-      const bakeDefinition = JSON.parse(bakeContent);
-
-      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      // Should have separate COPY for each output path
-      expect(dockerfile).toContain("COPY --from=virtual-build");
-      // Dollar signs are escaped as $$ for HCL parsing in dockerfile-inline
-      // Output paths include the relative service path (packages/virtual/)
-      expect(dockerfile).toContain(
-        "$${APP}/packages/virtual/dist $${APP}/packages/virtual/dist",
-      );
-      expect(dockerfile).toContain(
-        "$${APP}/packages/virtual/lib $${APP}/packages/virtual/lib",
-      );
-    });
-
-    it("generates correct build and final stage names", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: baseTag,
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config, ["build", "virtual"]);
-
-      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
-        arg.endsWith("docker-bake.json"),
-      );
-      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
-      const bakeDefinition = JSON.parse(bakeContent);
-
-      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      // Uses context name directly instead of ARG to avoid variable cycle
-      expect(dockerfile).toContain("FROM root AS virtual-build");
-      expect(dockerfile).toContain("FROM root AS virtual");
-    });
-
-    it("sets SERVICE_NAME environment variable in final stage", async () => {
-      const config = createFixtureConfig({
-        envFile: createTmpEnv({
-          DOCKER_TAG: baseTag,
-        }),
-        silent: true,
-      });
-
-      await runScript(BuildScript, config, ["build", "virtual"]);
-
-      const bakeFilePath = mockBake?.mock.calls?.[0]?.find((arg: string) =>
-        arg.endsWith("docker-bake.json"),
-      );
-      const bakeContent = fs.readFileSync(bakeFilePath, "utf-8");
-      const bakeDefinition = JSON.parse(bakeContent);
-
-      const dockerfile = bakeDefinition.target.virtual["dockerfile-inline"];
-      // Dollar signs are escaped as $$ for HCL parsing in dockerfile-inline
-      expect(dockerfile).toContain("ENV SERVICE_NAME=$${SERVICE_NAME}");
+      expect(sharedIndex).toBeGreaterThanOrEqual(0);
+      expect(utilsIndex).toBeGreaterThanOrEqual(0);
+      expect(sharedIndex).toBeLessThan(utilsIndex);
+      expect(mockBake).toHaveBeenCalledTimes(0);
     });
   });
 });

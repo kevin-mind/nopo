@@ -1,14 +1,14 @@
 name: statemachine
 description: State machine for GitHub issue automation
+tags:
+  - github-actions
 
 build:
+  command: pnpm exec tsx scripts/build-actions.ts
   depends_on:
     - prompts
 
 commands:
-  compile:
-    command: pnpm exec tsx scripts/build-actions.ts
-    dependencies: {}
   clean: rm -rf node_modules && rm -rf build
   check:
     commands:

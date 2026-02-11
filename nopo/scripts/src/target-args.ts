@@ -68,8 +68,7 @@ export function parseTargetArgs(
   };
 
   if (supportsFilter) {
-    // --filter can be specified multiple times, so we collect them
-    minimistOpts.string!.push("filter", "since");
+    minimistOpts.string!.push("filter", "since", "tags");
     minimistOpts.alias!["F"] = "filter";
   }
 
@@ -90,11 +89,14 @@ export function parseTargetArgs(
     }
   }
 
-  // Extract options (everything except _ and filter/since when filtering enabled)
+  // Extract options (everything except _ and filter/since/tags when filtering enabled)
   const options: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(parsed)) {
     if (key === "_") continue;
-    if (supportsFilter && (key === "filter" || key === "since" || key === "F"))
+    if (
+      supportsFilter &&
+      (key === "filter" || key === "since" || key === "tags" || key === "F")
+    )
       continue;
     options[key] = value;
   }
@@ -103,6 +105,7 @@ export function parseTargetArgs(
   let filters: FilterExpression[] = [];
   let since: string | undefined;
   let filteredTargets = availableTargets;
+  let requestedTags: string[] = [];
 
   if (supportsFilter) {
     // Parse filter expressions
@@ -124,6 +127,29 @@ export function parseTargetArgs(
     // Get since value
     since = typeof parsed.since === "string" ? parsed.since : undefined;
 
+    // Parse --tags (comma-separated, trim, dedupe)
+    const tagsRaw = parsed.tags;
+    requestedTags =
+      typeof tagsRaw === "string"
+        ? [
+            ...new Set(
+              tagsRaw
+                .split(",")
+                .map((t: string) => t.trim())
+                .filter(Boolean),
+            ),
+          ]
+        : [];
+    if (
+      tagsRaw !== undefined &&
+      tagsRaw !== null &&
+      (typeof tagsRaw !== "string" || requestedTags.length === 0)
+    ) {
+      throw new Error(
+        "--tags requires at least one non-empty tag (comma-separated)",
+      );
+    }
+
     // Apply filters to available targets if we have the services data
     if (services && projectRoot && filters.length > 0) {
       const context: FilterContext = { projectRoot, since };
@@ -133,6 +159,15 @@ export function parseTargetArgs(
         filters,
         context,
       );
+    }
+
+    // Apply tag filter (intersection with current filteredTargets)
+    if (services && requestedTags.length > 0) {
+      filteredTargets = filteredTargets.filter((name) => {
+        const service = services[name];
+        if (!service?.tags?.length) return false;
+        return requestedTags.some((tag) => service.tags.includes(tag));
+      });
     }
   }
 
@@ -158,9 +193,20 @@ export function parseTargetArgs(
       // No user filters - use explicit targets as-is
       targets = positionalArgs;
     }
+    // Apply tag filter to explicit targets when --tags is used
+    if (supportsFilter && services && requestedTags.length > 0) {
+      targets = targets.filter((name) => {
+        const service = services[name];
+        if (!service?.tags?.length) return false;
+        return requestedTags.some((tag) => service.tags.includes(tag));
+      });
+    }
   } else {
-    // No explicit targets - use filtered targets (includes preFilter)
-    targets = supportsFilter && filters.length > 0 ? filteredTargets : [];
+    // No explicit targets - use filtered targets (includes preFilter and tags)
+    targets =
+      supportsFilter && (filters.length > 0 || requestedTags.length > 0)
+        ? filteredTargets
+        : [];
   }
 
   return {

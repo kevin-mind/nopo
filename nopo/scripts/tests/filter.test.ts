@@ -27,6 +27,7 @@ function createMockService(
     name: "Test Service",
     description: "",
     staticPath: "build",
+    tags: [],
     type: "service",
     runtime: {
       cpu: "1",

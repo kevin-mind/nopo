@@ -1,6 +1,7 @@
 name: actions-ts
 description: GitHub Actions TypeScript builds
+tags:
+  - github-actions
 
-commands:
-  compile:
-    command: pnpm exec tsx scripts/build.ts
+build:
+  command: pnpm exec tsx scripts/build.ts

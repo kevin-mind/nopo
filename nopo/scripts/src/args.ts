@@ -22,4 +22,10 @@ export const baseArgs = new ScriptArgs({
     alias: ["s"],
     default: undefined,
   },
+
+  tags: {
+    type: "string",
+    description: "Filter targets by tags (comma-separated, match any)",
+    default: undefined,
+  },
 });

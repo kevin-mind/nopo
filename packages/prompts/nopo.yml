@@ -1,12 +1,13 @@
 name: prompts
 description: Type-safe AI prompt definitions
+tags:
+  - github-actions
+
+build:
+  command: pnpm exec vite build && pnpm exec tsx scripts/extract-schemas.ts && pnpm exec tsx scripts/render-templates.ts
 
 commands:
   clean: rm -rf node_modules && rm -rf build && rm -rf dist && rm -rf prompts
-  compile:
-    commands:
-      lib: pnpm exec vite build && pnpm exec tsx scripts/extract-schemas.ts
-      txt: pnpm exec tsx scripts/render-templates.ts
   check:
     commands:
       types: pnpm exec tsc --noEmit

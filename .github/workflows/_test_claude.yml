@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
       - uses: ./.github/actions/setup-nopo
-      - run: nopo setup-github root
+      - run: nopo build --tags github-actions
 
       - name: Install Claude Code
         if: inputs.mock_claude == false

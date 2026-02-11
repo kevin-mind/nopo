@@ -85,6 +85,24 @@ Automatically passed to Dockerfiles:
 - `GIT_REPO`, `GIT_BRANCH`, `GIT_COMMIT`
 - `SERVICE_NAME`, `NOPO_APP_UID`, `NOPO_APP_GID`
 
+### Package Build Configuration
+
+Package targets (no runtime/image) should declare explicit build settings:
+
+```yaml
+name: claude
+
+build:
+  command: pnpm exec tsx scripts/build-actions.ts
+  depends_on:
+    - prompts
+```
+
+Notes:
+
+- `nopo build <package>` requires `build.command` on that package.
+- `build.depends_on` is resolved before running package build commands.
+
 ## Service Configuration
 
 ### nopo.yml Structure
@@ -94,6 +112,7 @@ name: backend
 description: Backend service
 dockerfile: Dockerfile
 static_path: build
+tags: []   # optional; used by --tags filter (match any)
 
 infrastructure:
   cpu: "1"
@@ -114,6 +133,8 @@ commands:
   test: npm test
   start: npm start
 ```
+
+**Tags**: Optional top-level `tags` is an array of non-empty strings (default `[]`). Used by `--tags` on `build`, `list`, and other target-based commands: comma-separated values match any of the service's tags (OR). Example: `tags: ["github-actions"]` for CI-only packages.
 
 ### Command Patterns
 

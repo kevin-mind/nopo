@@ -185,6 +185,7 @@ const ServiceFileSchema = z
     dockerfile: z.string().optional(),
     image: z.string().optional(),
     static_path: z.string().default("build"),
+    tags: z.array(z.string().min(1)).default([]),
     // New: build configuration
     build: ServiceBuildSchema.optional(),
     // Runtime configuration (services have this, packages don't)
@@ -355,6 +356,7 @@ export interface NormalizedService {
   name: string;
   description: string;
   staticPath: string;
+  tags: string[];
   /** Target type: "service" (has runtime) or "package" (build-only, no runtime) */
   type: TargetType;
   /** Build configuration */
@@ -660,6 +662,7 @@ function normalizeServices(
       name: "Root",
       description: "Root-level project commands",
       staticPath: "",
+      tags: [],
       type: "package", // Root is a package (no runtime)
       build: undefined,
       runtime: undefined,
@@ -746,6 +749,7 @@ function discoverServices(
       name: parsed.name ?? serviceId,
       description: parsed.description ?? "",
       staticPath: parsed.static_path,
+      tags: parsed.tags,
       type: targetType,
       build,
       runtime,

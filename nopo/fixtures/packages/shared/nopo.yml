@@ -1,5 +1,7 @@
 name: Shared Package
 description: Shared utilities used by services
+tags:
+  - fixture-tag
 
 # No runtime or image - this is a package
 # Build configuration for package builds via docker run

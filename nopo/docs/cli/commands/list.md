@@ -17,6 +17,7 @@ nopo list [options]
 | `--csv`             | N/A           | Shortcut for `--format csv`                                | N/A            |
 | `--filter <expr>`   | `-F <expr>`   | Filter services by expression (can be used multiple times) | None           |
 | `--since <ref>`     | N/A           | Git reference for `changed` filter (branch, tag, commit)   | default branch |
+| `--tags <tags>`     | N/A           | Filter services by tags (comma-separated; match any)       | None           |
 | `--jq <filter>`     | N/A           | Apply jq filter to JSON output (requires `--json`)         | None           |
 | `--validate`        | `-v`          | Validate configuration and show summary                    | `false`        |
 

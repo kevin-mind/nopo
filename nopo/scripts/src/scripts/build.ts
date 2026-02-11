@@ -6,10 +6,10 @@ import {
   type Runner,
   $,
   exec,
-  type ProcessPromise,
-  tmpfile,
   NOPO_APP_UID,
   NOPO_APP_GID,
+  type ProcessPromise,
+  tmpfile,
 } from "../lib.ts";
 import {
   isBuildableService,
@@ -17,7 +17,6 @@ import {
   isVirtualBuildableService,
   requiresBuild,
   extractDependencyNames,
-  type NormalizedService,
   type VirtualBuildableService,
 } from "../config/index.ts";
 import EnvScript from "./env.ts";
@@ -121,15 +120,32 @@ export default class BuildScript extends TargetScript {
     const targets = args.get<string[]>("targets") ?? [];
     const noCache = args.get<boolean>("no-cache") ?? false;
     const output = args.get<string | undefined>("output");
+    const imageTargets = this.filterRequestedImageTargets(targets);
 
     const push = this.runner.config.processEnv.DOCKER_PUSH === "true";
 
     // Build packages first (in dependency order), then build services
     await this.buildPackages(targets);
 
-    const bakeFile = this.generateBakeDefinition(targets, push);
+    // When user requested targets (e.g. via --tags) and none are image targets, skip bake entirely.
+    // When no targets requested, build all image targets.
+    const requestedForBake =
+      targets.length === 0
+        ? this.getAllImageTargetsForBake()
+        : imageTargets.length > 0
+          ? imageTargets
+          : null;
 
-    // If no buildable targets, skip the build but still write output file if requested
+    if (requestedForBake === null) {
+      this.log("Build complete - no image targets to build");
+      if (output) {
+        this.writeEmptyOutput(output);
+      }
+      return;
+    }
+
+    const bakeFile = this.generateBakeDefinition(requestedForBake, push);
+
     if (!bakeFile) {
       this.log("Build complete - no targets to build");
       if (output) {
@@ -146,12 +162,55 @@ export default class BuildScript extends TargetScript {
   }
 
   /**
-   * Build packages via docker run with volume mounts.
-   * Packages are built by running the base container with the project mounted,
-   * so artifacts persist to the host filesystem.
+   * Package targets are built via build.command and should not be sent to Docker bake
+   * when explicitly requested.
+   */
+  private filterRequestedImageTargets(requestedTargets: string[]): string[] {
+    if (requestedTargets.length === 0) {
+      return requestedTargets;
+    }
+
+    const rootName = this.runner.config.project.rootName;
+
+    return requestedTargets.filter((target) => {
+      if (target === rootName) {
+        return true;
+      }
+      const service = this.runner.config.project.services.entries[target];
+      return !service || !isPackageService(service);
+    });
+  }
+
+  /** All image targets (root + buildable services) for "build all" when no targets requested. */
+  private getAllImageTargetsForBake(): string[] {
+    const rootName = this.runner.config.project.rootName;
+    const targets = this.runner.config.targets;
+    const buildableTargets = targets.filter((t) => {
+      const service = this.runner.getService(t);
+      return requiresBuild(service);
+    });
+    return [rootName, ...buildableTargets];
+  }
+
+  /**
+   * Build packages on the host in dependency order.
    */
   private async buildPackages(requestedTargets: string[]): Promise<void> {
     const targets = this.runner.config.targets;
+    const rootName = this.runner.config.project.rootName;
+
+    // If a package target is explicitly requested, it must define build.command.
+    if (requestedTargets.length > 0) {
+      for (const target of requestedTargets) {
+        if (target === rootName) continue;
+        const service = this.runner.config.project.services.entries[target];
+        if (service && isPackageService(service) && !service.build?.command) {
+          throw new Error(
+            `Package '${target}' cannot be built because it does not define build.command`,
+          );
+        }
+      }
+    }
 
     // Find all packages (targets without runtime configuration)
     const allPackages = targets.filter((t) => {
@@ -220,6 +279,17 @@ export default class BuildScript extends TargetScript {
       const deps = buildDepsField ? extractDependencyNames(buildDepsField) : [];
 
       for (const dep of deps) {
+        const depService = this.runner.config.project.services.entries[dep];
+        if (
+          depService &&
+          isPackageService(depService) &&
+          !depService.build?.command
+        ) {
+          throw new Error(
+            `Package dependency '${dep}' of '${targetName}' cannot be built because it does not define build.command`,
+          );
+        }
+
         if (allPackages.includes(dep)) {
           packageDeps.add(dep);
           // Recursively collect dependencies of this package
@@ -284,14 +354,7 @@ export default class BuildScript extends TargetScript {
   }
 
   /**
-   * Build a single package via docker run with volume mounts.
-   *
-   * The build works by:
-   * 1. Running the base Docker image
-   * 2. Mounting the project root to /app
-   * 3. Setting correct UID/GID for file permissions
-   * 4. Running the build command in the package directory
-   * 5. Artifacts are written to mounted volumes and persist to host
+   * Build a single package on the host.
    */
   private async buildPackage(packageName: string): Promise<void> {
     const service = this.runner.getService(packageName);
@@ -301,24 +364,16 @@ export default class BuildScript extends TargetScript {
       );
     }
 
-    const baseTag = this.runner.environment.env.DOCKER_TAG;
-    if (!baseTag) {
-      throw new Error("DOCKER_TAG is required for package builds");
-    }
-
-    const projectRoot = this.runner.config.root;
-    const packageRelativePath = path.relative(projectRoot, service.paths.root);
-
     this.log(`Building package '${packageName}'...`);
-
-    // Build the docker run command with volume mounts
-    const dockerArgs = this.buildDockerRunArgs(service, packageRelativePath);
+    const command = service.build.command;
 
     try {
-      // Execute docker run with explicit args to handle spaces in command
-      const result = await exec("docker", dockerArgs, {
-        cwd: projectRoot,
-        env: this.env,
+      const result = await exec("sh", ["-c", command], {
+        cwd: service.paths.root,
+        env: {
+          ...this.env,
+          ...service.build.env,
+        },
         verbose: true,
       });
 
@@ -337,46 +392,6 @@ export default class BuildScript extends TargetScript {
       }
       throw error;
     }
-  }
-
-  /**
-   * Build the docker run arguments for a package build.
-   */
-  private buildDockerRunArgs(
-    service: NormalizedService,
-    packageRelativePath: string,
-  ): string[] {
-    const baseTag = this.runner.environment.env.DOCKER_TAG;
-    const projectRoot = this.runner.config.root;
-
-    const args: string[] = [
-      "run",
-      "--rm",
-      // Mount the project root to /app
-      "-v",
-      `${projectRoot}:/app`,
-      // Set user for correct file permissions
-      "-u",
-      `${NOPO_APP_UID}:${NOPO_APP_GID}`,
-      // Set working directory to the package path
-      "-w",
-      `/app/${packageRelativePath}`,
-    ];
-
-    // Add build environment variables if specified
-    if (service.build?.env) {
-      for (const [key, value] of Object.entries(service.build.env)) {
-        args.push("-e", `${key}=${value}`);
-      }
-    }
-
-    // Add the base image
-    args.push(baseTag);
-
-    // Add the build command (run via sh -c to support complex commands)
-    args.push("sh", "-c", service.build!.command!);
-
-    return args;
   }
 
   private generateBakeDefinition(
