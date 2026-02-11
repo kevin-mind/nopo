@@ -215,19 +215,10 @@ export default class BuildScript extends TargetScript {
       const service = this.runner.config.project.services.entries[targetName];
       if (!service) return;
 
-      // Use build.depends_on if defined, fallback to service.dependencies for undefined or empty array
+      // Use build.depends_on only - no fallback
       const buildDepsField = service.build?.depends_on;
-      let deps: string[];
-      if (buildDepsField === undefined) {
-        // Not specified, use service.dependencies
-        deps = service.dependencies;
-      } else if (Array.isArray(buildDepsField) && buildDepsField.length === 0) {
-        // Empty array [], fall back to service.dependencies
-        deps = service.dependencies;
-      } else {
-        // Non-empty array or object (including empty object {})
-        deps = extractDependencyNames(buildDepsField);
-      }
+      const deps = buildDepsField ? extractDependencyNames(buildDepsField) : [];
+
       for (const dep of deps) {
         if (allPackages.includes(dep)) {
           packageDeps.add(dep);
@@ -267,22 +258,10 @@ export default class BuildScript extends TargetScript {
       const service = this.runner.config.project.services.entries[name];
       if (service) {
         // Visit dependencies first (only those that are also packages to build)
-        // Use build.depends_on if defined, fallback to service.dependencies for undefined or empty array
+        // Use build.depends_on only - no fallback
         const buildDepsField = service.build?.depends_on;
-        let deps: string[];
-        if (buildDepsField === undefined) {
-          // Not specified, use service.dependencies
-          deps = service.dependencies;
-        } else if (
-          Array.isArray(buildDepsField) &&
-          buildDepsField.length === 0
-        ) {
-          // Empty array [], fall back to service.dependencies
-          deps = service.dependencies;
-        } else {
-          // Non-empty array or object (including empty object {})
-          deps = extractDependencyNames(buildDepsField);
-        }
+        const deps = buildDepsField ? extractDependencyNames(buildDepsField) : [];
+
         for (const dep of deps) {
           if (packageSet.has(dep)) {
             visit(dep);
