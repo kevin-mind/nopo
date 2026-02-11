@@ -198,7 +198,7 @@ interface Runner {
 }
 ```
 
-See: [CLI Architecture](./cli/architecture.md)
+See: [CLI Architecture](../nopo/docs/cli/architecture.md)
 
 ---
 
@@ -663,9 +663,9 @@ flowchart TD
 ## Related Documentation
 
 ### Development
-- [CLI Architecture](./cli/architecture.md) - Detailed CLI command routing and execution
-- [CLI Quick Start](./cli/quick-start.md) - Getting started guide
-- [CLI Commands](./cli/commands/) - Command reference documentation
+- [CLI Architecture](../nopo/docs/cli/architecture.md) - Detailed CLI command routing and execution
+- [CLI Quick Start](../nopo/docs/cli/quick-start.md) - Getting started guide
+- [CLI Commands](../nopo/docs/cli/commands/) - Command reference documentation
 
 ### Infrastructure
 - [Infrastructure Architecture](../infrastructure/ARCHITECTURE.md) - GCP infrastructure deep dive
