@@ -12,6 +12,7 @@ import {
   AgentNotesEntrySchema,
   type TodoStats,
 } from "@more/issue-state";
+import type { ExistingSubIssue } from "../runner/executors/output-schemas.js";
 import { z } from "zod";
 import type {
   Root,
@@ -335,6 +336,124 @@ export function extractQuestionItems(bodyAst: Root): QuestionItem[] {
   }
 
   return items;
+}
+
+// ============================================================================
+// Sub-Issue Specs Extractor
+// ============================================================================
+
+/**
+ * Parse `[Phase N]` from a sub-issue title. Returns the phase number or null.
+ */
+function parsePhaseNumber(title: string): number | null {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Extract text content between a heading and the next heading in an AST.
+ */
+function extractSectionText(ast: Root, sectionName: string): string {
+  const idx = findHeadingIndex(ast, sectionName);
+  if (idx === -1) return "";
+
+  const parts: string[] = [];
+  for (let i = idx + 1; i < ast.children.length; i++) {
+    const node = ast.children[i];
+    if (!node) break;
+    if (node.type === "heading") break;
+    parts.push(getNodeText(node));
+  }
+  return parts.join("\n").trim();
+}
+
+/**
+ * Extract affected areas from a sub-issue body AST.
+ * Parses bullet list items under ## Affected Areas heading.
+ */
+function extractAffectedAreas(ast: Root): Array<{
+  path: string;
+  change_type?: string;
+  description?: string;
+}> {
+  const idx = findHeadingIndex(ast, "Affected Areas");
+  if (idx === -1) return [];
+
+  const listNode = ast.children[idx + 1];
+  if (!listNode || !isList(listNode)) return [];
+
+  return listNode.children.map((item) => {
+    const text = getNodeText(item);
+    // Format: `path` (change_type) - description
+    const pathMatch = /`([^`]+)`/.exec(text);
+    const path = pathMatch?.[1] ?? text;
+    const changeTypeMatch = /\(([^)]+)\)/.exec(text);
+    const descMatch = /- (.+)$/.exec(text);
+    return {
+      path,
+      ...(changeTypeMatch?.[1] ? { change_type: changeTypeMatch[1] } : {}),
+      ...(descMatch?.[1] ? { description: descMatch[1] } : {}),
+    };
+  });
+}
+
+/**
+ * Extract todo items from a sub-issue body AST.
+ * Parses checklist items under ## Todo/Todos heading.
+ */
+function extractTodoItems(
+  ast: Root,
+): Array<{ task: string; manual?: boolean }> {
+  const idx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+  if (idx === -1) return [];
+
+  const listNode = ast.children[idx + 1];
+  if (!listNode || !isList(listNode)) return [];
+
+  return listNode.children
+    .filter(
+      (item): item is ListItem =>
+        item.type === "listItem" && item.checked !== undefined,
+    )
+    .map((item) => {
+      const text = getNodeText(item);
+      const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text);
+      return { task: text, ...(isManual ? { manual: true } : {}) };
+    });
+}
+
+/**
+ * Extract ExistingSubIssue[] from sub-issues by parsing their body ASTs.
+ * This converts GitHub SubIssueData into the canonical SubIssueSpec shape
+ * (with `number`) for use in reconciliation.
+ */
+export function extractSubIssueSpecs(
+  subIssues: Array<{
+    number: number;
+    title: string;
+    bodyAst: Root;
+    state: string;
+  }>,
+): ExistingSubIssue[] {
+  return subIssues
+    .filter((sub) => sub.state !== "CLOSED")
+    .map((sub) => {
+      const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
+      // Strip [Phase N]: prefix from title
+      const title = sub.title.replace(/^\[Phase\s+\d+\]:\s*/, "");
+      const description = extractSectionText(sub.bodyAst, "Description");
+      const affectedAreas = extractAffectedAreas(sub.bodyAst);
+      const todos = extractTodoItems(sub.bodyAst);
+
+      return {
+        number: sub.number,
+        phase_number: phaseNumber,
+        title,
+        description,
+        ...(affectedAreas.length > 0 ? { affected_areas: affectedAreas } : {}),
+        ...(todos.length > 0 ? { todos } : {}),
+      };
+    });
 }
 
 export const agentNotesExtractor = createExtractor(

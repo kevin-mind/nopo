@@ -17677,12 +17677,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info25 = this._prepareRequest(verb, parsedUrl, headers);
+          let info26 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info25, data);
+            response = yield this.requestRaw(info26, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17692,7 +17692,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info25, data);
+                return authenticationHandler.handleAuthentication(this, info26, data);
               } else {
                 return response;
               }
@@ -17715,8 +17715,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info25 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info25, data);
+              info26 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info26, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17745,7 +17745,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info25, data) {
+      requestRaw(info26, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17757,7 +17757,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info25, data, callbackForResult);
+            this.requestRawWithCallback(info26, data, callbackForResult);
           });
         });
       }
@@ -17767,12 +17767,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info25, data, onResult) {
+      requestRawWithCallback(info26, data, onResult) {
         if (typeof data === "string") {
-          if (!info25.options.headers) {
-            info25.options.headers = {};
+          if (!info26.options.headers) {
+            info26.options.headers = {};
           }
-          info25.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info26.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17781,7 +17781,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info25.httpModule.request(info25.options, (msg) => {
+        const req = info26.httpModule.request(info26.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17793,7 +17793,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info25.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info26.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17829,27 +17829,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info25 = {};
-        info25.parsedUrl = requestUrl;
-        const usingSsl = info25.parsedUrl.protocol === "https:";
-        info25.httpModule = usingSsl ? https : http;
+        const info26 = {};
+        info26.parsedUrl = requestUrl;
+        const usingSsl = info26.parsedUrl.protocol === "https:";
+        info26.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info25.options = {};
-        info25.options.host = info25.parsedUrl.hostname;
-        info25.options.port = info25.parsedUrl.port ? parseInt(info25.parsedUrl.port) : defaultPort;
-        info25.options.path = (info25.parsedUrl.pathname || "") + (info25.parsedUrl.search || "");
-        info25.options.method = method;
-        info25.options.headers = this._mergeHeaders(headers);
+        info26.options = {};
+        info26.options.host = info26.parsedUrl.hostname;
+        info26.options.port = info26.parsedUrl.port ? parseInt(info26.parsedUrl.port) : defaultPort;
+        info26.options.path = (info26.parsedUrl.pathname || "") + (info26.parsedUrl.search || "");
+        info26.options.method = method;
+        info26.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info25.options.headers["user-agent"] = this.userAgent;
+          info26.options.headers["user-agent"] = this.userAgent;
         }
-        info25.options.agent = this._getAgent(info25.parsedUrl);
+        info26.options.agent = this._getAgent(info26.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info25.options);
+            handler.prepareRequest(info26.options);
           }
         }
-        return info25;
+        return info26;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19831,34 +19831,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error7;
-    function warning18(message, properties = {}) {
+    function warning19(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning18;
+    exports2.warning = warning19;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info25(message) {
+    function info26(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info25;
-    function startGroup11(name) {
+    exports2.info = info26;
+    function startGroup12(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup11;
-    function endGroup11() {
+    exports2.startGroup = startGroup12;
+    function endGroup12() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup11;
+    exports2.endGroup = endGroup12;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup11(name);
+        startGroup12(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup11();
+          endGroup12();
         }
         return result;
       });
@@ -32598,9 +32598,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info25(code3);
+    return info26(code3);
   }
-  function info25(code3) {
+  function info26(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32615,7 +32615,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info25;
+    return info26;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35454,11 +35454,11 @@ function createTokenizer(parser2, initialize, from) {
     context2.events.push(["exit", token, context2]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info25) {
-    addResult(construct, info25.from);
+  function onsuccessfulconstruct(construct, info26) {
+    addResult(construct, info26.from);
   }
-  function onsuccessfulcheck(_, info25) {
-    info25.restore();
+  function onsuccessfulcheck(_, info26) {
+    info26.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35466,7 +35466,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info25;
+      let info26;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35502,7 +35502,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info25 = store();
+          info26 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context2.currentConstruct = construct;
@@ -35523,12 +35523,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info25);
+        onreturn(currentConstruct, info26);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info25.restore();
+        info26.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -36997,8 +36997,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info25) {
-  const tracker = state.createTracker(info25);
+function footnoteReference(node2, _, state, info26) {
+  const tracker = state.createTracker(info26);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37036,8 +37036,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info25) {
-    const tracker = state.createTracker(info25);
+  function footnoteDefinition(node2, _, state, info26) {
+    const tracker = state.createTracker(info26);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37101,8 +37101,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info25) {
-  const tracker = state.createTracker(info25);
+function handleDelete(node2, _, state, info26) {
+  const tracker = state.createTracker(info26);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37329,9 +37329,9 @@ function map(left, right) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info25) {
+function blockquote(node2, _, state, info26) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37366,11 +37366,11 @@ function listInScope(stack, list4, none) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info25) {
+function hardBreak(_, _1, state, info26) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info25.before) ? "" : " ";
+      return /[ \t]/.test(info26.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37422,7 +37422,7 @@ function checkFence(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info25) {
+function code(node2, _, state, info26) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37432,7 +37432,7 @@ function code(node2, _, state, info25) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37485,12 +37485,12 @@ function checkQuote(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info25) {
+function definition2(node2, _, state, info26) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37600,10 +37600,10 @@ function encodeInfo(outside, inside, marker) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info25) {
+function emphasis(node2, _, state, info26) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37614,7 +37614,7 @@ function emphasis(node2, _, state, info25) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info25.before.charCodeAt(info25.before.length - 1),
+    info26.before.charCodeAt(info26.before.length - 1),
     betweenHead,
     marker
   );
@@ -37622,7 +37622,7 @@ function emphasis(node2, _, state, info25) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info25.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37675,9 +37675,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info25) {
+function heading(node2, _, state, info26) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37727,12 +37727,12 @@ function htmlPeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info25) {
+function image(node2, _, state, info26) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37784,11 +37784,11 @@ function imagePeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info25) {
+function imageReference(node2, _, state, info26) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37869,10 +37869,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info25) {
+function link(node2, _, state, info26) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37949,11 +37949,11 @@ function linkPeek(node2, _, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info25) {
+function linkReference(node2, _, state, info26) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38040,7 +38040,7 @@ function checkRule(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info25) {
+function list3(node2, parent, state, info26) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38072,7 +38072,7 @@ function list3(node2, parent, state, info25) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info25);
+  const value = state.containerFlow(node2, info26);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38091,7 +38091,7 @@ function checkListItemIndent(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info25) {
+function listItem(node2, parent, state, info26) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38101,7 +38101,7 @@ function listItem(node2, parent, state, info25) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38120,10 +38120,10 @@ function listItem(node2, parent, state, info25) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info25) {
+function paragraph(node2, _, state, info26) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info25);
+  const value = state.containerPhrasing(node2, info26);
   subexit();
   exit3();
   return value;
@@ -38158,12 +38158,12 @@ var phrasing = (
 );
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info25) {
+function root(node2, _, state, info26) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info25);
+  return container.call(state, node2, info26);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38179,10 +38179,10 @@ function checkStrong(state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info25) {
+function strong(node2, _, state, info26) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38193,7 +38193,7 @@ function strong(node2, _, state, info25) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info25.before.charCodeAt(info25.before.length - 1),
+    info26.before.charCodeAt(info26.before.length - 1),
     betweenHead,
     marker
   );
@@ -38201,7 +38201,7 @@ function strong(node2, _, state, info25) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info25.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38218,8 +38218,8 @@ function strongPeek(_, _1, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info25) {
-  return state.safe(node2.value, info25);
+function text3(node2, _, state, info26) {
+  return state.safe(node2.value, info26);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38434,15 +38434,15 @@ function compilePattern(pattern) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info25) {
+function containerPhrasing(parent, state, info26) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info25.before;
+  let before = info26.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info25);
+  let tracker = state.createTracker(info26);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38456,7 +38456,7 @@ function containerPhrasing(parent, state, info25) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info25.after;
+      after = info26.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38464,7 +38464,7 @@ function containerPhrasing(parent, state, info25) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info25);
+      tracker = state.createTracker(info26);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38493,10 +38493,10 @@ function containerPhrasing(parent, state, info25) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info25) {
+function containerFlow(parent, state, info26) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38732,11 +38732,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info25) {
-  return containerPhrasing(parent, this, info25);
+function containerPhrasingBound(parent, info26) {
+  return containerPhrasing(parent, this, info26);
 }
-function containerFlowBound(parent, info25) {
-  return containerFlow(parent, this, info25);
+function containerFlowBound(parent, info26) {
+  return containerFlow(parent, this, info26);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38833,19 +38833,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info25) {
-    return serializeData(handleTableAsData(node2, state, info25), node2.align);
+  function handleTable(node2, _, state, info26) {
+    return serializeData(handleTableAsData(node2, state, info26), node2.align);
   }
-  function handleTableRow(node2, _, state, info25) {
-    const row = handleTableRowAsData(node2, state, info25);
+  function handleTableRow(node2, _, state, info26) {
+    const row = handleTableRowAsData(node2, state, info26);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info25) {
+  function handleTableCell(node2, _, state, info26) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info25,
+      ...info26,
       before: around,
       after: around
     });
@@ -38864,24 +38864,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info25) {
+  function handleTableAsData(node2, state, info26) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info25);
+      result[index2] = handleTableRowAsData(children[index2], state, info26);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info25) {
+  function handleTableRowAsData(node2, state, info26) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info25);
+      result[index2] = handleTableCell(children[index2], node2, state, info26);
     }
     subexit();
     return result;
@@ -38947,16 +38947,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info25) {
+function listItemWithTaskListItem(node2, parent, state, info26) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info25,
+    ...info26,
     ...tracker.current()
   });
   if (checkable) {
@@ -41669,6 +41669,10 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
   /** Path to the combined grooming output file */
   filePath: external_exports.string().default("grooming-output.json")
 });
+var ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("reconcileSubIssues"),
+  issueNumber: external_exports.number().int().positive()
+});
 var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyPivotOutput"),
   issueNumber: external_exports.number().int().positive(),
@@ -41711,6 +41715,7 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Grooming actions
   RunClaudeGroomingActionSchema,
   ApplyGroomingOutputActionSchema,
+  ReconcileSubIssuesActionSchema,
   // Pivot actions
   ApplyPivotOutputActionSchema,
   // Discussion actions
@@ -41778,6 +41783,7 @@ var ISSUE_ACTION_TYPES = [
   // Grooming actions
   "runClaudeGrooming",
   "applyGroomingOutput",
+  "reconcileSubIssues",
   // Pivot actions
   "applyPivotOutput",
   // Triage/iterate/review actions
@@ -47380,6 +47386,12 @@ function emitRunClaudeGrooming({
       issueNumber,
       filePath: "grooming-output.json",
       consumesArtifact: groomingArtifact
+    },
+    // Reconcile sub-issues: create/update/delete based on semantic matching
+    {
+      type: "reconcileSubIssues",
+      token: "code",
+      issueNumber
     }
   ];
 }
@@ -52532,7 +52544,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core26 = [
+  var core27 = [
     "$schema",
     "$id",
     "$defs",
@@ -52542,7 +52554,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core26;
+  exports2.default = core27;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -66006,6 +66018,79 @@ If decision is "blocked", clearly state what's blocking and what needs to happen
 If previous questions were provided, include \`answered_questions\` for any that are now resolved.` })
 ] }));
 
+// ../prompts/src/prompts/grooming/reconcile-sub-issues.tsx
+var ReconcileSubIssues = promptFactory().inputs((z) => ({
+  issueNumber: z.number(),
+  issueTitle: z.string(),
+  existingSubIssues: z.string(),
+  expectedSubIssues: z.string()
+})).outputs((z) => {
+  const SubIssueSpecSchema2 = z.object({
+    phase_number: z.number(),
+    title: z.string(),
+    description: z.string(),
+    affected_areas: z.array(
+      z.object({
+        path: z.string(),
+        change_type: z.string().optional(),
+        description: z.string().optional(),
+        impact: z.string().optional()
+      })
+    ).optional(),
+    todos: z.array(
+      z.object({
+        task: z.string(),
+        manual: z.boolean().optional()
+      })
+    ).optional(),
+    depends_on: z.array(z.number()).optional()
+  });
+  return {
+    create: z.array(SubIssueSpecSchema2),
+    update: z.array(
+      SubIssueSpecSchema2.extend({
+        number: z.number(),
+        match_reason: z.string()
+      })
+    ),
+    delete: z.array(
+      z.object({
+        number: z.number(),
+        reason: z.string()
+      })
+    ),
+    reasoning: z.string()
+  };
+}).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("line", { children: `You are a Sub-Issue Reconciliation Agent for issue #${inputs.issueNumber}: "${inputs.issueTitle}"` }),
+  /* @__PURE__ */ jsx("section", { title: "Task", children: `Compare the EXISTING sub-issues (currently on GitHub) against the EXPECTED sub-issues (from the latest grooming analysis). Produce three buckets:
+
+1. **create**: Expected sub-issues that have no semantic match in the existing set. Output them as-is (no \`number\` field).
+2. **update**: Expected sub-issues that semantically match an existing one. Output the MERGED version with the existing \`number\` and a \`match_reason\` explaining the match. Merge content: use the expected title/description/affected_areas/todos but preserve any existing content that adds value.
+3. **delete**: Existing sub-issues that have no semantic match in the expected set. Output \`{ number, reason }\`.` }),
+  /* @__PURE__ */ jsx("section", { title: "Existing Sub-Issues (currently on GitHub)", children: inputs.existingSubIssues }),
+  /* @__PURE__ */ jsx("section", { title: "Expected Sub-Issues (from grooming analysis)", children: inputs.expectedSubIssues }),
+  /* @__PURE__ */ jsx("section", { title: "Matching Rules", children: `Match by SEMANTIC SIMILARITY of scope and intent, NOT by:
+- Phase numbers (Phase 2 in one run may be completely different from Phase 2 in another)
+- Exact title matches (titles may be reworded)
+
+Good signals for a match:
+- Similar description/scope (same area of the codebase, same feature)
+- Overlapping affected areas (same files/directories)
+- Similar todo items (same tasks, even if worded differently)
+- Same functional intent (both about "auth", both about "UI", etc.)
+
+When merging for update:
+- Use the expected phase_number and title (they reflect the latest analysis)
+- Prefer the expected description but incorporate unique details from the existing one
+- Merge affected_areas: keep all from expected, add any from existing that aren't covered
+- Merge todos: keep all from expected, add any from existing that represent completed work or unique tasks not in the expected set` }),
+  /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with all three buckets and a brief \`reasoning\` field explaining your overall reconciliation decisions.
+
+Every expected sub-issue must appear in exactly one of \`create\` or \`update\`.
+Every existing sub-issue must appear in exactly one of \`update\` or \`delete\`.` })
+] }));
+
 // ../prompts/src/prompts/discussion/research.tsx
 var DiscussionResearch = promptFactory().inputs((z) => ({
   discussionTitle: z.string(),
@@ -66382,13 +66467,13 @@ The executor will:
 ] }));
 
 // src/runner/runner.ts
-var core19 = __toESM(require_core(), 1);
+var core20 = __toESM(require_core(), 1);
 
 // src/runner/signaler.ts
 var core2 = __toESM(require_core(), 1);
 
 // src/runner/action-registry.ts
-var core18 = __toESM(require_core(), 1);
+var core19 = __toESM(require_core(), 1);
 
 // src/runner/get-structured-output.ts
 var core3 = __toESM(require_core(), 1);
@@ -66477,7 +66562,7 @@ var GroomingAgentOutputSchema = external_exports.object({
   ready: external_exports.boolean(),
   questions: external_exports.array(external_exports.string()).optional()
 }).passthrough();
-var RecommendedPhaseSchema = external_exports.object({
+var SubIssueSpecSchema = external_exports.object({
   phase_number: external_exports.number(),
   title: external_exports.string(),
   description: external_exports.string(),
@@ -66497,8 +66582,26 @@ var RecommendedPhaseSchema = external_exports.object({
   ).optional(),
   depends_on: external_exports.array(external_exports.number()).optional()
 });
+var ExistingSubIssueSchema = SubIssueSpecSchema.extend({
+  number: external_exports.number()
+});
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
-  recommended_phases: external_exports.array(RecommendedPhaseSchema)
+  recommended_phases: external_exports.array(SubIssueSpecSchema)
+});
+var ReconcileSubIssuesOutputSchema = external_exports.object({
+  create: external_exports.array(SubIssueSpecSchema),
+  update: external_exports.array(
+    ExistingSubIssueSchema.extend({
+      match_reason: external_exports.string()
+    })
+  ),
+  delete: external_exports.array(
+    external_exports.object({
+      number: external_exports.number(),
+      reason: external_exports.string()
+    })
+  ),
+  reasoning: external_exports.string()
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
@@ -66629,14 +66732,17 @@ var core15 = __toESM(require_core(), 1);
 // src/runner/executors/grooming.ts
 var core16 = __toESM(require_core(), 1);
 
-// src/runner/executors/pivot.ts
+// src/runner/executors/sub-issue-reconcile.ts
 var core17 = __toESM(require_core(), 1);
 
+// src/runner/executors/pivot.ts
+var core18 = __toESM(require_core(), 1);
+
 // src/runner/derive.ts
-var core21 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 
 // src/discussion/context-builder.ts
-var core20 = __toESM(require_core(), 1);
+var core21 = __toESM(require_core(), 1);
 
 // src/discussion/guards.ts
 function triggeredByDiscussionCreated({ context: context2 }) {
@@ -67116,7 +67222,7 @@ var discussionMachine = setup({
 });
 
 // src/test-runner/poller.ts
-var core22 = __toESM(require_core(), 1);
+var core23 = __toESM(require_core(), 1);
 var exec7 = __toESM(require_exec(), 1);
 
 // src/test-runner/configurable/types.ts
@@ -67298,7 +67404,7 @@ var ConfigurableTestResultSchema = external_exports.object({
 });
 
 // src/test-runner/configurable/loader.ts
-var core23 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 
 // src/discussion/actions.ts
 var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
@@ -67403,19 +67509,19 @@ var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
 ]);
 
 // src/action-utils.ts
-var core24 = __toESM(require_core(), 1);
+var core25 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
-  const value = core24.getInput(name);
+  const value = core25.getInput(name);
   return value === "" ? void 0 : value;
 }
 function getRequiredInput(name) {
-  return core24.getInput(name, { required: true });
+  return core25.getInput(name, { required: true });
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== void 0) {
-      core24.setOutput(key, value);
+      core25.setOutput(key, value);
     }
   }
 }
@@ -67437,7 +67543,7 @@ async function execCommand(command, args = [], options) {
 }
 
 // actions/sm-plan/lib/router-impl.ts
-var core25 = __toESM(require_core(), 1);
+var core26 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // actions/sm-plan/lib/payload-schemas.ts
@@ -67539,9 +67645,9 @@ async function addReactionToComment(octokit, owner, repo, commentId, reaction) {
       comment_id: commentId,
       content: reaction
     });
-    core25.info(`Added ${reaction} reaction to comment ${commentId}`);
+    core26.info(`Added ${reaction} reaction to comment ${commentId}`);
   } catch (error7) {
-    core25.warning(`Failed to add reaction to comment: ${error7}`);
+    core26.warning(`Failed to add reaction to comment: ${error7}`);
   }
 }
 async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
@@ -67558,9 +67664,9 @@ async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
       `,
       { subjectId: nodeId, content: reaction }
     );
-    core25.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
+    core26.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
   } catch (error7) {
-    core25.warning(`Failed to add reaction to discussion comment: ${error7}`);
+    core26.warning(`Failed to add reaction to discussion comment: ${error7}`);
   }
 }
 function jobToTrigger(job, contextJson) {
@@ -67782,11 +67888,11 @@ async function ensureBranchExists(branch) {
       branch
     ]);
     if (stdout.includes(branch)) {
-      core25.info(`Branch ${branch} exists`);
+      core26.info(`Branch ${branch} exists`);
       return true;
     }
   }
-  core25.info(`Creating branch ${branch}`);
+  core26.info(`Creating branch ${branch}`);
   await execCommand("git", ["checkout", "-b", branch]);
   const { exitCode: pushCode } = await execCommand(
     "git",
@@ -67794,10 +67900,10 @@ async function ensureBranchExists(branch) {
     { ignoreReturnCode: true }
   );
   if (pushCode !== 0) {
-    core25.warning(`Failed to push branch ${branch}`);
+    core26.warning(`Failed to push branch ${branch}`);
     return false;
   }
-  core25.info(`Created and pushed branch ${branch}`);
+  core26.info(`Created and pushed branch ${branch}`);
   return true;
 }
 async function checkBranchExists(branch) {
@@ -68462,7 +68568,7 @@ async function handleWorkflowRunEvent(issueState, resolvedIssueNumber) {
   }
   if (!isClaudePr(issueState))
     return emptyResult(true, "PR is not a Claude PR");
-  if (!resolvedIssueNumber) core25.setFailed("PR has no issue number");
+  if (!resolvedIssueNumber) core26.setFailed("PR has no issue number");
   const issueNumber = String(resolvedIssueNumber ?? "");
   if (issueLabels(issueState).includes("test:automation")) {
     return emptyResult(
@@ -68663,7 +68769,7 @@ async function handleDiscussionEvent(octokit, owner, repo) {
     );
     discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
   } catch (error7) {
-    core25.warning(`Failed to fetch discussion labels: ${error7}`);
+    core26.warning(`Failed to fetch discussion labels: ${error7}`);
   }
   const isTestAutomation = discussionLabels.includes("test:automation");
   if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
@@ -68747,7 +68853,7 @@ async function handleDiscussionCommentEvent(octokit, owner, repo) {
     );
     discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
   } catch (error7) {
-    core25.warning(`Failed to fetch discussion labels: ${error7}`);
+    core26.warning(`Failed to fetch discussion labels: ${error7}`);
   }
   const isTestAutomation = discussionLabels.includes("test:automation");
   if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
@@ -68864,7 +68970,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   if (isNaN(issueNum)) {
     return emptyResult(true, `Invalid resource_number: ${resourceNumber}`);
   }
-  core25.info(`Workflow dispatch for issue #${issueNum}`);
+  core26.info(`Workflow dispatch for issue #${issueNum}`);
   if (shouldSkipProjectStatus(issueState)) {
     return emptyResult(
       true,
@@ -68874,13 +68980,13 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   let parentIssueStr = "0";
   if (isSubIssue2(issueState) && parentIssueNumber2(issueState) > 0) {
     parentIssueStr = String(parentIssueNumber2(issueState));
-    core25.info(`Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`);
+    core26.info(`Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`);
   }
   const labels = issueLabels(issueState);
   const hasTriaged = labels.includes("triaged");
   const hasGroomed = labels.includes("groomed");
   if (hasTriaged && !hasGroomed) {
-    core25.info(
+    core26.info(
       `Issue #${issueNum} needs grooming (triaged=${hasTriaged}, groomed=${hasGroomed})`
     );
     return {
@@ -69020,13 +69126,13 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride) {
       issue_number: issueNumber,
       ci_run_url: ciRunUrl
     };
-    core25.info(
+    core26.info(
       `Trigger override: ${triggerTypeOverride} -> job=${job}, issue #${issueNumber}`
     );
     return unifiedContext2;
   }
   const resolved = await resolveEvent(octokit, owner, repo, resourceNumber);
-  core25.info(
+  core26.info(
     `Processing event: ${github.context.eventName} (handler=${resolved.handler}, issueNumber=${resolved.issueNumber ?? "none"})`
   );
   let issueState = null;
@@ -69040,7 +69146,7 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride) {
       });
       issueState = data;
     } catch (error7) {
-      core25.warning(`Failed to parse issue #${resolved.issueNumber}: ${error7}`);
+      core26.warning(`Failed to parse issue #${resolved.issueNumber}: ${error7}`);
     }
   }
   let result;
@@ -69119,24 +69225,24 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride) {
       result = emptyResult(true, `Unhandled event: ${resolved.handler}`);
   }
   if (result.skip) {
-    core25.info(`Skipping: ${result.skipReason}`);
+    core26.info(`Skipping: ${result.skipReason}`);
   } else {
-    core25.info(`Detected job: ${result.job}`);
-    core25.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
+    core26.info(`Detected job: ${result.job}`);
+    core26.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
   }
   const ctx = result.contextJson;
   const ctxParentIssue = String(ctx.parent_issue ?? "0");
   const branch = String(ctx.branch_name ?? "");
   const trigger = jobToTrigger(result.job, JSON.stringify(ctx));
-  core25.info(`Trigger: ${trigger}`);
+  core26.info(`Trigger: ${trigger}`);
   const concurrency = computeConcurrency(
     result.job,
     result.resourceNumber,
     ctxParentIssue,
     branch
   );
-  core25.info(`Concurrency group: ${concurrency.group}`);
-  core25.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
+  core26.info(`Concurrency group: ${concurrency.group}`);
+  core26.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
   const unifiedContext = {
     // Routing & control
     job: result.job,

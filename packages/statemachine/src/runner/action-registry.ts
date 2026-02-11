@@ -83,6 +83,12 @@ export const ACTION_REGISTRY: ActionExecutorMap = {
       ctx,
       getStructuredOutput(action, chainCtx),
     ),
+  reconcileSubIssues: (action, ctx, chainCtx) =>
+    executors.executeReconcileSubIssues(
+      action,
+      ctx,
+      getStructuredOutput(action, chainCtx),
+    ),
 
   // Pivot actions
   applyPivotOutput: (action, ctx, chainCtx) =>

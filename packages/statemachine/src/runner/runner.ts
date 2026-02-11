@@ -149,6 +149,12 @@ export async function executeActions(
         }
       }
 
+      // Capture applyGroomingOutput result for subsequent reconcileSubIssues action
+      if (validatedAction.type === "applyGroomingOutput") {
+        chainCtx.lastClaudeStructuredOutput = result;
+        core.info("Stored grooming decision for subsequent reconcileSubIssues");
+      }
+
       // Check if createBranch signaled to stop (rebased and pushed)
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- executeAction return type is a union, narrowing by action.type
       const branchResult = result as { shouldStop?: boolean };

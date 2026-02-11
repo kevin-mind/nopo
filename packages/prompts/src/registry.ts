@@ -46,6 +46,7 @@ export const PROMPTS = {
   "grooming/qa": Grooming.QA,
   "grooming/research": Grooming.Research,
   "grooming/summary": Grooming.Summary,
+  "grooming/reconcile-sub-issues": Grooming.ReconcileSubIssues,
 
   // Discussion prompts
   "discussion/research": Discussion.Research,

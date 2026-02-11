@@ -3,6 +3,9 @@ import { parseMarkdown, serializeMarkdown } from "@more/issue-state";
 import type { Root } from "mdast";
 import {
   GroomingSummaryOutputSchema,
+  SubIssueSpecSchema,
+  ExistingSubIssueSchema,
+  ReconcileSubIssuesOutputSchema,
   type GroomingSummaryOutput,
   type CombinedGroomingOutput,
 } from "../src/runner/executors/output-schemas.js";
@@ -11,8 +14,15 @@ import {
   buildQuestionsContent,
 } from "../src/runner/executors/grooming.js";
 import {
+  buildPhaseIssueBody,
+  mergeTodos,
+  normalizeTodoText,
+  extractExistingTodos,
+} from "../src/runner/executors/sub-issue-reconcile.js";
+import {
   extractQuestionsFromAst,
   extractQuestionItems,
+  extractSubIssueSpecs,
 } from "../src/parser/index.js";
 
 // ============================================================================
@@ -591,5 +601,321 @@ describe("extractQuestionsFromAst", () => {
     const stats = extractQuestionsFromAst(ast);
 
     expect(stats).toEqual({ total: 0, answered: 0, unanswered: 0 });
+  });
+});
+
+// ============================================================================
+// SubIssueSpecSchema / ExistingSubIssueSchema / ReconcileSubIssuesOutputSchema
+// ============================================================================
+
+describe("SubIssueSpecSchema", () => {
+  it("parses a valid spec with all fields", () => {
+    const data = {
+      phase_number: 1,
+      title: "Setup auth",
+      description: "Implement authentication",
+      affected_areas: [
+        { path: "src/auth.ts", change_type: "add", description: "New file" },
+      ],
+      todos: [{ task: "Create auth module", manual: false }],
+      depends_on: [],
+    };
+
+    const result = SubIssueSpecSchema.parse(data);
+    expect(result.phase_number).toBe(1);
+    expect(result.title).toBe("Setup auth");
+    expect(result.affected_areas).toHaveLength(1);
+    expect(result.todos).toHaveLength(1);
+  });
+
+  it("parses a minimal spec", () => {
+    const data = {
+      phase_number: 2,
+      title: "Testing",
+      description: "Add tests",
+    };
+
+    const result = SubIssueSpecSchema.parse(data);
+    expect(result.phase_number).toBe(2);
+    expect(result.affected_areas).toBeUndefined();
+    expect(result.todos).toBeUndefined();
+  });
+});
+
+describe("ExistingSubIssueSchema", () => {
+  it("extends SubIssueSpec with number field", () => {
+    const data = {
+      number: 42,
+      phase_number: 1,
+      title: "Setup auth",
+      description: "Implement authentication",
+    };
+
+    const result = ExistingSubIssueSchema.parse(data);
+    expect(result.number).toBe(42);
+    expect(result.phase_number).toBe(1);
+  });
+
+  it("rejects without number", () => {
+    const data = {
+      phase_number: 1,
+      title: "Test",
+      description: "Test",
+    };
+
+    expect(() => ExistingSubIssueSchema.parse(data)).toThrow();
+  });
+});
+
+describe("ReconcileSubIssuesOutputSchema", () => {
+  it("parses a valid reconciliation output", () => {
+    const data = {
+      create: [
+        { phase_number: 3, title: "New phase", description: "Brand new" },
+      ],
+      update: [
+        {
+          number: 10,
+          phase_number: 1,
+          title: "Updated phase",
+          description: "Updated desc",
+          match_reason: "Same scope as existing #10",
+        },
+      ],
+      delete: [{ number: 11, reason: "No longer needed" }],
+      reasoning: "Phase 3 is new, Phase 1 matches #10, #11 is superseded",
+    };
+
+    const result = ReconcileSubIssuesOutputSchema.parse(data);
+    expect(result.create).toHaveLength(1);
+    expect(result.update).toHaveLength(1);
+    expect(result.update[0]?.match_reason).toBe("Same scope as existing #10");
+    expect(result.delete).toHaveLength(1);
+    expect(result.reasoning).toBeTruthy();
+  });
+
+  it("parses output with empty buckets", () => {
+    const data = {
+      create: [],
+      update: [],
+      delete: [],
+      reasoning: "No changes needed",
+    };
+
+    const result = ReconcileSubIssuesOutputSchema.parse(data);
+    expect(result.create).toHaveLength(0);
+  });
+});
+
+// ============================================================================
+// buildPhaseIssueBody (moved from grooming.ts)
+// ============================================================================
+
+describe("buildPhaseIssueBody", () => {
+  it("builds body with description only", () => {
+    const body = buildPhaseIssueBody({
+      phase_number: 1,
+      title: "Setup",
+      description: "Set up the project",
+    });
+
+    const md = serializeMarkdown(body);
+    expect(md).toContain("## Description");
+    expect(md).toContain("Set up the project");
+    expect(md).not.toContain("## Affected Areas");
+    expect(md).not.toContain("## Todo");
+  });
+
+  it("builds body with all sections", () => {
+    const body = buildPhaseIssueBody({
+      phase_number: 1,
+      title: "Setup",
+      description: "Set up the project",
+      affected_areas: [
+        { path: "src/index.ts", change_type: "modify", description: "Entry" },
+      ],
+      todos: [
+        { task: "Install deps" },
+        { task: "Configure build", manual: true },
+      ],
+    });
+
+    const md = serializeMarkdown(body);
+    expect(md).toContain("## Description");
+    expect(md).toContain("## Affected Areas");
+    expect(md).toContain("src/index.ts");
+    expect(md).toContain("(modify)");
+    expect(md).toContain("## Todo");
+    expect(md).toContain("Install deps");
+    expect(md).toContain("Configure build");
+  });
+});
+
+// ============================================================================
+// mergeTodos
+// ============================================================================
+
+describe("mergeTodos", () => {
+  it("preserves checked state for matching todos", () => {
+    const result = mergeTodos(
+      [{ task: "Install deps" }, { task: "Write tests" }],
+      [
+        { text: "Install deps", checked: true },
+        { text: "Write tests", checked: false },
+      ],
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0]?.checked).toBe(true);
+    expect(result[1]?.checked).toBe(false);
+  });
+
+  it("adds new todos as unchecked", () => {
+    const result = mergeTodos(
+      [{ task: "New task" }],
+      [{ text: "Old task", checked: true }],
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0]?.text).toBe("New task");
+    expect(result[0]?.checked).toBe(false);
+    expect(result[1]?.text).toBe("Old task");
+    expect(result[1]?.checked).toBe(true);
+  });
+
+  it("preserves existing todos not in new list", () => {
+    const result = mergeTodos(
+      [{ task: "Task A" }],
+      [
+        { text: "Task A", checked: false },
+        { text: "Custom user task", checked: true },
+      ],
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[1]?.text).toBe("Custom user task");
+    expect(result[1]?.checked).toBe(true);
+  });
+
+  it("handles case-insensitive matching via normalization", () => {
+    const result = mergeTodos(
+      [{ task: "Install Dependencies" }],
+      [{ text: "install dependencies", checked: true }],
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.checked).toBe(true);
+    expect(result[0]?.text).toBe("Install Dependencies");
+  });
+
+  it("handles empty inputs", () => {
+    expect(mergeTodos([], [])).toHaveLength(0);
+    expect(mergeTodos([{ task: "A" }], [])).toHaveLength(1);
+    expect(mergeTodos([], [{ text: "B", checked: false }])).toHaveLength(1);
+  });
+});
+
+// ============================================================================
+// normalizeTodoText
+// ============================================================================
+
+describe("normalizeTodoText", () => {
+  it("lowercases and trims", () => {
+    expect(normalizeTodoText("  Hello World  ")).toBe("hello world");
+  });
+
+  it("collapses whitespace", () => {
+    expect(normalizeTodoText("a   b  c")).toBe("a b c");
+  });
+});
+
+// ============================================================================
+// extractExistingTodos
+// ============================================================================
+
+describe("extractExistingTodos", () => {
+  it("extracts checklist items from AST", () => {
+    const ast = parseMarkdown("## Todo\n\n- [x] Done task\n- [ ] Pending task");
+    const todos = extractExistingTodos(ast);
+
+    expect(todos).toHaveLength(2);
+    expect(todos[0]?.text).toBe("Done task");
+    expect(todos[0]?.checked).toBe(true);
+    expect(todos[1]?.text).toBe("Pending task");
+    expect(todos[1]?.checked).toBe(false);
+  });
+
+  it("returns empty for no checklist", () => {
+    const ast = parseMarkdown("## Description\n\nSome text.");
+    const todos = extractExistingTodos(ast);
+
+    expect(todos).toHaveLength(0);
+  });
+});
+
+// ============================================================================
+// extractSubIssueSpecs
+// ============================================================================
+
+describe("extractSubIssueSpecs", () => {
+  it("extracts specs from sub-issues with phase titles", () => {
+    const bodyAst = parseMarkdown(
+      "## Description\n\nSetup auth module.\n\n## Todo\n\n- [ ] Create module\n- [x] Add config",
+    );
+
+    const specs = extractSubIssueSpecs([
+      {
+        number: 10,
+        title: "[Phase 1]: Auth setup",
+        bodyAst,
+        state: "OPEN",
+      },
+    ]);
+
+    expect(specs).toHaveLength(1);
+    expect(specs[0]?.number).toBe(10);
+    expect(specs[0]?.phase_number).toBe(1);
+    expect(specs[0]?.title).toBe("Auth setup");
+    expect(specs[0]?.description).toBe("Setup auth module.");
+    expect(specs[0]?.todos).toHaveLength(2);
+  });
+
+  it("filters out CLOSED sub-issues", () => {
+    const bodyAst = parseMarkdown("## Description\n\nDone.");
+
+    const specs = extractSubIssueSpecs([
+      {
+        number: 10,
+        title: "[Phase 1]: Done phase",
+        bodyAst,
+        state: "CLOSED",
+      },
+      {
+        number: 11,
+        title: "[Phase 2]: Active phase",
+        bodyAst,
+        state: "OPEN",
+      },
+    ]);
+
+    expect(specs).toHaveLength(1);
+    expect(specs[0]?.number).toBe(11);
+  });
+
+  it("handles sub-issues without phase prefix", () => {
+    const bodyAst = parseMarkdown("## Description\n\nSome work.");
+
+    const specs = extractSubIssueSpecs([
+      {
+        number: 10,
+        title: "Some plain title",
+        bodyAst,
+        state: "OPEN",
+      },
+    ]);
+
+    expect(specs).toHaveLength(1);
+    expect(specs[0]?.phase_number).toBe(0);
+    expect(specs[0]?.title).toBe("Some plain title");
   });
 });

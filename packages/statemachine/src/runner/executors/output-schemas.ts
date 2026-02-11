@@ -143,7 +143,9 @@ const GroomingAgentOutputSchema = z
   })
   .passthrough();
 
-const RecommendedPhaseSchema = z.object({
+// Canonical schema for sub-issue specifications.
+// Used by engineer output, reconciliation prompt, and body builder.
+export const SubIssueSpecSchema = z.object({
   phase_number: z.number(),
   title: z.string(),
   description: z.string(),
@@ -168,10 +170,37 @@ const RecommendedPhaseSchema = z.object({
   depends_on: z.array(z.number()).optional(),
 });
 
-export type RecommendedPhase = z.infer<typeof RecommendedPhaseSchema>;
+export type SubIssueSpec = z.infer<typeof SubIssueSpecSchema>;
+
+// Existing sub-issue = spec + GitHub issue number
+export const ExistingSubIssueSchema = SubIssueSpecSchema.extend({
+  number: z.number(),
+});
+
+export type ExistingSubIssue = z.infer<typeof ExistingSubIssueSchema>;
 
 export const EngineerOutputSchema = GroomingAgentOutputSchema.extend({
-  recommended_phases: z.array(RecommendedPhaseSchema),
+  recommended_phases: z.array(SubIssueSpecSchema),
+});
+
+// ============================================================================
+// Reconcile Sub-Issues Output
+// ============================================================================
+
+export const ReconcileSubIssuesOutputSchema = z.object({
+  create: z.array(SubIssueSpecSchema),
+  update: z.array(
+    ExistingSubIssueSchema.extend({
+      match_reason: z.string(),
+    }),
+  ),
+  delete: z.array(
+    z.object({
+      number: z.number(),
+      reason: z.string(),
+    }),
+  ),
+  reasoning: z.string(),
 });
 
 export const CombinedGroomingOutputSchema = z.object({

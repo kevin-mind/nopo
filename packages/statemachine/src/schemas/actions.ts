@@ -788,6 +788,20 @@ export type ApplyGroomingOutputAction = z.infer<
   typeof ApplyGroomingOutputActionSchema
 >;
 
+/**
+ * Reconcile sub-issues using AI-driven semantic matching.
+ * Compares existing sub-issues against expected phases and produces
+ * create/update/delete buckets.
+ */
+export const ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
+  type: z.literal("reconcileSubIssues"),
+  issueNumber: z.number().int().positive(),
+});
+
+export type ReconcileSubIssuesAction = z.infer<
+  typeof ReconcileSubIssuesActionSchema
+>;
+
 // ============================================================================
 // Pivot Actions
 // ============================================================================
@@ -857,6 +871,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   // Grooming actions
   RunClaudeGroomingActionSchema,
   ApplyGroomingOutputActionSchema,
+  ReconcileSubIssuesActionSchema,
   // Pivot actions
   ApplyPivotOutputActionSchema,
   // Discussion actions
@@ -923,6 +938,7 @@ export const ACTION_TYPES = [
   "runClaude",
   "runClaudeGrooming",
   "applyGroomingOutput",
+  "reconcileSubIssues",
   "applyPivotOutput",
   "addDiscussionComment",
   "updateDiscussionBody",
@@ -1021,6 +1037,7 @@ export const ISSUE_ACTION_TYPES = [
   // Grooming actions
   "runClaudeGrooming",
   "applyGroomingOutput",
+  "reconcileSubIssues",
   // Pivot actions
   "applyPivotOutput",
   // Triage/iterate/review actions

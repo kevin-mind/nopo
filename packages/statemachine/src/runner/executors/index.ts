@@ -96,5 +96,14 @@ export {
   executeApplyGroomingOutput,
 } from "./grooming.js";
 
+// Sub-issue reconciliation executors
+export {
+  executeReconcileSubIssues,
+  buildPhaseIssueBody,
+  mergeTodos,
+  extractExistingTodos,
+  normalizeTodoText,
+} from "./sub-issue-reconcile.js";
+
 // Pivot executors
 export { executeApplyPivotOutput } from "./pivot.js";

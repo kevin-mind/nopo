@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info25 = this._prepareRequest(verb, parsedUrl, headers);
+          let info26 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info25, data);
+            response = yield this.requestRaw(info26, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info25, data);
+                return authenticationHandler.handleAuthentication(this, info26, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info25 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info25, data);
+              info26 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info26, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info25, data) {
+      requestRaw(info26, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info25, data, callbackForResult);
+            this.requestRawWithCallback(info26, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info25, data, onResult) {
+      requestRawWithCallback(info26, data, onResult) {
         if (typeof data === "string") {
-          if (!info25.options.headers) {
-            info25.options.headers = {};
+          if (!info26.options.headers) {
+            info26.options.headers = {};
           }
-          info25.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info26.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info25.httpModule.request(info25.options, (msg) => {
+        const req = info26.httpModule.request(info26.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info25.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info26.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info25 = {};
-        info25.parsedUrl = requestUrl;
-        const usingSsl = info25.parsedUrl.protocol === "https:";
-        info25.httpModule = usingSsl ? https : http;
+        const info26 = {};
+        info26.parsedUrl = requestUrl;
+        const usingSsl = info26.parsedUrl.protocol === "https:";
+        info26.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info25.options = {};
-        info25.options.host = info25.parsedUrl.hostname;
-        info25.options.port = info25.parsedUrl.port ? parseInt(info25.parsedUrl.port) : defaultPort;
-        info25.options.path = (info25.parsedUrl.pathname || "") + (info25.parsedUrl.search || "");
-        info25.options.method = method;
-        info25.options.headers = this._mergeHeaders(headers);
+        info26.options = {};
+        info26.options.host = info26.parsedUrl.hostname;
+        info26.options.port = info26.parsedUrl.port ? parseInt(info26.parsedUrl.port) : defaultPort;
+        info26.options.path = (info26.parsedUrl.pathname || "") + (info26.parsedUrl.search || "");
+        info26.options.method = method;
+        info26.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info25.options.headers["user-agent"] = this.userAgent;
+          info26.options.headers["user-agent"] = this.userAgent;
         }
-        info25.options.agent = this._getAgent(info25.parsedUrl);
+        info26.options.agent = this._getAgent(info26.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info25.options);
+            handler.prepareRequest(info26.options);
           }
         }
-        return info25;
+        return info26;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19740,34 +19740,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error8;
-    function warning18(message, properties = {}) {
+    function warning19(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning18;
+    exports2.warning = warning19;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info25(message) {
+    function info26(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info25;
-    function startGroup11(name) {
+    exports2.info = info26;
+    function startGroup12(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup11;
-    function endGroup11() {
+    exports2.startGroup = startGroup12;
+    function endGroup12() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup11;
+    exports2.endGroup = endGroup12;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup11(name);
+        startGroup12(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup11();
+          endGroup12();
         }
         return result;
       });
@@ -23974,7 +23974,7 @@ var require_extend = __commonJS({
 });
 
 // actions/sm-run/index.ts
-var core25 = __toESM(require_core(), 1);
+var core26 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // ../issue-state/src/constants.ts
@@ -32602,9 +32602,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info25(code3);
+    return info26(code3);
   }
-  function info25(code3) {
+  function info26(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32619,7 +32619,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info25;
+    return info26;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35458,11 +35458,11 @@ function createTokenizer(parser2, initialize, from) {
     context2.events.push(["exit", token, context2]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info25) {
-    addResult(construct, info25.from);
+  function onsuccessfulconstruct(construct, info26) {
+    addResult(construct, info26.from);
   }
-  function onsuccessfulcheck(_, info25) {
-    info25.restore();
+  function onsuccessfulcheck(_, info26) {
+    info26.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35470,7 +35470,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info25;
+      let info26;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35506,7 +35506,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info25 = store();
+          info26 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context2.currentConstruct = construct;
@@ -35527,12 +35527,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info25);
+        onreturn(currentConstruct, info26);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info25.restore();
+        info26.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -37001,8 +37001,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info25) {
-  const tracker = state.createTracker(info25);
+function footnoteReference(node2, _, state, info26) {
+  const tracker = state.createTracker(info26);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37040,8 +37040,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info25) {
-    const tracker = state.createTracker(info25);
+  function footnoteDefinition(node2, _, state, info26) {
+    const tracker = state.createTracker(info26);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37105,8 +37105,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info25) {
-  const tracker = state.createTracker(info25);
+function handleDelete(node2, _, state, info26) {
+  const tracker = state.createTracker(info26);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37333,9 +37333,9 @@ function map(left, right) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info25) {
+function blockquote(node2, _, state, info26) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37370,11 +37370,11 @@ function listInScope(stack, list4, none) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info25) {
+function hardBreak(_, _1, state, info26) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info25.before) ? "" : " ";
+      return /[ \t]/.test(info26.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37426,7 +37426,7 @@ function checkFence(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info25) {
+function code(node2, _, state, info26) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37436,7 +37436,7 @@ function code(node2, _, state, info25) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37489,12 +37489,12 @@ function checkQuote(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info25) {
+function definition2(node2, _, state, info26) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37604,10 +37604,10 @@ function encodeInfo(outside, inside, marker) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info25) {
+function emphasis(node2, _, state, info26) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37618,7 +37618,7 @@ function emphasis(node2, _, state, info25) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info25.before.charCodeAt(info25.before.length - 1),
+    info26.before.charCodeAt(info26.before.length - 1),
     betweenHead,
     marker
   );
@@ -37626,7 +37626,7 @@ function emphasis(node2, _, state, info25) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info25.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37679,9 +37679,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info25) {
+function heading(node2, _, state, info26) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37731,12 +37731,12 @@ function htmlPeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info25) {
+function image(node2, _, state, info26) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37788,11 +37788,11 @@ function imagePeek() {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info25) {
+function imageReference(node2, _, state, info26) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37873,10 +37873,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info25) {
+function link(node2, _, state, info26) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37953,11 +37953,11 @@ function linkPeek(node2, _, state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info25) {
+function linkReference(node2, _, state, info26) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38044,7 +38044,7 @@ function checkRule(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info25) {
+function list3(node2, parent, state, info26) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38076,7 +38076,7 @@ function list3(node2, parent, state, info25) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info25);
+  const value = state.containerFlow(node2, info26);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38095,7 +38095,7 @@ function checkListItemIndent(state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info25) {
+function listItem(node2, parent, state, info26) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38105,7 +38105,7 @@ function listItem(node2, parent, state, info25) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38124,10 +38124,10 @@ function listItem(node2, parent, state, info25) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info25) {
+function paragraph(node2, _, state, info26) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info25);
+  const value = state.containerPhrasing(node2, info26);
   subexit();
   exit3();
   return value;
@@ -38162,12 +38162,12 @@ var phrasing = (
 );
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info25) {
+function root(node2, _, state, info26) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info25);
+  return container.call(state, node2, info26);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38183,10 +38183,10 @@ function checkStrong(state) {
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info25) {
+function strong(node2, _, state, info26) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38197,7 +38197,7 @@ function strong(node2, _, state, info25) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info25.before.charCodeAt(info25.before.length - 1),
+    info26.before.charCodeAt(info26.before.length - 1),
     betweenHead,
     marker
   );
@@ -38205,7 +38205,7 @@ function strong(node2, _, state, info25) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info25.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38222,8 +38222,8 @@ function strongPeek(_, _1, state) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info25) {
-  return state.safe(node2.value, info25);
+function text3(node2, _, state, info26) {
+  return state.safe(node2.value, info26);
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38438,15 +38438,15 @@ function compilePattern(pattern) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info25) {
+function containerPhrasing(parent, state, info26) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info25.before;
+  let before = info26.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info25);
+  let tracker = state.createTracker(info26);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38460,7 +38460,7 @@ function containerPhrasing(parent, state, info25) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info25.after;
+      after = info26.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38468,7 +38468,7 @@ function containerPhrasing(parent, state, info25) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info25);
+      tracker = state.createTracker(info26);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38497,10 +38497,10 @@ function containerPhrasing(parent, state, info25) {
 }
 
 // ../../node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info25) {
+function containerFlow(parent, state, info26) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38736,11 +38736,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info25) {
-  return containerPhrasing(parent, this, info25);
+function containerPhrasingBound(parent, info26) {
+  return containerPhrasing(parent, this, info26);
 }
-function containerFlowBound(parent, info25) {
-  return containerFlow(parent, this, info25);
+function containerFlowBound(parent, info26) {
+  return containerFlow(parent, this, info26);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38837,19 +38837,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info25) {
-    return serializeData(handleTableAsData(node2, state, info25), node2.align);
+  function handleTable(node2, _, state, info26) {
+    return serializeData(handleTableAsData(node2, state, info26), node2.align);
   }
-  function handleTableRow(node2, _, state, info25) {
-    const row = handleTableRowAsData(node2, state, info25);
+  function handleTableRow(node2, _, state, info26) {
+    const row = handleTableRowAsData(node2, state, info26);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info25) {
+  function handleTableCell(node2, _, state, info26) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info25,
+      ...info26,
       before: around,
       after: around
     });
@@ -38868,24 +38868,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info25) {
+  function handleTableAsData(node2, state, info26) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info25);
+      result[index2] = handleTableRowAsData(children[index2], state, info26);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info25) {
+  function handleTableRowAsData(node2, state, info26) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info25);
+      result[index2] = handleTableCell(children[index2], node2, state, info26);
     }
     subexit();
     return result;
@@ -38951,16 +38951,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info25) {
+function listItemWithTaskListItem(node2, parent, state, info26) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info25);
+  const tracker = state.createTracker(info26);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info25,
+    ...info26,
     ...tracker.current()
   });
   if (checkable) {
@@ -42152,6 +42152,10 @@ var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
   /** Path to the combined grooming output file */
   filePath: external_exports.string().default("grooming-output.json")
 });
+var ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("reconcileSubIssues"),
+  issueNumber: external_exports.number().int().positive()
+});
 var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyPivotOutput"),
   issueNumber: external_exports.number().int().positive(),
@@ -42194,6 +42198,7 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   // Grooming actions
   RunClaudeGroomingActionSchema,
   ApplyGroomingOutputActionSchema,
+  ReconcileSubIssuesActionSchema,
   // Pivot actions
   ApplyPivotOutputActionSchema,
   // Discussion actions
@@ -42274,6 +42279,7 @@ var ISSUE_ACTION_TYPES = [
   // Grooming actions
   "runClaudeGrooming",
   "applyGroomingOutput",
+  "reconcileSubIssues",
   // Pivot actions
   "applyPivotOutput",
   // Triage/iterate/review actions
@@ -43206,6 +43212,70 @@ function extractQuestionItems(bodyAst) {
     }
   }
   return items;
+}
+function parsePhaseNumber(title) {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+function extractSectionText(ast, sectionName) {
+  const idx = findHeadingIndex(ast, sectionName);
+  if (idx === -1) return "";
+  const parts = [];
+  for (let i = idx + 1; i < ast.children.length; i++) {
+    const node2 = ast.children[i];
+    if (!node2) break;
+    if (node2.type === "heading") break;
+    parts.push(getNodeText(node2));
+  }
+  return parts.join("\n").trim();
+}
+function extractAffectedAreas(ast) {
+  const idx = findHeadingIndex(ast, "Affected Areas");
+  if (idx === -1) return [];
+  const listNode = ast.children[idx + 1];
+  if (!listNode || !isList(listNode)) return [];
+  return listNode.children.map((item) => {
+    const text5 = getNodeText(item);
+    const pathMatch = /`([^`]+)`/.exec(text5);
+    const path3 = pathMatch?.[1] ?? text5;
+    const changeTypeMatch = /\(([^)]+)\)/.exec(text5);
+    const descMatch = /- (.+)$/.exec(text5);
+    return {
+      path: path3,
+      ...changeTypeMatch?.[1] ? { change_type: changeTypeMatch[1] } : {},
+      ...descMatch?.[1] ? { description: descMatch[1] } : {}
+    };
+  });
+}
+function extractTodoItems(ast) {
+  const idx = findHeadingIndexAny(ast, ["Todo", "Todos"]);
+  if (idx === -1) return [];
+  const listNode = ast.children[idx + 1];
+  if (!listNode || !isList(listNode)) return [];
+  return listNode.children.filter(
+    (item) => item.type === "listItem" && item.checked !== void 0
+  ).map((item) => {
+    const text5 = getNodeText(item);
+    const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+    return { task: text5, ...isManual ? { manual: true } : {} };
+  });
+}
+function extractSubIssueSpecs(subIssues) {
+  return subIssues.filter((sub) => sub.state !== "CLOSED").map((sub) => {
+    const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
+    const title = sub.title.replace(/^\[Phase\s+\d+\]:\s*/, "");
+    const description = extractSectionText(sub.bodyAst, "Description");
+    const affectedAreas = extractAffectedAreas(sub.bodyAst);
+    const todos = extractTodoItems(sub.bodyAst);
+    return {
+      number: sub.number,
+      phase_number: phaseNumber,
+      title,
+      description,
+      ...affectedAreas.length > 0 ? { affected_areas: affectedAreas } : {},
+      ...todos.length > 0 ? { todos } : {}
+    };
+  });
 }
 var agentNotesExtractor = createExtractor(
   external_exports.array(AgentNotesEntrySchema),
@@ -48282,6 +48352,12 @@ function emitRunClaudeGrooming({
       issueNumber,
       filePath: "grooming-output.json",
       consumesArtifact: groomingArtifact
+    },
+    // Reconcile sub-issues: create/update/delete based on semantic matching
+    {
+      type: "reconcileSubIssues",
+      token: "code",
+      issueNumber
     }
   ];
 }
@@ -53445,7 +53521,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core26 = [
+  var core27 = [
     "$schema",
     "$id",
     "$defs",
@@ -53455,7 +53531,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core26;
+  exports2.default = core27;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -68441,6 +68517,80 @@ If previous questions were provided, include \`answered_questions\` for any that
 ] }));
 var summary_default = GroomingSummary;
 
+// ../prompts/src/prompts/grooming/reconcile-sub-issues.tsx
+var ReconcileSubIssues = promptFactory().inputs((z) => ({
+  issueNumber: z.number(),
+  issueTitle: z.string(),
+  existingSubIssues: z.string(),
+  expectedSubIssues: z.string()
+})).outputs((z) => {
+  const SubIssueSpecSchema2 = z.object({
+    phase_number: z.number(),
+    title: z.string(),
+    description: z.string(),
+    affected_areas: z.array(
+      z.object({
+        path: z.string(),
+        change_type: z.string().optional(),
+        description: z.string().optional(),
+        impact: z.string().optional()
+      })
+    ).optional(),
+    todos: z.array(
+      z.object({
+        task: z.string(),
+        manual: z.boolean().optional()
+      })
+    ).optional(),
+    depends_on: z.array(z.number()).optional()
+  });
+  return {
+    create: z.array(SubIssueSpecSchema2),
+    update: z.array(
+      SubIssueSpecSchema2.extend({
+        number: z.number(),
+        match_reason: z.string()
+      })
+    ),
+    delete: z.array(
+      z.object({
+        number: z.number(),
+        reason: z.string()
+      })
+    ),
+    reasoning: z.string()
+  };
+}).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("line", { children: `You are a Sub-Issue Reconciliation Agent for issue #${inputs.issueNumber}: "${inputs.issueTitle}"` }),
+  /* @__PURE__ */ jsx("section", { title: "Task", children: `Compare the EXISTING sub-issues (currently on GitHub) against the EXPECTED sub-issues (from the latest grooming analysis). Produce three buckets:
+
+1. **create**: Expected sub-issues that have no semantic match in the existing set. Output them as-is (no \`number\` field).
+2. **update**: Expected sub-issues that semantically match an existing one. Output the MERGED version with the existing \`number\` and a \`match_reason\` explaining the match. Merge content: use the expected title/description/affected_areas/todos but preserve any existing content that adds value.
+3. **delete**: Existing sub-issues that have no semantic match in the expected set. Output \`{ number, reason }\`.` }),
+  /* @__PURE__ */ jsx("section", { title: "Existing Sub-Issues (currently on GitHub)", children: inputs.existingSubIssues }),
+  /* @__PURE__ */ jsx("section", { title: "Expected Sub-Issues (from grooming analysis)", children: inputs.expectedSubIssues }),
+  /* @__PURE__ */ jsx("section", { title: "Matching Rules", children: `Match by SEMANTIC SIMILARITY of scope and intent, NOT by:
+- Phase numbers (Phase 2 in one run may be completely different from Phase 2 in another)
+- Exact title matches (titles may be reworded)
+
+Good signals for a match:
+- Similar description/scope (same area of the codebase, same feature)
+- Overlapping affected areas (same files/directories)
+- Similar todo items (same tasks, even if worded differently)
+- Same functional intent (both about "auth", both about "UI", etc.)
+
+When merging for update:
+- Use the expected phase_number and title (they reflect the latest analysis)
+- Prefer the expected description but incorporate unique details from the existing one
+- Merge affected_areas: keep all from expected, add any from existing that aren't covered
+- Merge todos: keep all from expected, add any from existing that represent completed work or unique tasks not in the expected set` }),
+  /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with all three buckets and a brief \`reasoning\` field explaining your overall reconciliation decisions.
+
+Every expected sub-issue must appear in exactly one of \`create\` or \`update\`.
+Every existing sub-issue must appear in exactly one of \`update\` or \`delete\`.` })
+] }));
+var reconcile_sub_issues_default = ReconcileSubIssues;
+
 // ../prompts/src/prompts/discussion/research.tsx
 var DiscussionResearch = promptFactory().inputs((z) => ({
   discussionTitle: z.string(),
@@ -68839,6 +68989,7 @@ var PROMPTS = {
   "grooming/qa": qa_default,
   "grooming/research": research_default,
   "grooming/summary": summary_default,
+  "grooming/reconcile-sub-issues": reconcile_sub_issues_default,
   // Discussion prompts
   "discussion/research": research_default2,
   "discussion/investigate": investigate_default,
@@ -68956,7 +69107,7 @@ function resolvePrompt(options) {
 }
 
 // src/runner/runner.ts
-var core19 = __toESM(require_core(), 1);
+var core20 = __toESM(require_core(), 1);
 
 // src/runner/types.ts
 function getOctokitForAction(action, ctx) {
@@ -68971,7 +69122,7 @@ function getOctokitForAction(action, ctx) {
 var core2 = __toESM(require_core(), 1);
 
 // src/runner/action-registry.ts
-var core18 = __toESM(require_core(), 1);
+var core19 = __toESM(require_core(), 1);
 
 // src/runner/get-structured-output.ts
 var core3 = __toESM(require_core(), 1);
@@ -70276,7 +70427,7 @@ var GroomingAgentOutputSchema = external_exports.object({
   ready: external_exports.boolean(),
   questions: external_exports.array(external_exports.string()).optional()
 }).passthrough();
-var RecommendedPhaseSchema = external_exports.object({
+var SubIssueSpecSchema = external_exports.object({
   phase_number: external_exports.number(),
   title: external_exports.string(),
   description: external_exports.string(),
@@ -70296,8 +70447,26 @@ var RecommendedPhaseSchema = external_exports.object({
   ).optional(),
   depends_on: external_exports.array(external_exports.number()).optional()
 });
+var ExistingSubIssueSchema = SubIssueSpecSchema.extend({
+  number: external_exports.number()
+});
 var EngineerOutputSchema = GroomingAgentOutputSchema.extend({
-  recommended_phases: external_exports.array(RecommendedPhaseSchema)
+  recommended_phases: external_exports.array(SubIssueSpecSchema)
+});
+var ReconcileSubIssuesOutputSchema = external_exports.object({
+  create: external_exports.array(SubIssueSpecSchema),
+  update: external_exports.array(
+    ExistingSubIssueSchema.extend({
+      match_reason: external_exports.string()
+    })
+  ),
+  delete: external_exports.array(
+    external_exports.object({
+      number: external_exports.number(),
+      reason: external_exports.string()
+    })
+  ),
+  reasoning: external_exports.string()
 });
 var CombinedGroomingOutputSchema = external_exports.object({
   pm: GroomingAgentOutputSchema,
@@ -71486,7 +71655,6 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
   core16.info(
     `Grooming decision: ${decision} (agents=${allAgentsReady}, bodyQuestions=${questionStats.unanswered} unanswered)`
   );
-  let subIssuesCreated = 0;
   const existingQuestions = extractQuestionItems(data.issue.bodyAst);
   const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
   const summaryOutput = await runGroomingSummary(
@@ -71546,17 +71714,13 @@ async function executeApplyGroomingOutput(action, ctx, structuredOutput) {
       groomingOutput.engineer,
       "engineer"
     );
-    core16.info(
-      `Upserting ${engineerOutput.recommended_phases.length} sub-issues`
-    );
-    subIssuesCreated = await upsertSubIssuesForPhases(
-      ctx,
-      action.issueNumber,
-      engineerOutput.recommended_phases,
-      readyData.issue.subIssues
-    );
+    return {
+      applied: true,
+      decision,
+      recommendedPhases: engineerOutput.recommended_phases
+    };
   }
-  return { applied: true, decision, subIssuesCreated };
+  return { applied: true, decision };
 }
 async function runGroomingSummary(action, groomingOutput, data, previousQuestions) {
   const resolved = resolvePrompt({
@@ -71689,19 +71853,40 @@ function buildQuestionsContent(summary2, existingQuestions) {
   };
   return [list4];
 }
-function parsePhaseNumber(title) {
-  const match = /^\[Phase\s+(\d+)\]/.exec(title);
-  return match?.[1] ? parseInt(match[1], 10) : null;
+
+// src/runner/executors/sub-issue-reconcile.ts
+var core17 = __toESM(require_core(), 1);
+function asOctokitLike7(ctx) {
+  return ctx.octokit;
+}
+function buildPhaseIssueBody(phase) {
+  const children = [];
+  children.push(
+    ...createSection("Description", [createParagraph(phase.description)])
+  );
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    const areas = phase.affected_areas.map((area) => {
+      const changeType = area.change_type ? ` (${area.change_type})` : "";
+      const desc = area.description ? ` - ${area.description}` : "";
+      return `\`${area.path}\`${changeType}${desc}`;
+    });
+    children.push(
+      ...createSection("Affected Areas", [createBulletList(areas)])
+    );
+  }
+  if (phase.todos && phase.todos.length > 0) {
+    const todos = phase.todos.map((todo) => ({
+      text: todo.task,
+      checked: false,
+      manual: todo.manual || false
+    }));
+    children.push(...createSection("Todo", [createTodoList(todos)]));
+  }
+  return { type: "root", children };
 }
 function extractExistingTodos(bodyAst) {
   const result = [];
   for (const node2 of bodyAst.children) {
-    if (node2.type === "heading") {
-      const firstChild = node2.children[0];
-      if (firstChild?.type === "text" && (firstChild.value === "Todo" || firstChild.value === "Todos")) {
-        continue;
-      }
-    }
     if (node2.type === "list") {
       for (const item of node2.children) {
         if (item.type === "listItem" && typeof item.checked === "boolean") {
@@ -71762,164 +71947,291 @@ function mergeTodos(newTodos, existingTodos) {
   }
   return merged;
 }
-async function upsertSubIssuesForPhases(ctx, parentIssueNumber2, phases, existingSubIssues) {
-  const existingByPhase = /* @__PURE__ */ new Map();
-  for (const sub of existingSubIssues) {
-    const phaseNum = parsePhaseNumber(sub.title);
-    if (phaseNum !== null) {
-      existingByPhase.set(phaseNum, sub);
+async function executeReconcileSubIssues(action, ctx, structuredOutput) {
+  const chainOutput = structuredOutput;
+  if (!chainOutput || chainOutput.decision !== "ready") {
+    core17.info(
+      `Skipping reconciliation: decision is "${chainOutput?.decision ?? "unknown"}", not "ready"`
+    );
+    return { reconciled: false, created: 0, updated: 0, deleted: 0 };
+  }
+  const recommendedPhases = chainOutput.recommendedPhases;
+  if (!recommendedPhases || recommendedPhases.length === 0) {
+    core17.info("Skipping reconciliation: no recommended phases");
+    return { reconciled: false, created: 0, updated: 0, deleted: 0 };
+  }
+  if (ctx.dryRun) {
+    core17.info(
+      `[DRY RUN] Would reconcile ${recommendedPhases.length} phases for issue #${action.issueNumber}`
+    );
+    return { reconciled: true, created: 0, updated: 0, deleted: 0 };
+  }
+  const { data } = await parseIssue(ctx.owner, ctx.repo, action.issueNumber, {
+    octokit: asOctokitLike7(ctx),
+    fetchPRs: false,
+    fetchParent: false
+  });
+  const existingSubIssues = extractSubIssueSpecs(data.issue.subIssues);
+  if (existingSubIssues.length === 0) {
+    core17.info(
+      `No existing sub-issues, creating ${recommendedPhases.length} phases directly`
+    );
+    const created2 = await createAllPhases(
+      ctx,
+      action.issueNumber,
+      recommendedPhases,
+      data.issue.subIssues.length === 0
+    );
+    return { reconciled: true, created: created2, updated: 0, deleted: 0 };
+  }
+  core17.info(
+    `Reconciling ${existingSubIssues.length} existing sub-issues against ${recommendedPhases.length} expected phases`
+  );
+  const resolved = resolvePrompt({
+    promptDir: "grooming/reconcile-sub-issues",
+    promptVars: {
+      ISSUE_NUMBER: String(action.issueNumber),
+      ISSUE_TITLE: data.issue.title,
+      EXISTING_SUB_ISSUES: JSON.stringify(existingSubIssues, null, 2),
+      EXPECTED_SUB_ISSUES: JSON.stringify(recommendedPhases, null, 2)
+    }
+  });
+  core17.startGroup("Reconcile Sub-Issues");
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: process.cwd(),
+    outputSchema: resolved.outputSchema
+  });
+  core17.endGroup();
+  if (!result.success || !result.structuredOutput) {
+    core17.warning(
+      `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating all phases.`
+    );
+    const created2 = await createAllPhases(
+      ctx,
+      action.issueNumber,
+      recommendedPhases,
+      false
+    );
+    return { reconciled: true, created: created2, updated: 0, deleted: 0 };
+  }
+  const reconcileOutput = parseOutput(
+    ReconcileSubIssuesOutputSchema,
+    result.structuredOutput,
+    "reconcile sub-issues"
+  );
+  core17.info(
+    `Reconciliation result: ${reconcileOutput.create.length} create, ${reconcileOutput.update.length} update, ${reconcileOutput.delete.length} delete`
+  );
+  core17.info(`Reasoning: ${reconcileOutput.reasoning}`);
+  let created = 0;
+  for (const spec of reconcileOutput.create) {
+    try {
+      const body = buildPhaseIssueBody(spec);
+      const title = `[Phase ${spec.phase_number}]: ${spec.title}`;
+      const projectStatus = void 0;
+      const createResult = await addSubIssueToParent(
+        ctx.owner,
+        ctx.repo,
+        action.issueNumber,
+        { title, body },
+        {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+          octokit: ctx.octokit,
+          projectNumber: ctx.projectNumber,
+          projectStatus
+        }
+      );
+      core17.info(`Created sub-issue #${createResult.issueNumber}: ${title}`);
+      created++;
+    } catch (error8) {
+      core17.error(
+        `Failed to create sub-issue for phase ${spec.phase_number}: ${error8}`
+      );
     }
   }
-  let created = 0;
   let updated = 0;
-  for (const phase of phases) {
-    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
-    const existingSub = existingByPhase.get(phase.phase_number);
-    if (existingSub) {
-      try {
-        const { data: subData, update: subUpdate } = await parseIssue(
-          ctx.owner,
-          ctx.repo,
-          existingSub.number,
-          {
-            octokit: asOctokitLike6(ctx),
-            fetchPRs: false,
-            fetchParent: false
-          }
-        );
-        const existingTodos = extractExistingTodos(subData.issue.bodyAst);
-        const mergedTodos = mergeTodos(phase.todos ?? [], existingTodos);
-        const newBody = buildPhaseIssueBody({
-          ...phase,
-          todos: mergedTodos.map((t) => ({
-            task: t.text,
-            manual: t.manual
-          }))
-        });
-        for (const node2 of newBody.children) {
-          if (node2.type === "list") {
-            for (let i = 0; i < node2.children.length; i++) {
-              const item = node2.children[i];
-              const merged = mergedTodos[i];
-              if (item && merged && item.type === "listItem" && typeof item.checked === "boolean") {
-                item.checked = merged.checked;
-              }
+  for (const spec of reconcileOutput.update) {
+    try {
+      const { data: subData, update: subUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        spec.number,
+        {
+          octokit: asOctokitLike7(ctx),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      const existingTodos = extractExistingTodos(subData.issue.bodyAst);
+      const mergedTodos = mergeTodos(spec.todos ?? [], existingTodos);
+      const newBody = buildPhaseIssueBody({
+        ...spec,
+        todos: mergedTodos.map((t) => ({
+          task: t.text,
+          manual: t.manual
+        }))
+      });
+      for (const node2 of newBody.children) {
+        if (node2.type === "list") {
+          for (let i = 0; i < node2.children.length; i++) {
+            const item = node2.children[i];
+            const merged = mergedTodos[i];
+            if (item && merged && item.type === "listItem" && typeof item.checked === "boolean") {
+              item.checked = merged.checked;
             }
           }
         }
-        await subUpdate({
-          ...subData,
-          issue: {
-            ...subData.issue,
-            title,
-            bodyAst: newBody
-          }
-        });
-        core16.info(
-          `Updated sub-issue #${existingSub.number}: ${title} (${existingTodos.length} existing todos merged)`
-        );
-        updated++;
-      } catch (error8) {
-        core16.error(
-          `Failed to update sub-issue #${existingSub.number} for phase ${phase.phase_number}: ${error8}`
-        );
       }
-    } else {
-      const body = buildPhaseIssueBody(phase);
-      const projectStatus = phase.phase_number === 1 && existingSubIssues.length === 0 ? "Ready" : void 0;
-      try {
-        const result = await addSubIssueToParent(
-          ctx.owner,
-          ctx.repo,
-          parentIssueNumber2,
-          { title, body },
-          {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
-            octokit: ctx.octokit,
-            projectNumber: ctx.projectNumber,
-            projectStatus
-          }
-        );
-        core16.info(`Created sub-issue #${result.issueNumber}: ${title}`);
-        created++;
-      } catch (error8) {
-        core16.error(
-          `Failed to create sub-issue for phase ${phase.phase_number}: ${error8}`
-        );
-      }
+      const title = `[Phase ${spec.phase_number}]: ${spec.title}`;
+      await subUpdate({
+        ...subData,
+        issue: {
+          ...subData.issue,
+          title,
+          bodyAst: newBody
+        }
+      });
+      core17.info(
+        `Updated sub-issue #${spec.number}: ${title} (reason: ${spec.match_reason})`
+      );
+      updated++;
+    } catch (error8) {
+      core17.error(`Failed to update sub-issue #${spec.number}: ${error8}`);
+    }
+  }
+  let deleted = 0;
+  for (const entry of reconcileOutput.delete) {
+    try {
+      await ctx.octokit.rest.issues.createComment({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: entry.number,
+        body: `Closing: this sub-issue was superseded during grooming reconciliation.
+
+**Reason:** ${entry.reason}`
+      });
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: entry.number,
+        state: "closed",
+        state_reason: "not_planned"
+      });
+      core17.info(`Closed sub-issue #${entry.number}: ${entry.reason}`);
+      deleted++;
+    } catch (error8) {
+      core17.error(`Failed to close sub-issue #${entry.number}: ${error8}`);
     }
   }
   const changes = [
     created > 0 ? `${created} created` : "",
-    updated > 0 ? `${updated} updated` : ""
+    updated > 0 ? `${updated} updated` : "",
+    deleted > 0 ? `${deleted} closed` : ""
   ].filter(Boolean).join(", ");
   if (changes) {
     try {
       const { data: parentData, update: parentUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
-        parentIssueNumber2,
+        action.issueNumber,
         {
-          octokit: asOctokitLike6(ctx),
+          octokit: asOctokitLike7(ctx),
           fetchPRs: false,
           fetchParent: false
         }
       );
       const parentState = appendAgentNotes2(
         {
-          runId: `grooming-${Date.now()}`,
+          runId: `reconcile-${Date.now()}`,
           runLink: "",
-          notes: [`Grooming complete. Sub-issues: ${changes}.`]
+          notes: [
+            `Sub-issue reconciliation complete. ${changes}.`,
+            `Reasoning: ${reconcileOutput.reasoning}`
+          ]
         },
         parentData
       );
       if (parentState !== parentData) {
         await parentUpdate(parentState);
       }
-      core16.info(`Updated parent issue #${parentIssueNumber2} with agent notes`);
+      core17.info(
+        `Updated parent issue #${action.issueNumber} with reconciliation notes`
+      );
     } catch (error8) {
-      core16.warning(`Failed to update parent issue body: ${error8}`);
+      core17.warning(`Failed to update parent issue body: ${error8}`);
     }
   }
-  return created + updated;
+  return { reconciled: true, created, updated, deleted };
 }
-function buildPhaseIssueBody(phase) {
-  const children = [];
-  children.push(
-    ...createSection("Description", [createParagraph(phase.description)])
-  );
-  if (phase.affected_areas && phase.affected_areas.length > 0) {
-    const areas = phase.affected_areas.map((area) => {
-      const changeType = area.change_type ? ` (${area.change_type})` : "";
-      const desc = area.description ? ` - ${area.description}` : "";
-      return `\`${area.path}\`${changeType}${desc}`;
-    });
-    children.push(
-      ...createSection("Affected Areas", [createBulletList(areas)])
-    );
+async function createAllPhases(ctx, parentIssueNumber2, phases, isFirstBatch) {
+  let created = 0;
+  for (const phase of phases) {
+    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
+    const body = buildPhaseIssueBody(phase);
+    const projectStatus = phase.phase_number === 1 && isFirstBatch ? "Ready" : void 0;
+    try {
+      const result = await addSubIssueToParent(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber2,
+        { title, body },
+        {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+          octokit: ctx.octokit,
+          projectNumber: ctx.projectNumber,
+          projectStatus
+        }
+      );
+      core17.info(`Created sub-issue #${result.issueNumber}: ${title}`);
+      created++;
+    } catch (error8) {
+      core17.error(
+        `Failed to create sub-issue for phase ${phase.phase_number}: ${error8}`
+      );
+    }
   }
-  if (phase.todos && phase.todos.length > 0) {
-    const todos = phase.todos.map((todo) => ({
-      text: todo.task,
-      checked: false,
-      manual: todo.manual || false
-    }));
-    children.push(...createSection("Todo", [createTodoList(todos)]));
+  if (created > 0) {
+    try {
+      const { data: parentData, update: parentUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber2,
+        {
+          octokit: asOctokitLike7(ctx),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      const parentState = appendAgentNotes2(
+        {
+          runId: `reconcile-${Date.now()}`,
+          runLink: "",
+          notes: [`Grooming complete. Created ${created} sub-issue(s).`]
+        },
+        parentData
+      );
+      if (parentState !== parentData) {
+        await parentUpdate(parentState);
+      }
+    } catch (error8) {
+      core17.warning(`Failed to update parent issue body: ${error8}`);
+    }
   }
-  return { type: "root", children };
+  return created;
 }
 
 // src/runner/executors/pivot.ts
-var core17 = __toESM(require_core(), 1);
+var core18 = __toESM(require_core(), 1);
 var fs12 = __toESM(require("fs"), 1);
-function asOctokitLike7(ctx) {
+function asOctokitLike8(ctx) {
   return ctx.octokit;
 }
 async function executeApplyPivotOutput(action, ctx, structuredOutput) {
   let pivotOutput;
   if (structuredOutput) {
     pivotOutput = parseOutput(PivotOutputSchema, structuredOutput, "pivot");
-    core17.info("Using structured output from in-process chain");
+    core18.info("Using structured output from in-process chain");
   } else if (action.filePath && fs12.existsSync(action.filePath)) {
     const content3 = fs12.readFileSync(action.filePath, "utf-8");
     pivotOutput = parseOutput(
@@ -71927,18 +72239,18 @@ async function executeApplyPivotOutput(action, ctx, structuredOutput) {
       JSON.parse(content3),
       "pivot file"
     );
-    core17.info(`Pivot output from file: ${action.filePath}`);
+    core18.info(`Pivot output from file: ${action.filePath}`);
   } else {
     throw new Error(
       `No structured output provided and file not found at: ${action.filePath}`
     );
   }
-  core17.info(`Applying pivot output for issue #${action.issueNumber}`);
-  core17.startGroup("Pivot Output");
-  core17.info(JSON.stringify(pivotOutput, null, 2));
-  core17.endGroup();
+  core18.info(`Applying pivot output for issue #${action.issueNumber}`);
+  core18.startGroup("Pivot Output");
+  core18.info(JSON.stringify(pivotOutput, null, 2));
+  core18.endGroup();
   if (pivotOutput.outcome === "needs_clarification") {
-    core17.info("Pivot needs clarification - posting comment and exiting");
+    core18.info("Pivot needs clarification - posting comment and exiting");
     await createComment(
       ctx.owner,
       ctx.repo,
@@ -71948,12 +72260,12 @@ async function executeApplyPivotOutput(action, ctx, structuredOutput) {
 ${pivotOutput.clarification_needed || pivotOutput.summary_for_user}
 
 *Please provide more details and try again.*`,
-      asOctokitLike7(ctx)
+      asOctokitLike8(ctx)
     );
     return { applied: false, changesApplied: 0 };
   }
   if (pivotOutput.outcome === "no_changes_needed") {
-    core17.info("No changes needed");
+    core18.info("No changes needed");
     await createComment(
       ctx.owner,
       ctx.repo,
@@ -71963,7 +72275,7 @@ ${pivotOutput.clarification_needed || pivotOutput.summary_for_user}
 ${pivotOutput.summary_for_user}
 
 *No changes were required.*`,
-      asOctokitLike7(ctx)
+      asOctokitLike8(ctx)
     );
     return { applied: true, changesApplied: 0 };
   }
@@ -71985,7 +72297,7 @@ ${pivotOutput.summary_for_user}
   const newSubIssueCount = mods?.new_sub_issues?.length ?? 0;
   changesApplied += newSubIssueCount;
   if (ctx.dryRun) {
-    core17.info(`[DRY RUN] Would apply ${changesApplied} pivot changes`);
+    core18.info(`[DRY RUN] Would apply ${changesApplied} pivot changes`);
     return { applied: true, changesApplied };
   }
   if (mods?.parent_issue?.update_sections) {
@@ -71994,7 +72306,7 @@ ${pivotOutput.summary_for_user}
       ctx.repo,
       action.issueNumber,
       {
-        octokit: asOctokitLike7(ctx),
+        octokit: asOctokitLike8(ctx),
         fetchPRs: false,
         fetchParent: false
       }
@@ -72003,7 +72315,7 @@ ${pivotOutput.summary_for_user}
     for (const [section, content3] of Object.entries(
       mods.parent_issue.update_sections
     )) {
-      core17.info(`Updating parent issue section "${section}"`);
+      core18.info(`Updating parent issue section "${section}"`);
       const sectionAst = parseMarkdown(content3);
       const sectionContent = (
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast children are RootContent[]
@@ -72015,18 +72327,18 @@ ${pivotOutput.summary_for_user}
       );
     }
     await parentUpdate(parentState);
-    core17.info(`Updated parent issue body`);
+    core18.info(`Updated parent issue body`);
   }
   if (mods?.sub_issues) {
     for (const subIssue of mods.sub_issues) {
       if (subIssue.action === "skip") continue;
-      core17.info(`Modifying sub-issue #${subIssue.issue_number}`);
+      core18.info(`Modifying sub-issue #${subIssue.issue_number}`);
       const { data: subData, update: subUpdate } = await parseIssue(
         ctx.owner,
         ctx.repo,
         subIssue.issue_number,
         {
-          octokit: asOctokitLike7(ctx),
+          octokit: asOctokitLike8(ctx),
           fetchPRs: false,
           fetchParent: false
         }
@@ -72045,11 +72357,11 @@ ${pivotOutput.summary_for_user}
         );
       }
       await subUpdate(subState);
-      core17.info(`Updated sub-issue #${subIssue.issue_number}`);
+      core18.info(`Updated sub-issue #${subIssue.issue_number}`);
     }
   }
   if (mods?.new_sub_issues && mods.new_sub_issues.length > 0) {
-    core17.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
+    core18.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
     for (const newSubIssue of mods.new_sub_issues) {
       const todoList = newSubIssue.todos.map((t) => `- [ ] ${t}`).join("\n");
       const bodyText = `${newSubIssue.description}
@@ -72066,14 +72378,14 @@ ${todoList}`;
           { title: newSubIssue.title, body: bodyAst },
           {
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
-            octokit: asOctokitLike7(ctx)
+            octokit: asOctokitLike8(ctx)
           }
         );
-        core17.info(
+        core18.info(
           `Created sub-issue #${result.issueNumber}: ${newSubIssue.title} (${newSubIssue.reason})`
         );
       } catch (error8) {
-        core17.warning(`Failed to create sub-issue: ${error8}`);
+        core18.warning(`Failed to create sub-issue: ${error8}`);
       }
     }
   }
@@ -72086,9 +72398,9 @@ ${todoList}`;
 ${pivotOutput.summary_for_user}
 
 *${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`,
-    asOctokitLike7(ctx)
+    asOctokitLike8(ctx)
   );
-  core17.info(`Applied ${changesApplied} pivot changes`);
+  core18.info(`Applied ${changesApplied} pivot changes`);
   return { applied: true, changesApplied };
 }
 
@@ -72103,7 +72415,7 @@ var ACTION_REGISTRY = {
   // Issue actions
   closeIssue: executeCloseIssue,
   reopenIssue: (action) => {
-    core18.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
+    core19.info(`Reopen issue #${action.issueNumber} - handled by resetIssue`);
     return Promise.resolve({ reopened: true });
   },
   resetIssue: executeResetIssue,
@@ -72148,6 +72460,11 @@ var ACTION_REGISTRY = {
   // Grooming actions
   runClaudeGrooming: executeRunClaudeGrooming,
   applyGroomingOutput: (action, ctx, chainCtx) => executeApplyGroomingOutput(
+    action,
+    ctx,
+    getStructuredOutput(action, chainCtx)
+  ),
+  reconcileSubIssues: (action, ctx, chainCtx) => executeReconcileSubIssues(
     action,
     ctx,
     getStructuredOutput(action, chainCtx)
@@ -72197,27 +72514,27 @@ var ACTION_REGISTRY = {
   updateDiscussionSummary: executeUpdateDiscussionSummary,
   // Control flow actions (inlined)
   stop: (action) => {
-    core18.info(`Stopping: ${action.reason}`);
+    core19.info(`Stopping: ${action.reason}`);
     return Promise.resolve({ stopped: true, reason: action.reason });
   },
   log: (action) => {
     switch (action.level) {
       case "debug":
-        core18.debug(action.message);
+        core19.debug(action.message);
         break;
       case "warning":
-        core18.warning(action.message);
+        core19.warning(action.message);
         break;
       case "error":
-        core18.error(action.message);
+        core19.error(action.message);
         break;
       default:
-        core18.info(action.message);
+        core19.info(action.message);
     }
     return Promise.resolve({ logged: true });
   },
   noop: (action) => {
-    core18.debug(`No-op: ${action.reason || "no reason given"}`);
+    core19.debug(`No-op: ${action.reason || "no reason given"}`);
     return Promise.resolve({ noop: true });
   }
 };
@@ -72247,7 +72564,7 @@ async function executeActions(actions, ctx, options = {}) {
     const actionStartTime = Date.now();
     const parseResult = ActionSchema.safeParse(action);
     if (!parseResult.success) {
-      core19.error(`Invalid action: ${JSON.stringify(action)}`);
+      core20.error(`Invalid action: ${JSON.stringify(action)}`);
       results.push({
         action,
         success: false,
@@ -72264,10 +72581,10 @@ async function executeActions(actions, ctx, options = {}) {
     }
     const validatedAction = parseResult.data;
     if (logActions) {
-      core19.info(`Executing action: ${validatedAction.type}`);
+      core20.info(`Executing action: ${validatedAction.type}`);
     }
     if (ctx.dryRun) {
-      core19.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      core20.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
       results.push({
         action: validatedAction,
         success: true,
@@ -72282,15 +72599,19 @@ async function executeActions(actions, ctx, options = {}) {
         const claudeResult = result;
         if (claudeResult.structuredOutput) {
           chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core19.info("Stored structured output for subsequent actions");
+          core20.info("Stored structured output for subsequent actions");
         }
       }
       if (validatedAction.type === "runClaudeGrooming") {
         const groomingResult = result;
         if (groomingResult.outputs) {
           chainCtx.lastClaudeStructuredOutput = groomingResult.outputs;
-          core19.info("Stored grooming outputs for subsequent actions");
+          core20.info("Stored grooming outputs for subsequent actions");
         }
+      }
+      if (validatedAction.type === "applyGroomingOutput") {
+        chainCtx.lastClaudeStructuredOutput = result;
+        core20.info("Stored grooming decision for subsequent reconcileSubIssues");
       }
       const branchResult = result;
       if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
@@ -72303,7 +72624,7 @@ async function executeActions(actions, ctx, options = {}) {
         });
         stoppedEarly = true;
         stopReason = "branch_rebased_and_pushed";
-        core19.info(
+        core20.info(
           "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
         );
         break;
@@ -72322,7 +72643,7 @@ async function executeActions(actions, ctx, options = {}) {
       }
     } catch (error8) {
       const err = error8 instanceof Error ? error8 : new Error(String(error8));
-      core19.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      core20.error(`Action failed: ${validatedAction.type} - ${err.message}`);
       results.push({
         action: validatedAction,
         success: false,
@@ -72359,40 +72680,40 @@ function createRunnerContext(octokit, owner, repo, projectNumber, options = {}) 
   };
 }
 function logRunnerSummary(result) {
-  core19.info("=".repeat(60));
-  core19.info("Runner Summary");
-  core19.info("=".repeat(60));
-  core19.info(`Total actions: ${result.results.length}`);
-  core19.info(`Successful: ${result.results.filter((r) => r.success).length}`);
-  core19.info(
+  core20.info("=".repeat(60));
+  core20.info("Runner Summary");
+  core20.info("=".repeat(60));
+  core20.info(`Total actions: ${result.results.length}`);
+  core20.info(`Successful: ${result.results.filter((r) => r.success).length}`);
+  core20.info(
     `Failed: ${result.results.filter((r) => !r.success && !r.skipped).length}`
   );
-  core19.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
-  core19.info(`Total duration: ${result.totalDurationMs}ms`);
+  core20.info(`Skipped: ${result.results.filter((r) => r.skipped).length}`);
+  core20.info(`Total duration: ${result.totalDurationMs}ms`);
   if (result.stoppedEarly) {
-    core19.info(`Stopped early: ${result.stopReason}`);
+    core20.info(`Stopped early: ${result.stopReason}`);
   }
-  core19.info("=".repeat(60));
+  core20.info("=".repeat(60));
   for (const actionResult of result.results) {
     const status = actionResult.skipped ? "SKIPPED" : actionResult.success ? "SUCCESS" : "FAILED";
     const duration3 = `${actionResult.durationMs}ms`;
-    core19.info(
+    core20.info(
       `  ${status.padEnd(8)} ${actionResult.action.type.padEnd(25)} ${duration3}`
     );
     if (actionResult.error) {
-      core19.error(`    Error: ${actionResult.error.message}`);
+      core20.error(`    Error: ${actionResult.error.message}`);
     }
   }
 }
 
 // src/runner/derive.ts
-var core21 = __toESM(require_core(), 1);
+var core22 = __toESM(require_core(), 1);
 
 // src/discussion/context-builder.ts
-var core20 = __toESM(require_core(), 1);
+var core21 = __toESM(require_core(), 1);
 async function buildDiscussionContext2(octokit, owner, repo, discussionNumber, trigger, options = {}) {
   try {
-    core20.info(`Fetching discussion #${discussionNumber}`);
+    core21.info(`Fetching discussion #${discussionNumber}`);
     const response = await octokit.graphql(
       GET_DISCUSSION_QUERY,
       {
@@ -72403,7 +72724,7 @@ async function buildDiscussionContext2(octokit, owner, repo, discussionNumber, t
     );
     const discussionData = response.repository?.discussion;
     if (!discussionData || !discussionData.id) {
-      core20.error(`Discussion #${discussionNumber} not found`);
+      core21.error(`Discussion #${discussionNumber} not found`);
       return null;
     }
     const researchThreads = [];
@@ -72434,9 +72755,9 @@ async function buildDiscussionContext2(octokit, owner, repo, discussionNumber, t
       commentBody: options.commentBody,
       commentAuthor: options.commentAuthor
     };
-    core20.info(`Discussion fetched: "${discussion.title}"`);
-    core20.info(`Comments: ${discussion.commentCount}`);
-    core20.info(`Research threads: ${researchThreads.length}`);
+    core21.info(`Discussion fetched: "${discussion.title}"`);
+    core21.info(`Comments: ${discussion.commentCount}`);
+    core21.info(`Research threads: ${researchThreads.length}`);
     return createDiscussionContext({
       trigger,
       owner,
@@ -72447,7 +72768,7 @@ async function buildDiscussionContext2(octokit, owner, repo, discussionNumber, t
     });
   } catch (error8) {
     const errorMessage = error8 instanceof Error ? error8.message : String(error8);
-    core20.error(`Failed to build discussion context: ${errorMessage}`);
+    core21.error(`Failed to build discussion context: ${errorMessage}`);
     return null;
   }
 }
@@ -73032,7 +73353,7 @@ async function deriveIssueActions(options) {
   const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
   const runId = process.env.GITHUB_RUN_ID;
   const workflowRunUrl = runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null;
-  core21.info(`Derive issue actions: issue=#${issueNumber}, trigger=${trigger}`);
+  core22.info(`Derive issue actions: issue=#${issueNumber}, trigger=${trigger}`);
   const eventType = TRIGGER_TO_EVENT_TYPE[trigger] || trigger;
   const event = {
     type: eventType,
@@ -73066,7 +73387,7 @@ async function deriveIssueActions(options) {
   if (!context2) {
     return null;
   }
-  core21.info(
+  core22.info(
     `Context built: status=${context2.issue.projectStatus}, iteration=${context2.issue.iteration}`
   );
   const iteration = String(context2.issue.iteration ?? 0);
@@ -73089,7 +73410,7 @@ async function deriveIssueActions(options) {
   const finalState = String(snapshot.value);
   const pendingActions = snapshot.context.pendingActions;
   const transitionName = getTransitionName(finalState);
-  core21.info(
+  core22.info(
     `Machine: state=${finalState}, transition=${transitionName}, actions=${pendingActions.length}`
   );
   actor.stop();
@@ -73119,7 +73440,7 @@ async function deriveDiscussionActions(options) {
   const commentId = ctx.comment_id || void 0;
   const commentBody = ctx.comment_body || void 0;
   const commentAuthor = ctx.comment_author || void 0;
-  core21.info(
+  core22.info(
     `Derive discussion actions: discussion=#${discussionNumber}, trigger=${trigger}`
   );
   let command = ctx.command;
@@ -73144,14 +73465,14 @@ async function deriveDiscussionActions(options) {
   if (!context2) {
     return null;
   }
-  core21.info(`Discussion context built: title=${context2.discussion.title}`);
+  core22.info(`Discussion context built: title=${context2.discussion.title}`);
   const actor = createActor(discussionMachine, { input: context2 });
   actor.start();
   const snapshot = actor.getSnapshot();
   const finalState = String(snapshot.value);
   const pendingActions = snapshot.context.pendingActions;
   const transitionName = getTransitionName(finalState);
-  core21.info(
+  core22.info(
     `Machine: state=${finalState}, transition=${transitionName}, actions=${pendingActions.length}`
   );
   actor.stop();
@@ -73171,7 +73492,7 @@ async function deriveDiscussionActions(options) {
 }
 
 // src/test-runner/poller.ts
-var core22 = __toESM(require_core(), 1);
+var core23 = __toESM(require_core(), 1);
 var exec7 = __toESM(require_exec(), 1);
 
 // src/test-runner/configurable/types.ts
@@ -73353,7 +73674,7 @@ var ConfigurableTestResultSchema = external_exports.object({
 });
 
 // src/test-runner/configurable/loader.ts
-var core23 = __toESM(require_core(), 1);
+var core24 = __toESM(require_core(), 1);
 
 // src/discussion/actions.ts
 var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
@@ -73458,19 +73779,19 @@ var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
 ]);
 
 // src/action-utils.ts
-var core24 = __toESM(require_core(), 1);
+var core25 = __toESM(require_core(), 1);
 var exec9 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
-  const value = core24.getInput(name);
+  const value = core25.getInput(name);
   return value === "" ? void 0 : value;
 }
 function getRequiredInput(name) {
-  return core24.getInput(name, { required: true });
+  return core25.getInput(name, { required: true });
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== void 0) {
-      core24.setOutput(key, value);
+      core25.setOutput(key, value);
     }
   }
 }
@@ -73527,7 +73848,7 @@ function determineOutcome(params) {
 }
 
 // actions/sm-run/index.ts
-function asOctokitLike8(octokit) {
+function asOctokitLike9(octokit) {
   return octokit;
 }
 function shouldRetrigger(finalState, actions, continueFlag) {
@@ -73570,7 +73891,7 @@ function getExecutionBranch(actions, ctx) {
 }
 async function logRunStart(octokit, owner, repo, issueNumber, iteration, phase, dryRun) {
   if (dryRun) {
-    core25.info("[DRY RUN] Would log run start");
+    core26.info("[DRY RUN] Would log run start");
     return;
   }
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
@@ -73580,7 +73901,7 @@ async function logRunStart(octokit, owner, repo, issueNumber, iteration, phase, 
   const repoUrl = `${serverUrl}/${owner}/${repo}`;
   try {
     const { data, update } = await parseIssue(owner, repo, issueNumber, {
-      octokit: asOctokitLike8(octokit),
+      octokit: asOctokitLike9(octokit),
       fetchPRs: false,
       fetchParent: false
     });
@@ -73596,14 +73917,14 @@ async function logRunStart(octokit, owner, repo, issueNumber, iteration, phase, 
       data
     );
     await update(state);
-    core25.info(`Logged run start for issue #${issueNumber}`);
+    core26.info(`Logged run start for issue #${issueNumber}`);
   } catch (error8) {
-    core25.warning(`Failed to log run start: ${error8}`);
+    core26.warning(`Failed to log run start: ${error8}`);
   }
 }
 async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSuccess, dryRun) {
   if (dryRun) {
-    core25.info("[DRY RUN] Would log run end");
+    core26.info("[DRY RUN] Would log run end");
     return;
   }
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
@@ -73623,12 +73944,12 @@ async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSu
     commitSha: deriveResult.commitSha || void 0,
     repoUrl
   });
-  core25.info(`Outcome: ${outcome.emoji} ${outcome.status}`);
+  core26.info(`Outcome: ${outcome.emoji} ${outcome.status}`);
   const iteration = parseInt(deriveResult.iteration, 10);
   const newMessage = `${outcome.emoji} ${outcome.transition}`;
   try {
     const { data, update } = await parseIssue(owner, repo, issueNumber, {
-      octokit: asOctokitLike8(octokit),
+      octokit: asOctokitLike9(octokit),
       fetchPRs: false,
       fetchParent: false
     });
@@ -73647,7 +73968,7 @@ async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSu
       data
     );
     if (state === data) {
-      core25.info(
+      core26.info(
         `No matching history entry found - adding new entry for Phase ${deriveResult.phase}`
       );
       state = addHistoryEntry2(
@@ -73664,7 +73985,7 @@ async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSu
       );
     }
     await update(state);
-    core25.info(`Updated history for issue #${issueNumber}`);
+    core26.info(`Updated history for issue #${issueNumber}`);
     if (parentNumber) {
       try {
         const { data: parentData, update: parentUpdate } = await parseIssue(
@@ -73672,7 +73993,7 @@ async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSu
           repo,
           parentNumber,
           {
-            octokit: asOctokitLike8(octokit),
+            octokit: asOctokitLike9(octokit),
             fetchPRs: false,
             fetchParent: false
           }
@@ -73705,15 +74026,15 @@ async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSu
           );
         }
         await parentUpdate(parentState);
-        core25.info(`Also updated parent issue #${parentNumber}`);
+        core26.info(`Also updated parent issue #${parentNumber}`);
       } catch (error8) {
-        core25.warning(
+        core26.warning(
           `Failed to update parent issue #${parentNumber}: ${error8}`
         );
       }
     }
   } catch (error8) {
-    core25.warning(`Failed to log run end: ${error8}`);
+    core26.warning(`Failed to log run end: ${error8}`);
   }
 }
 async function e2eSimulateReview(octokit, owner, repo, prNumber, reviewOutcome) {
@@ -73735,7 +74056,7 @@ async function e2eSimulateReview(octokit, owner, repo, prNumber, reviewOutcome) 
   if (!mapped) {
     throw new Error(`Unknown E2E review outcome: ${reviewOutcome}`);
   }
-  core25.info(
+  core26.info(
     `[E2E MODE] Simulating review with outcome=${reviewOutcome} (event=${mapped.event})`
   );
   await octokit.rest.pulls.createReview({
@@ -73745,7 +74066,7 @@ async function e2eSimulateReview(octokit, owner, repo, prNumber, reviewOutcome) 
     event: mapped.event,
     body: mapped.body
   });
-  core25.info(`[E2E MODE] Simulated review submitted: ${mapped.event}`);
+  core26.info(`[E2E MODE] Simulated review submitted: ${mapped.event}`);
 }
 async function e2eFilterActions(actions, reviewOctokit, codeOctokit, owner, repo, e2eReviewOutcome) {
   const filtered = [];
@@ -73762,14 +74083,14 @@ async function e2eFilterActions(actions, reviewOctokit, codeOctokit, owner, repo
           e2eReviewOutcome
         );
       } else {
-        core25.warning(
+        core26.warning(
           "[E2E MODE] runClaude review action missing PR_NUMBER, skipping simulation"
         );
       }
       continue;
     }
     if (action.type === "runClaude" || action.type === "runClaudeGrooming") {
-      core25.info(
+      core26.info(
         `[E2E MODE] Skipping ${action.type} action (Claude CLI not installed in E2E mode)`
       );
       continue;
@@ -73781,7 +74102,7 @@ async function e2eFilterActions(actions, reviewOctokit, codeOctokit, owner, repo
 async function executeAllActions(actions, codeOctokit, reviewOctokit, owner, repo, projectNumber, dryRun, e2eMode, e2eReviewOutcome) {
   let actionsToRun = actions;
   if (e2eMode) {
-    core25.info("[E2E MODE] Pre-processing actions for E2E simulation");
+    core26.info("[E2E MODE] Pre-processing actions for E2E simulation");
     actionsToRun = await e2eFilterActions(
       actions,
       reviewOctokit,
@@ -73790,7 +74111,7 @@ async function executeAllActions(actions, codeOctokit, reviewOctokit, owner, rep
       repo,
       e2eReviewOutcome
     );
-    core25.info(
+    core26.info(
       `[E2E MODE] ${actions.length - actionsToRun.length} action(s) handled by E2E simulation, ${actionsToRun.length} remaining`
     );
   }
@@ -73813,17 +74134,17 @@ async function switchToBranch(branch) {
     const { execSync } = await import("node:child_process");
     execSync(`git fetch origin ${branch}`, { stdio: "pipe" });
     execSync(`git checkout ${branch}`, { stdio: "pipe" });
-    core25.info(`Switched to branch: ${branch}`);
+    core26.info(`Switched to branch: ${branch}`);
     return true;
   } catch (error8) {
-    core25.warning(`Failed to switch to branch ${branch}: ${error8}`);
+    core26.warning(`Failed to switch to branch ${branch}: ${error8}`);
     return false;
   }
 }
 function writeStepSummary(deriveResult, execSuccess, ctx, dryRun) {
   const dryRunBadge = dryRun ? " (DRY RUN)" : "";
   const actionsJson = JSON.stringify(deriveResult.pendingActions, null, 2);
-  core25.summary.addHeading(
+  core26.summary.addHeading(
     `State Machine - ${deriveResult.transitionName}${dryRunBadge}`,
     1
   ).addTable([
@@ -73857,18 +74178,18 @@ async function run() {
     const ctx = parseWorkflowContext(contextJsonInput);
     const trigger = ctx.trigger;
     const isDiscussion = isDiscussionTrigger(trigger);
-    core25.info("=".repeat(60));
-    core25.info("State Machine Runner (unified)");
-    core25.info("=".repeat(60));
-    core25.info(`Job: ${ctx.job}`);
-    core25.info(`Trigger: ${trigger}`);
-    core25.info(`Resource: ${ctx.resource_type} #${ctx.resource_number}`);
-    core25.info(`Dry run: ${dryRun}`);
-    core25.info(`E2E mode: ${e2eMode}`);
+    core26.info("=".repeat(60));
+    core26.info("State Machine Runner (unified)");
+    core26.info("=".repeat(60));
+    core26.info(`Job: ${ctx.job}`);
+    core26.info(`Trigger: ${trigger}`);
+    core26.info(`Resource: ${ctx.resource_type} #${ctx.resource_number}`);
+    core26.info(`Dry run: ${dryRun}`);
+    core26.info(`E2E mode: ${e2eMode}`);
     const codeOctokit = github.getOctokit(codeToken);
     const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : void 0;
     const { owner, repo } = github.context.repo;
-    core25.startGroup("Step 1: Derive Actions");
+    core26.startGroup("Step 1: Derive Actions");
     let deriveResult;
     if (isDiscussion) {
       deriveResult = await deriveDiscussionActions({
@@ -73895,31 +74216,31 @@ async function run() {
       });
     }
     if (!deriveResult) {
-      core25.setFailed("Failed to build machine context");
+      core26.setFailed("Failed to build machine context");
       return;
     }
-    core25.info(`Final state: ${deriveResult.finalState}`);
-    core25.info(`Transition: ${deriveResult.transitionName}`);
-    core25.info(`Actions: ${deriveResult.pendingActions.length}`);
+    core26.info(`Final state: ${deriveResult.finalState}`);
+    core26.info(`Transition: ${deriveResult.transitionName}`);
+    core26.info(`Actions: ${deriveResult.pendingActions.length}`);
     if (deriveResult.pendingActions.length > 0) {
-      core25.info(
+      core26.info(
         `Types: ${deriveResult.pendingActions.map((a) => a.type).join(", ")}`
       );
     }
-    core25.endGroup();
+    core26.endGroup();
     const skipLogging = isDiscussion || ctx.job === "merge-queue-logging";
     const issueNumber = parseInt(
       deriveResult.parentIssueNumber || ctx.issue_number || "0",
       10
     );
     if (!skipLogging && issueNumber > 0) {
-      core25.startGroup("Step 2: Log Run Start");
-      core25.saveState("issue_number", String(issueNumber));
-      core25.saveState("iteration", deriveResult.iteration);
-      core25.saveState("phase", deriveResult.phase);
-      core25.saveState("code_token_input", "github_code_token");
-      core25.saveState("transition_name", deriveResult.transitionName);
-      core25.saveState("dry_run", String(dryRun));
+      core26.startGroup("Step 2: Log Run Start");
+      core26.saveState("issue_number", String(issueNumber));
+      core26.saveState("iteration", deriveResult.iteration);
+      core26.saveState("phase", deriveResult.phase);
+      core26.saveState("code_token_input", "github_code_token");
+      core26.saveState("transition_name", deriveResult.transitionName);
+      core26.saveState("dry_run", String(dryRun));
       await logRunStart(
         codeOctokit,
         owner,
@@ -73929,18 +74250,18 @@ async function run() {
         deriveResult.phase,
         dryRun
       );
-      core25.endGroup();
+      core26.endGroup();
     }
     let execSuccess = true;
     const actions = deriveResult.pendingActions;
     if (actions.length > 0) {
-      core25.startGroup("Step 3: Execute Actions");
+      core26.startGroup("Step 3: Execute Actions");
       const executionBranch = getExecutionBranch(actions, ctx);
       if (executionBranch) {
-        core25.info(`Switching to execution branch: ${executionBranch}`);
+        core26.info(`Switching to execution branch: ${executionBranch}`);
         const switched = await switchToBranch(executionBranch);
         if (!switched) {
-          core25.warning(
+          core26.warning(
             `Could not switch to branch ${executionBranch}, continuing on current branch`
           );
         }
@@ -73961,14 +74282,14 @@ async function run() {
         const failedCount = result.results.filter(
           (r) => !r.success && !r.skipped
         ).length;
-        core25.error(`${failedCount} action(s) failed`);
+        core26.error(`${failedCount} action(s) failed`);
       }
-      core25.endGroup();
+      core26.endGroup();
     } else {
-      core25.info("No actions to execute");
+      core26.info("No actions to execute");
     }
     if (!skipLogging && issueNumber > 0) {
-      core25.startGroup("Step 4: Log Run End");
+      core26.startGroup("Step 4: Log Run End");
       await logRunEnd(
         codeOctokit,
         owner,
@@ -73978,7 +74299,7 @@ async function run() {
         execSuccess,
         dryRun
       );
-      core25.endGroup();
+      core26.endGroup();
     }
     const retrigger = execSuccess && !dryRun && shouldRetrigger(deriveResult.finalState, actions, continueFlag);
     setOutputs({
@@ -73992,13 +74313,13 @@ async function run() {
     });
     writeStepSummary(deriveResult, execSuccess, ctx, dryRun);
     if (!execSuccess) {
-      core25.setFailed("Action execution failed. Check logs for details.");
+      core26.setFailed("Action execution failed. Check logs for details.");
     }
   } catch (error8) {
     if (error8 instanceof Error) {
-      core25.setFailed(error8.message);
+      core26.setFailed(error8.message);
     } else {
-      core25.setFailed("An unexpected error occurred");
+      core26.setFailed("An unexpected error occurred");
     }
   }
 }

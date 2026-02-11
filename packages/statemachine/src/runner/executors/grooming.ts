@@ -7,18 +7,7 @@
 import * as core from "@actions/core";
 import * as fs from "fs";
 import type { Root, RootContent, List } from "mdast";
-import {
-  addSubIssueToParent,
-  createSection,
-  createParagraph,
-  createBulletList,
-  createTodoList,
-  parseIssue,
-  parseMarkdown,
-  type OctokitLike,
-  type ProjectStatus,
-  type SubIssueData,
-} from "@more/issue-state";
+import { parseIssue, parseMarkdown, type OctokitLike } from "@more/issue-state";
 import { executeClaudeSDK, resolvePrompt } from "@more/claude";
 import type {
   RunClaudeGroomingAction,
@@ -39,7 +28,7 @@ import {
   parseOutput,
   type CombinedGroomingOutput,
   type GroomingSummaryOutput,
-  type RecommendedPhase,
+  type SubIssueSpec,
 } from "./output-schemas.js";
 
 // Helper to cast RunnerContext octokit to OctokitLike
@@ -164,7 +153,11 @@ export async function executeApplyGroomingOutput(
   action: ApplyGroomingOutputAction,
   ctx: RunnerContext,
   structuredOutput?: unknown,
-): Promise<{ applied: boolean; decision: string; subIssuesCreated?: number }> {
+): Promise<{
+  applied: boolean;
+  decision: string;
+  recommendedPhases?: SubIssueSpec[];
+}> {
   let groomingOutput: CombinedGroomingOutput;
 
   // Try structured output first, then fall back to file
@@ -226,9 +219,6 @@ export async function executeApplyGroomingOutput(
   core.info(
     `Grooming decision: ${decision} (agents=${allAgentsReady}, bodyQuestions=${questionStats.unanswered} unanswered)`,
   );
-
-  // Track sub-issues created
-  let subIssuesCreated = 0;
 
   // Always run the summary to consolidate questions and update the body,
   // regardless of the decision. This keeps the Questions section current.
@@ -303,25 +293,21 @@ export async function executeApplyGroomingOutput(
       core.warning(`Failed to add 'groomed' label: ${error}`);
     }
 
-    // Upsert sub-issues from engineer's recommended phases.
-    // Merges with existing sub-issues instead of creating duplicates.
+    // Extract recommended phases to pass forward to reconcileSubIssues action
     const engineerOutput = parseOutput(
       EngineerOutputSchema,
       groomingOutput.engineer,
       "engineer",
     );
-    core.info(
-      `Upserting ${engineerOutput.recommended_phases.length} sub-issues`,
-    );
-    subIssuesCreated = await upsertSubIssuesForPhases(
-      ctx,
-      action.issueNumber,
-      engineerOutput.recommended_phases,
-      readyData.issue.subIssues,
-    );
+
+    return {
+      applied: true,
+      decision,
+      recommendedPhases: engineerOutput.recommended_phases,
+    };
   }
 
-  return { applied: true, decision, subIssuesCreated };
+  return { applied: true, decision };
 }
 
 // ============================================================================
@@ -527,329 +513,4 @@ export function buildQuestionsContent(
   };
 
   return [list];
-}
-
-// ============================================================================
-// Sub-Issue Upsert
-// ============================================================================
-
-/**
- * Parse `[Phase N]` from a sub-issue title. Returns the phase number or null.
- */
-function parsePhaseNumber(title: string): number | null {
-  const match = /^\[Phase\s+(\d+)\]/.exec(title);
-  return match?.[1] ? parseInt(match[1], 10) : null;
-}
-
-/**
- * Extract todo items from a sub-issue's body AST.
- * Returns an array of { text, checked } for merging.
- */
-function extractExistingTodos(
-  bodyAst: Root,
-): Array<{ text: string; checked: boolean }> {
-  const result: Array<{ text: string; checked: boolean }> = [];
-  for (const node of bodyAst.children) {
-    if (node.type === "heading") {
-      const firstChild = node.children[0];
-      if (
-        firstChild?.type === "text" &&
-        (firstChild.value === "Todo" || firstChild.value === "Todos")
-      ) {
-        // The list should be the next sibling — but we found the heading,
-        // so just continue scanning
-        continue;
-      }
-    }
-    if (node.type === "list") {
-      for (const item of node.children) {
-        if (item.type === "listItem" && typeof item.checked === "boolean") {
-          // Get text from the list item's paragraph children
-          const text = item.children
-            .map((child) => {
-              if ("children" in child && Array.isArray(child.children)) {
-                return child.children
-                  .map((n) => {
-                    if (n.type === "text") return n.value;
-                    if (n.type === "inlineCode") return n.value;
-                    return "";
-                  })
-                  .join("");
-              }
-              return "";
-            })
-            .join("");
-          result.push({ text, checked: item.checked });
-        }
-      }
-    }
-  }
-  return result;
-}
-
-/**
- * Normalize todo text for comparison (lowercase, collapse whitespace).
- */
-function normalizeTodoText(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-/**
- * Build a merged todo list for a sub-issue.
- * - Preserves checked state from existing todos
- * - Adds new todos that don't match any existing ones
- */
-function mergeTodos(
-  newTodos: Array<{ task: string; manual?: boolean }>,
-  existingTodos: Array<{ text: string; checked: boolean }>,
-): Array<{ text: string; checked: boolean; manual: boolean }> {
-  const existingByNorm = new Map<string, { text: string; checked: boolean }>();
-  for (const t of existingTodos) {
-    existingByNorm.set(normalizeTodoText(t.text), t);
-  }
-
-  const merged: Array<{ text: string; checked: boolean; manual: boolean }> = [];
-  const usedExisting = new Set<string>();
-
-  // Process new todos: check if they match existing ones
-  for (const newTodo of newTodos) {
-    const norm = normalizeTodoText(newTodo.task);
-    const existing = existingByNorm.get(norm);
-    if (existing) {
-      // Preserve the existing checked state
-      merged.push({
-        text: newTodo.task,
-        checked: existing.checked,
-        manual: newTodo.manual || false,
-      });
-      usedExisting.add(norm);
-    } else {
-      merged.push({
-        text: newTodo.task,
-        checked: false,
-        manual: newTodo.manual || false,
-      });
-    }
-  }
-
-  // Preserve existing todos not in the new list (user may have added custom ones)
-  for (const existing of existingTodos) {
-    const norm = normalizeTodoText(existing.text);
-    if (!usedExisting.has(norm)) {
-      merged.push({
-        text: existing.text,
-        checked: existing.checked,
-        manual: false,
-      });
-    }
-  }
-
-  return merged;
-}
-
-/**
- * Upsert sub-issues for each recommended phase.
- * Matches existing sub-issues by [Phase N] prefix and updates them
- * instead of creating duplicates. New phases get new sub-issues.
- */
-async function upsertSubIssuesForPhases(
-  ctx: RunnerContext,
-  parentIssueNumber: number,
-  phases: RecommendedPhase[],
-  existingSubIssues: SubIssueData[],
-): Promise<number> {
-  // Build a map of phase number → existing sub-issue
-  const existingByPhase = new Map<number, SubIssueData>();
-  for (const sub of existingSubIssues) {
-    const phaseNum = parsePhaseNumber(sub.title);
-    if (phaseNum !== null) {
-      existingByPhase.set(phaseNum, sub);
-    }
-  }
-
-  let created = 0;
-  let updated = 0;
-
-  for (const phase of phases) {
-    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
-    const existingSub = existingByPhase.get(phase.phase_number);
-
-    if (existingSub) {
-      // Update existing sub-issue
-      try {
-        const { data: subData, update: subUpdate } = await parseIssue(
-          ctx.owner,
-          ctx.repo,
-          existingSub.number,
-          {
-            octokit: asOctokitLike(ctx),
-            fetchPRs: false,
-            fetchParent: false,
-          },
-        );
-
-        // Merge todos: preserve checked state from existing
-        const existingTodos = extractExistingTodos(subData.issue.bodyAst);
-        const mergedTodos = mergeTodos(phase.todos ?? [], existingTodos);
-
-        // Build fresh body with merged content
-        const newBody = buildPhaseIssueBody({
-          ...phase,
-          todos: mergedTodos.map((t) => ({
-            task: t.text,
-            manual: t.manual,
-          })),
-        });
-
-        // Rebuild with merged todo checked states
-        // createTodoList always sets checked=false, so we need to fix that
-        for (const node of newBody.children) {
-          if (node.type === "list") {
-            for (let i = 0; i < node.children.length; i++) {
-              const item = node.children[i];
-              const merged = mergedTodos[i];
-              if (
-                item &&
-                merged &&
-                item.type === "listItem" &&
-                typeof item.checked === "boolean"
-              ) {
-                item.checked = merged.checked;
-              }
-            }
-          }
-        }
-
-        // Update the sub-issue with new title and body
-        await subUpdate({
-          ...subData,
-          issue: {
-            ...subData.issue,
-            title,
-            bodyAst: newBody,
-          },
-        });
-
-        core.info(
-          `Updated sub-issue #${existingSub.number}: ${title} (${existingTodos.length} existing todos merged)`,
-        );
-        updated++;
-      } catch (error) {
-        core.error(
-          `Failed to update sub-issue #${existingSub.number} for phase ${phase.phase_number}: ${error}`,
-        );
-      }
-    } else {
-      // Create new sub-issue
-      const body = buildPhaseIssueBody(phase);
-      const projectStatus: ProjectStatus | undefined =
-        phase.phase_number === 1 && existingSubIssues.length === 0
-          ? "Ready"
-          : undefined;
-
-      try {
-        const result = await addSubIssueToParent(
-          ctx.owner,
-          ctx.repo,
-          parentIssueNumber,
-          { title, body },
-          {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
-            octokit: ctx.octokit as Parameters<
-              typeof addSubIssueToParent
-            >[4]["octokit"],
-            projectNumber: ctx.projectNumber,
-            projectStatus,
-          },
-        );
-
-        core.info(`Created sub-issue #${result.issueNumber}: ${title}`);
-        created++;
-      } catch (error) {
-        core.error(
-          `Failed to create sub-issue for phase ${phase.phase_number}: ${error}`,
-        );
-      }
-    }
-  }
-
-  // Update parent issue body with agent notes
-  const changes = [
-    created > 0 ? `${created} created` : "",
-    updated > 0 ? `${updated} updated` : "",
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  if (changes) {
-    try {
-      const { data: parentData, update: parentUpdate } = await parseIssue(
-        ctx.owner,
-        ctx.repo,
-        parentIssueNumber,
-        {
-          octokit: asOctokitLike(ctx),
-          fetchPRs: false,
-          fetchParent: false,
-        },
-      );
-
-      const parentState = appendAgentNotes(
-        {
-          runId: `grooming-${Date.now()}`,
-          runLink: "",
-          notes: [`Grooming complete. Sub-issues: ${changes}.`],
-        },
-        parentData,
-      );
-
-      if (parentState !== parentData) {
-        await parentUpdate(parentState);
-      }
-      core.info(`Updated parent issue #${parentIssueNumber} with agent notes`);
-    } catch (error) {
-      core.warning(`Failed to update parent issue body: ${error}`);
-    }
-  }
-
-  return created + updated;
-}
-
-/**
- * Build the body for a phase sub-issue as MDAST
- */
-function buildPhaseIssueBody(phase: RecommendedPhase): Root {
-  // Use unknown[] to avoid type conflicts with MdastNode vs RootContent
-  // The MDAST nodes are structurally compatible, just typed differently
-  const children: unknown[] = [];
-
-  // Description section
-  children.push(
-    ...createSection("Description", [createParagraph(phase.description)]),
-  );
-
-  // Affected Areas section
-  if (phase.affected_areas && phase.affected_areas.length > 0) {
-    const areas = phase.affected_areas.map((area) => {
-      const changeType = area.change_type ? ` (${area.change_type})` : "";
-      const desc = area.description ? ` - ${area.description}` : "";
-      return `\`${area.path}\`${changeType}${desc}`;
-    });
-    children.push(
-      ...createSection("Affected Areas", [createBulletList(areas)]),
-    );
-  }
-
-  // Todo section
-  if (phase.todos && phase.todos.length > 0) {
-    const todos = phase.todos.map((todo) => ({
-      text: todo.task,
-      checked: false,
-      manual: todo.manual || false,
-    }));
-    children.push(...createSection("Todo", [createTodoList(todos)]));
-  }
-
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- unknown[] contains valid RootContent nodes, cast avoids complex type conflicts
-  return { type: "root", children: children as Root["children"] };
 }

@@ -1582,6 +1582,12 @@ export function emitRunClaudeGrooming({
       filePath: "grooming-output.json",
       consumesArtifact: groomingArtifact,
     },
+    // Reconcile sub-issues: create/update/delete based on semantic matching
+    {
+      type: "reconcileSubIssues",
+      token: "code",
+      issueNumber,
+    },
   ];
 }
 

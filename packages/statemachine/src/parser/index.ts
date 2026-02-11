@@ -45,6 +45,7 @@ export {
   questionsExtractor,
   extractQuestionsFromAst,
   extractQuestionItems,
+  extractSubIssueSpecs,
   QuestionStatsSchema,
   type QuestionStats,
   type QuestionItem,
