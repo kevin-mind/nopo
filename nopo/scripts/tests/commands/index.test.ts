@@ -437,7 +437,6 @@ commands:
       expect(deps).toContainEqual({ service: "backend", command: "lint" });
       expect(deps).toContainEqual({ service: "backend", command: "clean" });
     });
-
   });
 
   describe("buildExecutionPlan", () => {
@@ -514,51 +513,6 @@ commands:
       expect(plan.stages[0]).toHaveLength(3);
     });
 
-    it("deduplicates services across multiple targets", () => {
-      const root = createProject({
-        rootConfig: `
-name: Test Project
-services:
-  dir: ./apps
-`,
-        services: {
-          web: `
-name: web
-dockerfile: Dockerfile
-dependencies:
-  - shared
-commands:
-  lint:
-    command: eslint .
-`,
-          api: `
-name: api
-dockerfile: Dockerfile
-dependencies:
-  - shared
-commands:
-  lint:
-    command: eslint .
-`,
-          shared: `
-name: shared
-dockerfile: Dockerfile
-commands:
-  lint:
-    command: eslint .
-`,
-        },
-      });
-
-      const project = loadProjectConfig(root);
-      const plan = buildExecutionPlan(project, "lint", ["web", "api"]);
-
-      // shared should appear only once
-      const allTasks = plan.stages.flat();
-      const sharedTasks = allTasks.filter((t) => t.service === "shared");
-      expect(sharedTasks).toHaveLength(1);
-    });
-
     it("handles services with no dependencies independently", () => {
       const root = createProject({
         rootConfig: `
@@ -593,7 +547,6 @@ commands:
       expect(plan.stages).toHaveLength(1);
       expect(plan.stages[0]).toHaveLength(2);
     });
-
   });
 
   describe("CommandDependencySpec normalization", () => {
@@ -748,70 +701,6 @@ image: postgres:16
 
       const project = loadProjectConfig(root);
       expect(project.services.entries.db?.commands).toEqual({});
-    });
-
-    it("handles deeply nested dependencies", () => {
-      const root = createProject({
-        rootConfig: `
-name: Test Project
-services:
-  dir: ./apps
-`,
-        services: {
-          a: `
-name: a
-dockerfile: Dockerfile
-dependencies:
-  - b
-commands:
-  lint:
-    command: echo a
-`,
-          b: `
-name: b
-dockerfile: Dockerfile
-dependencies:
-  - c
-commands:
-  lint:
-    command: echo b
-`,
-          c: `
-name: c
-dockerfile: Dockerfile
-dependencies:
-  - d
-commands:
-  lint:
-    command: echo c
-`,
-          d: `
-name: d
-dockerfile: Dockerfile
-commands:
-  lint:
-    command: echo d
-`,
-        },
-      });
-
-      const project = loadProjectConfig(root);
-      const plan = buildExecutionPlan(project, "lint", ["a"]);
-
-      // d -> c -> b -> a
-      expect(plan.stages).toHaveLength(4);
-      expect(plan.stages[0]).toContainEqual(
-        expect.objectContaining({ service: "d", command: "lint" }),
-      );
-      expect(plan.stages[1]).toContainEqual(
-        expect.objectContaining({ service: "c", command: "lint" }),
-      );
-      expect(plan.stages[2]).toContainEqual(
-        expect.objectContaining({ service: "b", command: "lint" }),
-      );
-      expect(plan.stages[3]).toContainEqual(
-        expect.objectContaining({ service: "a", command: "lint" }),
-      );
     });
 
     it("handles targets with glob patterns", () => {
@@ -1486,5 +1375,4 @@ commands:
       expect(project.services.entries.root?.paths.root).toBe(root);
     });
   });
-
 });

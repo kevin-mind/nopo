@@ -6,7 +6,6 @@ import type {
   CommandDependencies,
   CommandContext,
 } from "../config/index.ts";
-import { extractDependencyNames } from "../config/index.ts";
 
 /**
  * Represents a command to execute on a specific service.

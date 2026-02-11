@@ -260,7 +260,9 @@ export default class BuildScript extends TargetScript {
         // Visit dependencies first (only those that are also packages to build)
         // Use build.depends_on only - no fallback
         const buildDepsField = service.build?.depends_on;
-        const deps = buildDepsField ? extractDependencyNames(buildDepsField) : [];
+        const deps = buildDepsField
+          ? extractDependencyNames(buildDepsField)
+          : [];
 
         for (const dep of deps) {
           if (packageSet.has(dep)) {
