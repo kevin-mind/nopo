@@ -1068,9 +1068,9 @@ jobs:
 
 ### Related Documentation
 
-- [State Machine Architecture](../docs/automation/ARCHITECTURE.md)
-- [GitHub Actions Workflows](.github/workflows/sm-runner.yml)
-- [Issue State Parser](packages/issue-state/README.md)
+- [State Machine Architecture](ARCHITECTURE.md)
+- [GitHub Actions Workflows](../../.github/workflows/sm-runner.yml)
+- [Issue State Parser](../../packages/issue-state/README.md)
 
 ### External Resources
 
