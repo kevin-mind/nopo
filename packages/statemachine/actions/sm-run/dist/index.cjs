@@ -42047,7 +42047,11 @@ var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
 var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("applyIterateOutput"),
   issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json")
+  filePath: external_exports.string().default("claude-structured-output.json"),
+  /** PR number for review transition when all_done */
+  prNumber: external_exports.number().int().positive().optional(),
+  /** Reviewer username to request review from */
+  reviewer: external_exports.string().optional()
 });
 var AppendAgentNotesActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("appendAgentNotes"),
@@ -47719,12 +47723,15 @@ function emitRunClaude({ context: context2 }) {
     },
     // Apply iterate output: check off completed todos, store agent notes
     // Downloads the artifact before execution
+    // Includes PR info for review transition when all_done
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
       filePath: "claude-structured-output.json",
-      consumesArtifact: iterateArtifact
+      consumesArtifact: iterateArtifact,
+      prNumber: context2.pr?.number,
+      reviewer: "nopo-reviewer"
     }
   ];
 }
@@ -47752,12 +47759,15 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
     },
     // Apply iterate output: check off completed todos, store agent notes
     // Downloads the artifact before execution
+    // Includes PR info for review transition when all_done
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
       filePath: "claude-structured-output.json",
-      consumesArtifact: iterateArtifact
+      consumesArtifact: iterateArtifact,
+      prNumber: context2.pr?.number,
+      reviewer: "nopo-reviewer"
     }
   ];
 }
@@ -71037,6 +71047,39 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       break;
     case "all_done":
       core9.info("All todos complete - ready for review");
+      if (action.prNumber) {
+        try {
+          const markReadyAction = {
+            type: "markPRReady",
+            token: "code",
+            prNumber: action.prNumber
+          };
+          await executeMarkPRReady(markReadyAction, ctx);
+          const updateStatusAction = {
+            type: "updateProjectStatus",
+            token: "code",
+            issueNumber,
+            status: "In review"
+          };
+          await executeUpdateProjectStatus(updateStatusAction, ctx);
+          if (action.reviewer) {
+            const requestReviewAction = {
+              type: "requestReview",
+              token: "code",
+              prNumber: action.prNumber,
+              reviewer: action.reviewer
+            };
+            await executeRequestReview(requestReviewAction, ctx);
+          }
+          core9.info(`Review transition complete for PR #${action.prNumber}`);
+        } catch (error8) {
+          core9.warning(`Failed to transition to review: ${error8}`);
+        }
+      } else {
+        core9.warning(
+          "No PR number available - cannot transition to review automatically"
+        );
+      }
       break;
   }
   return { applied: true, status: iterateOutput.status };

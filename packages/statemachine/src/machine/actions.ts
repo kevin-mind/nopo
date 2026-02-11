@@ -615,12 +615,15 @@ export function emitRunClaude({ context }: ActionContext): ActionResult {
     },
     // Apply iterate output: check off completed todos, store agent notes
     // Downloads the artifact before execution
+    // Includes PR info for review transition when all_done
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
       filePath: "claude-structured-output.json",
       consumesArtifact: iterateArtifact,
+      prNumber: context.pr?.number,
+      reviewer: "nopo-reviewer",
     },
   ];
 }
@@ -659,12 +662,15 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
     },
     // Apply iterate output: check off completed todos, store agent notes
     // Downloads the artifact before execution
+    // Includes PR info for review transition when all_done
     {
       type: "applyIterateOutput",
       token: "code",
       issueNumber,
       filePath: "claude-structured-output.json",
       consumesArtifact: iterateArtifact,
+      prNumber: context.pr?.number,
+      reviewer: "nopo-reviewer",
     },
   ];
 }

@@ -524,6 +524,10 @@ const ApplyIterateOutputActionSchema = BaseActionSchema.extend({
   type: z.literal("applyIterateOutput"),
   issueNumber: z.number().int().positive(),
   filePath: z.string().default("claude-structured-output.json"),
+  /** PR number for review transition when all_done */
+  prNumber: z.number().int().positive().optional(),
+  /** Reviewer username to request review from */
+  reviewer: z.string().optional(),
 });
 
 export type ApplyIterateOutputAction = z.infer<
