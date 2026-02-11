@@ -15,7 +15,7 @@ flowchart TB
 
     subgraph Grooming["Grooming Process"]
         G1[Guard: needsGrooming]
-        G2[Run 5 Grooming Agents]
+        G2[Run 4 Grooming Agents in Parallel]
         G3[PM Agent]
         G4[Engineer Agent]
         G5[QA Agent]
