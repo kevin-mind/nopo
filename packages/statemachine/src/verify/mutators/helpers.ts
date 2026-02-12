@@ -9,6 +9,7 @@ import type {
 } from "../predictable-state.js";
 import type { HistoryEntry } from "@more/issue-state";
 import type { MachineContext } from "../../schemas/state.js";
+import { getTransitionName } from "../../runner/derive.js";
 
 /**
  * Deep-clone a PredictableStateTree for mutation.
@@ -47,26 +48,9 @@ export function addHistoryEntry(
 }
 
 /**
- * Update the most recent history entry matching a pattern.
+ * Generate the success history entry for a given state name.
+ * Matches the `✅ {transitionName}` format that logRunEnd writes on success.
  */
-export function updateHistoryEntry(
-  issue: PredictableIssueState,
-  matchPattern: string,
-  newAction: string,
-  iteration: number,
-  phase: string,
-): void {
-  // Search from end for most recent match
-  for (let i = issue.body.historyEntries.length - 1; i >= 0; i--) {
-    const entry = issue.body.historyEntries[i];
-    if (
-      entry &&
-      entry.iteration === iteration &&
-      entry.phase === phase &&
-      entry.action.includes(matchPattern)
-    ) {
-      entry.action = newAction;
-      return;
-    }
-  }
+export function successEntry(stateName: string): string {
+  return `✅ ${getTransitionName(stateName)}`;
 }

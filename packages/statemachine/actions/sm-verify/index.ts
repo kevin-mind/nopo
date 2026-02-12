@@ -262,7 +262,7 @@ function buildComparisonTable(
       (act) =>
         act.iteration === expEntry.iteration &&
         act.phase === expEntry.phase &&
-        act.action.startsWith(expEntry.action.charAt(0)),
+        act.action.startsWith(expEntry.action),
     );
     rows.push({
       field: `issue.body.history[${expEntry.iteration}/${expEntry.phase}]`,
@@ -377,7 +377,7 @@ function buildComparisonTable(
         (act) =>
           act.iteration === expEntry.iteration &&
           act.phase === expEntry.phase &&
-          act.action.startsWith(expEntry.action.charAt(0)),
+          act.action.startsWith(expEntry.action),
       );
       rows.push({
         field: `${prefix}.body.history[${expEntry.iteration}/${expEntry.phase}]`,

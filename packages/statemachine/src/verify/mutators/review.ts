@@ -6,7 +6,12 @@
 
 import type { StateMutator } from "./types.js";
 import { HISTORY_MESSAGES } from "../../constants.js";
-import { cloneTree, addHistoryEntry, findCurrentSubIssue } from "./helpers.js";
+import {
+  cloneTree,
+  addHistoryEntry,
+  findCurrentSubIssue,
+  successEntry,
+} from "./helpers.js";
 
 /**
  * reviewing: PR is under review.
@@ -18,6 +23,14 @@ export const reviewingMutator: StateMutator = (current, context) => {
   if (sub) {
     sub.projectStatus = "In review";
   }
+
+  const phase = String(context.currentPhase ?? "-");
+  addHistoryEntry(tree.issue, {
+    iteration: context.issue.iteration,
+    phase,
+    action: successEntry("reviewing"),
+  });
+
   return [tree];
 };
 

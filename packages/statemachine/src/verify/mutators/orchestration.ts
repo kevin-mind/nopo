@@ -6,7 +6,7 @@
 
 import type { StateMutator } from "./types.js";
 import { HISTORY_MESSAGES } from "../../constants.js";
-import { cloneTree, addHistoryEntry } from "./helpers.js";
+import { cloneTree, addHistoryEntry, successEntry } from "./helpers.js";
 
 /**
  * orchestrationRunning: Emit orchestration actions.
@@ -28,6 +28,14 @@ export const orchestrationRunningMutator: StateMutator = (current, context) => {
       action: HISTORY_MESSAGES.initialized(context.issue.subIssues.length),
     });
   }
+
+  // History: predict the final success entry
+  const phase = String(context.currentPhase ?? "-");
+  addHistoryEntry(tree.issue, {
+    iteration: context.issue.iteration,
+    phase,
+    action: successEntry("orchestrationRunning"),
+  });
 
   return [tree];
 };

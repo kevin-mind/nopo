@@ -253,7 +253,7 @@ describe("compareStateTree", () => {
     expect(compareStateTree([expected2], actual).pass).toBe(false);
   });
 
-  it("compares history entries by prefix match", () => {
+  it("compares history entries by full action prefix match", () => {
     const context = makeContext({
       issue: {
         number: 100,
@@ -269,8 +269,8 @@ describe("compareStateTree", () => {
             "",
             "| Time | # | Phase | Action | SHA | Run |",
             "| --- | --- | --- | --- | --- | --- |",
-            "| Jan 1 00:00 | 1 | 1 | ⏳ Iterating... | - | - |",
-            "| Jan 1 00:05 | 1 | 1 | ✅ CI Passed | - | - |",
+            "| Jan 1 00:00 | 1 | 1 | ✅ Iterate | - | - |",
+            "| Jan 1 00:05 | 1 | 1 | ✅ CI Result | - | - |",
           ].join("\n"),
         ),
         projectStatus: "In progress" as const,
@@ -288,10 +288,52 @@ describe("compareStateTree", () => {
     });
 
     const actual = extractPredictableTree(context);
-    // Expect history entries that match by prefix
+    // Expect history entries that match by full action prefix
     const expected = structuredClone(actual);
 
     const result = compareStateTree([expected], actual);
     expect(result.pass).toBe(true);
+  });
+
+  it("fails when history action prefix does not match", () => {
+    const context = makeContext({
+      issue: {
+        number: 100,
+        title: "Test",
+        state: "OPEN" as const,
+        bodyAst: parseMarkdown(
+          [
+            "## Description",
+            "",
+            "Test.",
+            "",
+            "## Iteration History",
+            "",
+            "| Time | # | Phase | Action | SHA | Run |",
+            "| --- | --- | --- | --- | --- | --- |",
+            "| Jan 1 00:00 | 1 | 1 | ✅ Iterate | - | - |",
+          ].join("\n"),
+        ),
+        projectStatus: "In progress" as const,
+        iteration: 1,
+        failures: 0,
+        assignees: [],
+        labels: [],
+        subIssues: [],
+        hasSubIssues: false,
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null,
+      },
+    });
+
+    const actual = extractPredictableTree(context);
+    const expected = structuredClone(actual);
+    // Change expected action to something different that starts with same emoji
+    expected.issue.body.historyEntries[0]!.action = "✅ Triage";
+
+    const result = compareStateTree([expected], actual);
+    expect(result.pass).toBe(false);
   });
 });

@@ -92,6 +92,10 @@ export function getTransitionName(finalState: string): string {
     orchestrationRunning: "Orchestrate",
     orchestrationWaiting: "Wait (Review)",
     orchestrationComplete: "Complete Phases",
+    // Issue states - CI/merge/review processing
+    processingCI: "CI Result",
+    processingMerge: "Merge",
+    processingReview: "Review Result",
     // Issue states - Iteration flows
     iterating: "Iterate",
     iteratingFix: "Fix CI",
@@ -113,6 +117,8 @@ export function getTransitionName(finalState: string): string {
     // Issue states - Early detection states
     alreadyDone: "Already Done",
     alreadyBlocked: "Already Blocked",
+    // Issue states - Pivot flow
+    pivoting: "Pivot",
     // Issue states - Grooming flow
     grooming: "Grooming",
     // Discussion states

@@ -5,8 +5,12 @@
  */
 
 import type { StateMutator } from "./types.js";
-import { HISTORY_MESSAGES } from "../../constants.js";
-import { cloneTree, addHistoryEntry, findCurrentSubIssue } from "./helpers.js";
+import {
+  cloneTree,
+  addHistoryEntry,
+  findCurrentSubIssue,
+  successEntry,
+} from "./helpers.js";
 
 /**
  * iterating: Claude implements the issue.
@@ -35,12 +39,12 @@ export const iteratingMutator: StateMutator = (current, context) => {
     }
   }
 
-  // History: iteration started
+  // History: predict the final success entry that logRunEnd writes
   const phase = String(context.currentPhase ?? "-");
   addHistoryEntry(tree.issue, {
     iteration: context.issue.iteration + 1,
     phase,
-    action: HISTORY_MESSAGES.ITERATING,
+    action: successEntry("iterating"),
   });
 
   return [tree];
@@ -49,7 +53,27 @@ export const iteratingMutator: StateMutator = (current, context) => {
 /**
  * iteratingFix: Claude fixes CI failures.
  *
- * Same structural effects as iterating but triggered by CI failure.
+ * Same structural effects as iterating but with a different history entry.
  */
-export const iteratingFixMutator: StateMutator = (current, context) =>
-  iteratingMutator(current, context);
+export const iteratingFixMutator: StateMutator = (current, context) => {
+  const tree = cloneTree(current);
+  const sub = findCurrentSubIssue(tree, context);
+
+  if (sub) {
+    sub.projectStatus = "In progress";
+    sub.hasBranch = true;
+    sub.hasPR = true;
+    if (sub.pr) {
+      sub.pr.isDraft = true;
+    }
+  }
+
+  const phase = String(context.currentPhase ?? "-");
+  addHistoryEntry(tree.issue, {
+    iteration: context.issue.iteration + 1,
+    phase,
+    action: successEntry("iteratingFix"),
+  });
+
+  return [tree];
+};

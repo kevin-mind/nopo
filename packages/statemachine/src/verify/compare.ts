@@ -116,7 +116,7 @@ function diffHistoryEntries(
       (act) =>
         act.iteration === exp.iteration &&
         act.phase === exp.phase &&
-        act.action.startsWith(exp.action.charAt(0)),
+        act.action.startsWith(exp.action),
     );
     if (!found) {
       diffs.push({

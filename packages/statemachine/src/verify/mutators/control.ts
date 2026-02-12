@@ -6,13 +6,14 @@
  */
 
 import type { StateMutator } from "./types.js";
-import { HISTORY_ICONS, HISTORY_MESSAGES } from "../../constants.js";
+import { HISTORY_MESSAGES } from "../../constants.js";
 import {
   cloneTree,
   addHistoryEntry,
-  updateHistoryEntry,
   findCurrentSubIssue,
+  successEntry,
 } from "./helpers.js";
+import { getTransitionName } from "../../runner/derive.js";
 
 /**
  * processingCI: Determine outcome based on CI result and todos.
@@ -30,27 +31,21 @@ export const processingCIMutator: StateMutator = (current, context) => {
 
   if (ciPassed) {
     const tree = cloneTree(current);
-    // Update ⏳ → ✅ CI Passed
-    updateHistoryEntry(
-      tree.issue,
-      HISTORY_ICONS.ITERATING,
-      HISTORY_MESSAGES.CI_PASSED,
+    addHistoryEntry(tree.issue, {
       iteration,
       phase,
-    );
+      action: successEntry("processingCI"),
+    });
     return [tree];
   }
 
   // CI failed
   const tree = cloneTree(current);
-  // Update ⏳ → ❌ CI Failed
-  updateHistoryEntry(
-    tree.issue,
-    HISTORY_ICONS.ITERATING,
-    HISTORY_MESSAGES.CI_FAILED,
+  addHistoryEntry(tree.issue, {
     iteration,
     phase,
-  );
+    action: `❌ ${getTransitionName("processingCI")}`,
+  });
   return [tree];
 };
 
@@ -94,6 +89,13 @@ export const resettingMutator: StateMutator = (current, context) => {
   for (const sub of tree.subIssues) {
     sub.projectStatus = null;
   }
+
+  const phase = String(context.currentPhase ?? "-");
+  addHistoryEntry(tree.issue, {
+    iteration: context.issue.iteration,
+    phase,
+    action: successEntry("resetting"),
+  });
 
   return [tree];
 };

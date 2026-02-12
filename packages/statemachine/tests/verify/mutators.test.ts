@@ -4,6 +4,7 @@ import type { MachineContext } from "../../src/schemas/state.js";
 import { extractPredictableTree } from "../../src/verify/predictable-state.js";
 import { getMutator } from "../../src/verify/mutators/index.js";
 import { HISTORY_ICONS, HISTORY_MESSAGES } from "../../src/constants.js";
+import { successEntry } from "../../src/verify/mutators/helpers.js";
 
 function makeContext(overrides: Partial<MachineContext> = {}): MachineContext {
   const defaultIssue = {
@@ -183,12 +184,18 @@ describe("AI-dependent mutators", () => {
 
     expect(outcomes).toHaveLength(2);
 
-    // Both outcomes should have triaged label and correct body structure
+    // Both outcomes should have triaged label, correct body structure, and history entry
     for (const outcome of outcomes) {
       expect(outcome.issue.labels).toContain("triaged");
       expect(outcome.issue.body.hasDescription).toBe(false);
       expect(outcome.issue.body.hasRequirements).toBe(true);
       expect(outcome.issue.body.hasApproach).toBe(true);
+
+      const lastEntry =
+        outcome.issue.body.historyEntries[
+          outcome.issue.body.historyEntries.length - 1
+        ];
+      expect(lastEntry?.action).toBe(successEntry("triaging"));
     }
 
     // Outcome 0: with questions
@@ -231,6 +238,133 @@ describe("AI-dependent mutators", () => {
     expect(outcomes[1]!.issue.projectStatus).toBe("Backlog");
     // Outcome 3: blocked
     expect(outcomes[2]!.issue.projectStatus).toBe("Blocked");
+
+    // All outcomes should have a grooming history entry
+    for (const outcome of outcomes) {
+      const lastEntry =
+        outcome.issue.body.historyEntries[
+          outcome.issue.body.historyEntries.length - 1
+        ];
+      expect(lastEntry?.action).toBe(successEntry("grooming"));
+    }
+  });
+});
+
+describe("iteration mutators", () => {
+  it("iterating: predicts success entry, not intermediate", () => {
+    const sub = {
+      number: 101,
+      title: "[Phase 1]: Sub",
+      state: "OPEN" as const,
+      bodyAst: parseMarkdown("## Description\n\nSub."),
+      projectStatus: "In progress" as const,
+      assignees: new Array<string>(),
+      labels: new Array<string>(),
+      branch: null,
+      pr: null,
+    };
+    const context = makeContext({
+      currentPhase: 1,
+      currentSubIssue: sub,
+      issue: {
+        number: 100,
+        title: "Test",
+        state: "OPEN" as const,
+        bodyAst: parseMarkdown("## Description\n\nTest."),
+        projectStatus: "In progress" as const,
+        iteration: 1,
+        failures: 0,
+        assignees: ["nopo-bot"],
+        labels: ["triaged"],
+        subIssues: [
+          {
+            number: 101,
+            title: "[Phase 1]: Sub",
+            state: "OPEN" as const,
+            bodyAst: parseMarkdown("## Description\n\nSub."),
+            projectStatus: "In progress" as const,
+            assignees: [],
+            labels: [],
+            branch: null,
+            pr: null,
+          },
+        ],
+        hasSubIssues: true,
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null,
+      },
+    });
+    const tree = extractPredictableTree(context);
+    const mutator = getMutator("iterating")!;
+    const outcomes = mutator(tree, context);
+
+    expect(outcomes).toHaveLength(1);
+    const lastEntry =
+      outcomes[0]!.issue.body.historyEntries[
+        outcomes[0]!.issue.body.historyEntries.length - 1
+      ];
+    expect(lastEntry?.action).toBe(successEntry("iterating"));
+    expect(lastEntry?.action).toBe("✅ Iterate");
+  });
+
+  it("iteratingFix: predicts Fix CI success entry", () => {
+    const sub = {
+      number: 101,
+      title: "[Phase 1]: Sub",
+      state: "OPEN" as const,
+      bodyAst: parseMarkdown("## Description\n\nSub."),
+      projectStatus: "In progress" as const,
+      assignees: new Array<string>(),
+      labels: new Array<string>(),
+      branch: null,
+      pr: null,
+    };
+    const context = makeContext({
+      currentPhase: 1,
+      currentSubIssue: sub,
+      issue: {
+        number: 100,
+        title: "Test",
+        state: "OPEN" as const,
+        bodyAst: parseMarkdown("## Description\n\nTest."),
+        projectStatus: "In progress" as const,
+        iteration: 2,
+        failures: 1,
+        assignees: ["nopo-bot"],
+        labels: ["triaged"],
+        subIssues: [
+          {
+            number: 101,
+            title: "[Phase 1]: Sub",
+            state: "OPEN" as const,
+            bodyAst: parseMarkdown("## Description\n\nSub."),
+            projectStatus: "In progress" as const,
+            assignees: [],
+            labels: [],
+            branch: null,
+            pr: null,
+          },
+        ],
+        hasSubIssues: true,
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null,
+      },
+    });
+    const tree = extractPredictableTree(context);
+    const mutator = getMutator("iteratingFix")!;
+    const outcomes = mutator(tree, context);
+
+    expect(outcomes).toHaveLength(1);
+    const lastEntry =
+      outcomes[0]!.issue.body.historyEntries[
+        outcomes[0]!.issue.body.historyEntries.length - 1
+      ];
+    expect(lastEntry?.action).toBe(successEntry("iteratingFix"));
+    expect(lastEntry?.action).toBe("✅ Fix CI");
   });
 });
 
@@ -294,5 +428,11 @@ describe("control mutators", () => {
     expect(outcomes[0]!.issue.failures).toBe(0);
     expect(outcomes[0]!.issue.assignees).not.toContain("nopo-bot");
     expect(outcomes[0]!.subIssues[0]?.projectStatus).toBeNull();
+
+    const lastEntry =
+      outcomes[0]!.issue.body.historyEntries[
+        outcomes[0]!.issue.body.historyEntries.length - 1
+      ];
+    expect(lastEntry?.action).toBe(successEntry("resetting"));
   });
 });

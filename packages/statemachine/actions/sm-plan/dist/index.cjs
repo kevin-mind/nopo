@@ -67892,6 +67892,10 @@ function getTransitionName(finalState) {
     orchestrationRunning: "Orchestrate",
     orchestrationWaiting: "Wait (Review)",
     orchestrationComplete: "Complete Phases",
+    // Issue states - CI/merge/review processing
+    processingCI: "CI Result",
+    processingMerge: "Merge",
+    processingReview: "Review Result",
     // Issue states - Iteration flows
     iterating: "Iterate",
     iteratingFix: "Fix CI",
@@ -67913,6 +67917,8 @@ function getTransitionName(finalState) {
     // Issue states - Early detection states
     alreadyDone: "Already Done",
     alreadyBlocked: "Already Blocked",
+    // Issue states - Pivot flow
+    pivoting: "Pivot",
     // Issue states - Grooming flow
     grooming: "Grooming",
     // Discussion states
@@ -68184,14 +68190,8 @@ function addHistoryEntry3(issue2, entry) {
     runLink: null
   });
 }
-function updateHistoryEntry3(issue2, matchPattern, newAction, iteration, phase) {
-  for (let i = issue2.body.historyEntries.length - 1; i >= 0; i--) {
-    const entry = issue2.body.historyEntries[i];
-    if (entry && entry.iteration === iteration && entry.phase === phase && entry.action.includes(matchPattern)) {
-      entry.action = newAction;
-      return;
-    }
-  }
+function successEntry(stateName) {
+  return `\u2705 ${getTransitionName(stateName)}`;
 }
 
 // packages/statemachine/src/verify/mutators/terminal.ts
@@ -68240,11 +68240,29 @@ var iteratingMutator = (current, context3) => {
   addHistoryEntry3(tree.issue, {
     iteration: context3.issue.iteration + 1,
     phase,
-    action: HISTORY_MESSAGES.ITERATING
+    action: successEntry("iterating")
   });
   return [tree];
 };
-var iteratingFixMutator = (current, context3) => iteratingMutator(current, context3);
+var iteratingFixMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const sub = findCurrentSubIssue(tree, context3);
+  if (sub) {
+    sub.projectStatus = "In progress";
+    sub.hasBranch = true;
+    sub.hasPR = true;
+    if (sub.pr) {
+      sub.pr.isDraft = true;
+    }
+  }
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration + 1,
+    phase,
+    action: successEntry("iteratingFix")
+  });
+  return [tree];
+};
 
 // packages/statemachine/src/verify/mutators/review.ts
 var reviewingMutator = (current, context3) => {
@@ -68253,6 +68271,12 @@ var reviewingMutator = (current, context3) => {
   if (sub) {
     sub.projectStatus = "In review";
   }
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: successEntry("reviewing")
+  });
   return [tree];
 };
 var transitioningToReviewMutator = (current, context3) => {
@@ -68293,6 +68317,12 @@ var orchestrationRunningMutator = (current, context3) => {
       action: HISTORY_MESSAGES.initialized(context3.issue.subIssues.length)
     });
   }
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: successEntry("orchestrationRunning")
+  });
   return [tree];
 };
 var orchestrationWaitingMutator = (current) => {
@@ -68311,7 +68341,7 @@ var orchestrationCompleteMutator = (current, context3) => {
 };
 
 // packages/statemachine/src/verify/mutators/ai-dependent.ts
-var triagingMutator = (current) => {
+var triagingMutator = (current, context3) => {
   const tree = cloneTree(current);
   if (!tree.issue.labels.includes("triaged")) {
     tree.issue.labels.push("triaged");
@@ -68319,30 +68349,67 @@ var triagingMutator = (current) => {
   tree.issue.body.hasDescription = false;
   tree.issue.body.hasRequirements = true;
   tree.issue.body.hasApproach = true;
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: successEntry("triaging")
+  });
   const withQuestions = cloneTree(tree);
   withQuestions.issue.body.hasQuestions = true;
   const withoutQuestions = cloneTree(tree);
   withoutQuestions.issue.body.hasQuestions = false;
   return [withQuestions, withoutQuestions];
 };
-var groomingMutator = (current) => {
+var groomingMutator = (current, context3) => {
+  const phase = String(context3.currentPhase ?? "-");
+  const historyAction = successEntry("grooming");
   const ready = cloneTree(current);
   if (!ready.issue.labels.includes("groomed")) {
     ready.issue.labels.push("groomed");
   }
+  addHistoryEntry3(ready.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: historyAction
+  });
   const needsInfo2 = cloneTree(current);
   if (!needsInfo2.issue.labels.includes("needs-info")) {
     needsInfo2.issue.labels.push("needs-info");
   }
+  addHistoryEntry3(needsInfo2.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: historyAction
+  });
   const blocked = cloneTree(current);
   blocked.issue.projectStatus = "Blocked";
+  addHistoryEntry3(blocked.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: historyAction
+  });
   return [ready, needsInfo2, blocked];
 };
-var commentingMutator = (current) => {
-  return [cloneTree(current)];
+var commentingMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: successEntry("commenting")
+  });
+  return [tree];
 };
-var pivotingMutator = (current) => {
-  return [cloneTree(current)];
+var pivotingMutator = (current, context3) => {
+  const tree = cloneTree(current);
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: successEntry("pivoting")
+  });
+  return [tree];
 };
 
 // packages/statemachine/src/verify/mutators/logging.ts
@@ -68385,23 +68452,19 @@ var processingCIMutator = (current, context3) => {
   const iteration = context3.issue.iteration;
   if (ciPassed2) {
     const tree2 = cloneTree(current);
-    updateHistoryEntry3(
-      tree2.issue,
-      HISTORY_ICONS.ITERATING,
-      HISTORY_MESSAGES.CI_PASSED,
+    addHistoryEntry3(tree2.issue, {
       iteration,
-      phase
-    );
+      phase,
+      action: successEntry("processingCI")
+    });
     return [tree2];
   }
   const tree = cloneTree(current);
-  updateHistoryEntry3(
-    tree.issue,
-    HISTORY_ICONS.ITERATING,
-    HISTORY_MESSAGES.CI_FAILED,
+  addHistoryEntry3(tree.issue, {
     iteration,
-    phase
-  );
+    phase,
+    action: `\u274C ${getTransitionName("processingCI")}`
+  });
   return [tree];
 };
 var prPushMutator = (current, context3) => {
@@ -68431,6 +68494,12 @@ var resettingMutator = (current, context3) => {
   for (const sub of tree.subIssues) {
     sub.projectStatus = null;
   }
+  const phase = String(context3.currentPhase ?? "-");
+  addHistoryEntry3(tree.issue, {
+    iteration: context3.issue.iteration,
+    phase,
+    action: successEntry("resetting")
+  });
   return [tree];
 };
 var processingMergeMutator = (current, context3) => {
@@ -68533,7 +68602,7 @@ function diffHistoryEntries(path2, expected, actual) {
   const diffs = [];
   for (const exp of expected) {
     const found = actual.some(
-      (act) => act.iteration === exp.iteration && act.phase === exp.phase && act.action.startsWith(exp.action.charAt(0))
+      (act) => act.iteration === exp.iteration && act.phase === exp.phase && act.action.startsWith(exp.action)
     );
     if (!found) {
       diffs.push({
