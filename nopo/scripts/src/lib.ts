@@ -699,7 +699,7 @@ export class Runner {
       `${Array(Math.round(length * 1.618))
         .fill("=")
         .join("")}`;
-    for await (const [ScriptToRun, enabledArr] of scripts.entries()) {
+    for (const [ScriptToRun, enabledArr] of scripts.entries()) {
       const enabled = enabledArr.some(Boolean);
       const skipped = enabled ? "" : chalk.bold("(skipped)");
       const color = enabled ? chalk.magenta : chalk.gray;

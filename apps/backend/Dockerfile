@@ -11,7 +11,9 @@ ARG NOPO_APP_GID
 COPY --chown=${NOPO_APP_UID}:${NOPO_APP_GID} . .
 
 RUN pnpm install --frozen-lockfile
-RUN NODE_ENV=production pnpm --filter @more/backend build
+RUN uv sync --frozen --no-install-workspace \
+    && NODE_ENV=production pnpm --filter @more/backend build \
+    && uv run python manage.py collectstatic --noinput --clear
 
 FROM ${NOPO_BASE_IMAGE} AS backend
 
