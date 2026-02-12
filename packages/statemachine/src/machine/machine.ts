@@ -47,6 +47,8 @@ import {
   emitPushToDraft,
   // Reset action
   emitResetIssue,
+  // Retry action
+  emitRetryIssue,
   // Grooming actions
   emitRunClaudeGrooming,
   // Pivot action
@@ -144,6 +146,7 @@ export const claudeMachine = setup({
       guards.triggeredByPRReviewApproved({ context }),
     triggeredByPRPush: ({ context }) => guards.triggeredByPRPush({ context }),
     triggeredByReset: ({ context }) => guards.triggeredByReset({ context }),
+    triggeredByRetry: ({ context }) => guards.triggeredByRetry({ context }),
     triggeredByPivot: ({ context }) => guards.triggeredByPivot({ context }),
     // Merge queue logging guards
     triggeredByMergeQueueEntry: ({ context }) =>
@@ -298,6 +301,15 @@ export const claudeMachine = setup({
       ),
     ),
 
+    // Retry actions
+    retryIssue: emit<MachineEvent>(emitRetryIssue),
+    logRetrying: emit<MachineEvent>((ctx) =>
+      emitLog(
+        ctx,
+        `Retrying issue #${ctx.context.issue.number} (clearing failures)`,
+      ),
+    ),
+
     // Grooming actions
     runClaudeGrooming: emit<MachineEvent>(emitRunClaudeGrooming),
     logGrooming: emit<MachineEvent>((ctx) =>
@@ -331,6 +343,8 @@ export const claudeMachine = setup({
         DETECT: [
           // Reset takes priority - can reset even Done/Blocked issues
           { target: "resetting", guard: "triggeredByReset" },
+          // Retry takes priority - can retry even Blocked issues (circuit breaker recovery)
+          { target: "retrying", guard: "triggeredByRetry" },
           // Pivot takes priority - can pivot even Done/Blocked issues
           { target: "pivoting", guard: "triggeredByPivot" },
           // Check terminal states first
@@ -495,6 +509,19 @@ export const claudeMachine = setup({
     resetting: {
       entry: ["logResetting", "resetIssue"],
       type: "final",
+    },
+
+    /**
+     * Retry an issue - clear failures and resume work (/retry command)
+     * Circuit breaker recovery: clears failure counter, sets status to
+     * In Progress, re-assigns bot, then routes to orchestrating or iterating.
+     */
+    retrying: {
+      entry: ["logRetrying", "retryIssue"],
+      always: [
+        { target: "orchestrating", guard: "hasSubIssues" },
+        { target: "iterating" },
+      ],
     },
 
     /**

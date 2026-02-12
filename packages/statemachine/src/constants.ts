@@ -86,6 +86,7 @@ export const HISTORY_MESSAGES = {
     `${HISTORY_ICONS.BLOCKED} Blocked: Max failures reached (${failures})`,
   agentBlocked: (reason: string) =>
     `${HISTORY_ICONS.BLOCKED} Blocked: Agent reported blocked - ${reason}`,
+  RETRY: `${HISTORY_ICONS.INITIALIZED} Retried: Failures cleared, resuming work`,
 } as const;
 
 // ============================================================================

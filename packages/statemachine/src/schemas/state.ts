@@ -19,6 +19,7 @@ export const TriggerTypeSchema = z.enum([
   "issue-orchestrate",
   "issue-comment",
   "issue-reset",
+  "issue-retry",
   "issue-pivot",
   // Grooming triggers
   "issue-groom",

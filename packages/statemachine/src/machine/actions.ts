@@ -1298,6 +1298,51 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
   return actions;
 }
 
+/**
+ * Emit actions to retry the issue (circuit breaker recovery)
+ * This is triggered by /retry command
+ *
+ * Clears failures, sets status to In progress, assigns bot, and logs retry
+ */
+export function emitRetryIssue({ context }: ActionContext): ActionResult {
+  const actions: ActionResult = [];
+
+  // Clear failure counter
+  actions.push(...emitClearFailures({ context }));
+
+  // Set status to In progress (recovery from Blocked)
+  actions.push({
+    type: "updateProjectStatus",
+    token: "code",
+    issueNumber: context.issue.number,
+    status: "In progress",
+  });
+
+  // Re-assign bot to the issue
+  if (!context.issue.assignees.includes(context.botUsername)) {
+    actions.push({
+      type: "assignUser",
+      token: "code",
+      issueNumber: context.issue.number,
+      username: context.botUsername,
+    });
+  }
+
+  // Log the retry in history
+  actions.push({
+    type: "appendHistory",
+    token: "code",
+    issueNumber: context.issue.number,
+    iteration: context.issue.iteration,
+    phase: String(context.currentPhase ?? "-"),
+    message: HISTORY_MESSAGES.RETRY,
+    timestamp: context.workflowStartedAt ?? undefined,
+    runLink: context.workflowRunUrl ?? context.ciRunUrl ?? undefined,
+  });
+
+  return actions;
+}
+
 // ============================================================================
 // Merge Queue Logging Actions
 // ============================================================================

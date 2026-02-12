@@ -17,6 +17,7 @@ export const IssueTriggerTypeSchema = z.enum([
   "issue-comment",
   "issue-pivot",
   "issue-reset",
+  "issue-retry",
   // PR triggers
   "pr-review-requested",
   "pr-review-submitted",

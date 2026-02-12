@@ -969,6 +969,7 @@ async function handleIssueCommentEvent(
   const hasContinueCommand = commandLines.some((line) => line === "/continue");
   const hasLfgCommand = commandLines.some((line) => line === "/lfg");
   const hasResetCommand = commandLines.some((line) => line === "/reset");
+  const hasRetryCommand = commandLines.some((line) => line === "/retry");
   const hasPivotCommand = commandLines.some((line) =>
     line.startsWith("/pivot"),
   );
@@ -1020,6 +1021,97 @@ async function handleIssueCommentEvent(
         triggered_from: String(issue.number),
         trigger_type: "issue-pivot",
         // Note: sub_issues fetched by parseIssue
+      },
+      skip: false,
+      skipReason: "",
+    };
+  }
+
+  // Handle /retry command - clears failures and resumes work (circuit breaker recovery)
+  if (hasRetryCommand && !isPr) {
+    // Add reaction to acknowledge the command
+    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
+
+    const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
+    const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
+
+    // /retry on untriaged issue -> skip, triage first
+    if (!hasTriagedLabel) {
+      return emptyResult(
+        true,
+        "Cannot retry untriaged issue - run triage first",
+      );
+    }
+
+    // /retry on ungroomed issue -> skip, groom first
+    if (!hasGroomedLabel) {
+      return emptyResult(
+        true,
+        "Cannot retry ungroomed issue - run grooming first",
+      );
+    }
+
+    // Check if this is a sub-issue
+    if (isSubIssue(issueState)) {
+      const phaseNumber = extractPhaseNumber(issueTitle(issueState));
+      const branchName = deriveBranch(
+        parentIssueNumber(issueState),
+        phaseNumber || issue.number,
+      );
+      const branchExists = await checkBranchExists(branchName);
+
+      if (!branchExists) {
+        await ensureBranchExists(branchName);
+      }
+
+      // /retry on sub-issue -> iterate with issue-retry trigger
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue.number),
+          branch_name: branchName,
+          trigger_type: "issue-retry",
+          parent_issue: String(parentIssueNumber(issueState)),
+        },
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // Check if this is a parent issue with sub-issues -> orchestrate
+    const subs = subIssueNumbers(issueState);
+    if (subs.length > 0) {
+      return {
+        job: "issue-orchestrate",
+        resourceType: "issue",
+        resourceNumber: String(issue.number),
+        commentId: String(comment.id),
+        contextJson: {
+          issue_number: String(issue.number),
+          sub_issues: subs.join(","),
+          trigger_type: "issue-retry",
+        },
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // /retry on simple issue -> iterate
+    const branchName = `claude/issue/${issue.number}`;
+    await ensureBranchExists(branchName);
+
+    return {
+      job: "issue-iterate",
+      resourceType: "issue",
+      resourceNumber: String(issue.number),
+      commentId: String(comment.id),
+      contextJson: {
+        issue_number: String(issue.number),
+        branch_name: branchName,
+        trigger_type: "issue-retry",
       },
       skip: false,
       skipReason: "",

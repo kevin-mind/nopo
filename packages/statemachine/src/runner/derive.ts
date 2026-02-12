@@ -119,6 +119,8 @@ export function getTransitionName(finalState: string): string {
     alreadyBlocked: "Already Blocked",
     // Issue states - Pivot flow
     pivoting: "Pivot",
+    // Issue states - Retry flow
+    retrying: "Retry",
     // Issue states - Grooming flow
     grooming: "Grooming",
     // Discussion states
@@ -148,6 +150,7 @@ const TRIGGER_TO_EVENT_TYPE: Record<string, string> = {
   "issue-orchestrate": "issue_assigned",
   "issue-comment": "issue_comment",
   "issue-reset": "issue_comment",
+  "issue-retry": "issue_comment",
   "pr-review-requested": "pr_review_requested",
   "pr-review-submitted": "pr_review_submitted",
   "pr-review": "pr_review_submitted",

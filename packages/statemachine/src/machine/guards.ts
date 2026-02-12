@@ -492,6 +492,14 @@ export function triggeredByPivot({ context }: GuardContext): boolean {
   return context.trigger === "issue-pivot";
 }
 
+/**
+ * Check if triggered by /retry command
+ * Clears failures and resumes work (circuit breaker recovery)
+ */
+export function triggeredByRetry({ context }: GuardContext): boolean {
+  return context.trigger === "issue-retry";
+}
+
 // ============================================================================
 // Merge Queue Logging Guards
 // ============================================================================
@@ -702,6 +710,7 @@ export const guards = {
   triggeredByPRReviewApproved,
   triggeredByPRPush,
   triggeredByReset,
+  triggeredByRetry,
   triggeredByPivot,
   // Merge queue logging guards
   triggeredByMergeQueueEntry,

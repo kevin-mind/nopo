@@ -52,6 +52,7 @@ export {
   triggeredByPRReviewApproved,
   triggeredByPRPush,
   triggeredByReset,
+  triggeredByRetry,
   triggeredByPivot,
   triggeredByMergeQueueEntry,
   triggeredByMergeQueueFailure,
@@ -90,6 +91,7 @@ export {
   emitCloseIssue,
   emitUnassign,
   emitResetIssue,
+  emitRetryIssue,
   // Branch actions
   emitCreateBranch,
   // PR actions

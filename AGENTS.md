@@ -327,6 +327,7 @@ Comment these on issues to trigger the state machine:
 | `/lfg` | Start/resume work on the issue (triggers iterate or orchestrate) |
 | `/implement` | Same as `/lfg` - start implementing the issue |
 | `/continue` | Same as `/lfg` - continue work on the issue |
+| `/retry` | Clear failures and resume work (circuit breaker recovery) |
 
 These commands work on both parent issues (triggers orchestration) and sub-issues (triggers iteration).
 
