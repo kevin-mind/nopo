@@ -2,9 +2,6 @@
   "name": "@more/web",
   "private": true,
   "type": "module",
-  "scripts": {
-    "build": "react-router build"
-  },
   "dependencies": {
     "@more/ui": "workspace:*",
     "@react-router/node": "^7.4.1",

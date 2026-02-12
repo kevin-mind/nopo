@@ -384,7 +384,7 @@ describe("filter", () => {
       };
       const services = Object.keys(parsed.services);
 
-      // Services with dockerfiles: complex, minimal, dependent
+      // Services with build commands: complex, minimal, dependent
       expect(services).toContain("complex");
       expect(services).toContain("minimal");
       expect(services).toContain("dependent");

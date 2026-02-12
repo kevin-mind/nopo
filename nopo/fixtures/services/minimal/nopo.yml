@@ -1,7 +1,8 @@
 name: Minimal Fixture Service
 description: A minimal service with runtime configuration
 
-dockerfile: Dockerfile
+build:
+  command: echo "build minimal"
 
 # Runtime config makes this a "service" (not a package)
 runtime:

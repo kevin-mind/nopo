@@ -7,9 +7,6 @@
   "files": [
     "build/**"
   ],
-  "scripts": {
-    "build": "uv sync --frozen --no-install-workspace && vite build && uv run python manage.py collectstatic --noinput --clear"
-  },
   "devDependencies": {
     "@more/configs": "workspace:*",
     "@tailwindcss/vite": "^4.1.4",

@@ -114,24 +114,14 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Compile prompts
-        run: pnpm --filter @more/prompts compile
+      - name: Setup Nopo
+        uses: ./.github/actions/setup-nopo
 
       - name: Build actions
-        run: |
-          cd .github/actions-ts
-          pnpm run build
+        run: nopo build --tags github-actions
 
       # Install Claude Code when running in non-mock mode (SDK requires it)
       # Use official installer per: https://platform.claude.com/docs/en/agent-sdk/quickstart
@@ -219,19 +209,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Nopo
+        uses: ./.github/actions/setup-nopo
 
       - name: Build test helper action
-        run: |
-          cd .github/actions-ts
-          pnpm install --frozen-lockfile
-          pnpm run build
+        run: nopo build --tags github-actions
 
       - name: Determine issue number
         id: issue

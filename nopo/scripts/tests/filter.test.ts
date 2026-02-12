@@ -41,9 +41,11 @@ function createMockService(
     configPath: "/path/to/nopo.yml",
     dependencies: [],
     commands: {},
+    build: {
+      command: "pnpm build",
+    },
     paths: {
       root: "/project/apps/test",
-      dockerfile: "/project/apps/test/Dockerfile",
       context: "/project",
     },
     ...overrides,
@@ -138,18 +140,18 @@ describe("matchesFilter", () => {
   };
 
   describe("preset filters", () => {
-    it("matches buildable preset for services with dockerfile", () => {
+    it("matches buildable preset for services with build command", () => {
       const service = createMockService();
       const filter: FilterExpression = { type: "preset", field: "buildable" };
       expect(matchesFilter(service, filter, context)).toBe(true);
     });
 
-    it("does not match buildable preset for services without dockerfile", () => {
+    it("does not match buildable preset for services without build command", () => {
       const service = createMockService({
         image: "postgres:16",
+        build: undefined,
         paths: {
           root: "/project/apps/db",
-          dockerfile: undefined,
           context: "/project",
         },
       });
@@ -161,7 +163,7 @@ describe("matchesFilter", () => {
       const service = createMockService({
         paths: {
           root: "/project/apps/backend",
-          dockerfile: "/project/apps/backend/Dockerfile",
+
           context: "/project",
         },
       });
@@ -173,7 +175,7 @@ describe("matchesFilter", () => {
       const service = createMockService({
         paths: {
           root: "/project/apps/web",
-          dockerfile: "/project/apps/web/Dockerfile",
+
           context: "/project",
         },
       });
@@ -285,7 +287,7 @@ describe("applyFilters", () => {
       id: "backend",
       paths: {
         root: "/project/apps/backend",
-        dockerfile: "/project/apps/backend/Dockerfile",
+
         context: "/project",
       },
     }),
@@ -293,16 +295,16 @@ describe("applyFilters", () => {
       id: "web",
       paths: {
         root: "/project/apps/web",
-        dockerfile: "/project/apps/web/Dockerfile",
+
         context: "/project",
       },
     }),
     createMockService({
       id: "db",
       image: "postgres:16",
+      build: undefined,
       paths: {
         root: "/project/apps/db",
-        dockerfile: undefined,
         context: "/project",
       },
     }),
@@ -341,7 +343,7 @@ describe("applyFiltersToNames", () => {
       id: "backend",
       paths: {
         root: "/project/apps/backend",
-        dockerfile: "/project/apps/backend/Dockerfile",
+
         context: "/project",
       },
     }),
@@ -349,16 +351,16 @@ describe("applyFiltersToNames", () => {
       id: "web",
       paths: {
         root: "/project/apps/web",
-        dockerfile: "/project/apps/web/Dockerfile",
+
         context: "/project",
       },
     }),
     db: createMockService({
       id: "db",
       image: "postgres:16",
+      build: undefined,
       paths: {
         root: "/project/apps/db",
-        dockerfile: undefined,
         context: "/project",
       },
     }),

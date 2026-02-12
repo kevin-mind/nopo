@@ -34,12 +34,23 @@ vi.mock("docker-compose", () => ({
   },
 }));
 
+// Mock exec tagged template to prevent real docker pull calls
+const mockExec = vi.fn(
+  (_strings: TemplateStringsArray, ..._values: unknown[]) =>
+    Promise.resolve({ stdout: "", stderr: "", exitCode: 0 }),
+);
+
 describe("pull", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock the exec getter to prevent real docker calls
+    Object.defineProperty(PullScript.prototype, "exec", {
+      get: () => mockExec,
+      configurable: true,
+    });
   });
 
-  it("skips pulling when no targets provided", async () => {
+  it("pulls all service images when no targets provided", async () => {
     const config = createTestConfig({
       envFile: createTmpEnv({
         DOCKER_TAG: "docker.io/kevin-mind/nopo:latest",
@@ -49,8 +60,8 @@ describe("pull", () => {
 
     await runScript(PullScript, config);
 
-    // Should not call pullMany when no targets
-    expect(mockPullMany).not.toHaveBeenCalled();
+    // Should attempt to pull images for all buildable services (backend, web)
+    expect(mockExec).toHaveBeenCalledTimes(2);
   });
 
   it("has correct dependencies", () => {

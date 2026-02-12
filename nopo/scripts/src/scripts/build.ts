@@ -6,18 +6,15 @@ import {
   type Runner,
   $,
   exec,
-  NOPO_APP_UID,
-  NOPO_APP_GID,
   type ProcessPromise,
   tmpfile,
 } from "../lib.ts";
 import {
   isBuildableService,
   isPackageService,
-  isVirtualBuildableService,
   requiresBuild,
   extractDependencyNames,
-  type VirtualBuildableService,
+  type BuildableService,
 } from "../config/index.ts";
 import EnvScript from "./env.ts";
 import { DockerTag } from "../docker-tag.ts";
@@ -405,7 +402,7 @@ export default class BuildScript extends TargetScript {
     // Multi-platform builds only work with registry push (type=docker doesn't support multi-platform)
     const platforms = push ? this.getPlatforms() : undefined;
 
-    // Filter to buildable services (physical dockerfile or virtual dockerfile)
+    // Filter to buildable services (those with build commands)
     const buildableTargets = targets.filter((t) => {
       const service = this.runner.getService(t);
       return requiresBuild(service);
@@ -490,35 +487,7 @@ export default class BuildScript extends TargetScript {
         path.relative(this.runner.config.root, service.paths.context) || ".";
 
       if (isBuildableService(service)) {
-        // Physical Dockerfile
-        const dockerfile = service.paths.dockerfile;
-
-        if (!fs.existsSync(dockerfile)) {
-          throw new Error(`Target '${target}' is missing ${dockerfile}.`);
-        }
-
-        const relativeDockerfile =
-          path.relative(this.runner.config.root, dockerfile) || dockerfile;
-
-        definition.target[target] = {
-          context: relativeContext,
-          dockerfile: relativeDockerfile,
-          tags: [serviceTag],
-          ...(push ? {} : { output: ["type=docker"] }),
-          ...(platforms ? { platforms } : {}),
-          contexts: {
-            [rootName]: `target:${rootName}`,
-          },
-          args: {
-            SERVICE_NAME: target,
-            NOPO_APP_UID,
-            NOPO_APP_GID,
-            NOPO_BASE_IMAGE: rootName,
-          },
-        };
-      } else if (isVirtualBuildableService(service)) {
-        // Virtual inline Dockerfile - pass rootName for direct context reference
-        // Compute the relative service path for output path resolution
+        // Generate inline Dockerfile from build config
         const relativeServicePath =
           path.relative(this.runner.config.root, service.paths.root) || ".";
         const dockerfileInline = this.generateInlineDockerfile(
@@ -577,7 +546,7 @@ export default class BuildScript extends TargetScript {
    * the dollar sign as $$ (e.g., $${NOPO_APP_UID} produces ${NOPO_APP_UID} in the Dockerfile).
    */
   private generateInlineDockerfile(
-    service: VirtualBuildableService,
+    service: BuildableService,
     baseContextName: string,
     relativeServicePath: string,
   ): string {
@@ -611,8 +580,25 @@ export default class BuildScript extends TargetScript {
       lines.push("");
     }
 
-    // Run build command
-    lines.push(`RUN ${build.command}`);
+    // Set working directory for the build command.
+    // Default to the service directory (e.g., apps/web) so that
+    // pnpm exec can find service-specific binaries.
+    const workingDir = build.working_dir ?? relativeServicePath;
+    if (workingDir) {
+      lines.push(`WORKDIR $\${APP}/${workingDir}`);
+      lines.push("");
+    }
+
+    // Run build command - use heredoc for multiline commands
+    const command = build.command.trim();
+    if (command.includes("\n")) {
+      lines.push("RUN <<'EOF'");
+      lines.push("set -e");
+      lines.push(command);
+      lines.push("EOF");
+    } else {
+      lines.push(`RUN ${command}`);
+    }
     lines.push("");
 
     // Final stage - use context name directly instead of ARG

@@ -11,10 +11,6 @@ import {
 } from "./config/index.ts";
 import { ScriptArgs } from "./script-args.ts";
 
-// Constants for the nopo app user (must match base Dockerfile)
-export const NOPO_APP_UID = "1001";
-export const NOPO_APP_GID = "1001";
-
 const BaseConfigSchema = z.object({
   root: z.string(),
   envFile: z.string(),

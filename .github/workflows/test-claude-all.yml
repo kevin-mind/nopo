@@ -233,7 +233,7 @@ jobs:
           echo "$DOCS" > /tmp/scenario_docs.md
 
       - name: Build prompt templates
-        run: pnpm --filter @more/prompts exec tsx scripts/render-templates.ts
+        run: nopo build --tags github-actions
 
       - name: Run Claude Analysis
         id: claude

@@ -5,3 +5,15 @@ tags:
 
 build:
   command: pnpm exec tsx scripts/build.ts
+
+commands:
+  clean: rm -rf ./*/dist
+  test: pnpm exec vitest run
+  check:
+    commands:
+      types: pnpm exec tsc --noEmit
+      lint: pnpm exec eslint
+  fix:
+    commands:
+      lint: pnpm exec eslint --fix
+

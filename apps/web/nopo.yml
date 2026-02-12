@@ -3,7 +3,9 @@ description: React Router front-end for Nopo.
 static_path: build/client
 
 build:
-  command: pnpm install --frozen-lockfile && pnpm --filter @more/web build
+  command: |
+    pnpm install --frozen-lockfile
+    pnpm exec react-router build
   env:
     NODE_ENV: production
 runtime:
@@ -17,10 +19,6 @@ runtime:
 
 commands:
   clean: rm -rf .react-router build node_modules
-  compile:
-    command: pnpm exec react-router build
-    env:
-      NODE_ENV: production
   dev: pnpm exec react-router dev --host
   start: pnpm exec react-router-serve ./build/server/index.js
   check:

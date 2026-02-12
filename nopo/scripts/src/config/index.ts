@@ -49,9 +49,12 @@ const ServiceBuildSchema = z.object({
       if (val === undefined) return undefined;
       return Array.isArray(val) ? val : [val];
     }),
-  dockerfile: z.string().optional(),
   packages: z.array(z.string()).optional(), // OS packages to install
   env: z.record(z.string()).optional(),
+  // Working directory for the build command (relative to monorepo root).
+  // Defaults to the service directory (e.g., "apps/web").
+  // Use "." or omit to use the service directory.
+  working_dir: z.string().optional(),
   depends_on: CommandDependenciesSchema,
 });
 
@@ -65,7 +68,6 @@ const CommandDirSchema = z.string().optional();
 const CommandContextSchema = z.enum(["host", "container"]).optional();
 
 // Sub-sub-command schema (deepest level - no further nesting)
-// Supports shorthand: "pnpm build" or full object { command: "pnpm build", env: {...}, dir: "...", context: "..." }
 const SubSubCommandObjectSchema = z.object({
   command: z.string().min(1),
   env: CommandEnvSchema,
@@ -88,7 +90,6 @@ const SubSubCommandSchema = z.union([
 ]);
 
 // Sub-command schema (can have sub-sub-commands)
-// Supports shorthand: "pnpm build" or full object
 const SubCommandObjectSchema = z
   .object({
     command: z.string().min(1).optional(),
@@ -130,7 +131,6 @@ const SubCommandSchema = z.union([
 ]);
 
 // Top-level command schema
-// Supports shorthand: "pnpm build" or full object
 const CommandObjectSchema = z
   .object({
     command: z.string().min(1).optional(),
@@ -181,8 +181,6 @@ const ServiceFileSchema = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().optional(),
-    // Legacy: top-level dockerfile (now prefer build.dockerfile)
-    dockerfile: z.string().optional(),
     image: z.string().optional(),
     static_path: z.string().default("build"),
     tags: z.array(z.string().min(1)).default([]),
@@ -193,20 +191,7 @@ const ServiceFileSchema = z
     dependencies: ServiceDependenciesSchema,
     commands: CommandsSchema,
   })
-  .passthrough()
-  .refine(
-    (data) => {
-      // Cannot specify both dockerfile and image at top level
-      if (data.dockerfile && data.image) return false;
-      // Cannot specify both build.dockerfile and top-level dockerfile
-      if (data.dockerfile && data.build?.dockerfile) return false;
-      return true;
-    },
-    {
-      message:
-        "Cannot specify both 'dockerfile' and 'image', or 'dockerfile' at both top-level and in 'build'",
-    },
-  );
+  .passthrough();
 
 const ServicesSchema = z
   .object({
@@ -300,9 +285,9 @@ interface NormalizedServiceRuntime {
 interface NormalizedServiceBuild {
   command?: string;
   output?: string[];
-  dockerfile?: string;
   packages?: string[];
   env?: Record<string, string>;
+  working_dir?: string;
   depends_on?: CommandDependencies;
 }
 
@@ -369,61 +354,34 @@ export interface NormalizedService {
   commands: Record<string, NormalizedCommand>;
   paths: {
     root: string;
-    dockerfile?: string;
-    context: string;
-  };
-}
-
-interface BuildableService extends NormalizedService {
-  paths: {
-    root: string;
-    dockerfile: string;
     context: string;
   };
 }
 
 /**
  * Service that can generate a virtual Dockerfile from build config.
- * Has build.command or build.output but no dockerfile.
+ * Has build.command for generating an inline Dockerfile.
  */
-export interface VirtualBuildableService extends NormalizedService {
+export interface BuildableService extends NormalizedService {
   build: NormalizedServiceBuild & {
-    command: string; // Must have build command for virtual dockerfile
-  };
-  paths: {
-    root: string;
-    dockerfile: undefined;
-    context: string;
+    command: string;
   };
 }
 
 /**
- * Check if a service uses a physical Dockerfile.
+ * Check if a service has a build command for generating a virtual Dockerfile.
  */
 export function isBuildableService(
   service: NormalizedService,
 ): service is BuildableService {
-  return service.paths.dockerfile !== undefined;
+  return service.build?.command !== undefined;
 }
 
 /**
- * Check if a service can generate a virtual inline Dockerfile.
- * Services without dockerfile but with build.command can use virtual Dockerfiles.
- */
-export function isVirtualBuildableService(
-  service: NormalizedService,
-): service is VirtualBuildableService {
-  return (
-    service.paths.dockerfile === undefined &&
-    service.build?.command !== undefined
-  );
-}
-
-/**
- * Check if a service requires building (either physical or virtual Dockerfile).
+ * Check if a service requires building (has a build command).
  */
 export function requiresBuild(service: NormalizedService): boolean {
-  return isBuildableService(service) || isVirtualBuildableService(service);
+  return isBuildableService(service);
 }
 
 /**
@@ -672,7 +630,6 @@ function normalizeServices(
       commands: rootCommands,
       paths: {
         root: rootDir,
-        dockerfile: undefined,
         context: rootDir,
       },
     };
@@ -722,17 +679,11 @@ function discoverServices(
     const runtime = normalizeRuntime(parsed.runtime);
 
     // Normalize build configuration
-    const build = normalizeBuild(parsed.build, parsed.dockerfile);
+    const build = normalizeBuild(parsed.build);
 
     // A target is a "service" if it has runtime configuration or image, otherwise it's a "package"
     const targetType: TargetType =
       parsed.runtime || parsed.image ? "service" : "package";
-
-    // Determine dockerfile path (prefer build.dockerfile over legacy top-level)
-    const dockerfilePath =
-      (build?.dockerfile ?? parsed.dockerfile)
-        ? path.resolve(serviceRoot, build?.dockerfile ?? parsed.dockerfile!)
-        : undefined;
 
     // Merge dependencies from all sources for backward compatibility:
     // 1. Top-level service dependencies (legacy)
@@ -759,7 +710,6 @@ function discoverServices(
       commands,
       paths: {
         root: serviceRoot,
-        dockerfile: dockerfilePath,
         context: projectRoot,
       },
     };
@@ -804,15 +754,7 @@ function normalizeRuntime(
  */
 function normalizeBuild(
   build: ServiceBuildInput | undefined,
-  legacyDockerfile: string | undefined,
 ): NormalizedServiceBuild | undefined {
-  // If no build config but has legacy dockerfile, create minimal build config
-  if (!build && legacyDockerfile) {
-    return {
-      dockerfile: legacyDockerfile,
-    };
-  }
-
   if (!build) {
     return undefined;
   }
@@ -820,9 +762,9 @@ function normalizeBuild(
   return {
     command: build.command,
     output: build.output, // Already transformed to array by schema
-    dockerfile: build.dockerfile,
     packages: build.packages,
     env: build.env,
+    working_dir: build.working_dir,
     depends_on: build.depends_on,
   };
 }

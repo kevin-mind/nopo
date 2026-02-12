@@ -66,21 +66,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: .github/actions-ts
+      - name: Setup Nopo
+        uses: ./.github/actions/setup-nopo
 
       - name: Build actions
-        run: pnpm run build
-        working-directory: .github/actions-ts
+        run: nopo build --tags github-actions
 
       - name: Run cleanup
         uses: ./packages/statemachine/actions/sm-test-helper

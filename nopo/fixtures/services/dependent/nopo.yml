@@ -1,8 +1,6 @@
 name: Dependent Fixture Service
 description: A service that depends on both services and packages
 
-dockerfile: Dockerfile
-
 # Runtime config makes this a "service" (not a package)
 runtime:
   cpu: "1"
@@ -14,6 +12,7 @@ runtime:
 
 # Build dependencies - packages needed at build time
 build:
+  command: echo "build dependent"
   depends_on:
     - shared
     - utils

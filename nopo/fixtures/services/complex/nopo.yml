@@ -1,7 +1,8 @@
 name: Complex Fixture Service
 description: A complex service with runtime configuration
 
-dockerfile: Dockerfile
+build:
+  command: echo "build complex"
 
 # Runtime config makes this a "service" (not a package)
 runtime:

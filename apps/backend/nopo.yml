@@ -3,7 +3,11 @@ description: Django application that powers the API.
 static_path: build
 
 build:
-  command: pnpm install --frozen-lockfile && pnpm --filter @more/backend build
+  command: |
+    uv sync --frozen --no-install-workspace
+    pnpm install --frozen-lockfile
+    pnpm exec vite build
+    uv run python manage.py collectstatic --noinput --clear
   env:
     NODE_ENV: production
 runtime:
@@ -16,10 +20,6 @@ runtime:
   run_migrations: true
 
 commands:
-  compile:
-    command: uv sync --frozen --no-install-workspace && pnpm exec vite build && uv run python manage.py collectstatic --noinput --clear
-    env:
-      NODE_ENV: production
   clean: rm -rf __pycache__ .ruff_cache node_modules
   fix:
     context: host

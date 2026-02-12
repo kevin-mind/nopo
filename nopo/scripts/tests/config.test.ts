@@ -102,7 +102,6 @@ runtime:
     const db = project.services.entries.db;
     expect(db).toBeDefined();
     expect(db?.image).toBe("postgres:16");
-    expect(db?.paths.dockerfile).toBeUndefined();
   });
 
   it("applies defaults when fields are omitted", () => {
@@ -171,7 +170,6 @@ commands:
     const config = loadProjectConfig(root);
     const commandOnlyService = config.services.entries["command-only"];
     expect(commandOnlyService).toBeDefined();
-    expect(commandOnlyService?.paths.dockerfile).toBeUndefined();
     expect(commandOnlyService?.image).toBeUndefined();
   });
 
@@ -277,7 +275,6 @@ runtime:
     expect(web?.build).toBeDefined();
     expect(web?.build?.command).toBe("pnpm build");
     expect(web?.build?.output).toEqual(["./dist", "./public"]);
-    expect(web?.build?.dockerfile).toBe("Dockerfile");
     expect(web?.build?.packages).toEqual(["chromium"]);
     expect(web?.build?.env).toEqual({ NODE_ENV: "production" });
   });
