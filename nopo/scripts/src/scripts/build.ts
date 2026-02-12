@@ -639,6 +639,23 @@ export default class BuildScript extends TargetScript {
     lines.push("ENV SERVICE_NAME=$${SERVICE_NAME}");
     lines.push("");
 
+    // Set working directory for runtime.
+    // Use runtime.directory if specified, otherwise default to the service directory.
+    const runtimeDir = service.runtime?.directory ?? relativeServicePath;
+    if (runtimeDir) {
+      lines.push(`WORKDIR $\${APP}/${runtimeDir}`);
+      lines.push("");
+    }
+
+    // Inline the start command directly instead of going through cmd.sh → nopo → tsx.
+    // This makes the container self-contained and faster to start.
+    const startCommand = service.commands.start;
+    if (startCommand?.command) {
+      const escaped = startCommand.command.replace(/"/g, '\\"');
+      lines.push(`CMD ["sh", "-c", "${escaped}"]`);
+      lines.push("");
+    }
+
     return lines.join("\n");
   }
 

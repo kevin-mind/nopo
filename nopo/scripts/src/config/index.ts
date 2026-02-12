@@ -28,6 +28,9 @@ const CommandDependenciesSchema = z
 // A target is a "service" if it has runtime config, otherwise it's a "package"
 const ServiceRuntimeSchema = z.object({
   command: z.string().optional(),
+  // Working directory for the service at runtime (relative to monorepo root).
+  // Defaults to the service directory (e.g., "apps/backend").
+  directory: z.string().optional(),
   cpu: z.string().default("1"),
   memory: z.string().default("512Mi"),
   port: z.number().int().positive().default(3000),
@@ -271,6 +274,7 @@ type ServiceBuildInput = z.infer<typeof ServiceBuildSchema>;
 // Runtime resources (renamed from infrastructure, with optional command)
 interface NormalizedServiceRuntime {
   command?: string;
+  directory?: string;
   cpu: string;
   memory: string;
   port: number;
@@ -738,6 +742,7 @@ function normalizeRuntime(
 
   return {
     command: runtime.command,
+    directory: runtime.directory,
     cpu: runtime.cpu,
     memory: runtime.memory,
     port: runtime.port,
