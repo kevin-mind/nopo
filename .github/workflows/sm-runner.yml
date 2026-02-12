@@ -199,10 +199,11 @@ jobs:
           git config user.name "nopo-bot"
           git config user.email "nopo-bot@users.noreply.github.com"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: Setup Node (pnpm)
+        uses: ./.github/actions/setup-node
+
+      - name: Setup nopo CLI
+        uses: ./.github/actions/setup-nopo
 
       # Install Claude Code CLI for SDK-based execution
       # Only needed when not in E2E mode and not dry-running

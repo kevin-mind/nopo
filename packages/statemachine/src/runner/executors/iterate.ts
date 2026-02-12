@@ -11,6 +11,9 @@ import type {
   MarkPRReadyAction,
   RequestReviewAction,
   UpdateProjectStatusAction,
+  UnassignUserAction,
+  AppendHistoryAction,
+  BlockAction,
 } from "../../schemas/index.js";
 import type { RunnerContext } from "../types.js";
 import { checkOffTodo, appendAgentNotes } from "../../parser/index.js";
@@ -20,8 +23,14 @@ import {
   parseOutput,
   type IterateOutput,
 } from "./output-schemas.js";
-import { executeMarkPRReady, executeRequestReview } from "./github.js";
-import { executeUpdateProjectStatus } from "./project.js";
+import {
+  executeMarkPRReady,
+  executeRequestReview,
+  executeUnassignUser,
+  executeAppendHistory,
+} from "./github.js";
+import { executeUpdateProjectStatus, executeBlock } from "./project.js";
+import { HISTORY_MESSAGES } from "../../constants.js";
 
 // Helper to cast RunnerContext octokit to OctokitLike
 
@@ -161,6 +170,43 @@ export async function executeApplyIterateOutput(
       break;
     case "blocked":
       core.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
+      try {
+        // Set project status to Blocked
+        const blockAction: BlockAction = {
+          type: "block",
+          token: "code",
+          issueNumber,
+          reason: iterateOutput.blocked_reason || "Agent reported blocked",
+        };
+        await executeBlock(blockAction, ctx);
+
+        // Unassign nopo-bot
+        const unassignAction: UnassignUserAction = {
+          type: "unassignUser",
+          token: "code",
+          issueNumber,
+          username: "nopo-bot",
+        };
+        await executeUnassignUser(unassignAction, ctx);
+
+        // Append history entry
+        const historyAction: AppendHistoryAction = {
+          type: "appendHistory",
+          token: "code",
+          issueNumber,
+          phase: "-",
+          message: HISTORY_MESSAGES.agentBlocked(
+            iterateOutput.blocked_reason || "Unknown reason",
+          ),
+        };
+        await executeAppendHistory(historyAction, ctx);
+
+        core.info(
+          `Blocked issue #${issueNumber}: ${iterateOutput.blocked_reason}`,
+        );
+      } catch (error) {
+        core.warning(`Failed to transition to blocked: ${error}`);
+      }
       break;
     case "all_done":
       core.info("All todos complete - ready for review");

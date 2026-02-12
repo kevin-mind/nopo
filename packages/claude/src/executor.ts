@@ -214,6 +214,8 @@ export async function executeClaudeSDK(
     cwd,
     pathToClaudeCodeExecutable: claudePath,
     permissionMode,
+    // Explicitly pass all env vars (including GH_TOKEN) to Claude Code process
+    env: process.env,
     // Load CLAUDE.md and project settings
     settingSources: ["project"],
     // Use Claude Code's system prompt

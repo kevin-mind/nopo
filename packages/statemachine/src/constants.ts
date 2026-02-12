@@ -84,6 +84,8 @@ export const HISTORY_MESSAGES = {
     `${HISTORY_ICONS.PHASE_ADVANCED} Phase ${phase} started`,
   blocked: (failures: number) =>
     `${HISTORY_ICONS.BLOCKED} Blocked: Max failures reached (${failures})`,
+  agentBlocked: (reason: string) =>
+    `${HISTORY_ICONS.BLOCKED} Blocked: Agent reported blocked - ${reason}`,
 } as const;
 
 // ============================================================================
