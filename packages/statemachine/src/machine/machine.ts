@@ -349,7 +349,7 @@ export const claudeMachine = setup({
           { target: "pivoting", guard: "triggeredByPivot" },
           // Check terminal states first
           { target: "done", guard: "isAlreadyDone" },
-          { target: "blocked", guard: "isBlocked" },
+          { target: "alreadyBlocked", guard: "isBlocked" },
           { target: "error", guard: "isError" },
           // Merge queue logging events (handle early, they're log-only)
           {
@@ -823,6 +823,15 @@ export const claudeMachine = setup({
      * NOTE: Entry actions removed - blockIssue action already emits setBlocked + unassign
      */
     blocked: {
+      type: "final",
+    },
+
+    /**
+     * Already blocked - issue was in Blocked status when event arrived.
+     * No actions needed, just exit. Reached when sm-verify (or circuit breaker)
+     * previously set Blocked status and a new event fires before manual recovery.
+     */
+    alreadyBlocked: {
       type: "final",
     },
 

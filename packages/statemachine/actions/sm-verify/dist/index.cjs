@@ -40589,6 +40589,18 @@ mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value
   }
 }
 `;
+var ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
 
 // packages/issue-state/src/diff.ts
 function setDifference(a, b) {
@@ -47909,7 +47921,7 @@ var claudeMachine = setup({
           { target: "pivoting", guard: "triggeredByPivot" },
           // Check terminal states first
           { target: "done", guard: "isAlreadyDone" },
-          { target: "blocked", guard: "isBlocked" },
+          { target: "alreadyBlocked", guard: "isBlocked" },
           { target: "error", guard: "isError" },
           // Merge queue logging events (handle early, they're log-only)
           {
@@ -48359,6 +48371,14 @@ var claudeMachine = setup({
      * NOTE: Entry actions removed - blockIssue action already emits setBlocked + unassign
      */
     blocked: {
+      type: "final"
+    },
+    /**
+     * Already blocked - issue was in Blocked status when event arrived.
+     * No actions needed, just exit. Reached when sm-verify (or circuit breaker)
+     * previously set Blocked status and a new event fires before manual recovery.
+     */
+    alreadyBlocked: {
       type: "final"
     },
     /**
@@ -66758,9 +66778,145 @@ var core3 = __toESM(require_core(), 1);
 
 // packages/statemachine/src/runner/executors/project.ts
 var core4 = __toESM(require_core(), 1);
+function parseProjectFields(projectData) {
+  const project = projectData;
+  if (!project?.projectV2?.id || !project.projectV2.fields?.nodes) {
+    return null;
+  }
+  const fields = {
+    projectId: project.projectV2.id,
+    statusFieldId: "",
+    statusOptions: {},
+    iterationFieldId: "",
+    failuresFieldId: ""
+  };
+  for (const field of project.projectV2.fields.nodes) {
+    if (!field) continue;
+    if (field.name === "Status" && field.options) {
+      fields.statusFieldId = field.id || "";
+      for (const option of field.options) {
+        fields.statusOptions[option.name] = option.id;
+      }
+    } else if (field.name === "Iteration") {
+      fields.iterationFieldId = field.id || "";
+    } else if (field.name === "Failures") {
+      fields.failuresFieldId = field.id || "";
+    }
+  }
+  return fields;
+}
+function findStatusOption(statusOptions, status) {
+  if (statusOptions[status]) {
+    return statusOptions[status];
+  }
+  const lowerStatus = status.toLowerCase();
+  for (const [name, id] of Object.entries(statusOptions)) {
+    if (name.toLowerCase() === lowerStatus) {
+      return id;
+    }
+  }
+  return void 0;
+}
+function getProjectItemId(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  return projectItem?.id || null;
+}
+function parseProjectState2(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      status = fieldValue.name;
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+async function getOrAddProjectItem(octokit, ctx, issueNumber) {
+  const response = await octokit.graphql(
+    GET_PROJECT_ITEM_QUERY,
+    {
+      org: ctx.owner,
+      repo: ctx.repo,
+      issueNumber,
+      projectNumber: ctx.projectNumber
+    }
+  );
+  const issue2 = response.repository?.issue;
+  const projectData = response.organization;
+  if (!issue2 || !projectData?.projectV2) {
+    throw new Error(`Issue #${issueNumber} or project not found`);
+  }
+  const projectFields = parseProjectFields(projectData);
+  if (!projectFields) {
+    throw new Error("Failed to parse project fields");
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  let itemId = getProjectItemId(projectItems, ctx.projectNumber);
+  const currentState = parseProjectState2(projectItems, ctx.projectNumber);
+  if (!itemId) {
+    core4.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
+    const addResult = await octokit.graphql(
+      ADD_ISSUE_TO_PROJECT_MUTATION,
+      {
+        projectId: projectFields.projectId,
+        contentId: issue2.id
+      }
+    );
+    itemId = addResult.addProjectV2ItemById?.item?.id || null;
+    if (!itemId) {
+      throw new Error("Failed to add issue to project");
+    }
+  }
+  return { itemId, projectFields, currentState };
+}
+async function executeBlock(action, ctx) {
+  const { itemId, projectFields } = await getOrAddProjectItem(
+    ctx.octokit,
+    ctx,
+    action.issueNumber
+  );
+  const optionId = findStatusOption(projectFields.statusOptions, "Blocked");
+  if (!optionId) {
+    core4.warning("Blocked status option not found in project");
+    return { blocked: false };
+  }
+  await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId: projectFields.projectId,
+    itemId,
+    fieldId: projectFields.statusFieldId,
+    value: { singleSelectOptionId: optionId }
+  });
+  core4.info(`Blocked issue #${action.issueNumber}: ${action.reason}`);
+  return { blocked: true };
+}
 
 // packages/statemachine/src/runner/executors/github.ts
 var core5 = __toESM(require_core(), 1);
+async function executeUnassignUser(action, ctx) {
+  await ctx.octokit.rest.issues.removeAssignees({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: action.issueNumber,
+    assignees: [action.username]
+  });
+  core5.info(`Unassigned ${action.username} from issue #${action.issueNumber}`);
+  return { unassigned: true };
+}
 
 // packages/statemachine/src/runner/executors/git.ts
 var core6 = __toESM(require_core(), 1);
@@ -69208,6 +69364,40 @@ async function run() {
         await update(state);
       } catch (error8) {
         core26.warning(`Failed to log verification failure: ${error8}`);
+      }
+      try {
+        const runnerCtx = {
+          octokit,
+          owner,
+          repo,
+          projectNumber,
+          serverUrl: process.env.GITHUB_SERVER_URL || "https://github.com"
+        };
+        await executeBlock(
+          {
+            type: "block",
+            token: "code",
+            issueNumber: expected.issueNumber,
+            reason: "Verification failed"
+          },
+          runnerCtx
+        );
+        await executeUnassignUser(
+          {
+            type: "unassignUser",
+            token: "code",
+            issueNumber: expected.issueNumber,
+            username: "nopo-bot"
+          },
+          runnerCtx
+        );
+        core26.info(
+          `Blocked issue #${expected.issueNumber} and unassigned nopo-bot`
+        );
+      } catch (error8) {
+        core26.warning(
+          `Failed to block issue after verification failure: ${error8}`
+        );
       }
       setOutputs({ verified: "false", diff_json: diffJson });
       core26.setFailed("State verification failed");

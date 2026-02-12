@@ -23,6 +23,9 @@ import {
   Verify,
   HISTORY_MESSAGES,
   addHistoryEntry,
+  executeBlock,
+  executeUnassignUser,
+  type RunnerContext,
 } from "@more/statemachine";
 
 function asOctokitLike(
@@ -669,6 +672,45 @@ async function run(): Promise<void> {
         await update(state);
       } catch (error) {
         core.warning(`Failed to log verification failure: ${error}`);
+      }
+
+      // Block the issue and unassign bot to prevent further state machine runs
+      try {
+        const runnerCtx: RunnerContext = {
+          octokit,
+          owner,
+          repo,
+          projectNumber,
+          serverUrl: process.env.GITHUB_SERVER_URL || "https://github.com",
+        };
+
+        await executeBlock(
+          {
+            type: "block",
+            token: "code",
+            issueNumber: expected.issueNumber,
+            reason: "Verification failed",
+          },
+          runnerCtx,
+        );
+
+        await executeUnassignUser(
+          {
+            type: "unassignUser",
+            token: "code",
+            issueNumber: expected.issueNumber,
+            username: "nopo-bot",
+          },
+          runnerCtx,
+        );
+
+        core.info(
+          `Blocked issue #${expected.issueNumber} and unassigned nopo-bot`,
+        );
+      } catch (error) {
+        core.warning(
+          `Failed to block issue after verification failure: ${error}`,
+        );
       }
 
       setOutputs({ verified: "false", diff_json: diffJson });
