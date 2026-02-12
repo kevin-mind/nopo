@@ -611,7 +611,9 @@ describe("Orchestration Guards", () => {
       const context = createSubIssueContext({
         currentSubIssue: ParentIssueSchema.parse({
           ...createSubIssueContext().issue,
-          bodyAst: parseMarkdown("## Todo\n\n- [x] done item\n- [ ] [Manual] test"),
+          bodyAst: parseMarkdown(
+            "## Todo\n\n- [x] done item\n- [ ] [Manual] test",
+          ),
         }),
       });
       expect(guards.currentPhaseComplete({ context })).toBe(true);
