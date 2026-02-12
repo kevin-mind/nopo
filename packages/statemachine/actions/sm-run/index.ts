@@ -171,6 +171,7 @@ async function logRunEnd(
   deriveResult: DeriveResult,
   execSuccess: boolean,
   dryRun: boolean,
+  stopReason?: string,
 ): Promise<void> {
   if (dryRun) {
     core.info("[DRY RUN] Would log run end");
@@ -200,6 +201,8 @@ async function logRunEnd(
       : undefined,
     commitSha: deriveResult.commitSha || undefined,
     repoUrl,
+    stopReason,
+    hadExistingPR: !!deriveResult.prNumber,
   });
 
   core.info(`Outcome: ${outcome.emoji} ${outcome.status}`);
@@ -701,6 +704,7 @@ async function run(): Promise<void> {
         deriveResult,
         execSuccess,
         dryRun,
+        runnerResult?.stopReason,
       );
       core.endGroup();
     }

@@ -54,3 +54,16 @@ export function addHistoryEntry(
 export function successEntry(stateName: string): string {
   return `✅ ${getTransitionName(stateName)}`;
 }
+
+// ============================================================================
+// Iteration History Constants
+// ============================================================================
+
+/** Predict opened-PR outcome */
+export const ITER_OPENED_PR = "✅ Opened PR";
+/** Predict updated-PR outcome */
+export const ITER_UPDATED_PR = "✅ Updated PR";
+/** Predict fixed-CI outcome */
+export const ITER_FIXED_CI = "🔧 Fixed CI";
+/** Predict rebase outcome */
+export const ITER_REBASED = "🔄 Rebased";

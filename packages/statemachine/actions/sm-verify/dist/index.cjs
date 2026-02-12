@@ -67630,6 +67630,10 @@ function addHistoryEntry3(issue2, entry) {
 function successEntry(stateName) {
   return `\u2705 ${getTransitionName(stateName)}`;
 }
+var ITER_OPENED_PR = "\u2705 Opened PR";
+var ITER_UPDATED_PR = "\u2705 Updated PR";
+var ITER_FIXED_CI = "\u{1F527} Fixed CI";
+var ITER_REBASED = "\u{1F504} Rebased";
 
 // packages/statemachine/src/verify/mutators/terminal.ts
 var doneMutator = (current) => {
@@ -67663,42 +67667,71 @@ var noopMutator = (current) => {
 
 // packages/statemachine/src/verify/mutators/iteration.ts
 var iteratingMutator = (current, context2) => {
-  const tree = cloneTree(current);
-  const sub = findCurrentSubIssue(tree, context2);
-  if (sub) {
-    sub.projectStatus = "In progress";
-    sub.hasBranch = true;
-    sub.hasPR = true;
-    if (sub.pr) {
-      sub.pr.isDraft = true;
+  const phase = String(context2.currentPhase ?? "-");
+  const nextIteration = context2.issue.iteration + 1;
+  const openedTree = cloneTree(current);
+  const openedSub = findCurrentSubIssue(openedTree, context2);
+  if (openedSub) {
+    openedSub.projectStatus = "In progress";
+    openedSub.hasBranch = true;
+    openedSub.hasPR = true;
+    if (openedSub.pr) {
+      openedSub.pr.isDraft = true;
     }
   }
-  const phase = String(context2.currentPhase ?? "-");
-  addHistoryEntry3(tree.issue, {
-    iteration: context2.issue.iteration + 1,
+  addHistoryEntry3(openedTree.issue, {
+    iteration: nextIteration,
     phase,
-    action: successEntry("iterating")
+    action: ITER_OPENED_PR
   });
-  return [tree];
+  const updatedTree = cloneTree(current);
+  const updatedSub = findCurrentSubIssue(updatedTree, context2);
+  if (updatedSub) {
+    updatedSub.projectStatus = "In progress";
+    updatedSub.hasBranch = true;
+    updatedSub.hasPR = true;
+    if (updatedSub.pr) {
+      updatedSub.pr.isDraft = true;
+    }
+  }
+  addHistoryEntry3(updatedTree.issue, {
+    iteration: nextIteration,
+    phase,
+    action: ITER_UPDATED_PR
+  });
+  const rebasedTree = cloneTree(current);
+  addHistoryEntry3(rebasedTree.issue, {
+    iteration: nextIteration,
+    phase,
+    action: ITER_REBASED
+  });
+  return [openedTree, updatedTree, rebasedTree];
 };
 var iteratingFixMutator = (current, context2) => {
-  const tree = cloneTree(current);
-  const sub = findCurrentSubIssue(tree, context2);
-  if (sub) {
-    sub.projectStatus = "In progress";
-    sub.hasBranch = true;
-    sub.hasPR = true;
-    if (sub.pr) {
-      sub.pr.isDraft = true;
+  const phase = String(context2.currentPhase ?? "-");
+  const nextIteration = context2.issue.iteration + 1;
+  const fixedTree = cloneTree(current);
+  const fixedSub = findCurrentSubIssue(fixedTree, context2);
+  if (fixedSub) {
+    fixedSub.projectStatus = "In progress";
+    fixedSub.hasBranch = true;
+    fixedSub.hasPR = true;
+    if (fixedSub.pr) {
+      fixedSub.pr.isDraft = true;
     }
   }
-  const phase = String(context2.currentPhase ?? "-");
-  addHistoryEntry3(tree.issue, {
-    iteration: context2.issue.iteration + 1,
+  addHistoryEntry3(fixedTree.issue, {
+    iteration: nextIteration,
     phase,
-    action: successEntry("iteratingFix")
+    action: ITER_FIXED_CI
   });
-  return [tree];
+  const rebasedTree = cloneTree(current);
+  addHistoryEntry3(rebasedTree.issue, {
+    iteration: nextIteration,
+    phase,
+    action: ITER_REBASED
+  });
+  return [fixedTree, rebasedTree];
 };
 
 // packages/statemachine/src/verify/mutators/review.ts

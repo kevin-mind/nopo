@@ -74257,7 +74257,9 @@ function determineOutcome(params) {
     subIssueNumber,
     prNumber,
     commitSha,
-    repoUrl
+    repoUrl,
+    stopReason,
+    hadExistingPR
   } = params;
   let emoji2;
   let status;
@@ -74274,6 +74276,18 @@ function determineOutcome(params) {
   let transition = transitionName || "unknown";
   if (transitionName === "Done" && subIssueNumber && phase !== "-" && repoUrl) {
     transition = `[Phase ${phase}] Done [#${subIssueNumber}](${repoUrl}/issues/${subIssueNumber})`;
+  }
+  if (status === "Done" && (transitionName === "Iterate" || transitionName === "Fix CI")) {
+    const phaseLink = phase !== "-" && subIssueNumber && repoUrl ? ` - [Phase ${phase}](${repoUrl}/issues/${subIssueNumber})` : "";
+    if (stopReason === "branch_rebased_and_pushed") {
+      emoji2 = "\u{1F504}";
+      transition = `Rebased${phaseLink}`;
+    } else if (transitionName === "Fix CI") {
+      emoji2 = "\u{1F527}";
+      transition = `Fixed CI${phaseLink}`;
+    } else {
+      transition = hadExistingPR ? `Updated PR${phaseLink}` : `Opened PR${phaseLink}`;
+    }
   }
   let resultPrNumber = null;
   let resultCommitSha = null;
@@ -74360,7 +74374,7 @@ async function logRunStart(octokit, owner, repo, issueNumber, iteration, phase, 
     core26.warning(`Failed to log run start: ${error8}`);
   }
 }
-async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSuccess, dryRun) {
+async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSuccess, dryRun, stopReason) {
   if (dryRun) {
     core26.info("[DRY RUN] Would log run end");
     return;
@@ -74380,7 +74394,9 @@ async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSu
     subIssueNumber: deriveResult.subIssueNumber ? parseInt(deriveResult.subIssueNumber, 10) : void 0,
     prNumber: deriveResult.prNumber ? parseInt(deriveResult.prNumber, 10) : void 0,
     commitSha: deriveResult.commitSha || void 0,
-    repoUrl
+    repoUrl,
+    stopReason,
+    hadExistingPR: !!deriveResult.prNumber
   });
   core26.info(`Outcome: ${outcome.emoji} ${outcome.status}`);
   const iteration = parseInt(deriveResult.iteration, 10);
@@ -74736,7 +74752,8 @@ async function run() {
         issueNumber,
         deriveResult,
         execSuccess,
-        dryRun
+        dryRun,
+        runnerResult?.stopReason
       );
       core26.endGroup();
     }

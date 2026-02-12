@@ -9,71 +9,104 @@ import {
   cloneTree,
   addHistoryEntry,
   findCurrentSubIssue,
-  successEntry,
+  ITER_OPENED_PR,
+  ITER_UPDATED_PR,
+  ITER_FIXED_CI,
+  ITER_REBASED,
 } from "./helpers.js";
 
 /**
  * iterating: Claude implements the issue.
  *
- * Expected effects:
- * - Status set to In progress (working)
- * - Iteration incremented
- * - History: ⏳ Iterating...
- * - Branch created if needed
- * - PR created if needed (draft)
- *
- * AI-dependent: could produce working state (still has todos) or all_done
- * (todos complete → review). For simplicity, we predict the working state.
+ * Three possible outcomes:
+ * 1. Opened PR — first iteration, no PR yet
+ * 2. Updated PR — subsequent iteration, PR exists
+ * 3. Rebased — branch was stale, only rebase happened (no structural changes)
  */
 export const iteratingMutator: StateMutator = (current, context) => {
-  const tree = cloneTree(current);
-  const sub = findCurrentSubIssue(tree, context);
+  const phase = String(context.currentPhase ?? "-");
+  const nextIteration = context.issue.iteration + 1;
 
-  // Sub-issue status → In progress
-  if (sub) {
-    sub.projectStatus = "In progress";
-    sub.hasBranch = true;
-    sub.hasPR = true;
-    if (sub.pr) {
-      sub.pr.isDraft = true;
+  // Outcome 1: Opened PR (no existing PR)
+  const openedTree = cloneTree(current);
+  const openedSub = findCurrentSubIssue(openedTree, context);
+  if (openedSub) {
+    openedSub.projectStatus = "In progress";
+    openedSub.hasBranch = true;
+    openedSub.hasPR = true;
+    if (openedSub.pr) {
+      openedSub.pr.isDraft = true;
     }
   }
-
-  // History: predict the final success entry that logRunEnd writes
-  const phase = String(context.currentPhase ?? "-");
-  addHistoryEntry(tree.issue, {
-    iteration: context.issue.iteration + 1,
+  addHistoryEntry(openedTree.issue, {
+    iteration: nextIteration,
     phase,
-    action: successEntry("iterating"),
+    action: ITER_OPENED_PR,
   });
 
-  return [tree];
+  // Outcome 2: Updated PR (existing PR)
+  const updatedTree = cloneTree(current);
+  const updatedSub = findCurrentSubIssue(updatedTree, context);
+  if (updatedSub) {
+    updatedSub.projectStatus = "In progress";
+    updatedSub.hasBranch = true;
+    updatedSub.hasPR = true;
+    if (updatedSub.pr) {
+      updatedSub.pr.isDraft = true;
+    }
+  }
+  addHistoryEntry(updatedTree.issue, {
+    iteration: nextIteration,
+    phase,
+    action: ITER_UPDATED_PR,
+  });
+
+  // Outcome 3: Rebased (no structural changes, only rebase)
+  const rebasedTree = cloneTree(current);
+  addHistoryEntry(rebasedTree.issue, {
+    iteration: nextIteration,
+    phase,
+    action: ITER_REBASED,
+  });
+
+  return [openedTree, updatedTree, rebasedTree];
 };
 
 /**
  * iteratingFix: Claude fixes CI failures.
  *
- * Same structural effects as iterating but with a different history entry.
+ * Two possible outcomes (PR always exists for CI fix):
+ * 1. Fixed CI — pushed fix commits
+ * 2. Rebased — branch was stale, only rebase happened
  */
 export const iteratingFixMutator: StateMutator = (current, context) => {
-  const tree = cloneTree(current);
-  const sub = findCurrentSubIssue(tree, context);
+  const phase = String(context.currentPhase ?? "-");
+  const nextIteration = context.issue.iteration + 1;
 
-  if (sub) {
-    sub.projectStatus = "In progress";
-    sub.hasBranch = true;
-    sub.hasPR = true;
-    if (sub.pr) {
-      sub.pr.isDraft = true;
+  // Outcome 1: Fixed CI
+  const fixedTree = cloneTree(current);
+  const fixedSub = findCurrentSubIssue(fixedTree, context);
+  if (fixedSub) {
+    fixedSub.projectStatus = "In progress";
+    fixedSub.hasBranch = true;
+    fixedSub.hasPR = true;
+    if (fixedSub.pr) {
+      fixedSub.pr.isDraft = true;
     }
   }
-
-  const phase = String(context.currentPhase ?? "-");
-  addHistoryEntry(tree.issue, {
-    iteration: context.issue.iteration + 1,
+  addHistoryEntry(fixedTree.issue, {
+    iteration: nextIteration,
     phase,
-    action: successEntry("iteratingFix"),
+    action: ITER_FIXED_CI,
   });
 
-  return [tree];
+  // Outcome 2: Rebased (no structural changes)
+  const rebasedTree = cloneTree(current);
+  addHistoryEntry(rebasedTree.issue, {
+    iteration: nextIteration,
+    phase,
+    action: ITER_REBASED,
+  });
+
+  return [fixedTree, rebasedTree];
 };

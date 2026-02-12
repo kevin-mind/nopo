@@ -4,7 +4,13 @@ import type { MachineContext } from "../../src/schemas/state.js";
 import { extractPredictableTree } from "../../src/verify/predictable-state.js";
 import { getMutator } from "../../src/verify/mutators/index.js";
 import { HISTORY_ICONS, HISTORY_MESSAGES } from "../../src/constants.js";
-import { successEntry } from "../../src/verify/mutators/helpers.js";
+import {
+  successEntry,
+  ITER_OPENED_PR,
+  ITER_UPDATED_PR,
+  ITER_FIXED_CI,
+  ITER_REBASED,
+} from "../../src/verify/mutators/helpers.js";
 
 function makeContext(overrides: Partial<MachineContext> = {}): MachineContext {
   const defaultIssue = {
@@ -251,7 +257,7 @@ describe("AI-dependent mutators", () => {
 });
 
 describe("iteration mutators", () => {
-  it("iterating: predicts success entry, not intermediate", () => {
+  it("iterating: three outcomes (opened PR, updated PR, rebased)", () => {
     const sub = {
       number: 101,
       title: "[Phase 1]: Sub",
@@ -300,16 +306,36 @@ describe("iteration mutators", () => {
     const mutator = getMutator("iterating")!;
     const outcomes = mutator(tree, context);
 
-    expect(outcomes).toHaveLength(1);
-    const lastEntry =
+    expect(outcomes).toHaveLength(3);
+
+    // Outcome 0: Opened PR
+    const openedEntry =
       outcomes[0]!.issue.body.historyEntries[
         outcomes[0]!.issue.body.historyEntries.length - 1
       ];
-    expect(lastEntry?.action).toBe(successEntry("iterating"));
-    expect(lastEntry?.action).toBe("✅ Iterate");
+    expect(openedEntry?.action).toBe(ITER_OPENED_PR);
+    expect(outcomes[0]!.subIssues[0]?.hasPR).toBe(true);
+    expect(outcomes[0]!.subIssues[0]?.hasBranch).toBe(true);
+
+    // Outcome 1: Updated PR
+    const updatedEntry =
+      outcomes[1]!.issue.body.historyEntries[
+        outcomes[1]!.issue.body.historyEntries.length - 1
+      ];
+    expect(updatedEntry?.action).toBe(ITER_UPDATED_PR);
+    expect(outcomes[1]!.subIssues[0]?.hasPR).toBe(true);
+
+    // Outcome 2: Rebased (no structural changes to sub-issue)
+    const rebasedEntry =
+      outcomes[2]!.issue.body.historyEntries[
+        outcomes[2]!.issue.body.historyEntries.length - 1
+      ];
+    expect(rebasedEntry?.action).toBe(ITER_REBASED);
+    // Rebase doesn't change sub-issue PR/status state
+    expect(outcomes[2]!.subIssues[0]?.projectStatus).toBe("In progress");
   });
 
-  it("iteratingFix: predicts Fix CI success entry", () => {
+  it("iteratingFix: two outcomes (fixed CI, rebased)", () => {
     const sub = {
       number: 101,
       title: "[Phase 1]: Sub",
@@ -358,13 +384,22 @@ describe("iteration mutators", () => {
     const mutator = getMutator("iteratingFix")!;
     const outcomes = mutator(tree, context);
 
-    expect(outcomes).toHaveLength(1);
-    const lastEntry =
+    expect(outcomes).toHaveLength(2);
+
+    // Outcome 0: Fixed CI
+    const fixedEntry =
       outcomes[0]!.issue.body.historyEntries[
         outcomes[0]!.issue.body.historyEntries.length - 1
       ];
-    expect(lastEntry?.action).toBe(successEntry("iteratingFix"));
-    expect(lastEntry?.action).toBe("✅ Fix CI");
+    expect(fixedEntry?.action).toBe(ITER_FIXED_CI);
+    expect(outcomes[0]!.subIssues[0]?.hasPR).toBe(true);
+
+    // Outcome 1: Rebased
+    const rebasedEntry =
+      outcomes[1]!.issue.body.historyEntries[
+        outcomes[1]!.issue.body.historyEntries.length - 1
+      ];
+    expect(rebasedEntry?.action).toBe(ITER_REBASED);
   });
 });
 

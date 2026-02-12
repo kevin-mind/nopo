@@ -131,6 +131,10 @@ export interface OutcomeParams {
   commitSha?: string;
   /** Repository URL for link formatting */
   repoUrl?: string;
+  /** Stop reason from runner (e.g., "branch_rebased_and_pushed") */
+  stopReason?: string;
+  /** Whether a PR already existed before this run */
+  hadExistingPR?: boolean;
 }
 
 export interface OutcomeResult {
@@ -174,6 +178,8 @@ export function determineOutcome(params: OutcomeParams): OutcomeResult {
     prNumber,
     commitSha,
     repoUrl,
+    stopReason,
+    hadExistingPR,
   } = params;
 
   // Determine emoji and status
@@ -195,10 +201,34 @@ export function determineOutcome(params: OutcomeParams): OutcomeResult {
   }
 
   // Format transition message
-  // For "Done" transitions with a sub-issue, make the message more descriptive
   let transition = transitionName || "unknown";
+
+  // For "Done" transitions with a sub-issue, make the message more descriptive
   if (transitionName === "Done" && subIssueNumber && phase !== "-" && repoUrl) {
     transition = `[Phase ${phase}] Done [#${subIssueNumber}](${repoUrl}/issues/${subIssueNumber})`;
+  }
+
+  // Enrich iterate-family transitions with descriptive outcomes
+  if (
+    status === "Done" &&
+    (transitionName === "Iterate" || transitionName === "Fix CI")
+  ) {
+    const phaseLink =
+      phase !== "-" && subIssueNumber && repoUrl
+        ? ` - [Phase ${phase}](${repoUrl}/issues/${subIssueNumber})`
+        : "";
+
+    if (stopReason === "branch_rebased_and_pushed") {
+      emoji = "🔄";
+      transition = `Rebased${phaseLink}`;
+    } else if (transitionName === "Fix CI") {
+      emoji = "🔧";
+      transition = `Fixed CI${phaseLink}`;
+    } else {
+      transition = hadExistingPR
+        ? `Updated PR${phaseLink}`
+        : `Opened PR${phaseLink}`;
+    }
   }
 
   // Determine link type - PR for review transitions, commit SHA otherwise
