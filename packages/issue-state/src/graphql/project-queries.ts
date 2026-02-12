@@ -76,6 +76,20 @@ mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value
 }
 `;
 
+export const CLEAR_PROJECT_FIELD_MUTATION = `
+mutation ClearProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+  clearProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
+
 export const ADD_ISSUE_TO_PROJECT_MUTATION = `
 mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
   addProjectV2ItemById(input: {

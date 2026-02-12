@@ -8,6 +8,7 @@ import * as core from "@actions/core";
 import {
   GET_PROJECT_ITEM_QUERY,
   UPDATE_PROJECT_FIELD_MUTATION,
+  CLEAR_PROJECT_FIELD_MUTATION,
   ADD_ISSUE_TO_PROJECT_MUTATION,
   DELETE_PROJECT_ITEM_MUTATION,
 } from "@more/issue-state";
@@ -252,6 +253,18 @@ export async function executeUpdateProjectStatus(
     ctx,
     action.issueNumber,
   );
+
+  // null status means clear the field
+  if (action.status === null) {
+    await ctx.octokit.graphql(CLEAR_PROJECT_FIELD_MUTATION, {
+      projectId: projectFields.projectId,
+      itemId,
+      fieldId: projectFields.statusFieldId,
+    });
+
+    core.info(`Cleared Status for issue #${action.issueNumber}`);
+    return { updated: true, previousStatus: currentState.status };
+  }
 
   const optionId = findStatusOption(projectFields.statusOptions, action.status);
   if (!optionId) {

@@ -1302,7 +1302,7 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
  * Emit actions to retry the issue (circuit breaker recovery)
  * This is triggered by /retry command
  *
- * Clears failures, sets status to In progress, assigns bot, and logs retry
+ * Clears failures, clears sub-issue status, sets parent to In progress, assigns bot, and logs retry
  */
 export function emitRetryIssue({ context }: ActionContext): ActionResult {
   const actions: ActionResult = [];
@@ -1321,7 +1321,7 @@ export function emitRetryIssue({ context }: ActionContext): ActionResult {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context.currentSubIssue.number,
-      status: "In progress",
+      status: null,
     });
   }
 

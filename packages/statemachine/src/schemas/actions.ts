@@ -41,12 +41,13 @@ const BaseActionSchema = z.object({
 // ============================================================================
 
 /**
- * Update the Project Status field for an issue
+ * Update the Project Status field for an issue.
+ * Pass null to clear the status field.
  */
 export const UpdateProjectStatusActionSchema = BaseActionSchema.extend({
   type: z.literal("updateProjectStatus"),
   issueNumber: z.number().int().positive(),
-  status: ProjectStatusSchema,
+  status: ProjectStatusSchema.nullable(),
 });
 
 export type UpdateProjectStatusAction = z.infer<

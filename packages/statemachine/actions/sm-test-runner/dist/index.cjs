@@ -40620,6 +40620,19 @@ mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value
   }
 }
 `;
+var CLEAR_PROJECT_FIELD_MUTATION = `
+mutation ClearProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+  clearProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
 var ADD_ISSUE_TO_PROJECT_MUTATION = `
 mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
   addProjectV2ItemById(input: {
@@ -42030,7 +42043,7 @@ var BaseActionSchema = external_exports.object({
 var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("updateProjectStatus"),
   issueNumber: external_exports.number().int().positive(),
-  status: ProjectStatusSchema
+  status: ProjectStatusSchema.nullable()
 });
 var IncrementIterationActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("incrementIteration"),
@@ -48111,7 +48124,7 @@ function emitRetryIssue({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.currentSubIssue.number,
-      status: "In progress"
+      status: null
     });
   }
   actions.push({
@@ -69313,6 +69326,15 @@ async function executeUpdateProjectStatus(action, ctx) {
     ctx,
     action.issueNumber
   );
+  if (action.status === null) {
+    await ctx.octokit.graphql(CLEAR_PROJECT_FIELD_MUTATION, {
+      projectId: projectFields.projectId,
+      itemId,
+      fieldId: projectFields.statusFieldId
+    });
+    core4.info(`Cleared Status for issue #${action.issueNumber}`);
+    return { updated: true, previousStatus: currentState.status };
+  }
   const optionId = findStatusOption(projectFields.statusOptions, action.status);
   if (!optionId) {
     core4.warning(`Status option '${action.status}' not found in project`);

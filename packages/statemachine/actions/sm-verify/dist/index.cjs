@@ -41439,7 +41439,7 @@ var BaseActionSchema = external_exports.object({
 var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("updateProjectStatus"),
   issueNumber: external_exports.number().int().positive(),
-  status: ProjectStatusSchema
+  status: ProjectStatusSchema.nullable()
 });
 var IncrementIterationActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("incrementIteration"),
@@ -47400,7 +47400,7 @@ function emitRetryIssue({ context: context2 }) {
       type: "updateProjectStatus",
       token: "code",
       issueNumber: context2.currentSubIssue.number,
-      status: "In progress"
+      status: null
     });
   }
   actions.push({
