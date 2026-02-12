@@ -3,7 +3,7 @@
  *
  * Single action that performs the complete run cycle:
  * 1. Build machine context and derive actions (state machine transition)
- * 2. Log run start (append history entry)
+ * 2. Save state for post-cancellation cleanup (run start logged by sm-plan)
  * 3. Execute all derived actions sequentially
  * 4. Log run end (update history with outcome)
  * 5. Determine retrigger decision
@@ -106,57 +106,6 @@ function getExecutionBranch(
   }
 
   return ctx.branch_name || null;
-}
-
-// ============================================================================
-// Phase: Log Run Start
-// ============================================================================
-
-async function logRunStart(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
-  issueNumber: number,
-  iteration: number,
-  phase: string,
-  dryRun: boolean,
-): Promise<void> {
-  if (dryRun) {
-    core.info("[DRY RUN] Would log run start");
-    return;
-  }
-
-  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
-  const runId = process.env.GITHUB_RUN_ID || "";
-  const runLink = `${serverUrl}/${repository}/actions/runs/${runId}`;
-  const repoUrl = `${serverUrl}/${owner}/${repo}`;
-
-  try {
-    const { data, update } = await parseIssue(owner, repo, issueNumber, {
-      octokit: asOctokitLike(octokit),
-      fetchPRs: false,
-      fetchParent: false,
-    });
-
-    const state = addHistoryEntry(
-      {
-        iteration,
-        phase,
-        action: "\u23f3 running...",
-        timestamp: new Date().toISOString(),
-        runLink,
-        repoUrl,
-      },
-      data,
-    );
-
-    await update(state);
-    core.info(`Logged run start for issue #${issueNumber}`);
-  } catch (error) {
-    // Don't fail the entire run if history logging fails
-    core.warning(`Failed to log run start: ${error}`);
-  }
 }
 
 // ============================================================================
@@ -612,7 +561,8 @@ async function run(): Promise<void> {
     core.endGroup();
 
     // ====================================================================
-    // STEP 2: Log Run Start (skip for discussions and merge-queue-logging)
+    // STEP 2: Save state for post-cancellation cleanup
+    // (Run start logging moved to sm-plan for faster feedback)
     // ====================================================================
     const skipLogging = isDiscussion || ctx.job === "merge-queue-logging";
     const issueNumber = parseInt(
@@ -621,26 +571,13 @@ async function run(): Promise<void> {
     );
 
     if (!skipLogging && issueNumber > 0) {
-      core.startGroup("Step 2: Log Run Start");
-
-      // Save state for post-cancellation cleanup
+      // Save state so the post step can clean up "⏳ running..." on cancellation
       core.saveState("issue_number", String(issueNumber));
       core.saveState("iteration", deriveResult.iteration);
       core.saveState("phase", deriveResult.phase);
       core.saveState("code_token_input", "github_code_token");
       core.saveState("transition_name", deriveResult.transitionName);
       core.saveState("dry_run", String(dryRun));
-
-      await logRunStart(
-        codeOctokit,
-        owner,
-        repo,
-        issueNumber,
-        parseInt(deriveResult.iteration, 10),
-        deriveResult.phase,
-        dryRun,
-      );
-      core.endGroup();
     }
 
     // ====================================================================

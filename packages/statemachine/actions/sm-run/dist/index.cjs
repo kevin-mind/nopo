@@ -74341,39 +74341,6 @@ function getExecutionBranch(actions, ctx) {
   }
   return ctx.branch_name || null;
 }
-async function logRunStart(octokit, owner, repo, issueNumber, iteration, phase, dryRun) {
-  if (dryRun) {
-    core26.info("[DRY RUN] Would log run start");
-    return;
-  }
-  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
-  const runId = process.env.GITHUB_RUN_ID || "";
-  const runLink = `${serverUrl}/${repository}/actions/runs/${runId}`;
-  const repoUrl = `${serverUrl}/${owner}/${repo}`;
-  try {
-    const { data, update } = await parseIssue(owner, repo, issueNumber, {
-      octokit: asOctokitLike9(octokit),
-      fetchPRs: false,
-      fetchParent: false
-    });
-    const state = addHistoryEntry2(
-      {
-        iteration,
-        phase,
-        action: "\u23F3 running...",
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        runLink,
-        repoUrl
-      },
-      data
-    );
-    await update(state);
-    core26.info(`Logged run start for issue #${issueNumber}`);
-  } catch (error8) {
-    core26.warning(`Failed to log run start: ${error8}`);
-  }
-}
 async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSuccess, dryRun, stopReason) {
   if (dryRun) {
     core26.info("[DRY RUN] Would log run end");
@@ -74688,23 +74655,12 @@ async function run() {
       10
     );
     if (!skipLogging && issueNumber > 0) {
-      core26.startGroup("Step 2: Log Run Start");
       core26.saveState("issue_number", String(issueNumber));
       core26.saveState("iteration", deriveResult.iteration);
       core26.saveState("phase", deriveResult.phase);
       core26.saveState("code_token_input", "github_code_token");
       core26.saveState("transition_name", deriveResult.transitionName);
       core26.saveState("dry_run", String(dryRun));
-      await logRunStart(
-        codeOctokit,
-        owner,
-        repo,
-        issueNumber,
-        parseInt(deriveResult.iteration, 10),
-        deriveResult.phase,
-        dryRun
-      );
-      core26.endGroup();
     }
     let execSuccess = true;
     let runnerResult;

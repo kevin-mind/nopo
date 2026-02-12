@@ -8,16 +8,74 @@
 
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { parseIssue, type OctokitLike } from "@more/issue-state";
 import {
   getRequiredInput,
   getOptionalInput,
   setOutputs,
   deriveIssueActions,
   isDiscussionTrigger,
+  addHistoryEntry,
   type WorkflowContext,
+  type DeriveResult,
 } from "@more/statemachine";
 import { detectEvent } from "./lib/router-impl.js";
 import { predictExpectedState } from "./lib/expected-state.js";
+
+function asOctokitLike(
+  octokit: ReturnType<typeof github.getOctokit>,
+): OctokitLike {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+  return octokit as unknown as OctokitLike;
+}
+
+/**
+ * Write the "⏳ running..." history entry early so feedback is instant.
+ * sm-run's logRunEnd will replace this with the actual outcome.
+ */
+async function logRunStart(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  deriveResult: DeriveResult,
+): Promise<void> {
+  const issueNumber = parseInt(deriveResult.parentIssueNumber || "0", 10);
+  if (issueNumber <= 0) return;
+
+  const iteration = parseInt(deriveResult.iteration, 10);
+  const phase = deriveResult.phase;
+
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const runLink = `${serverUrl}/${repository}/actions/runs/${runId}`;
+  const repoUrl = `${serverUrl}/${owner}/${repo}`;
+
+  try {
+    const { data, update } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false,
+    });
+
+    const state = addHistoryEntry(
+      {
+        iteration,
+        phase,
+        action: "\u23f3 running...",
+        timestamp: new Date().toISOString(),
+        runLink,
+        repoUrl,
+      },
+      data,
+    );
+
+    await update(state);
+    core.info(`Logged run start for issue #${issueNumber}`);
+  } catch (error) {
+    core.warning(`Failed to log run start: ${error}`);
+  }
+}
 
 async function run(): Promise<void> {
   const token = getRequiredInput("github_token");
@@ -56,6 +114,10 @@ async function run(): Promise<void> {
         if (result) {
           expectedStateJson = result;
         }
+
+        // Write "⏳ running..." history entry early for instant feedback.
+        // sm-run's logRunEnd replaces this with the actual outcome.
+        await logRunStart(octokit, owner, repo, deriveResult);
       }
     } catch (error) {
       core.warning(`Expected state prediction failed: ${error}`);

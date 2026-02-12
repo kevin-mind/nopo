@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info27 = this._prepareRequest(verb, parsedUrl, headers);
+          let info28 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info27, data);
+            response = yield this.requestRaw(info28, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info27, data);
+                return authenticationHandler.handleAuthentication(this, info28, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info27 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info27, data);
+              info28 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info28, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info27, data) {
+      requestRaw(info28, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve(res);
               }
             }
-            this.requestRawWithCallback(info27, data, callbackForResult);
+            this.requestRawWithCallback(info28, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info27, data, onResult) {
+      requestRawWithCallback(info28, data, onResult) {
         if (typeof data === "string") {
-          if (!info27.options.headers) {
-            info27.options.headers = {};
+          if (!info28.options.headers) {
+            info28.options.headers = {};
           }
-          info27.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info28.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info27.httpModule.request(info27.options, (msg) => {
+        const req = info28.httpModule.request(info28.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info27.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info28.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info27 = {};
-        info27.parsedUrl = requestUrl;
-        const usingSsl = info27.parsedUrl.protocol === "https:";
-        info27.httpModule = usingSsl ? https : http;
+        const info28 = {};
+        info28.parsedUrl = requestUrl;
+        const usingSsl = info28.parsedUrl.protocol === "https:";
+        info28.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info27.options = {};
-        info27.options.host = info27.parsedUrl.hostname;
-        info27.options.port = info27.parsedUrl.port ? parseInt(info27.parsedUrl.port) : defaultPort;
-        info27.options.path = (info27.parsedUrl.pathname || "") + (info27.parsedUrl.search || "");
-        info27.options.method = method;
-        info27.options.headers = this._mergeHeaders(headers);
+        info28.options = {};
+        info28.options.host = info28.parsedUrl.hostname;
+        info28.options.port = info28.parsedUrl.port ? parseInt(info28.parsedUrl.port) : defaultPort;
+        info28.options.path = (info28.parsedUrl.pathname || "") + (info28.parsedUrl.search || "");
+        info28.options.method = method;
+        info28.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info27.options.headers["user-agent"] = this.userAgent;
+          info28.options.headers["user-agent"] = this.userAgent;
         }
-        info27.options.agent = this._getAgent(info27.parsedUrl);
+        info28.options.agent = this._getAgent(info28.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info27.options);
+            handler.prepareRequest(info28.options);
           }
         }
-        return info27;
+        return info28;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -19748,10 +19748,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info27(message) {
+    function info28(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info27;
+    exports2.info = info28;
     function startGroup13(name) {
       (0, command_1.issue)("group", name);
     }
@@ -23977,6 +23977,33 @@ var require_extend = __commonJS({
 var core28 = __toESM(require_core(), 1);
 var github2 = __toESM(require_github(), 1);
 
+// packages/issue-state/src/constants.ts
+var PARENT_STATUS = {
+  BACKLOG: "Backlog",
+  IN_PROGRESS: "In progress",
+  DONE: "Done",
+  BLOCKED: "Blocked",
+  ERROR: "Error"
+};
+var SUB_ISSUE_STATUS = {
+  READY: "Ready",
+  IN_PROGRESS: "In progress",
+  IN_REVIEW: "In review",
+  DONE: "Done"
+};
+var PROJECT_STATUS = {
+  ...PARENT_STATUS,
+  ...SUB_ISSUE_STATUS
+};
+var DEFAULT_PROJECT_FIELDS = {
+  status: PARENT_STATUS.BACKLOG,
+  iteration: 0,
+  failures: 0
+};
+var DEFAULT_SUB_ISSUE_PROJECT_FIELDS = {
+  status: SUB_ISSUE_STATUS.READY
+};
+
 // node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
@@ -28017,33 +28044,6 @@ var coerce = {
   date: (arg) => ZodDate.create({ ...arg, coerce: true })
 };
 var NEVER = INVALID;
-
-// packages/issue-state/src/constants.ts
-var PARENT_STATUS = {
-  BACKLOG: "Backlog",
-  IN_PROGRESS: "In progress",
-  DONE: "Done",
-  BLOCKED: "Blocked",
-  ERROR: "Error"
-};
-var SUB_ISSUE_STATUS = {
-  READY: "Ready",
-  IN_PROGRESS: "In progress",
-  IN_REVIEW: "In review",
-  DONE: "Done"
-};
-var PROJECT_STATUS = {
-  ...PARENT_STATUS,
-  ...SUB_ISSUE_STATUS
-};
-var DEFAULT_PROJECT_FIELDS = {
-  status: PARENT_STATUS.BACKLOG,
-  iteration: 0,
-  failures: 0
-};
-var DEFAULT_SUB_ISSUE_PROJECT_FIELDS = {
-  status: SUB_ISSUE_STATUS.READY
-};
 
 // packages/issue-state/src/schemas/enums.ts
 var ProjectStatusSchema = external_exports.enum([
@@ -32604,9 +32604,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info27(code3);
+    return info28(code3);
   }
-  function info27(code3) {
+  function info28(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32621,7 +32621,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info27;
+    return info28;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35460,11 +35460,11 @@ function createTokenizer(parser2, initialize, from) {
     context3.events.push(["exit", token, context3]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info27) {
-    addResult(construct, info27.from);
+  function onsuccessfulconstruct(construct, info28) {
+    addResult(construct, info28.from);
   }
-  function onsuccessfulcheck(_, info27) {
-    info27.restore();
+  function onsuccessfulcheck(_, info28) {
+    info28.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35472,7 +35472,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info27;
+      let info28;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35508,7 +35508,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info27 = store();
+          info28 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context3.currentConstruct = construct;
@@ -35529,12 +35529,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info27);
+        onreturn(currentConstruct, info28);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info27.restore();
+        info28.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -37003,8 +37003,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info27) {
-  const tracker = state.createTracker(info27);
+function footnoteReference(node2, _, state, info28) {
+  const tracker = state.createTracker(info28);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37042,8 +37042,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info27) {
-    const tracker = state.createTracker(info27);
+  function footnoteDefinition(node2, _, state, info28) {
+    const tracker = state.createTracker(info28);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37107,8 +37107,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info27) {
-  const tracker = state.createTracker(info27);
+function handleDelete(node2, _, state, info28) {
+  const tracker = state.createTracker(info28);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37335,9 +37335,9 @@ function map(left, right) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info27) {
+function blockquote(node2, _, state, info28) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37372,11 +37372,11 @@ function listInScope(stack, list4, none) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info27) {
+function hardBreak(_, _1, state, info28) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info27.before) ? "" : " ";
+      return /[ \t]/.test(info28.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37428,7 +37428,7 @@ function checkFence(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info27) {
+function code(node2, _, state, info28) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37438,7 +37438,7 @@ function code(node2, _, state, info27) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37491,12 +37491,12 @@ function checkQuote(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info27) {
+function definition2(node2, _, state, info28) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37606,10 +37606,10 @@ function encodeInfo(outside, inside, marker) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info27) {
+function emphasis(node2, _, state, info28) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37620,7 +37620,7 @@ function emphasis(node2, _, state, info27) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info27.before.charCodeAt(info27.before.length - 1),
+    info28.before.charCodeAt(info28.before.length - 1),
     betweenHead,
     marker
   );
@@ -37628,7 +37628,7 @@ function emphasis(node2, _, state, info27) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info27.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info28.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37681,9 +37681,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info27) {
+function heading(node2, _, state, info28) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37733,12 +37733,12 @@ function htmlPeek() {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info27) {
+function image(node2, _, state, info28) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37790,11 +37790,11 @@ function imagePeek() {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info27) {
+function imageReference(node2, _, state, info28) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37875,10 +37875,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info27) {
+function link(node2, _, state, info28) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37955,11 +37955,11 @@ function linkPeek(node2, _, state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info27) {
+function linkReference(node2, _, state, info28) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38046,7 +38046,7 @@ function checkRule(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info27) {
+function list3(node2, parent, state, info28) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38078,7 +38078,7 @@ function list3(node2, parent, state, info27) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info27);
+  const value = state.containerFlow(node2, info28);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38097,7 +38097,7 @@ function checkListItemIndent(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info27) {
+function listItem(node2, parent, state, info28) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38107,7 +38107,7 @@ function listItem(node2, parent, state, info27) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38126,10 +38126,10 @@ function listItem(node2, parent, state, info27) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info27) {
+function paragraph(node2, _, state, info28) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info27);
+  const value = state.containerPhrasing(node2, info28);
   subexit();
   exit3();
   return value;
@@ -38164,12 +38164,12 @@ var phrasing = (
 );
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info27) {
+function root(node2, _, state, info28) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info27);
+  return container.call(state, node2, info28);
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38185,10 +38185,10 @@ function checkStrong(state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info27) {
+function strong(node2, _, state, info28) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38199,7 +38199,7 @@ function strong(node2, _, state, info27) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info27.before.charCodeAt(info27.before.length - 1),
+    info28.before.charCodeAt(info28.before.length - 1),
     betweenHead,
     marker
   );
@@ -38207,7 +38207,7 @@ function strong(node2, _, state, info27) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info27.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info28.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38224,8 +38224,8 @@ function strongPeek(_, _1, state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info27) {
-  return state.safe(node2.value, info27);
+function text3(node2, _, state, info28) {
+  return state.safe(node2.value, info28);
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38440,15 +38440,15 @@ function compilePattern(pattern) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info27) {
+function containerPhrasing(parent, state, info28) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info27.before;
+  let before = info28.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info27);
+  let tracker = state.createTracker(info28);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38462,7 +38462,7 @@ function containerPhrasing(parent, state, info27) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info27.after;
+      after = info28.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38470,7 +38470,7 @@ function containerPhrasing(parent, state, info27) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info27);
+      tracker = state.createTracker(info28);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38499,10 +38499,10 @@ function containerPhrasing(parent, state, info27) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info27) {
+function containerFlow(parent, state, info28) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38738,11 +38738,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info27) {
-  return containerPhrasing(parent, this, info27);
+function containerPhrasingBound(parent, info28) {
+  return containerPhrasing(parent, this, info28);
 }
-function containerFlowBound(parent, info27) {
-  return containerFlow(parent, this, info27);
+function containerFlowBound(parent, info28) {
+  return containerFlow(parent, this, info28);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38839,19 +38839,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info27) {
-    return serializeData(handleTableAsData(node2, state, info27), node2.align);
+  function handleTable(node2, _, state, info28) {
+    return serializeData(handleTableAsData(node2, state, info28), node2.align);
   }
-  function handleTableRow(node2, _, state, info27) {
-    const row = handleTableRowAsData(node2, state, info27);
+  function handleTableRow(node2, _, state, info28) {
+    const row = handleTableRowAsData(node2, state, info28);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info27) {
+  function handleTableCell(node2, _, state, info28) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info27,
+      ...info28,
       before: around,
       after: around
     });
@@ -38870,24 +38870,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info27) {
+  function handleTableAsData(node2, state, info28) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info27);
+      result[index2] = handleTableRowAsData(children[index2], state, info28);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info27) {
+  function handleTableRowAsData(node2, state, info28) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info27);
+      result[index2] = handleTableCell(children[index2], node2, state, info28);
     }
     subexit();
     return result;
@@ -38953,16 +38953,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info27) {
+function listItemWithTaskListItem(node2, parent, state, info28) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info27);
+  const tracker = state.createTracker(info28);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info27,
+    ...info28,
     ...tracker.current()
   });
   if (checkable) {
@@ -70982,6 +70982,42 @@ function predictExpectedState(deriveResult) {
 }
 
 // packages/statemachine/actions/sm-plan/index.ts
+function asOctokitLike(octokit) {
+  return octokit;
+}
+async function logRunStart(octokit, owner, repo, deriveResult) {
+  const issueNumber = parseInt(deriveResult.parentIssueNumber || "0", 10);
+  if (issueNumber <= 0) return;
+  const iteration = parseInt(deriveResult.iteration, 10);
+  const phase = deriveResult.phase;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const runLink = `${serverUrl}/${repository}/actions/runs/${runId}`;
+  const repoUrl = `${serverUrl}/${owner}/${repo}`;
+  try {
+    const { data, update } = await parseIssue(owner, repo, issueNumber, {
+      octokit: asOctokitLike(octokit),
+      fetchPRs: false,
+      fetchParent: false
+    });
+    const state = addHistoryEntry2(
+      {
+        iteration,
+        phase,
+        action: "\u23F3 running...",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        runLink,
+        repoUrl
+      },
+      data
+    );
+    await update(state);
+    core28.info(`Logged run start for issue #${issueNumber}`);
+  } catch (error7) {
+    core28.warning(`Failed to log run start: ${error7}`);
+  }
+}
 async function run() {
   const token = getRequiredInput("github_token");
   const projectNumber = parseInt(getOptionalInput("project_number") || "1", 10);
@@ -71010,6 +71046,7 @@ async function run() {
         if (result) {
           expectedStateJson = result;
         }
+        await logRunStart(octokit, owner, repo, deriveResult);
       }
     } catch (error7) {
       core28.warning(`Expected state prediction failed: ${error7}`);
