@@ -44929,6 +44929,22 @@ function stopChild(actorRef) {
   stop2.execute = executeStop;
   return stop2;
 }
+function checkAnd(snapshot, {
+  context: context2,
+  event
+}, {
+  guards: guards2
+}) {
+  return guards2.every((guard) => evaluateGuard(guard, context2, event, snapshot));
+}
+function and(guards2) {
+  function and2(_args, _params) {
+    return false;
+  }
+  and2.check = checkAnd;
+  and2.guards = guards2;
+  return and2;
+}
 function evaluateGuard(guard, context2, event, snapshot) {
   const {
     machine
@@ -48672,8 +48688,13 @@ var claudeMachine = setup({
             guard: "triggeredByOrchestrate"
           },
           // Check if this is a PR review request (bot should review)
+          // Only review if CI has passed — prevents reviewing PRs with failing CI
           {
             target: "prReviewing",
+            guard: and(["triggeredByPRReview", "ciPassed"])
+          },
+          {
+            target: "prReviewSkipped",
             guard: "triggeredByPRReview"
           },
           // Check if this is a PR response (bot responds to bot's review)
@@ -48835,6 +48856,16 @@ var claudeMachine = setup({
      */
     prRespondingHuman: {
       entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final"
+    },
+    /**
+     * PR review skipped because CI has not passed
+     *
+     * Review was requested but CI hasn't passed yet. The state machine
+     * will naturally request review once CI passes via the readyForReview
+     * guard in processingCI.
+     */
+    prReviewSkipped: {
       type: "final"
     },
     /**
@@ -71091,40 +71122,9 @@ async function executeApplyIterateOutput(action, ctx, structuredOutput) {
       }
       break;
     case "all_done":
-      core9.info("All todos complete - ready for review");
-      if (action.prNumber) {
-        try {
-          const markReadyAction = {
-            type: "markPRReady",
-            token: "code",
-            prNumber: action.prNumber
-          };
-          await executeMarkPRReady(markReadyAction, ctx);
-          const updateStatusAction = {
-            type: "updateProjectStatus",
-            token: "code",
-            issueNumber,
-            status: "In review"
-          };
-          await executeUpdateProjectStatus(updateStatusAction, ctx);
-          if (action.reviewer) {
-            const requestReviewAction = {
-              type: "requestReview",
-              token: "code",
-              prNumber: action.prNumber,
-              reviewer: action.reviewer
-            };
-            await executeRequestReview(requestReviewAction, ctx);
-          }
-          core9.info(`Review transition complete for PR #${action.prNumber}`);
-        } catch (error11) {
-          core9.warning(`Failed to transition to review: ${error11}`);
-        }
-      } else {
-        core9.warning(
-          "No PR number available - cannot transition to review automatically"
-        );
-      }
+      core9.info(
+        "All todos complete \u2014 waiting for CI to pass before requesting review"
+      );
       break;
   }
   return { applied: true, status: iterateOutput.status };

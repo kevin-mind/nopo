@@ -100,6 +100,7 @@ const MUTATOR_REGISTRY: Record<string, StateMutator> = {
   prReviewing: noopMutator,
   prResponding: noopMutator,
   prRespondingHuman: noopMutator,
+  prReviewSkipped: noopMutator,
 };
 
 /**

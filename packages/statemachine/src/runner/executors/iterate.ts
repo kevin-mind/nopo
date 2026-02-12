@@ -8,9 +8,6 @@ import * as core from "@actions/core";
 import * as fs from "node:fs";
 import type {
   ApplyIterateOutputAction,
-  MarkPRReadyAction,
-  RequestReviewAction,
-  UpdateProjectStatusAction,
   UnassignUserAction,
   AppendHistoryAction,
   BlockAction,
@@ -23,13 +20,8 @@ import {
   parseOutput,
   type IterateOutput,
 } from "./output-schemas.js";
-import {
-  executeMarkPRReady,
-  executeRequestReview,
-  executeUnassignUser,
-  executeAppendHistory,
-} from "./github.js";
-import { executeUpdateProjectStatus, executeBlock } from "./project.js";
+import { executeUnassignUser, executeAppendHistory } from "./github.js";
+import { executeBlock } from "./project.js";
 import { HISTORY_MESSAGES } from "../../constants.js";
 
 // Helper to cast RunnerContext octokit to OctokitLike
@@ -209,46 +201,9 @@ export async function executeApplyIterateOutput(
       }
       break;
     case "all_done":
-      core.info("All todos complete - ready for review");
-      // Transition to review: mark PR ready, update project status, request review
-      if (action.prNumber) {
-        try {
-          // Mark PR as ready for review (convert from draft)
-          const markReadyAction: MarkPRReadyAction = {
-            type: "markPRReady",
-            token: "code",
-            prNumber: action.prNumber,
-          };
-          await executeMarkPRReady(markReadyAction, ctx);
-
-          // Update project status to Review
-          const updateStatusAction: UpdateProjectStatusAction = {
-            type: "updateProjectStatus",
-            token: "code",
-            issueNumber,
-            status: "In review",
-          };
-          await executeUpdateProjectStatus(updateStatusAction, ctx);
-
-          // Request review
-          if (action.reviewer) {
-            const requestReviewAction: RequestReviewAction = {
-              type: "requestReview",
-              token: "code",
-              prNumber: action.prNumber,
-              reviewer: action.reviewer,
-            };
-            await executeRequestReview(requestReviewAction, ctx);
-          }
-          core.info(`Review transition complete for PR #${action.prNumber}`);
-        } catch (error) {
-          core.warning(`Failed to transition to review: ${error}`);
-        }
-      } else {
-        core.warning(
-          "No PR number available - cannot transition to review automatically",
-        );
-      }
+      core.info(
+        "All todos complete — waiting for CI to pass before requesting review",
+      );
       break;
   }
 

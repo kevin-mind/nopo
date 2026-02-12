@@ -44644,6 +44644,22 @@ function stopChild(actorRef) {
   stop2.execute = executeStop;
   return stop2;
 }
+function checkAnd(snapshot, {
+  context: context3,
+  event
+}, {
+  guards: guards2
+}) {
+  return guards2.every((guard) => evaluateGuard(guard, context3, event, snapshot));
+}
+function and(guards2) {
+  function and2(_args, _params) {
+    return false;
+  }
+  and2.check = checkAnd;
+  and2.guards = guards2;
+  return and2;
+}
 function evaluateGuard(guard, context3, event, snapshot) {
   const {
     machine
@@ -48387,8 +48403,13 @@ var claudeMachine = setup({
             guard: "triggeredByOrchestrate"
           },
           // Check if this is a PR review request (bot should review)
+          // Only review if CI has passed — prevents reviewing PRs with failing CI
           {
             target: "prReviewing",
+            guard: and(["triggeredByPRReview", "ciPassed"])
+          },
+          {
+            target: "prReviewSkipped",
             guard: "triggeredByPRReview"
           },
           // Check if this is a PR response (bot responds to bot's review)
@@ -48550,6 +48571,16 @@ var claudeMachine = setup({
      */
     prRespondingHuman: {
       entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final"
+    },
+    /**
+     * PR review skipped because CI has not passed
+     *
+     * Review was requested but CI hasn't passed yet. The state machine
+     * will naturally request review once CI passes via the readyForReview
+     * guard in processingCI.
+     */
+    prReviewSkipped: {
       type: "final"
     },
     /**
@@ -67961,6 +67992,7 @@ function getTransitionName(finalState) {
     prReviewing: "PR Review",
     prResponding: "PR Response",
     prRespondingHuman: "PR Human Response",
+    prReviewSkipped: "PR Review Skipped",
     prPush: "PR Push",
     // Issue states - Orchestration flows
     orchestrationRunning: "Orchestrate",
@@ -68694,7 +68726,8 @@ var MUTATOR_REGISTRY = {
   // PR review states (AI-dependent, no predictable structural changes)
   prReviewing: noopMutator,
   prResponding: noopMutator,
-  prRespondingHuman: noopMutator
+  prRespondingHuman: noopMutator,
+  prReviewSkipped: noopMutator
 };
 function getMutator(finalState) {
   return MUTATOR_REGISTRY[finalState];

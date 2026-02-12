@@ -32971,14 +32971,14 @@ var SpliceBuffer = class {
    *   Array of items.
    */
   slice(start, end) {
-    const stop = end === null || end === void 0 ? Number.POSITIVE_INFINITY : end;
-    if (stop < this.left.length) {
-      return this.left.slice(start, stop);
+    const stop2 = end === null || end === void 0 ? Number.POSITIVE_INFINITY : end;
+    if (stop2 < this.left.length) {
+      return this.left.slice(start, stop2);
     }
     if (start > this.left.length) {
-      return this.right.slice(this.right.length - stop + this.left.length, this.right.length - start + this.left.length).reverse();
+      return this.right.slice(this.right.length - stop2 + this.left.length, this.right.length - start + this.left.length).reverse();
     }
-    return this.left.slice(start).concat(this.right.slice(this.right.length - stop + this.left.length).reverse());
+    return this.left.slice(start).concat(this.right.slice(this.right.length - stop2 + this.left.length).reverse());
   }
   /**
    * Mimics the behavior of Array.prototype.splice() except for the change of
@@ -36033,11 +36033,11 @@ function compiler(options) {
     events[start][1]._spread = listSpread;
     return length;
   }
-  function opener(create, and) {
+  function opener(create, and2) {
     return open2;
     function open2(token) {
       enter.call(this, create(token), token);
-      if (and) and.call(this, token);
+      if (and2) and2.call(this, token);
     }
   }
   function buffer() {
@@ -36058,10 +36058,10 @@ function compiler(options) {
       end: void 0
     };
   }
-  function closer(and) {
+  function closer(and2) {
     return close;
     function close(token) {
-      if (and) and.call(this, token);
+      if (and2) and2.call(this, token);
       exit3.call(this, token);
     }
   }
@@ -44167,13 +44167,29 @@ function executeStop(actorScope, actorRef) {
   });
 }
 function stopChild(actorRef) {
-  function stop(_args, _params) {
+  function stop2(_args, _params) {
   }
-  stop.type = "xstate.stopChild";
-  stop.actorRef = actorRef;
-  stop.resolve = resolveStop;
-  stop.execute = executeStop;
-  return stop;
+  stop2.type = "xstate.stopChild";
+  stop2.actorRef = actorRef;
+  stop2.resolve = resolveStop;
+  stop2.execute = executeStop;
+  return stop2;
+}
+function checkAnd(snapshot, {
+  context: context2,
+  event
+}, {
+  guards: guards2
+}) {
+  return guards2.every((guard) => evaluateGuard(guard, context2, event, snapshot));
+}
+function and(guards2) {
+  function and2(_args, _params) {
+    return false;
+  }
+  and2.check = checkAnd;
+  and2.guards = guards2;
+  return and2;
 }
 function evaluateGuard(guard, context2, event, snapshot) {
   const {
@@ -47918,8 +47934,13 @@ var claudeMachine = setup({
             guard: "triggeredByOrchestrate"
           },
           // Check if this is a PR review request (bot should review)
+          // Only review if CI has passed — prevents reviewing PRs with failing CI
           {
             target: "prReviewing",
+            guard: and(["triggeredByPRReview", "ciPassed"])
+          },
+          {
+            target: "prReviewSkipped",
             guard: "triggeredByPRReview"
           },
           // Check if this is a PR response (bot responds to bot's review)
@@ -48081,6 +48102,16 @@ var claudeMachine = setup({
      */
     prRespondingHuman: {
       entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final"
+    },
+    /**
+     * PR review skipped because CI has not passed
+     *
+     * Review was requested but CI hasn't passed yet. The state machine
+     * will naturally request review once CI passes via the readyForReview
+     * guard in processingCI.
+     */
+    prReviewSkipped: {
       type: "final"
     },
     /**
@@ -49011,7 +49042,7 @@ var require_codegen = __commonJS2((exports2) => {
           return e instanceof If ? e : e.nodes;
         if (this.nodes.length)
           return this;
-        return new If(not(cond), e instanceof If ? [e] : e.nodes);
+        return new If(not2(cond), e instanceof If ? [e] : e.nodes);
       }
       if (cond === false || !this.nodes.length)
         return;
@@ -49433,20 +49464,20 @@ var require_codegen = __commonJS2((exports2) => {
     for (const n in from)
       names[n] = (names[n] || 0) - (from[n] || 0);
   }
-  function not(x) {
+  function not2(x) {
     return typeof x == "boolean" || typeof x == "number" || x === null ? !x : (0, code_1._)`!${par(x)}`;
   }
-  exports2.not = not;
+  exports2.not = not2;
   var andCode = mappend(exports2.operators.AND);
-  function and(...args) {
+  function and2(...args) {
     return args.reduce(andCode);
   }
-  exports2.and = and;
+  exports2.and = and2;
   var orCode = mappend(exports2.operators.OR);
-  function or(...args) {
+  function or2(...args) {
     return args.reduce(orCode);
   }
-  exports2.or = or;
+  exports2.or = or2;
   function mappend(op) {
     return (x, y) => x === code_1.nil ? y : y === code_1.nil ? x : (0, code_1._)`${par(x)} ${op} ${par(y)}`;
   }

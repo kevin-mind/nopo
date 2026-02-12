@@ -1,4 +1,4 @@
-import { assign, setup } from "xstate";
+import { and, assign, setup } from "xstate";
 import type { MachineContext, Action } from "../schemas/index.js";
 import { guards } from "./guards.js";
 import { emit, accumulateFromEmitter } from "./emit-helper.js";
@@ -388,8 +388,13 @@ export const claudeMachine = setup({
             guard: "triggeredByOrchestrate",
           },
           // Check if this is a PR review request (bot should review)
+          // Only review if CI has passed — prevents reviewing PRs with failing CI
           {
             target: "prReviewing",
+            guard: and(["triggeredByPRReview", "ciPassed"]),
+          },
+          {
+            target: "prReviewSkipped",
             guard: "triggeredByPRReview",
           },
           // Check if this is a PR response (bot responds to bot's review)
@@ -560,6 +565,17 @@ export const claudeMachine = setup({
      */
     prRespondingHuman: {
       entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final",
+    },
+
+    /**
+     * PR review skipped because CI has not passed
+     *
+     * Review was requested but CI hasn't passed yet. The state machine
+     * will naturally request review once CI passes via the readyForReview
+     * guard in processingCI.
+     */
+    prReviewSkipped: {
       type: "final",
     },
 
