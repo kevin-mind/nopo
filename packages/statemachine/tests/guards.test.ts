@@ -106,7 +106,14 @@ describe("Terminal State Guards", () => {
           ...createTriageContext().issue,
           projectStatus: "Done",
         }),
-        pr: { state: "MERGED", isDraft: false, number: 1 },
+        pr: {
+          state: "MERGED",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.isAlreadyDone({ context })).toBe(true);
     });
@@ -117,7 +124,14 @@ describe("Terminal State Guards", () => {
           ...createTriageContext().issue,
           projectStatus: "Done",
         }),
-        pr: { state: "OPEN", isDraft: false, number: 1 },
+        pr: {
+          state: "OPEN",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.isAlreadyDone({ context })).toBe(false);
     });
@@ -128,7 +142,14 @@ describe("Terminal State Guards", () => {
           ...createTriageContext().issue,
           projectStatus: "In progress",
         }),
-        pr: { state: "MERGED", isDraft: false, number: 1 },
+        pr: {
+          state: "MERGED",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.isAlreadyDone({ context })).toBe(false);
     });
@@ -321,12 +342,22 @@ describe("Sub-Issue Guards", () => {
               title: "Phase 1",
               projectStatus: "Done",
               state: "OPEN",
+              bodyAst: parseMarkdown("# Phase 1"),
+              assignees: [],
+              labels: [],
+              branch: null,
+              pr: null,
             },
             {
               number: 2,
               title: "Phase 2",
               projectStatus: "Done",
               state: "OPEN",
+              bodyAst: parseMarkdown("# Phase 2"),
+              assignees: [],
+              labels: [],
+              branch: null,
+              pr: null,
             },
           ],
         }),
@@ -345,12 +376,22 @@ describe("Sub-Issue Guards", () => {
               title: "Phase 1",
               projectStatus: null,
               state: "CLOSED",
+              bodyAst: parseMarkdown("# Phase 1"),
+              assignees: [],
+              labels: [],
+              branch: null,
+              pr: null,
             },
             {
               number: 2,
               title: "Phase 2",
               projectStatus: null,
               state: "CLOSED",
+              bodyAst: parseMarkdown("# Phase 2"),
+              assignees: [],
+              labels: [],
+              branch: null,
+              pr: null,
             },
           ],
         }),
@@ -368,6 +409,11 @@ describe("Sub-Issue Guards", () => {
               title: "Phase 1",
               projectStatus: "Done",
               state: "OPEN",
+              bodyAst: parseMarkdown("# Phase 1"),
+              assignees: [],
+              labels: [],
+              branch: null,
+              pr: null,
             },
           ],
         }),
@@ -397,12 +443,22 @@ describe("Sub-Issue Guards", () => {
               title: "Phase 1",
               projectStatus: "Done",
               state: "OPEN",
+              bodyAst: parseMarkdown("# Phase 1"),
+              assignees: [],
+              labels: [],
+              branch: null,
+              pr: null,
             },
             {
               number: 2,
               title: "Phase 2",
               projectStatus: "In progress",
               state: "OPEN",
+              bodyAst: parseMarkdown("# Phase 2"),
+              assignees: [],
+              labels: [],
+              branch: null,
+              pr: null,
             },
           ],
         }),
@@ -923,7 +979,14 @@ describe("PR Guards", () => {
     it("returns true when hasPR is true and pr is not null", () => {
       const context = createTriageContext({
         hasPR: true,
-        pr: { state: "OPEN", isDraft: false, number: 1 },
+        pr: {
+          state: "OPEN",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.hasPR({ context })).toBe(true);
     });
@@ -942,14 +1005,28 @@ describe("PR Guards", () => {
   describe("prIsDraft", () => {
     it("returns true when PR is draft", () => {
       const context = createTriageContext({
-        pr: { state: "OPEN", isDraft: true, number: 1 },
+        pr: {
+          state: "OPEN",
+          isDraft: true,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.prIsDraft({ context })).toBe(true);
     });
 
     it("returns false when PR is not draft", () => {
       const context = createTriageContext({
-        pr: { state: "OPEN", isDraft: false, number: 1 },
+        pr: {
+          state: "OPEN",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.prIsDraft({ context })).toBe(false);
     });
@@ -963,14 +1040,28 @@ describe("PR Guards", () => {
   describe("prIsReady", () => {
     it("returns true when PR exists and is not draft", () => {
       const context = createTriageContext({
-        pr: { state: "OPEN", isDraft: false, number: 1 },
+        pr: {
+          state: "OPEN",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.prIsReady({ context })).toBe(true);
     });
 
     it("returns false when PR is draft", () => {
       const context = createTriageContext({
-        pr: { state: "OPEN", isDraft: true, number: 1 },
+        pr: {
+          state: "OPEN",
+          isDraft: true,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.prIsReady({ context })).toBe(false);
     });
@@ -984,14 +1075,28 @@ describe("PR Guards", () => {
   describe("prIsMerged", () => {
     it("returns true when PR state is MERGED", () => {
       const context = createTriageContext({
-        pr: { state: "MERGED", isDraft: false, number: 1 },
+        pr: {
+          state: "MERGED",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.prIsMerged({ context })).toBe(true);
     });
 
     it("returns false when PR state is not MERGED", () => {
       const context = createTriageContext({
-        pr: { state: "OPEN", isDraft: false, number: 1 },
+        pr: {
+          state: "OPEN",
+          isDraft: false,
+          number: 1,
+          title: "Test PR",
+          headRef: "test-branch",
+          baseRef: "main",
+        },
       });
       expect(guards.prIsMerged({ context })).toBe(false);
     });
