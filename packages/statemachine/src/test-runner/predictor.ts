@@ -95,8 +95,6 @@ export function statusToExpectedState(status: string | null): string {
       return "detecting";
     case "In progress":
       return "iterating";
-    case "Ready":
-      return "detecting"; // Sub-issue ready for work
     case "In review":
       return "reviewing";
     case "Done":

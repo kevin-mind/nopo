@@ -9,12 +9,14 @@ import {
   GET_PROJECT_ITEM_QUERY,
   UPDATE_PROJECT_FIELD_MUTATION,
   ADD_ISSUE_TO_PROJECT_MUTATION,
+  DELETE_PROJECT_ITEM_MUTATION,
 } from "@more/issue-state";
 import type {
   UpdateProjectStatusAction,
   IncrementIterationAction,
   RecordFailureAction,
   ClearFailuresAction,
+  RemoveFromProjectAction,
   BlockAction,
   ProjectStatus,
 } from "../../schemas/index.js";
@@ -378,4 +380,57 @@ export async function executeBlock(
 
   core.info(`Blocked issue #${action.issueNumber}: ${action.reason}`);
   return { blocked: true };
+}
+
+/**
+ * Remove an issue from the project board.
+ * No-op if the issue is not on the project.
+ */
+export async function executeRemoveFromProject(
+  action: RemoveFromProjectAction,
+  ctx: RunnerContext,
+): Promise<{ removed: boolean }> {
+  const response = await ctx.octokit.graphql<QueryResponse>(
+    GET_PROJECT_ITEM_QUERY,
+    {
+      org: ctx.owner,
+      repo: ctx.repo,
+      issueNumber: action.issueNumber,
+      projectNumber: ctx.projectNumber,
+    },
+  );
+
+  const issue = response.repository?.issue;
+  const projectData = response.organization;
+
+  if (!issue || !projectData?.projectV2) {
+    core.warning(
+      `Issue #${action.issueNumber} or project not found — skipping remove`,
+    );
+    return { removed: false };
+  }
+
+  const projectItems = issue.projectItems?.nodes || [];
+  const itemId = getProjectItemId(projectItems, ctx.projectNumber);
+
+  if (!itemId) {
+    core.info(
+      `Issue #${action.issueNumber} not on project — nothing to remove`,
+    );
+    return { removed: false };
+  }
+
+  const projectFields = parseProjectFields(projectData);
+  if (!projectFields) {
+    core.warning("Failed to parse project fields — skipping remove");
+    return { removed: false };
+  }
+
+  await ctx.octokit.graphql(DELETE_PROJECT_ITEM_MUTATION, {
+    projectId: projectFields.projectId,
+    itemId,
+  });
+
+  core.info(`Removed issue #${action.issueNumber} from project`);
+  return { removed: true };
 }

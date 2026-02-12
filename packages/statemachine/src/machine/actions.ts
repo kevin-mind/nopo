@@ -283,13 +283,13 @@ export function emitResetIssue({ context }: ActionContext): ActionResult {
     },
   ];
 
-  // Also reset sub-issues to Ready status
+  // Remove sub-issues from project board and clear their failures.
+  // Sub-issues will reappear on the board when iteration sets "In progress".
   for (const subIssue of context.issue.subIssues) {
     actions.push({
-      type: "updateProjectStatus",
+      type: "removeFromProject",
       token: "code",
       issueNumber: subIssue.number,
-      status: "Ready",
     });
     actions.push({
       type: "clearFailures",
@@ -1639,20 +1639,6 @@ export function emitRemoveNeedsInfoLabel({
   context,
 }: ActionContext): ActionResult {
   return emitRemoveLabel({ context }, "needs-info");
-}
-
-/**
- * Emit action to set status to Ready (used after grooming)
- */
-export function emitSetReady({ context }: ActionContext): ActionResult {
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context.issue.number,
-      status: "Ready",
-    },
-  ];
 }
 
 // ============================================================================

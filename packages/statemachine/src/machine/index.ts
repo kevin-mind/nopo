@@ -81,7 +81,6 @@ export {
   emitSetDone,
   emitSetBlocked,
   emitSetError,
-  emitSetReady,
   emitLogInvalidIteration,
   // Iteration actions
   emitIncrementIteration,

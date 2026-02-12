@@ -271,7 +271,7 @@ describe("control mutators", () => {
             title: "[Phase 1]: Sub",
             state: "OPEN" as const,
             bodyAst: parseMarkdown("## Description\n\nSub."),
-            projectStatus: "Ready" as const,
+            projectStatus: "In progress" as const,
             labels: [],
             branch: null,
             pr: null,
@@ -292,6 +292,6 @@ describe("control mutators", () => {
     expect(outcomes[0]!.issue.projectStatus).toBe("Backlog");
     expect(outcomes[0]!.issue.failures).toBe(0);
     expect(outcomes[0]!.issue.assignees).not.toContain("nopo-bot");
-    expect(outcomes[0]!.subIssues[0]?.projectStatus).toBe("Ready");
+    expect(outcomes[0]!.subIssues[0]?.projectStatus).toBeNull();
   });
 });

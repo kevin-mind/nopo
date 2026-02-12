@@ -323,7 +323,8 @@ export async function executeReconcileSubIssues(
           octokit: ctx.octokit as Parameters<
             typeof addSubIssueToParent
           >[4]["octokit"],
-          projectNumber: ctx.projectNumber,
+          // Don't add to project — sub-issues appear on the board only
+          // when iteration starts and sets them to "In progress"
         },
       );
 
@@ -381,7 +382,8 @@ export async function executeReconcileSubIssues(
             octokit: ctx.octokit as Parameters<
               typeof addSubIssueToParent
             >[4]["octokit"],
-            projectNumber: ctx.projectNumber,
+            // Don't add to project — sub-issues appear on the board only
+            // when iteration starts and sets them to "In progress"
           },
         );
 
@@ -566,7 +568,8 @@ async function createAllPhases(
           octokit: ctx.octokit as Parameters<
             typeof addSubIssueToParent
           >[4]["octokit"],
-          projectNumber: ctx.projectNumber,
+          // Don't add to project — sub-issues appear on the board only
+          // when iteration starts and sets them to "In progress"
         },
       );
 

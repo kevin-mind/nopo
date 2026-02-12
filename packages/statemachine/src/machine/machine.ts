@@ -9,7 +9,6 @@ import {
   emitSetDone,
   emitSetBlocked,
   emitSetError,
-  emitSetReady,
   emitLogInvalidIteration,
   emitIncrementIteration,
   emitRecordFailure,
@@ -304,8 +303,6 @@ export const claudeMachine = setup({
     logGrooming: emit<MachineEvent>((ctx) =>
       emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`),
     ),
-    setReady: emit<MachineEvent>(emitSetReady),
-
     // Pivot actions
     runClaudePivot: emit<MachineEvent>(emitRunClaudePivot),
     logPivoting: emit<MachineEvent>((ctx) =>

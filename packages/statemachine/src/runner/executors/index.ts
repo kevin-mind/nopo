@@ -10,6 +10,7 @@ export {
   executeIncrementIteration,
   executeRecordFailure,
   executeClearFailures,
+  executeRemoveFromProject,
   executeBlock,
 } from "./project.js";
 

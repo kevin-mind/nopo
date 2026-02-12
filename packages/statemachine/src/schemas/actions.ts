@@ -86,6 +86,18 @@ export const ClearFailuresActionSchema = BaseActionSchema.extend({
 
 export type ClearFailuresAction = z.infer<typeof ClearFailuresActionSchema>;
 
+/**
+ * Remove an issue from the GitHub Project board
+ */
+export const RemoveFromProjectActionSchema = BaseActionSchema.extend({
+  type: z.literal("removeFromProject"),
+  issueNumber: z.number().int().positive(),
+});
+
+export type RemoveFromProjectAction = z.infer<
+  typeof RemoveFromProjectActionSchema
+>;
+
 // ============================================================================
 // Issue Actions
 // ============================================================================
@@ -845,6 +857,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   IncrementIterationActionSchema,
   RecordFailureActionSchema,
   ClearFailuresActionSchema,
+  RemoveFromProjectActionSchema,
   // Issue actions
   CreateSubIssuesActionSchema,
   CloseIssueActionSchema,
@@ -918,6 +931,7 @@ export const ACTION_TYPES = [
   "incrementIteration",
   "recordFailure",
   "clearFailures",
+  "removeFromProject",
   "createSubIssues",
   "closeIssue",
   "reopenIssue",
@@ -1011,6 +1025,7 @@ export const ISSUE_ACTION_TYPES = [
   "incrementIteration",
   "recordFailure",
   "clearFailures",
+  "removeFromProject",
   // Issue actions
   "createSubIssues",
   "closeIssue",

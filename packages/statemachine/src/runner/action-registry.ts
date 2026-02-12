@@ -20,6 +20,7 @@ export const ACTION_REGISTRY: ActionExecutorMap = {
   incrementIteration: executors.executeIncrementIteration,
   recordFailure: executors.executeRecordFailure,
   clearFailures: executors.executeClearFailures,
+  removeFromProject: executors.executeRemoveFromProject,
   block: executors.executeBlock,
 
   // Issue actions

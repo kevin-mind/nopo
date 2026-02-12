@@ -89,6 +89,17 @@ mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
 }
 `;
 
+export const DELETE_PROJECT_ITEM_MUTATION = `
+mutation DeleteProjectItem($projectId: ID!, $itemId: ID!) {
+  deleteProjectV2Item(input: {
+    projectId: $projectId
+    itemId: $itemId
+  }) {
+    deletedItemId
+  }
+}
+`;
+
 export const GET_PROJECT_FIELDS_QUERY = `
 query GetProjectFields($owner: String!, $projectNumber: Int!) {
   organization(login: $owner) {

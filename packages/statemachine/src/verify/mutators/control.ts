@@ -81,7 +81,7 @@ export const prPushMutator: StateMutator = (current, context) => {
 
 /**
  * resetting: Reset to initial state.
- * Parent → Backlog, failures cleared, sub-issues → Ready.
+ * Parent → Backlog, failures cleared, sub-issues removed from project.
  */
 export const resettingMutator: StateMutator = (current, context) => {
   const tree = cloneTree(current);
@@ -92,7 +92,7 @@ export const resettingMutator: StateMutator = (current, context) => {
   );
 
   for (const sub of tree.subIssues) {
-    sub.projectStatus = "Ready";
+    sub.projectStatus = null;
   }
 
   return [tree];

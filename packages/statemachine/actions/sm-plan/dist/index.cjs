@@ -41517,6 +41517,10 @@ var ClearFailuresActionSchema = BaseActionSchema.extend({
   type: external_exports.literal("clearFailures"),
   issueNumber: external_exports.number().int().positive()
 });
+var RemoveFromProjectActionSchema = BaseActionSchema.extend({
+  type: external_exports.literal("removeFromProject"),
+  issueNumber: external_exports.number().int().positive()
+});
 var PhaseDefinitionSchema = external_exports.object({
   title: external_exports.string().min(1),
   body: external_exports.string()
@@ -41865,6 +41869,7 @@ var ActionSchema = external_exports.discriminatedUnion("type", [
   IncrementIterationActionSchema,
   RecordFailureActionSchema,
   ClearFailuresActionSchema,
+  RemoveFromProjectActionSchema,
   // Issue actions
   CreateSubIssuesActionSchema,
   CloseIssueActionSchema,
@@ -41933,6 +41938,7 @@ var ISSUE_ACTION_TYPES = [
   "incrementIteration",
   "recordFailure",
   "clearFailures",
+  "removeFromProject",
   // Issue actions
   "createSubIssues",
   "closeIssue",
@@ -46677,7 +46683,7 @@ function isInReview({ context: context3 }) {
 function currentPhaseNeedsWork({ context: context3 }) {
   if (context3.currentSubIssue) {
     const status = context3.currentSubIssue.projectStatus;
-    return status === "In progress" || status === "Ready";
+    return status === "In progress" || status === null;
   }
   return context3.issue.projectStatus === "In progress";
 }
@@ -47130,10 +47136,9 @@ function emitResetIssue({ context: context3 }) {
   ];
   for (const subIssue of context3.issue.subIssues) {
     actions.push({
-      type: "updateProjectStatus",
+      type: "removeFromProject",
       token: "code",
-      issueNumber: subIssue.number,
-      status: "Ready"
+      issueNumber: subIssue.number
     });
     actions.push({
       type: "clearFailures",
@@ -48017,16 +48022,6 @@ function emitRunClaudeGrooming({
     }
   ];
 }
-function emitSetReady({ context: context3 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context3.issue.number,
-      status: "Ready"
-    }
-  ];
-}
 function emitRunClaudePivot({ context: context3 }) {
   const issueNumber = context3.issue.number;
   const subIssuesInfo = context3.issue.subIssues.map((s) => ({
@@ -48263,7 +48258,6 @@ var claudeMachine = setup({
     logGrooming: emit2(
       (ctx) => emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`)
     ),
-    setReady: emit2(emitSetReady),
     // Pivot actions
     runClaudePivot: emit2(emitRunClaudePivot),
     logPivoting: emit2(
@@ -68427,7 +68421,7 @@ var resettingMutator = (current, context3) => {
     (a) => a !== context3.botUsername
   );
   for (const sub of tree.subIssues) {
-    sub.projectStatus = "Ready";
+    sub.projectStatus = null;
   }
   return [tree];
 };

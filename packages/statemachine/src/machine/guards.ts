@@ -199,7 +199,7 @@ export function isInReview({ context }: GuardContext): boolean {
 export function currentPhaseNeedsWork({ context }: GuardContext): boolean {
   if (context.currentSubIssue) {
     const status = context.currentSubIssue.projectStatus;
-    return status === "In progress" || status === "Ready";
+    return status === "In progress" || status === null;
   }
   return context.issue.projectStatus === "In progress";
 }

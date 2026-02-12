@@ -117,9 +117,6 @@ export function isParentStatus(status: ProjectStatus): boolean {
  */
 export function isSubIssueStatus(status: ProjectStatus): boolean {
   return (
-    status === "Ready" ||
-    status === "In progress" ||
-    status === "In review" ||
-    status === "Done"
+    status === "In progress" || status === "In review" || status === "Done"
   );
 }

@@ -77,6 +77,7 @@ export {
   GET_PROJECT_FIELDS_QUERY,
   UPDATE_PROJECT_FIELD_MUTATION,
   ADD_ISSUE_TO_PROJECT_MUTATION,
+  DELETE_PROJECT_ITEM_MUTATION,
 } from "./graphql/project-queries.js";
 
 export {
