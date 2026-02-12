@@ -159,21 +159,34 @@ export async function executeActions(
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- executeAction return type is a union, narrowing by action.type
       const branchResult = result as { shouldStop?: boolean };
       if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
-        results.push({
-          action: validatedAction,
-          success: true,
-          skipped: false,
-          result,
-          durationMs: Date.now() - actionStartTime,
-        });
+        // Only stop when a PR already exists. If createPR is in the action
+        // list, no PR exists yet — continuing lets Claude work and create it.
+        // Without a PR, the push event would be skipped by sm-plan anyway.
+        const hasPendingCreatePR = actions.some((a) => a.type === "createPR");
 
-        // Stop processing - CI will re-trigger with rebased branch
-        stoppedEarly = true;
-        stopReason = "branch_rebased_and_pushed";
+        if (!hasPendingCreatePR) {
+          results.push({
+            action: validatedAction,
+            success: true,
+            skipped: false,
+            result,
+            durationMs: Date.now() - actionStartTime,
+          });
+
+          // PR exists — stop and let CI re-trigger with rebased branch
+          stoppedEarly = true;
+          stopReason = "branch_rebased_and_pushed";
+          core.info(
+            "Stopping after branch rebase - CI will re-trigger with up-to-date branch",
+          );
+          break;
+        }
+
+        // No PR yet — continue execution so Claude can work and create one.
+        // The rebase push event will be harmlessly skipped by sm-plan.
         core.info(
-          "Stopping after branch rebase - CI will re-trigger with up-to-date branch",
+          "Branch rebased and pushed, but no PR exists yet — continuing execution",
         );
-        break;
       }
 
       results.push({

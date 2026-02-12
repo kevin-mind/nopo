@@ -187,7 +187,7 @@ export default class BuildScript extends TargetScript {
     const targets = this.runner.config.targets;
     const buildableTargets = targets.filter((t) => {
       const service = this.runner.getService(t);
-      return requiresBuild(service);
+      return requiresBuild(service) && !isPackageService(service);
     });
     return [rootName, ...buildableTargets];
   }

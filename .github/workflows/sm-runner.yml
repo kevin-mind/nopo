@@ -219,6 +219,7 @@ jobs:
         uses: ./packages/statemachine/actions/sm-run
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
         with:
           context_json: ${{ inputs.context_json }}
           github_code_token: ${{ secrets.NOPO_BOT_PAT }}

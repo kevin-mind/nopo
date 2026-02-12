@@ -100,7 +100,10 @@ export async function executeApplyIterateOutput(
   let state = data;
 
   // Check off completed todos in issue body
-  if (iterateOutput.status === "completed_todo") {
+  if (
+    iterateOutput.status === "completed_todo" ||
+    iterateOutput.status === "all_done"
+  ) {
     // Support both array (new) and single string (legacy)
     const todosToCheck: string[] = [];
     if (
