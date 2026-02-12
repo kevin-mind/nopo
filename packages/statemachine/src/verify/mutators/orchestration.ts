@@ -36,33 +36,34 @@ export const orchestrationRunningMutator: StateMutator = (current, context) => {
     if (sub) {
       sub.projectStatus = null;
     }
+    // logRunEnd writes the retry message instead of the generic orchestrate message
     addHistoryEntry(tree.issue, {
       iteration: context.issue.iteration,
       phase: String(context.currentPhase ?? "-"),
       action: HISTORY_MESSAGES.RETRY,
     });
-  }
+  } else {
+    // If needs initialization, add init history
+    const needsInit =
+      context.issue.projectStatus === null ||
+      context.issue.projectStatus === "Backlog";
 
-  // If needs initialization, add init history
-  const needsInit =
-    context.issue.projectStatus === null ||
-    context.issue.projectStatus === "Backlog";
+    if (needsInit) {
+      addHistoryEntry(tree.issue, {
+        iteration: context.issue.iteration,
+        phase: "1",
+        action: HISTORY_MESSAGES.initialized(context.issue.subIssues.length),
+      });
+    }
 
-  if (needsInit) {
+    // History: predict the final success entry
+    const phase = String(context.currentPhase ?? "-");
     addHistoryEntry(tree.issue, {
       iteration: context.issue.iteration,
-      phase: "1",
-      action: HISTORY_MESSAGES.initialized(context.issue.subIssues.length),
+      phase,
+      action: successEntry("orchestrationRunning"),
     });
   }
-
-  // History: predict the final success entry
-  const phase = String(context.currentPhase ?? "-");
-  addHistoryEntry(tree.issue, {
-    iteration: context.issue.iteration,
-    phase,
-    action: successEntry("orchestrationRunning"),
-  });
 
   return [tree];
 };

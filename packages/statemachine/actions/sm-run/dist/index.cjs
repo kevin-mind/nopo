@@ -48431,16 +48431,6 @@ function emitRetryIssue({ context: context2 }) {
       username: context2.botUsername
     });
   }
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: context2.issue.number,
-    iteration: context2.issue.iteration,
-    phase: String(context2.currentPhase ?? "-"),
-    message: HISTORY_MESSAGES.RETRY,
-    timestamp: context2.workflowStartedAt ?? void 0,
-    runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
-  });
   return actions;
 }
 function emitMergeQueueEntry({ context: context2 }) {
@@ -73913,6 +73903,7 @@ async function deriveIssueActions(options) {
     finalState,
     transitionName,
     pendingActions,
+    trigger,
     iteration,
     phase,
     parentIssueNumber: parentIssueNum,
@@ -73977,6 +73968,7 @@ async function deriveDiscussionActions(options) {
     transitionName,
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- DiscussionAction token "admin" is compatible with Action at runtime
     pendingActions,
+    trigger,
     iteration: "0",
     phase: "-",
     parentIssueNumber: "",
@@ -74507,7 +74499,8 @@ async function logRunEnd(octokit, owner, repo, issueNumber, deriveResult, execSu
   });
   core26.info(`Outcome: ${outcome.emoji} ${outcome.status}`);
   const iteration = parseInt(deriveResult.iteration, 10);
-  const newMessage = `${outcome.emoji} ${outcome.transition}`;
+  const isRetryTrigger = deriveResult.trigger === "issue-retry";
+  const newMessage = isRetryTrigger && outcome.status === "Done" ? "\u{1F680} Retried: Failures cleared, resuming work" : `${outcome.emoji} ${outcome.transition}`;
   try {
     const { data, update } = await parseIssue(owner, repo, issueNumber, {
       octokit: asOctokitLike9(octokit),

@@ -47387,16 +47387,6 @@ function emitRetryIssue({ context: context2 }) {
       username: context2.botUsername
     });
   }
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: context2.issue.number,
-    iteration: context2.issue.iteration,
-    phase: String(context2.currentPhase ?? "-"),
-    message: HISTORY_MESSAGES.RETRY,
-    timestamp: context2.workflowStartedAt ?? void 0,
-    runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
-  });
   return actions;
 }
 function emitMergeQueueEntry({ context: context2 }) {

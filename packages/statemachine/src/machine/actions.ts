@@ -1343,17 +1343,8 @@ export function emitRetryIssue({ context }: ActionContext): ActionResult {
     });
   }
 
-  // Log the retry in history
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: context.issue.number,
-    iteration: context.issue.iteration,
-    phase: String(context.currentPhase ?? "-"),
-    message: HISTORY_MESSAGES.RETRY,
-    timestamp: context.workflowStartedAt ?? undefined,
-    runLink: context.workflowRunUrl ?? context.ciRunUrl ?? undefined,
-  });
+  // Note: retry history entry is written by logRunEnd (not appendHistory)
+  // to avoid race condition where logRunEnd overwrites the entry.
 
   return actions;
 }

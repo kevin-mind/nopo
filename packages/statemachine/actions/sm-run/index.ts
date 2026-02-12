@@ -157,7 +157,13 @@ async function logRunEnd(
   core.info(`Outcome: ${outcome.emoji} ${outcome.status}`);
 
   const iteration = parseInt(deriveResult.iteration, 10);
-  const newMessage = `${outcome.emoji} ${outcome.transition}`;
+
+  // For retry triggers, use the retry-specific history message
+  const isRetryTrigger = deriveResult.trigger === "issue-retry";
+  const newMessage =
+    isRetryTrigger && outcome.status === "Done"
+      ? "🚀 Retried: Failures cleared, resuming work"
+      : `${outcome.emoji} ${outcome.transition}`;
 
   try {
     const { data, update } = await parseIssue(owner, repo, issueNumber, {

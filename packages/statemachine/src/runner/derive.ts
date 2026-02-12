@@ -29,6 +29,8 @@ export interface DeriveResult {
   finalState: string;
   transitionName: string;
   pendingActions: Action[];
+  /** Trigger type that initiated this derive */
+  trigger: string;
   /** Iteration counter from issue context */
   iteration: string;
   /** Phase identifier (or "-" if none) */
@@ -299,6 +301,7 @@ export async function deriveIssueActions(
     finalState,
     transitionName,
     pendingActions,
+    trigger,
     iteration,
     phase,
     parentIssueNumber: parentIssueNum,
@@ -393,6 +396,7 @@ export async function deriveDiscussionActions(
     transitionName,
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- DiscussionAction token "admin" is compatible with Action at runtime
     pendingActions: pendingActions as unknown as Action[],
+    trigger,
     iteration: "0",
     phase: "-",
     parentIssueNumber: "",

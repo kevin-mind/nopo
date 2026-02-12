@@ -47856,16 +47856,6 @@ function emitRetryIssue({ context: context3 }) {
       username: context3.botUsername
     });
   }
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: context3.issue.number,
-    iteration: context3.issue.iteration,
-    phase: String(context3.currentPhase ?? "-"),
-    message: HISTORY_MESSAGES.RETRY,
-    timestamp: context3.workflowStartedAt ?? void 0,
-    runLink: context3.workflowRunUrl ?? context3.ciRunUrl ?? void 0
-  });
   return actions;
 }
 function emitMergeQueueEntry({ context: context3 }) {
@@ -68127,6 +68117,7 @@ async function deriveIssueActions(options) {
     finalState,
     transitionName,
     pendingActions,
+    trigger,
     iteration,
     phase,
     parentIssueNumber: parentIssueNum,
@@ -68437,21 +68428,22 @@ var orchestrationRunningMutator = (current, context3) => {
       phase: String(context3.currentPhase ?? "-"),
       action: HISTORY_MESSAGES.RETRY
     });
-  }
-  const needsInit = context3.issue.projectStatus === null || context3.issue.projectStatus === "Backlog";
-  if (needsInit) {
+  } else {
+    const needsInit = context3.issue.projectStatus === null || context3.issue.projectStatus === "Backlog";
+    if (needsInit) {
+      addHistoryEntry3(tree.issue, {
+        iteration: context3.issue.iteration,
+        phase: "1",
+        action: HISTORY_MESSAGES.initialized(context3.issue.subIssues.length)
+      });
+    }
+    const phase = String(context3.currentPhase ?? "-");
     addHistoryEntry3(tree.issue, {
       iteration: context3.issue.iteration,
-      phase: "1",
-      action: HISTORY_MESSAGES.initialized(context3.issue.subIssues.length)
+      phase,
+      action: successEntry("orchestrationRunning")
     });
   }
-  const phase = String(context3.currentPhase ?? "-");
-  addHistoryEntry3(tree.issue, {
-    iteration: context3.issue.iteration,
-    phase,
-    action: successEntry("orchestrationRunning")
-  });
   return [tree];
 };
 var orchestrationWaitingMutator = (current) => {
