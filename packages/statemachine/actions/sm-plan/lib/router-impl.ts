@@ -2006,9 +2006,46 @@ async function handleWorkflowDispatchEvent(
     };
   }
 
-  // Check if this is a parent issue with sub-issues - route to orchestrate
+  // Check if this is a parent issue with sub-issues
   const subs = subIssueNumbers(issueState);
   if (subs.length > 0) {
+    // Smart routing: check if a sub-issue is assigned to bot and needs iteration
+    const assignedSubIssue = issueState.issue.subIssues.find(
+      (sub) =>
+        sub.state === "OPEN" &&
+        sub.projectStatus !== "Done" &&
+        sub.projectStatus !== "In review" &&
+        sub.assignees.includes("nopo-bot"),
+    );
+
+    if (assignedSubIssue) {
+      // Sub-issue is assigned and needs work — route to iterate on it
+      const phaseNumber = extractPhaseNumber(assignedSubIssue.title);
+      const branchName = deriveBranch(
+        issueNum,
+        phaseNumber || assignedSubIssue.number,
+      );
+      core.info(
+        `Sub-issue #${assignedSubIssue.number} is assigned and needs work — routing to iterate`,
+      );
+
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(assignedSubIssue.number),
+        commentId: "",
+        contextJson: {
+          issue_number: String(assignedSubIssue.number),
+          branch_name: branchName,
+          trigger_type: "issue-assigned",
+          parent_issue: String(issueNum),
+        },
+        skip: false,
+        skipReason: "",
+      };
+    }
+
+    // No sub-issue ready for iteration — orchestrate (will assign one)
     return {
       job: "issue-orchestrate",
       resourceType: "issue",
@@ -2019,7 +2056,6 @@ async function handleWorkflowDispatchEvent(
         sub_issues: subs.join(","),
         trigger_type: "issue-assigned",
         parent_issue: parentIssueStr,
-        // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
       skipReason: "",

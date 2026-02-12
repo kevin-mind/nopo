@@ -9,7 +9,6 @@ import * as core from "@actions/core";
 import {
   Verify,
   type DeriveResult,
-  type Action,
   isDiscussionTrigger,
 } from "@more/statemachine";
 
@@ -17,52 +16,16 @@ import {
  * Predict whether the workflow should retrigger after execution.
  * Mirrors the shouldRetrigger logic in sm-run, assuming continue=true.
  *
- * @param issueNumber - The main/triggering issue number, used to distinguish
- *   sub-issue assignUser actions from parent assignUser actions.
+ * Uses an allowlist of states that need retrigger.
  */
-function predictRetrigger(
-  finalState: string,
-  actions: Action[],
-  issueNumber?: number,
-): boolean {
-  // Don't retrigger for iteration Claude runs — Claude pushes code,
-  // which triggers CI, which triggers the next workflow event.
-  const iterationStates = new Set(["iterating", "iteratingFix"]);
-  const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun && iterationStates.has(finalState)) {
-    return false;
-  }
-
-  // orchestrationRunning: retrigger only when no assignUser was emitted for
-  // a sub-issue. When bot is already assigned, GitHub won't fire an
-  // issues:assigned webhook, so retrigger must restart iteration on the sub-issue.
-  if (finalState === "orchestrationRunning") {
-    const hasSubIssueAssign = actions.some(
-      (a) =>
-        a.type === "assignUser" &&
-        "issueNumber" in a &&
-        a.issueNumber !== issueNumber,
-    );
-    return !hasSubIssueAssign;
-  }
-
-  // Terminal/waiting states that should not retrigger
-  const noRetriggerStates = new Set([
-    "done",
-    "blocked",
-    "error",
-    "alreadyDone",
-    "alreadyBlocked",
-    "terminal",
-    "reviewing",
-    "grooming",
-    "commenting",
-    "orchestrationWaiting",
-    "orchestrationComplete",
-    "subIssueIdle",
+function predictRetrigger(finalState: string): boolean {
+  const retriggerStates = new Set([
+    "orchestrationRunning", // assigned sub-issue, sm-plan routes to iterate
+    "triaging", // after triage, grooming should start
+    "resetting", // after reset, automation continues
   ]);
 
-  return !noRetriggerStates.has(finalState);
+  return retriggerStates.has(finalState);
 }
 
 /**
@@ -103,11 +66,7 @@ export function predictExpectedState(
     const parentIssueNumber = machineContext.parentIssue?.number ?? null;
 
     // Predict whether retrigger should occur (assumes continue=true)
-    const expectedRetrigger = predictRetrigger(
-      finalState,
-      deriveResult.pendingActions,
-      machineContext.issue.number,
-    );
+    const expectedRetrigger = predictRetrigger(finalState);
 
     // Build the expected state envelope
     const expected = Verify.buildExpectedState({

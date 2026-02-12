@@ -179,7 +179,6 @@ jobs:
       transition_name: ${{ steps.sm.outputs.transition_name }}
       should_retrigger: ${{ steps.sm.outputs.should_retrigger }}
       issue_number: ${{ steps.sm.outputs.issue_number }}
-      retrigger_resource_number: ${{ steps.sm.outputs.retrigger_resource_number }}
 
     steps:
       - name: Checkout repository
@@ -282,7 +281,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.NOPO_BOT_PAT }}
           REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ needs.run.outputs.retrigger_resource_number || needs.run.outputs.issue_number || fromJson(inputs.context_json).issue_number }}
+          ISSUE_NUMBER: ${{ needs.run.outputs.issue_number || fromJson(inputs.context_json).issue_number }}
         run: |
           echo "Retriggering workflow for issue #${ISSUE_NUMBER}"
           gh workflow run sm-trigger.yml \

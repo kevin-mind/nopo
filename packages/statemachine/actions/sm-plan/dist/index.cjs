@@ -70550,6 +70550,33 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   }
   const subs = subIssueNumbers(issueState);
   if (subs.length > 0) {
+    const assignedSubIssue = issueState.issue.subIssues.find(
+      (sub) => sub.state === "OPEN" && sub.projectStatus !== "Done" && sub.projectStatus !== "In review" && sub.assignees.includes("nopo-bot")
+    );
+    if (assignedSubIssue) {
+      const phaseNumber = extractPhaseNumber(assignedSubIssue.title);
+      const branchName2 = deriveBranch(
+        issueNum,
+        phaseNumber || assignedSubIssue.number
+      );
+      core26.info(
+        `Sub-issue #${assignedSubIssue.number} is assigned and needs work \u2014 routing to iterate`
+      );
+      return {
+        job: "issue-iterate",
+        resourceType: "issue",
+        resourceNumber: String(assignedSubIssue.number),
+        commentId: "",
+        contextJson: {
+          issue_number: String(assignedSubIssue.number),
+          branch_name: branchName2,
+          trigger_type: "issue-assigned",
+          parent_issue: String(issueNum)
+        },
+        skip: false,
+        skipReason: ""
+      };
+    }
     return {
       job: "issue-orchestrate",
       resourceType: "issue",
@@ -70560,7 +70587,6 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
         sub_issues: subs.join(","),
         trigger_type: "issue-assigned",
         parent_issue: parentIssueStr
-        // Note: project_* fields removed - fetched by parseIssue
       },
       skip: false,
       skipReason: ""
@@ -70807,33 +70833,16 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride) {
 
 // packages/statemachine/actions/sm-plan/lib/expected-state.ts
 var core27 = __toESM(require_core(), 1);
-function predictRetrigger(finalState, actions, issueNumber) {
-  const iterationStates = /* @__PURE__ */ new Set(["iterating", "iteratingFix"]);
-  const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun && iterationStates.has(finalState)) {
-    return false;
-  }
-  if (finalState === "orchestrationRunning") {
-    const hasSubIssueAssign = actions.some(
-      (a) => a.type === "assignUser" && "issueNumber" in a && a.issueNumber !== issueNumber
-    );
-    return !hasSubIssueAssign;
-  }
-  const noRetriggerStates = /* @__PURE__ */ new Set([
-    "done",
-    "blocked",
-    "error",
-    "alreadyDone",
-    "alreadyBlocked",
-    "terminal",
-    "reviewing",
-    "grooming",
-    "commenting",
-    "orchestrationWaiting",
-    "orchestrationComplete",
-    "subIssueIdle"
+function predictRetrigger(finalState) {
+  const retriggerStates = /* @__PURE__ */ new Set([
+    "orchestrationRunning",
+    // assigned sub-issue, sm-plan routes to iterate
+    "triaging",
+    // after triage, grooming should start
+    "resetting"
+    // after reset, automation continues
   ]);
-  return !noRetriggerStates.has(finalState);
+  return retriggerStates.has(finalState);
 }
 function predictExpectedState(deriveResult) {
   const { finalState, machineContext } = deriveResult;
@@ -70851,11 +70860,7 @@ function predictExpectedState(deriveResult) {
     const outcomes = mutator ? mutator(currentTree, machineContext) : [currentTree];
     const issueNumber = machineContext.parentIssue?.number ?? machineContext.issue.number;
     const parentIssueNumber3 = machineContext.parentIssue?.number ?? null;
-    const expectedRetrigger = predictRetrigger(
-      finalState,
-      deriveResult.pendingActions,
-      machineContext.issue.number
-    );
+    const expectedRetrigger = predictRetrigger(finalState);
     const expected = verify_exports.buildExpectedState({
       finalState,
       outcomes,

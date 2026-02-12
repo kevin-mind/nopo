@@ -57,60 +57,21 @@ function asOctokitLike(
 
 /**
  * Determine whether the workflow should retrigger.
- * Terminal states and iteration Claude runs (waiting for CI) should NOT retrigger.
  *
- * @param issueNumber - The main/triggering issue number, used to distinguish
- *   sub-issue assignUser actions from parent assignUser actions.
+ * Uses an allowlist of states that need retrigger. Everything else is either
+ * terminal/waiting-for-human, or produces webhooks naturally (iterating→CI,
+ * grooming→issue edit, etc.).
  */
-function shouldRetrigger(
-  finalState: string,
-  actions: Action[],
-  continueFlag: boolean,
-  issueNumber?: number,
-): boolean {
+function shouldRetrigger(finalState: string, continueFlag: boolean): boolean {
   if (!continueFlag) return false;
 
-  // Don't retrigger for iteration Claude runs — Claude pushes code, which
-  // triggers CI, which triggers the next workflow event. Retrigger would
-  // cause a duplicate run.
-  // This only applies to iteration states. Other Claude runs (triage, grooming,
-  // review, comment) either need retrigger (triage → grooming) or are terminal.
-  const iterationStates = new Set(["iterating", "iteratingFix"]);
-  const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun && iterationStates.has(finalState)) {
-    return false;
-  }
-
-  // orchestrationRunning: retrigger only when no assignUser was emitted for
-  // a sub-issue. When bot is already assigned, GitHub won't fire an
-  // issues:assigned webhook, so retrigger must restart iteration on the sub-issue.
-  if (finalState === "orchestrationRunning") {
-    const hasSubIssueAssign = actions.some(
-      (a) =>
-        a.type === "assignUser" &&
-        "issueNumber" in a &&
-        a.issueNumber !== issueNumber,
-    );
-    return !hasSubIssueAssign;
-  }
-
-  // Terminal/waiting states that should not retrigger
-  const noRetriggerStates = new Set([
-    "done",
-    "blocked",
-    "error",
-    "alreadyDone",
-    "alreadyBlocked",
-    "terminal",
-    "reviewing",
-    "grooming",
-    "commenting",
-    "orchestrationWaiting",
-    "orchestrationComplete",
-    "subIssueIdle",
+  const retriggerStates = new Set([
+    "orchestrationRunning", // assigned sub-issue, sm-plan routes to iterate
+    "triaging", // after triage, grooming should start
+    "resetting", // after reset, automation continues
   ]);
 
-  return !noRetriggerStates.has(finalState);
+  return retriggerStates.has(finalState);
 }
 
 /**
@@ -747,31 +708,10 @@ async function run(): Promise<void> {
     // ====================================================================
     // STEP 5: Set Outputs
     // ====================================================================
-    const mainIssueNumber = parseInt(
-      ctx.issue_number || ctx.discussion_number || "0",
-      10,
-    );
     const retrigger =
       execSuccess &&
       !dryRun &&
-      shouldRetrigger(
-        deriveResult.finalState,
-        actions,
-        continueFlag,
-        mainIssueNumber || undefined,
-      );
-
-    // For orchestration retrigger, dispatch on the sub-issue so iteration starts there.
-    // Otherwise, dispatch on the main issue.
-    let retriggerResourceNumber =
-      ctx.issue_number || ctx.discussion_number || "";
-    if (
-      retrigger &&
-      deriveResult.finalState === "orchestrationRunning" &&
-      deriveResult.subIssueNumber
-    ) {
-      retriggerResourceNumber = deriveResult.subIssueNumber;
-    }
+      shouldRetrigger(deriveResult.finalState, continueFlag);
 
     setOutputs({
       final_state: deriveResult.finalState,
@@ -781,7 +721,6 @@ async function run(): Promise<void> {
       success: String(execSuccess),
       should_retrigger: String(retrigger),
       issue_number: ctx.issue_number || ctx.discussion_number || "",
-      retrigger_resource_number: retriggerResourceNumber,
     });
 
     // Write step summary

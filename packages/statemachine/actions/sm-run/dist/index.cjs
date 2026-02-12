@@ -74291,34 +74291,17 @@ function determineOutcome(params) {
 function asOctokitLike9(octokit) {
   return octokit;
 }
-function shouldRetrigger(finalState, actions, continueFlag, issueNumber) {
+function shouldRetrigger(finalState, continueFlag) {
   if (!continueFlag) return false;
-  const iterationStates = /* @__PURE__ */ new Set(["iterating", "iteratingFix"]);
-  const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun && iterationStates.has(finalState)) {
-    return false;
-  }
-  if (finalState === "orchestrationRunning") {
-    const hasSubIssueAssign = actions.some(
-      (a) => a.type === "assignUser" && "issueNumber" in a && a.issueNumber !== issueNumber
-    );
-    return !hasSubIssueAssign;
-  }
-  const noRetriggerStates = /* @__PURE__ */ new Set([
-    "done",
-    "blocked",
-    "error",
-    "alreadyDone",
-    "alreadyBlocked",
-    "terminal",
-    "reviewing",
-    "grooming",
-    "commenting",
-    "orchestrationWaiting",
-    "orchestrationComplete",
-    "subIssueIdle"
+  const retriggerStates = /* @__PURE__ */ new Set([
+    "orchestrationRunning",
+    // assigned sub-issue, sm-plan routes to iterate
+    "triaging",
+    // after triage, grooming should start
+    "resetting"
+    // after reset, automation continues
   ]);
-  return !noRetriggerStates.has(finalState);
+  return retriggerStates.has(finalState);
 }
 function actionsNeedBranch(actions) {
   const branchActionTypes = /* @__PURE__ */ new Set([
@@ -74751,20 +74734,7 @@ async function run() {
       );
       core26.endGroup();
     }
-    const mainIssueNumber = parseInt(
-      ctx.issue_number || ctx.discussion_number || "0",
-      10
-    );
-    const retrigger = execSuccess && !dryRun && shouldRetrigger(
-      deriveResult.finalState,
-      actions,
-      continueFlag,
-      mainIssueNumber || void 0
-    );
-    let retriggerResourceNumber = ctx.issue_number || ctx.discussion_number || "";
-    if (retrigger && deriveResult.finalState === "orchestrationRunning" && deriveResult.subIssueNumber) {
-      retriggerResourceNumber = deriveResult.subIssueNumber;
-    }
+    const retrigger = execSuccess && !dryRun && shouldRetrigger(deriveResult.finalState, continueFlag);
     setOutputs({
       final_state: deriveResult.finalState,
       transition_name: deriveResult.transitionName,
@@ -74772,8 +74742,7 @@ async function run() {
       action_count: String(deriveResult.pendingActions.length),
       success: String(execSuccess),
       should_retrigger: String(retrigger),
-      issue_number: ctx.issue_number || ctx.discussion_number || "",
-      retrigger_resource_number: retriggerResourceNumber
+      issue_number: ctx.issue_number || ctx.discussion_number || ""
     });
     writeStepSummary(deriveResult, execSuccess, ctx, dryRun);
     if (!execSuccess) {
