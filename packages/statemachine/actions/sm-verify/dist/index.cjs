@@ -67857,6 +67857,23 @@ var awaitingMergeMutator = (current, context2) => {
 // packages/statemachine/src/verify/mutators/orchestration.ts
 var orchestrationRunningMutator = (current, context2) => {
   const tree = cloneTree(current);
+  const isRetry = context2.trigger === "issue-retry";
+  if (isRetry) {
+    tree.issue.failures = 0;
+    tree.issue.projectStatus = "In progress";
+    if (!tree.issue.assignees.includes(context2.botUsername)) {
+      tree.issue.assignees.push(context2.botUsername);
+    }
+    const sub = findCurrentSubIssue(tree, context2);
+    if (sub) {
+      sub.projectStatus = null;
+    }
+    addHistoryEntry3(tree.issue, {
+      iteration: context2.issue.iteration,
+      phase: String(context2.currentPhase ?? "-"),
+      action: HISTORY_MESSAGES.RETRY
+    });
+  }
   const needsInit = context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog";
   if (needsInit) {
     addHistoryEntry3(tree.issue, {
