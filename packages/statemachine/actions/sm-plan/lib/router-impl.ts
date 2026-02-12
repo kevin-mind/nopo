@@ -1029,8 +1029,8 @@ async function handleIssueCommentEvent(
 
   // Handle /retry command - clears failures and resumes work (circuit breaker recovery)
   if (hasRetryCommand && !isPr) {
-    // Add reaction to acknowledge the command
-    await addReactionToComment(octokit, owner, repo, comment.id, "eyes");
+    // Add rocket reaction to acknowledge the command (resuming work, like /lfg)
+    await addReactionToComment(octokit, owner, repo, comment.id, "rocket");
 
     const hasTriagedLabel = issue.labels.some((l) => l.name === "triaged");
     const hasGroomedLabel = issue.labels.some((l) => l.name === "groomed");
