@@ -9,8 +9,42 @@ import * as core from "@actions/core";
 import {
   Verify,
   type DeriveResult,
+  type Action,
   isDiscussionTrigger,
 } from "@more/statemachine";
+
+/**
+ * Predict whether the workflow should retrigger after execution.
+ * Mirrors the shouldRetrigger logic in sm-run, assuming continue=true.
+ */
+function predictRetrigger(finalState: string, actions: Action[]): boolean {
+  // Don't retrigger for iteration Claude runs — Claude pushes code,
+  // which triggers CI, which triggers the next workflow event.
+  const iterationStates = new Set(["iterating", "iteratingFix"]);
+  const hasClaudeRun = actions.some((a) => a.type === "runClaude");
+  if (hasClaudeRun && iterationStates.has(finalState)) {
+    return false;
+  }
+
+  // Terminal/waiting states that should not retrigger
+  const noRetriggerStates = new Set([
+    "done",
+    "blocked",
+    "error",
+    "alreadyDone",
+    "alreadyBlocked",
+    "terminal",
+    "reviewing",
+    "grooming",
+    "commenting",
+    "orchestrationRunning",
+    "orchestrationWaiting",
+    "orchestrationComplete",
+    "subIssueIdle",
+  ]);
+
+  return !noRetriggerStates.has(finalState);
+}
 
 /**
  * Build expected state JSON from a derive result.
@@ -49,17 +83,24 @@ export function predictExpectedState(
       machineContext.parentIssue?.number ?? machineContext.issue.number;
     const parentIssueNumber = machineContext.parentIssue?.number ?? null;
 
+    // Predict whether retrigger should occur (assumes continue=true)
+    const expectedRetrigger = predictRetrigger(
+      finalState,
+      deriveResult.pendingActions,
+    );
+
     // Build the expected state envelope
     const expected = Verify.buildExpectedState({
       finalState,
       outcomes,
+      expectedRetrigger,
       trigger: machineContext.trigger,
       issueNumber,
       parentIssueNumber,
     });
 
     core.info(
-      `Expected state built: finalState=${finalState}, outcomes=${outcomes.length}`,
+      `Expected state built: finalState=${finalState}, outcomes=${outcomes.length}, expectedRetrigger=${expectedRetrigger}`,
     );
 
     return JSON.stringify(expected);

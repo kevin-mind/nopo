@@ -186,6 +186,7 @@ describe("buildExpectedState", () => {
     const expected = buildExpectedState({
       finalState: "iterating",
       outcomes: [tree],
+      expectedRetrigger: false,
       trigger: "issue-assigned",
       issueNumber: 100,
       parentIssueNumber: null,
@@ -193,6 +194,7 @@ describe("buildExpectedState", () => {
 
     expect(expected.finalState).toBe("iterating");
     expect(expected.outcomes).toHaveLength(1);
+    expect(expected.expectedRetrigger).toBe(false);
     expect(expected.trigger).toBe("issue-assigned");
     expect(expected.issueNumber).toBe(100);
     expect(expected.parentIssueNumber).toBeNull();

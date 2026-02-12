@@ -458,13 +458,19 @@ async function run(): Promise<void> {
       JSON.parse(expectedStateJson),
     );
 
+    const actualShouldRetrigger = getOptionalInput("actual_should_retrigger");
+
     core.startGroup("Step 1: Expected State");
-    core.info(`  finalState:        ${expected.finalState}`);
-    core.info(`  trigger:           ${expected.trigger}`);
-    core.info(`  issueNumber:       #${expected.issueNumber}`);
-    core.info(`  parentIssueNumber: ${expected.parentIssueNumber ?? "none"}`);
-    core.info(`  outcomes:          ${expected.outcomes.length}`);
-    core.info(`  timestamp:         ${expected.timestamp}`);
+    core.info(`  finalState:         ${expected.finalState}`);
+    core.info(`  trigger:            ${expected.trigger}`);
+    core.info(`  issueNumber:        #${expected.issueNumber}`);
+    core.info(`  parentIssueNumber:  ${expected.parentIssueNumber ?? "none"}`);
+    core.info(`  outcomes:           ${expected.outcomes.length}`);
+    core.info(`  expectedRetrigger:  ${expected.expectedRetrigger}`);
+    core.info(
+      `  actualRetrigger:    ${actualShouldRetrigger || "(not provided)"}`,
+    );
+    core.info(`  timestamp:          ${expected.timestamp}`);
     core.endGroup();
 
     // Step 2: Fetch actual issue state
@@ -521,8 +527,33 @@ async function run(): Promise<void> {
       summaryParts.push(md);
     }
 
-    // Step 5: Output results
-    if (result.pass) {
+    // Step 4b: Check retrigger expectation
+    let retriggerPass = true;
+    let retriggerMd = "";
+
+    if (actualShouldRetrigger !== undefined && actualShouldRetrigger !== "") {
+      const actualRetrigger = actualShouldRetrigger === "true";
+      retriggerPass = expected.expectedRetrigger === actualRetrigger;
+      const icon = retriggerPass ? "✅" : "❌";
+
+      core.info("");
+      core.info(`=== Retrigger Check ===`);
+      core.info(
+        `  ${icon}  expected=${expected.expectedRetrigger}  actual=${actualRetrigger}  (exact)`,
+      );
+
+      retriggerMd = `### Retrigger Check\n\n`;
+      retriggerMd += "| | Field | Expected | Actual | Rule |\n";
+      retriggerMd += "|---|---|---|---|---|\n";
+      retriggerMd += `| ${icon} | \`retrigger\` | \`${expected.expectedRetrigger}\` | \`${actualRetrigger}\` | exact |\n`;
+
+      summaryParts.push(retriggerMd);
+    }
+
+    // Step 5: Output results — tree comparison AND retrigger must both pass
+    const overallPass = result.pass && retriggerPass;
+
+    if (overallPass) {
       core.info("");
       core.info(
         `✅ Verification PASSED (matched outcome ${result.matchedOutcomeIndex})`,
@@ -538,17 +569,34 @@ async function run(): Promise<void> {
 
       setOutputs({ verified: "true", diff_json: "{}" });
     } else {
-      core.info("");
-      core.error(
-        `❌ Verification FAILED — no outcome matched (best: outcome ${result.bestMatch.outcomeIndex} with ${result.bestMatch.diffs.length} diff(s))`,
-      );
+      const failReasons: string[] = [];
+      if (!result.pass) {
+        failReasons.push(
+          `no outcome matched (best: outcome ${result.bestMatch.outcomeIndex} with ${result.bestMatch.diffs.length} diff(s))`,
+        );
+      }
+      if (!retriggerPass) {
+        failReasons.push(
+          `retrigger mismatch (expected=${expected.expectedRetrigger}, actual=${actualShouldRetrigger})`,
+        );
+      }
 
-      const diffJson = JSON.stringify(result.bestMatch, null, 2);
+      core.info("");
+      core.error(`❌ Verification FAILED — ${failReasons.join("; ")}`);
+
+      const diffJson = JSON.stringify(
+        {
+          ...result.bestMatch,
+          retriggerPass,
+        },
+        null,
+        2,
+      );
 
       await core.summary
         .addHeading("❌ Verification Failed", 1)
         .addRaw(
-          `Transition \`${expected.finalState}\` — no outcome matched. Best was outcome **${result.bestMatch.outcomeIndex}** with **${result.bestMatch.diffs.length}** diff(s).\n\n`,
+          `Transition \`${expected.finalState}\` — ${failReasons.join("; ")}.\n\n`,
         )
         .addRaw(summaryParts.join("\n"))
         .write();

@@ -259,6 +259,7 @@ jobs:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           expected_state_json: ${{ inputs.expected_state_json }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
+          actual_should_retrigger: ${{ needs.run.outputs.should_retrigger }}
 
   # ============================================================================
   # RETRIGGER

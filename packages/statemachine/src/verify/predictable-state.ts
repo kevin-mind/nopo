@@ -94,6 +94,7 @@ export type PredictableStateTree = z.infer<typeof PredictableStateTreeSchema>;
 export const ExpectedStateSchema = z.object({
   finalState: z.string(),
   outcomes: z.array(PredictableStateTreeSchema),
+  expectedRetrigger: z.boolean(),
   timestamp: z.string(),
   trigger: z.string(),
   issueNumber: z.number().int().positive(),
@@ -184,6 +185,7 @@ export function extractPredictableTree(
 export function buildExpectedState(options: {
   finalState: string;
   outcomes: PredictableStateTree[];
+  expectedRetrigger: boolean;
   trigger: TriggerType;
   issueNumber: number;
   parentIssueNumber: number | null;
@@ -191,6 +193,7 @@ export function buildExpectedState(options: {
   return ExpectedStateSchema.parse({
     finalState: options.finalState,
     outcomes: options.outcomes,
+    expectedRetrigger: options.expectedRetrigger,
     timestamp: new Date().toISOString(),
     trigger: options.trigger,
     issueNumber: options.issueNumber,
