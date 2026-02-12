@@ -1307,8 +1307,17 @@ export function emitBlockIssue({ context }: ActionContext): ActionResult {
 export function emitRetryIssue({ context }: ActionContext): ActionResult {
   const actions: ActionResult = [];
 
-  // Clear failure counter
+  // Clear failure counter on parent issue
   actions.push(...emitClearFailures({ context }));
+
+  // Clear failures on current sub-issue too (sub-issues track their own failures)
+  if (context.currentSubIssue) {
+    actions.push({
+      type: "clearFailures",
+      token: "code",
+      issueNumber: context.currentSubIssue.number,
+    });
+  }
 
   // Set status to In progress (recovery from Blocked)
   actions.push({

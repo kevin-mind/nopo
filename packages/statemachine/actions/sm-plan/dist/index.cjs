@@ -47829,6 +47829,13 @@ function emitBlockIssue({ context: context3 }) {
 function emitRetryIssue({ context: context3 }) {
   const actions = [];
   actions.push(...emitClearFailures({ context: context3 }));
+  if (context3.currentSubIssue) {
+    actions.push({
+      type: "clearFailures",
+      token: "code",
+      issueNumber: context3.currentSubIssue.number
+    });
+  }
   actions.push({
     type: "updateProjectStatus",
     token: "code",
