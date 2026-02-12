@@ -197,18 +197,38 @@ describe("AI-dependent mutators", () => {
     expect(outcomes[1]!.issue.body.hasQuestions).toBe(false);
   });
 
-  it("grooming: three possible outcomes", () => {
-    const context = makeContext();
+  it("grooming: three possible outcomes, status unchanged for ready", () => {
+    // Grooming typically runs on Backlog parent issues
+    const context = makeContext({
+      issue: {
+        number: 100,
+        title: "Test",
+        state: "OPEN" as const,
+        bodyAst: parseMarkdown("## Description\n\nTest."),
+        projectStatus: "Backlog" as const,
+        iteration: 0,
+        failures: 0,
+        assignees: ["nopo-bot"],
+        labels: ["triaged"],
+        subIssues: [],
+        hasSubIssues: false,
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null,
+      },
+    });
     const tree = extractPredictableTree(context);
     const mutator = getMutator("grooming")!;
     const outcomes = mutator(tree, context);
 
     expect(outcomes).toHaveLength(3);
-    // Outcome 1: groomed — label added, projectStatus unchanged
+    // Outcome 1: groomed — label added, projectStatus stays Backlog
     expect(outcomes[0]!.issue.labels).toContain("groomed");
-    expect(outcomes[0]!.issue.projectStatus).toBe("In progress");
+    expect(outcomes[0]!.issue.projectStatus).toBe("Backlog");
     // Outcome 2: needs-info
     expect(outcomes[1]!.issue.labels).toContain("needs-info");
+    expect(outcomes[1]!.issue.projectStatus).toBe("Backlog");
     // Outcome 3: blocked
     expect(outcomes[2]!.issue.projectStatus).toBe("Blocked");
   });
