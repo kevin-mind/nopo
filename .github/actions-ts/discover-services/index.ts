@@ -34,7 +34,11 @@ async function run(): Promise<void> {
     // Build the command arguments
     const args = ["list", "--", "--json"];
     if (inputs.filter) {
-      args.push("--filter", inputs.filter);
+      // Support space-separated filters (e.g., "service buildable")
+      // Each becomes a separate --filter arg for AND logic
+      for (const f of inputs.filter.split(/\s+/).filter(Boolean)) {
+        args.push("--filter", f);
+      }
     }
     if (inputs.since) {
       args.push("--since", inputs.since);

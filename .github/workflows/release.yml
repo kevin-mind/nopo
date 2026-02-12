@@ -386,13 +386,13 @@ jobs:
       ref: ${{ github.sha }}
   discover_services:
     needs: [mock-detect]
-    # Skip in mock mode — discover only runtime services for deployment
+    # Skip in mock mode — discover only buildable runtime services for deployment
     if: needs.mock-detect.outputs.mock_mode != 'true'
     permissions:
       contents: read
     uses: ./.github/workflows/_services.yml
     with:
-      filter: service
+      filter: service buildable
       ref: ${{ github.sha }}
   version:
     needs: [mock-detect, context]

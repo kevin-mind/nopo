@@ -19859,7 +19859,9 @@ async function run() {
     core2.info(`Ref: ${process.env.GITHUB_REF ?? "main"}`);
     const args = ["list", "--", "--json"];
     if (inputs.filter) {
-      args.push("--filter", inputs.filter);
+      for (const f of inputs.filter.split(/\s+/).filter(Boolean)) {
+        args.push("--filter", f);
+      }
     }
     if (inputs.since) {
       args.push("--since", inputs.since);
