@@ -237,6 +237,36 @@ async function getOrAddProjectItem(
   return { itemId, projectFields, currentState };
 }
 
+/**
+ * Reopen a closed issue via REST API.
+ * Called automatically when setting a non-terminal project status so that
+ * recovery flows (e.g., /retry) don't leave issues closed.
+ */
+async function ensureIssueOpen(
+  ctx: RunnerContext,
+  issueNumber: number,
+): Promise<void> {
+  try {
+    const { data: issue } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+    });
+
+    if (issue.state === "closed") {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: issueNumber,
+        state: "open",
+      });
+      core.info(`Reopened closed issue #${issueNumber}`);
+    }
+  } catch (error) {
+    core.warning(`Failed to ensure issue #${issueNumber} is open: ${error}`);
+  }
+}
+
 // ============================================================================
 // Executor Functions
 // ============================================================================
@@ -282,6 +312,14 @@ export async function executeUpdateProjectStatus(
   core.info(
     `Updated Status to ${action.status} for issue #${action.issueNumber}`,
   );
+
+  // Reopen the issue if it's closed and we're setting a non-terminal status.
+  // This handles recovery scenarios (e.g., /retry on a blocked issue whose
+  // PR was merged with failing CI, causing the issue to be closed).
+  if (action.status !== "Done") {
+    await ensureIssueOpen(ctx, action.issueNumber);
+  }
+
   return { updated: true, previousStatus: currentState.status };
 }
 

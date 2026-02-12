@@ -69353,6 +69353,26 @@ async function getOrAddProjectItem(octokit, ctx, issueNumber) {
   }
   return { itemId, projectFields, currentState };
 }
+async function ensureIssueOpen(ctx, issueNumber) {
+  try {
+    const { data: issue2 } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber
+    });
+    if (issue2.state === "closed") {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: issueNumber,
+        state: "open"
+      });
+      core4.info(`Reopened closed issue #${issueNumber}`);
+    }
+  } catch (error11) {
+    core4.warning(`Failed to ensure issue #${issueNumber} is open: ${error11}`);
+  }
+}
 async function executeUpdateProjectStatus(action, ctx) {
   const { itemId, projectFields, currentState } = await getOrAddProjectItem(
     ctx.octokit,
@@ -69382,6 +69402,9 @@ async function executeUpdateProjectStatus(action, ctx) {
   core4.info(
     `Updated Status to ${action.status} for issue #${action.issueNumber}`
   );
+  if (action.status !== "Done") {
+    await ensureIssueOpen(ctx, action.issueNumber);
+  }
   return { updated: true, previousStatus: currentState.status };
 }
 async function executeIncrementIteration(action, ctx) {
