@@ -67668,7 +67668,7 @@ var noopMutator = (current) => {
 // packages/statemachine/src/verify/mutators/iteration.ts
 var iteratingMutator = (current, context2) => {
   const phase = String(context2.currentPhase ?? "-");
-  const nextIteration = context2.issue.iteration + 1;
+  const iteration = context2.issue.iteration;
   const openedTree = cloneTree(current);
   const openedSub = findCurrentSubIssue(openedTree, context2);
   if (openedSub) {
@@ -67680,7 +67680,7 @@ var iteratingMutator = (current, context2) => {
     }
   }
   addHistoryEntry3(openedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_OPENED_PR
   });
@@ -67695,13 +67695,13 @@ var iteratingMutator = (current, context2) => {
     }
   }
   addHistoryEntry3(updatedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_UPDATED_PR
   });
   const rebasedTree = cloneTree(current);
   addHistoryEntry3(rebasedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_REBASED
   });
@@ -67709,7 +67709,7 @@ var iteratingMutator = (current, context2) => {
 };
 var iteratingFixMutator = (current, context2) => {
   const phase = String(context2.currentPhase ?? "-");
-  const nextIteration = context2.issue.iteration + 1;
+  const iteration = context2.issue.iteration;
   const fixedTree = cloneTree(current);
   const fixedSub = findCurrentSubIssue(fixedTree, context2);
   if (fixedSub) {
@@ -67721,13 +67721,13 @@ var iteratingFixMutator = (current, context2) => {
     }
   }
   addHistoryEntry3(fixedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_FIXED_CI
   });
   const rebasedTree = cloneTree(current);
   addHistoryEntry3(rebasedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_REBASED
   });
@@ -68797,10 +68797,26 @@ function buildComparisonTable(expected, actual) {
     const found = ab.historyEntries.some(
       (act) => act.iteration === expEntry.iteration && act.phase === expEntry.phase && act.action.startsWith(expEntry.action)
     );
+    let actualDisplay;
+    if (found) {
+      actualDisplay = "(matched)";
+    } else {
+      const textMatch = ab.historyEntries.find(
+        (act) => act.action.startsWith(expEntry.action)
+      );
+      if (textMatch) {
+        actualDisplay = `found "${textMatch.action}" but at iter=${textMatch.iteration}/phase=${textMatch.phase}`;
+      } else {
+        const sameKey = ab.historyEntries.filter(
+          (act) => act.iteration === expEntry.iteration && act.phase === expEntry.phase
+        );
+        actualDisplay = sameKey.length > 0 ? `at [${expEntry.iteration}/${expEntry.phase}]: ${sameKey.map((e) => e.action).join(", ")}` : `no entries at iter=${expEntry.iteration}/phase=${expEntry.phase}`;
+      }
+    }
     rows.push({
       field: `issue.body.history[${expEntry.iteration}/${expEntry.phase}]`,
       expected: expEntry.action,
-      actual: found ? "(matched)" : fmt(ab.historyEntries.map((e) => e.action)),
+      actual: actualDisplay,
       rule: "entry present",
       pass: found
     });
@@ -68895,10 +68911,26 @@ function buildComparisonTable(expected, actual) {
       const found = actSub.body.historyEntries.some(
         (act) => act.iteration === expEntry.iteration && act.phase === expEntry.phase && act.action.startsWith(expEntry.action)
       );
+      let actualDisplay;
+      if (found) {
+        actualDisplay = "(matched)";
+      } else {
+        const textMatch = actSub.body.historyEntries.find(
+          (act) => act.action.startsWith(expEntry.action)
+        );
+        if (textMatch) {
+          actualDisplay = `found "${textMatch.action}" but at iter=${textMatch.iteration}/phase=${textMatch.phase}`;
+        } else {
+          const sameKey = actSub.body.historyEntries.filter(
+            (act) => act.iteration === expEntry.iteration && act.phase === expEntry.phase
+          );
+          actualDisplay = sameKey.length > 0 ? `at [${expEntry.iteration}/${expEntry.phase}]: ${sameKey.map((e) => e.action).join(", ")}` : `no entries at iter=${expEntry.iteration}/phase=${expEntry.phase}`;
+        }
+      }
       rows.push({
         field: `${prefix}.body.history[${expEntry.iteration}/${expEntry.phase}]`,
         expected: expEntry.action,
-        actual: found ? "(matched)" : fmt(actSub.body.historyEntries.map((e) => e.action)),
+        actual: actualDisplay,
         rule: "entry present",
         pass: found
       });

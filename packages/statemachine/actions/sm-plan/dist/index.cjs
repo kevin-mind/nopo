@@ -68231,7 +68231,7 @@ var noopMutator = (current) => {
 // packages/statemachine/src/verify/mutators/iteration.ts
 var iteratingMutator = (current, context3) => {
   const phase = String(context3.currentPhase ?? "-");
-  const nextIteration = context3.issue.iteration + 1;
+  const iteration = context3.issue.iteration;
   const openedTree = cloneTree(current);
   const openedSub = findCurrentSubIssue(openedTree, context3);
   if (openedSub) {
@@ -68243,7 +68243,7 @@ var iteratingMutator = (current, context3) => {
     }
   }
   addHistoryEntry3(openedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_OPENED_PR
   });
@@ -68258,13 +68258,13 @@ var iteratingMutator = (current, context3) => {
     }
   }
   addHistoryEntry3(updatedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_UPDATED_PR
   });
   const rebasedTree = cloneTree(current);
   addHistoryEntry3(rebasedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_REBASED
   });
@@ -68272,7 +68272,7 @@ var iteratingMutator = (current, context3) => {
 };
 var iteratingFixMutator = (current, context3) => {
   const phase = String(context3.currentPhase ?? "-");
-  const nextIteration = context3.issue.iteration + 1;
+  const iteration = context3.issue.iteration;
   const fixedTree = cloneTree(current);
   const fixedSub = findCurrentSubIssue(fixedTree, context3);
   if (fixedSub) {
@@ -68284,13 +68284,13 @@ var iteratingFixMutator = (current, context3) => {
     }
   }
   addHistoryEntry3(fixedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_FIXED_CI
   });
   const rebasedTree = cloneTree(current);
   addHistoryEntry3(rebasedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_REBASED
   });

@@ -25,7 +25,7 @@ import {
  */
 export const iteratingMutator: StateMutator = (current, context) => {
   const phase = String(context.currentPhase ?? "-");
-  const nextIteration = context.issue.iteration + 1;
+  const iteration = context.issue.iteration;
 
   // Outcome 1: Opened PR (no existing PR)
   const openedTree = cloneTree(current);
@@ -39,7 +39,7 @@ export const iteratingMutator: StateMutator = (current, context) => {
     }
   }
   addHistoryEntry(openedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_OPENED_PR,
   });
@@ -56,7 +56,7 @@ export const iteratingMutator: StateMutator = (current, context) => {
     }
   }
   addHistoryEntry(updatedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_UPDATED_PR,
   });
@@ -64,7 +64,7 @@ export const iteratingMutator: StateMutator = (current, context) => {
   // Outcome 3: Rebased (no structural changes, only rebase)
   const rebasedTree = cloneTree(current);
   addHistoryEntry(rebasedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_REBASED,
   });
@@ -81,7 +81,7 @@ export const iteratingMutator: StateMutator = (current, context) => {
  */
 export const iteratingFixMutator: StateMutator = (current, context) => {
   const phase = String(context.currentPhase ?? "-");
-  const nextIteration = context.issue.iteration + 1;
+  const iteration = context.issue.iteration;
 
   // Outcome 1: Fixed CI
   const fixedTree = cloneTree(current);
@@ -95,7 +95,7 @@ export const iteratingFixMutator: StateMutator = (current, context) => {
     }
   }
   addHistoryEntry(fixedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_FIXED_CI,
   });
@@ -103,7 +103,7 @@ export const iteratingFixMutator: StateMutator = (current, context) => {
   // Outcome 2: Rebased (no structural changes)
   const rebasedTree = cloneTree(current);
   addHistoryEntry(rebasedTree.issue, {
-    iteration: nextIteration,
+    iteration,
     phase,
     action: ITER_REBASED,
   });

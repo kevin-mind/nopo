@@ -264,10 +264,33 @@ function buildComparisonTable(
         act.phase === expEntry.phase &&
         act.action.startsWith(expEntry.action),
     );
+    let actualDisplay: string;
+    if (found) {
+      actualDisplay = "(matched)";
+    } else {
+      // Show why it failed: text match at wrong iter/phase, or not found at all
+      const textMatch = ab.historyEntries.find((act) =>
+        act.action.startsWith(expEntry.action),
+      );
+      if (textMatch) {
+        actualDisplay = `found "${textMatch.action}" but at iter=${textMatch.iteration}/phase=${textMatch.phase}`;
+      } else {
+        // Show entries at the expected iter/phase to help debug
+        const sameKey = ab.historyEntries.filter(
+          (act) =>
+            act.iteration === expEntry.iteration &&
+            act.phase === expEntry.phase,
+        );
+        actualDisplay =
+          sameKey.length > 0
+            ? `at [${expEntry.iteration}/${expEntry.phase}]: ${sameKey.map((e) => e.action).join(", ")}`
+            : `no entries at iter=${expEntry.iteration}/phase=${expEntry.phase}`;
+      }
+    }
     rows.push({
       field: `issue.body.history[${expEntry.iteration}/${expEntry.phase}]`,
       expected: expEntry.action,
-      actual: found ? "(matched)" : fmt(ab.historyEntries.map((e) => e.action)),
+      actual: actualDisplay,
       rule: "entry present",
       pass: found,
     });
@@ -379,12 +402,31 @@ function buildComparisonTable(
           act.phase === expEntry.phase &&
           act.action.startsWith(expEntry.action),
       );
+      let actualDisplay: string;
+      if (found) {
+        actualDisplay = "(matched)";
+      } else {
+        const textMatch = actSub.body.historyEntries.find((act) =>
+          act.action.startsWith(expEntry.action),
+        );
+        if (textMatch) {
+          actualDisplay = `found "${textMatch.action}" but at iter=${textMatch.iteration}/phase=${textMatch.phase}`;
+        } else {
+          const sameKey = actSub.body.historyEntries.filter(
+            (act) =>
+              act.iteration === expEntry.iteration &&
+              act.phase === expEntry.phase,
+          );
+          actualDisplay =
+            sameKey.length > 0
+              ? `at [${expEntry.iteration}/${expEntry.phase}]: ${sameKey.map((e) => e.action).join(", ")}`
+              : `no entries at iter=${expEntry.iteration}/phase=${expEntry.phase}`;
+        }
+      }
       rows.push({
         field: `${prefix}.body.history[${expEntry.iteration}/${expEntry.phase}]`,
         expected: expEntry.action,
-        actual: found
-          ? "(matched)"
-          : fmt(actSub.body.historyEntries.map((e) => e.action)),
+        actual: actualDisplay,
         rule: "entry present",
         pass: found,
       });

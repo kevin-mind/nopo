@@ -314,6 +314,8 @@ describe("iteration mutators", () => {
         outcomes[0]!.issue.body.historyEntries.length - 1
       ];
     expect(openedEntry?.action).toBe(ITER_OPENED_PR);
+    // Iteration must match context.issue.iteration (what logRunEnd writes), not +1
+    expect(openedEntry?.iteration).toBe(1);
     expect(outcomes[0]!.subIssues[0]?.hasPR).toBe(true);
     expect(outcomes[0]!.subIssues[0]?.hasBranch).toBe(true);
 
