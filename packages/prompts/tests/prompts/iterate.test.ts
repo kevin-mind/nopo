@@ -43,7 +43,7 @@ describe("Iterate prompt", () => {
     expect(result.prompt).toContain('<section title="2. Determine Action">');
     expect(result.prompt).toContain('<section title="3. Implementation">');
     expect(result.prompt).toContain(
-      '<section title="4. Verify Before Committing">',
+      '<section title="4. Fix and Verify Before Committing">',
     );
     expect(result.prompt).toContain('<section title="5. Commit and Push">');
     expect(result.prompt).toContain(

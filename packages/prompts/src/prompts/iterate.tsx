@@ -110,8 +110,13 @@ const Iterate = promptFactory()
         ].join("\n")}
       </section>
 
-      <section title="4. Verify Before Committing">
-        <codeblock lang="bash">{"make check && make test"}</codeblock>
+      <section title="4. Fix and Verify Before Committing">
+        {[
+          "**Always run `make fix` before committing** to auto-fix formatting and lint issues:",
+        ].join("\n")}
+        <codeblock lang="bash">
+          {"make fix && make check && make test"}
+        </codeblock>
         {"\n**STOP if any command fails.** Fix before committing."}
       </section>
 
