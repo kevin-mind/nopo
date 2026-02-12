@@ -74259,8 +74259,9 @@ function asOctokitLike9(octokit) {
 }
 function shouldRetrigger(finalState, actions, continueFlag) {
   if (!continueFlag) return false;
+  const iterationStates = /* @__PURE__ */ new Set(["iterating", "iteratingFix"]);
   const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun) {
+  if (hasClaudeRun && iterationStates.has(finalState)) {
     return false;
   }
   const noRetriggerStates = /* @__PURE__ */ new Set([
@@ -74271,11 +74272,11 @@ function shouldRetrigger(finalState, actions, continueFlag) {
     "alreadyBlocked",
     "terminal",
     "reviewing",
-    "triaged",
+    "grooming",
+    "commenting",
     "orchestrationRunning",
     "orchestrationWaiting",
     "orchestrationComplete",
-    "grooming",
     "subIssueIdle"
   ]);
   return !noRetriggerStates.has(finalState);

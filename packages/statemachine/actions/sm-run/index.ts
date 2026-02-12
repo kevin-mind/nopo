@@ -57,7 +57,7 @@ function asOctokitLike(
 
 /**
  * Determine whether the workflow should retrigger.
- * Terminal states and Claude runs (waiting for CI) should NOT retrigger.
+ * Terminal states and iteration Claude runs (waiting for CI) should NOT retrigger.
  */
 function shouldRetrigger(
   finalState: string,
@@ -66,12 +66,14 @@ function shouldRetrigger(
 ): boolean {
   if (!continueFlag) return false;
 
-  // Don't retrigger if we just ran Claude — waiting for push → CI.
-  // When Claude returns all_done, applyIterateOutput handles the review
-  // transition directly (marks PR ready, requests review), so no retrigger
-  // is needed.
+  // Don't retrigger for iteration Claude runs — Claude pushes code, which
+  // triggers CI, which triggers the next workflow event. Retrigger would
+  // cause a duplicate run.
+  // This only applies to iteration states. Other Claude runs (triage, grooming,
+  // review, comment) either need retrigger (triage → grooming) or are terminal.
+  const iterationStates = new Set(["iterating", "iteratingFix"]);
   const hasClaudeRun = actions.some((a) => a.type === "runClaude");
-  if (hasClaudeRun) {
+  if (hasClaudeRun && iterationStates.has(finalState)) {
     return false;
   }
 
@@ -84,11 +86,11 @@ function shouldRetrigger(
     "alreadyBlocked",
     "terminal",
     "reviewing",
-    "triaged",
+    "grooming",
+    "commenting",
     "orchestrationRunning",
     "orchestrationWaiting",
     "orchestrationComplete",
-    "grooming",
     "subIssueIdle",
   ]);
 
