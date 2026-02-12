@@ -48397,6 +48397,12 @@ function emitRetryIssue({ context: context2 }) {
       token: "code",
       issueNumber: context2.currentSubIssue.number
     });
+    actions.push({
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context2.currentSubIssue.number,
+      status: "In progress"
+    });
   }
   actions.push({
     type: "updateProjectStatus",

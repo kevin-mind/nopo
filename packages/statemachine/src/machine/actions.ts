@@ -1310,12 +1310,18 @@ export function emitRetryIssue({ context }: ActionContext): ActionResult {
   // Clear failure counter on parent issue
   actions.push(...emitClearFailures({ context }));
 
-  // Clear failures on current sub-issue too (sub-issues track their own failures)
+  // Clear failures and reset status on current sub-issue too
   if (context.currentSubIssue) {
     actions.push({
       type: "clearFailures",
       token: "code",
       issueNumber: context.currentSubIssue.number,
+    });
+    actions.push({
+      type: "updateProjectStatus",
+      token: "code",
+      issueNumber: context.currentSubIssue.number,
+      status: "In progress",
     });
   }
 
