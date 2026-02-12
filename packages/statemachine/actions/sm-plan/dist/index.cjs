@@ -70327,6 +70327,9 @@ async function handlePushEvent(issueState) {
       "Linked issue has test:automation label - skipping from normal automation"
     );
   }
+  if (pr.isDraft) {
+    return emptyResult(true, "PR is already draft - waiting for CI");
+  }
   const owner = context3.repo.owner;
   const repo = context3.repo.repo;
   const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";

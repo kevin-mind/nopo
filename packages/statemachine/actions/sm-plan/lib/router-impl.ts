@@ -1439,6 +1439,14 @@ async function handlePushEvent(
     );
   }
 
+  // Skip push events when PR is already draft — we're in the iteration loop
+  // and CI completion will trigger the next state machine run.
+  // pr-push is only meaningful when PR is ready for review (not draft),
+  // to interrupt in-flight reviews and convert back to draft.
+  if (pr.isDraft) {
+    return emptyResult(true, "PR is already draft - waiting for CI");
+  }
+
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
