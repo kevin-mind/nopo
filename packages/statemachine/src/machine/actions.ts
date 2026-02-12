@@ -1126,8 +1126,13 @@ export function emitOrchestrate({ context }: ActionContext): ActionResult {
     });
   }
 
-  // Assign nopo-bot to the sub-issue to trigger iteration
-  if (subIssueToAssign) {
+  // Assign nopo-bot to the sub-issue to trigger iteration.
+  // Skip if already assigned — GitHub won't fire an issues:assigned webhook
+  // for a no-op reassignment, so the retrigger mechanism handles it instead.
+  if (
+    subIssueToAssign &&
+    !subIssueToAssign.assignees.includes(context.botUsername)
+  ) {
     actions.push({
       type: "assignUser",
       token: "code",

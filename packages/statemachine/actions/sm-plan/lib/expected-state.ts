@@ -16,14 +16,34 @@ import {
 /**
  * Predict whether the workflow should retrigger after execution.
  * Mirrors the shouldRetrigger logic in sm-run, assuming continue=true.
+ *
+ * @param issueNumber - The main/triggering issue number, used to distinguish
+ *   sub-issue assignUser actions from parent assignUser actions.
  */
-function predictRetrigger(finalState: string, actions: Action[]): boolean {
+function predictRetrigger(
+  finalState: string,
+  actions: Action[],
+  issueNumber?: number,
+): boolean {
   // Don't retrigger for iteration Claude runs — Claude pushes code,
   // which triggers CI, which triggers the next workflow event.
   const iterationStates = new Set(["iterating", "iteratingFix"]);
   const hasClaudeRun = actions.some((a) => a.type === "runClaude");
   if (hasClaudeRun && iterationStates.has(finalState)) {
     return false;
+  }
+
+  // orchestrationRunning: retrigger only when no assignUser was emitted for
+  // a sub-issue. When bot is already assigned, GitHub won't fire an
+  // issues:assigned webhook, so retrigger must restart iteration on the sub-issue.
+  if (finalState === "orchestrationRunning") {
+    const hasSubIssueAssign = actions.some(
+      (a) =>
+        a.type === "assignUser" &&
+        "issueNumber" in a &&
+        a.issueNumber !== issueNumber,
+    );
+    return !hasSubIssueAssign;
   }
 
   // Terminal/waiting states that should not retrigger
@@ -37,7 +57,6 @@ function predictRetrigger(finalState: string, actions: Action[]): boolean {
     "reviewing",
     "grooming",
     "commenting",
-    "orchestrationRunning",
     "orchestrationWaiting",
     "orchestrationComplete",
     "subIssueIdle",
@@ -87,6 +106,7 @@ export function predictExpectedState(
     const expectedRetrigger = predictRetrigger(
       finalState,
       deriveResult.pendingActions,
+      machineContext.issue.number,
     );
 
     // Build the expected state envelope

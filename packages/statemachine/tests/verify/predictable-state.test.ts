@@ -99,6 +99,7 @@ describe("extractPredictableTree", () => {
             "## Description\n\nSub body.\n\n## Todos\n\n- [ ] Sub task",
           ),
           projectStatus: "In progress" as const,
+          assignees: [],
           labels: ["triaged"],
           branch: "claude/issue/101/1",
           pr: null,

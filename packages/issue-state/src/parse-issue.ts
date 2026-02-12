@@ -320,6 +320,8 @@ function parseSubIssueData(
     state: IssueStateSchema.parse(node.state?.toUpperCase() || "OPEN"),
     bodyAst,
     projectStatus: status,
+    assignees:
+      node.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
     labels: node.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
     pr: null, // Populated separately if fetchPRs is true

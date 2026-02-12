@@ -182,6 +182,8 @@ function parseSubIssue(
     state: IssueStateSchema.catch("OPEN").parse(node.state?.toUpperCase()),
     bodyAst,
     projectStatus: status,
+    assignees:
+      node.assignees?.nodes?.map((a) => a.login || "").filter(Boolean) || [],
     labels: node.labels?.nodes?.map((l) => l.name || "").filter(Boolean) || [],
     branch: deriveBranchName(parentIssueNumber, phaseNumber),
     pr: null, // Will be populated separately

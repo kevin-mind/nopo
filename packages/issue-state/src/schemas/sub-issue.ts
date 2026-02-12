@@ -9,6 +9,7 @@ export const SubIssueDataSchema = z.object({
   state: IssueStateSchema,
   bodyAst: MdastRootSchema,
   projectStatus: ProjectStatusSchema.nullable(),
+  assignees: z.array(z.string()),
   labels: z.array(z.string()),
   branch: z.string().nullable(),
   pr: LinkedPRSchema.nullable(),

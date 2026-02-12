@@ -272,6 +272,7 @@ describe("control mutators", () => {
             state: "OPEN" as const,
             bodyAst: parseMarkdown("## Description\n\nSub."),
             projectStatus: "In progress" as const,
+            assignees: [],
             labels: [],
             branch: null,
             pr: null,

@@ -61,6 +61,8 @@ outputs:
     description: Whether the workflow should retrigger to continue the loop
   issue_number:
     description: The issue number from context (for retrigger)
+  retrigger_resource_number:
+    description: The resource number to use for retrigger dispatch (may differ from issue_number for orchestration)
 
 runs:
   using: node20
