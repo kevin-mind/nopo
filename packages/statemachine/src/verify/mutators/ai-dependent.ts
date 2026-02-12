@@ -50,17 +50,16 @@ export const triagingMutator: StateMutator = (current) => {
  * grooming: Claude grooms the issue.
  *
  * Multiple outcomes:
- * 1. Ready: labels += groomed, status → Ready
+ * 1. Successfully groomed: labels += groomed (projectStatus unchanged — stays Backlog)
  * 2. Needs info: labels += needs-info
  * 3. Blocked: status → Blocked
  */
 export const groomingMutator: StateMutator = (current) => {
-  // Outcome 1: Successfully groomed
+  // Outcome 1: Successfully groomed — adds label, status stays as-is
   const ready = cloneTree(current);
   if (!ready.issue.labels.includes("groomed")) {
     ready.issue.labels.push("groomed");
   }
-  ready.issue.projectStatus = "Ready";
 
   // Outcome 2: Needs more info
   const needsInfo = cloneTree(current);

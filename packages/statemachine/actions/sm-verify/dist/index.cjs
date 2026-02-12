@@ -67733,7 +67733,6 @@ var groomingMutator = (current) => {
   if (!ready.issue.labels.includes("groomed")) {
     ready.issue.labels.push("groomed");
   }
-  ready.issue.projectStatus = "Ready";
   const needsInfo2 = cloneTree(current);
   if (!needsInfo2.issue.labels.includes("needs-info")) {
     needsInfo2.issue.labels.push("needs-info");
@@ -68827,7 +68826,9 @@ async function run() {
     core26.info(`  parentIssueNumber:  ${expected.parentIssueNumber ?? "none"}`);
     core26.info(`  outcomes:           ${expected.outcomes.length}`);
     core26.info(`  expectedRetrigger:  ${expected.expectedRetrigger}`);
-    core26.info(`  actualRetrigger:    ${actualShouldRetrigger || "(not provided)"}`);
+    core26.info(
+      `  actualRetrigger:    ${actualShouldRetrigger || "(not provided)"}`
+    );
     core26.info(`  timestamp:          ${expected.timestamp}`);
     core26.endGroup();
     core26.startGroup("Step 2: Fetch actual issue state");

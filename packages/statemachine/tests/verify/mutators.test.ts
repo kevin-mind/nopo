@@ -204,9 +204,9 @@ describe("AI-dependent mutators", () => {
     const outcomes = mutator(tree, context);
 
     expect(outcomes).toHaveLength(3);
-    // Outcome 1: ready
+    // Outcome 1: groomed — label added, projectStatus unchanged
     expect(outcomes[0]!.issue.labels).toContain("groomed");
-    expect(outcomes[0]!.issue.projectStatus).toBe("Ready");
+    expect(outcomes[0]!.issue.projectStatus).toBe("In progress");
     // Outcome 2: needs-info
     expect(outcomes[1]!.issue.labels).toContain("needs-info");
     // Outcome 3: blocked
