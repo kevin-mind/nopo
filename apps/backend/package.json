@@ -8,7 +8,7 @@
     "build/**"
   ],
   "scripts": {
-    "build": "vite build"
+    "build": "uv sync --frozen --no-install-workspace && vite build && uv run python manage.py collectstatic --noinput --clear"
   },
   "devDependencies": {
     "@more/configs": "workspace:*",

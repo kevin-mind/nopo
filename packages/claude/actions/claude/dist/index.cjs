@@ -40553,6 +40553,8 @@ async function executeClaudeSDK(options) {
     cwd: cwd2,
     pathToClaudeCodeExecutable: claudePath,
     permissionMode,
+    // Explicitly pass all env vars (including GH_TOKEN) to Claude Code process
+    env: process.env,
     // Load CLAUDE.md and project settings
     settingSources: ["project"],
     // Use Claude Code's system prompt
@@ -42243,8 +42245,11 @@ git merge-base --is-ancestor origin/main HEAD && echo "Up to date" || echo "Behi
     "2. Follow CLAUDE.md guidelines",
     "3. Keep changes small and focused"
   ].join("\n") }),
-  /* @__PURE__ */ jsxs("section", { title: "4. Verify Before Committing", children: [
-    /* @__PURE__ */ jsx("codeblock", { lang: "bash", children: "make check && make test" }),
+  /* @__PURE__ */ jsxs("section", { title: "4. Fix and Verify Before Committing", children: [
+    [
+      "**Always run `make fix` before committing** to auto-fix formatting and lint issues:"
+    ].join("\n"),
+    /* @__PURE__ */ jsx("codeblock", { lang: "bash", children: "make fix && make check && make test" }),
     "\n**STOP if any command fails.** Fix before committing."
   ] }),
   /* @__PURE__ */ jsx("section", { title: "5. Commit and Push", children: "Commit with descriptive message, push to origin. Workflow handles the rest." }),

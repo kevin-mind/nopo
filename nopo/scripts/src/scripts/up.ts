@@ -5,7 +5,6 @@ import {
   type ScriptDependency,
   type Runner,
   createLogger,
-  exec,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
 import BuildScript from "./build.ts";
@@ -127,20 +126,6 @@ export default class UpScript extends TargetScript {
         env: this.env,
       }),
     ]);
-
-    if (this.runner.environment.env.DOCKER_TARGET === "production") {
-      this.log("Building packages...");
-      const result = await exec("sh", ["-c", "pnpm -r build"], {
-        cwd: this.runner.config.root,
-        env: this.env,
-        verbose: true,
-      });
-      if (result.exitCode !== 0) {
-        throw new Error(
-          `Package build failed with exit code ${result.exitCode}`,
-        );
-      }
-    }
 
     const targets = args.get<string[]>("targets") ?? [];
 

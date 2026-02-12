@@ -4,11 +4,6 @@ services:
       file: ../../nopo/docker/docker-compose.base.yml
       service: base
     image: "${WEB_IMAGE:-${DOCKER_TAG:?}}"
-    build:
-      context: ../../
-      dockerfile: apps/web/Dockerfile
-      args:
-        NOPO_BASE_IMAGE: "${DOCKER_TAG:?}"
     environment:
       SERVICE_NAME: web
       PORT: 80

@@ -4,11 +4,6 @@ services:
       file: ../../nopo/docker/docker-compose.base.yml
       service: base
     image: "${BACKEND_IMAGE:-${DOCKER_TAG:?}}"
-    build:
-      context: ../../
-      dockerfile: apps/backend/Dockerfile
-      args:
-        NOPO_BASE_IMAGE: "${DOCKER_TAG:?}"
     environment:
       SERVICE_NAME: backend
       DATABASE_URL: postgres://user:password@db:5432/database

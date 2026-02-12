@@ -1,7 +1,11 @@
 name: backend
 description: Django application that powers the API.
-dockerfile: Dockerfile
 static_path: build
+
+build:
+  command: pnpm install --frozen-lockfile && pnpm --filter @more/backend build
+  env:
+    NODE_ENV: production
 runtime:
   cpu: "1"
   memory: "512Mi"

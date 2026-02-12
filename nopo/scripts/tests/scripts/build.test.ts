@@ -215,8 +215,9 @@ describe("build", () => {
       expect(bakeDefinition.target.backend.contexts).toEqual({
         root: "target:root",
       });
-      // Verify NOPO_BASE_IMAGE is passed to service builds to resolve FROM correctly
-      expect(bakeDefinition.target.backend.args.NOPO_BASE_IMAGE).toBe("root");
+      // Virtual Dockerfile uses context name directly instead of NOPO_BASE_IMAGE arg
+      expect(bakeDefinition.target.backend["dockerfile-inline"]).toBeDefined();
+      expect(bakeDefinition.target.backend.args.SERVICE_NAME).toBe("backend");
     });
 
     it("builds multiple services in parallel", async () => {
