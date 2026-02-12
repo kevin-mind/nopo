@@ -47162,21 +47162,6 @@ function emitRunClaudePRHumanResponse({
 function emitInitializeParent({ context: context2 }) {
   const actions = [];
   actions.push({
-    type: "updateProjectStatus",
-    token: "code",
-    issueNumber: context2.issue.number,
-    status: "In progress"
-  });
-  const firstSubIssue = context2.issue.subIssues[0];
-  if (firstSubIssue) {
-    actions.push({
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: firstSubIssue.number,
-      status: "In progress"
-    });
-  }
-  actions.push({
     type: "appendHistory",
     token: "code",
     issueNumber: context2.issue.number,
@@ -47207,12 +47192,6 @@ function emitAdvancePhase({ context: context2 }) {
   const nextPhase = context2.currentPhase + 1;
   const nextSubIssue = context2.issue.subIssues[nextPhase - 1];
   if (nextSubIssue) {
-    actions.push({
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: nextSubIssue.number,
-      status: "In progress"
-    });
     actions.push({
       type: "appendHistory",
       token: "code",

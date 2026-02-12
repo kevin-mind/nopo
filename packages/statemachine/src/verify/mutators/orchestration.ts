@@ -10,13 +10,11 @@ import { cloneTree, addHistoryEntry } from "./helpers.js";
 
 /**
  * orchestrationRunning: Emit orchestration actions.
- * Effects depend on current state (init, advance, assign).
+ * Orchestration does NOT update project statuses — those happen in iteration.
+ * Only structural effects: history entries, assignments.
  */
 export const orchestrationRunningMutator: StateMutator = (current, context) => {
   const tree = cloneTree(current);
-
-  // Parent is always In progress during orchestration
-  tree.issue.projectStatus = "In progress";
 
   // If needs initialization, add init history
   const needsInit =

@@ -47630,21 +47630,6 @@ function emitRunClaudePRHumanResponse({
 function emitInitializeParent({ context: context3 }) {
   const actions = [];
   actions.push({
-    type: "updateProjectStatus",
-    token: "code",
-    issueNumber: context3.issue.number,
-    status: "In progress"
-  });
-  const firstSubIssue = context3.issue.subIssues[0];
-  if (firstSubIssue) {
-    actions.push({
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: firstSubIssue.number,
-      status: "In progress"
-    });
-  }
-  actions.push({
     type: "appendHistory",
     token: "code",
     issueNumber: context3.issue.number,
@@ -47675,12 +47660,6 @@ function emitAdvancePhase({ context: context3 }) {
   const nextPhase = context3.currentPhase + 1;
   const nextSubIssue = context3.issue.subIssues[nextPhase - 1];
   if (nextSubIssue) {
-    actions.push({
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: nextSubIssue.number,
-      status: "In progress"
-    });
     actions.push({
       type: "appendHistory",
       token: "code",
@@ -68304,7 +68283,6 @@ var awaitingMergeMutator = (current, context3) => {
 // src/verify/mutators/orchestration.ts
 var orchestrationRunningMutator = (current, context3) => {
   const tree = cloneTree(current);
-  tree.issue.projectStatus = "In progress";
   const needsInit = context3.issue.projectStatus === null || context3.issue.projectStatus === "Backlog";
   if (needsInit) {
     addHistoryEntry3(tree.issue, {

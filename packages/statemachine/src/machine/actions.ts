@@ -995,30 +995,13 @@ export function emitAssignToSubIssue({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit actions to initialize parent issue for orchestration
- * Sets parent to "In progress" and first sub-issue to "In progress"
+ * Emit actions to initialize parent issue for orchestration.
+ * Project status updates are NOT emitted here — they happen in iteration:
+ * - Parent "In progress" is set by the `initializing` state's `setInProgress` entry
+ * - Sub-issue "In progress" is set by the `iterating` state's `setWorking` entry
  */
 export function emitInitializeParent({ context }: ActionContext): ActionResult {
   const actions: Action[] = [];
-
-  // Set parent to "In progress"
-  actions.push({
-    type: "updateProjectStatus",
-    token: "code",
-    issueNumber: context.issue.number,
-    status: "In progress",
-  });
-
-  // Set first sub-issue to "In progress"
-  const firstSubIssue = context.issue.subIssues[0];
-  if (firstSubIssue) {
-    actions.push({
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: firstSubIssue.number,
-      status: "In progress",
-    });
-  }
 
   // Log initialization
   actions.push({
@@ -1035,8 +1018,10 @@ export function emitInitializeParent({ context }: ActionContext): ActionResult {
 }
 
 /**
- * Emit actions to advance to next phase
- * Marks current phase Done, sets next phase to In progress
+ * Emit actions to advance to next phase.
+ * Marks current phase Done + closed, logs phase advancement.
+ * Next sub-issue "In progress" is NOT set here — that happens when
+ * iteration begins on the next sub-issue (`iterating.setWorking`).
  */
 export function emitAdvancePhase({ context }: ActionContext): ActionResult {
   const actions: Action[] = [];
@@ -1066,14 +1051,6 @@ export function emitAdvancePhase({ context }: ActionContext): ActionResult {
   const nextSubIssue = context.issue.subIssues[nextPhase - 1]; // 0-indexed
 
   if (nextSubIssue) {
-    // Set next sub-issue to In progress
-    actions.push({
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: nextSubIssue.number,
-      status: "In progress",
-    });
-
     // Log phase advancement
     actions.push({
       type: "appendHistory",
