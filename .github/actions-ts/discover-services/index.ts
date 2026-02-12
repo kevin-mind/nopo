@@ -32,13 +32,13 @@ async function run(): Promise<void> {
     core.info(`Ref: ${process.env.GITHUB_REF ?? "main"}`);
 
     // Build the command arguments
+    // Filters are passed as a single comma-separated --filter arg
+    // because make deduplicates MAKECMDGOALS (multiple --filter would lose duplicates)
     const args = ["list", "--", "--json"];
     if (inputs.filter) {
-      // Support space-separated filters (e.g., "service buildable")
-      // Each becomes a separate --filter arg for AND logic
-      for (const f of inputs.filter.split(/\s+/).filter(Boolean)) {
-        args.push("--filter", f);
-      }
+      // Normalize spaces to commas so "service buildable" becomes "service,buildable"
+      const normalized = inputs.filter.trim().replace(/\s+/g, ",");
+      args.push("--filter", normalized);
     }
     if (inputs.since) {
       args.push("--since", inputs.since);

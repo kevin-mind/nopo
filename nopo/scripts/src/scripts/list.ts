@@ -64,10 +64,12 @@ export default class ListScript extends Script {
     if (args.get<boolean>("csv")) format = "csv";
 
     // Parse filter expressions from string[]
+    // Support comma-separated values within a single --filter arg (e.g., --filter "service,buildable")
     const filterStrings = args.get<string[]>("filter") ?? [];
-    const filters: FilterExpression[] = filterStrings.map(
-      parseFilterExpression,
-    );
+    const filters: FilterExpression[] = filterStrings
+      .flatMap((s) => s.split(","))
+      .filter(Boolean)
+      .map(parseFilterExpression);
 
     const since = args.get<string | undefined>("since");
     const jqFilter = args.get<string | undefined>("jq");
