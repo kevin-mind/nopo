@@ -49109,7 +49109,11 @@ var claudeMachine = setup({
     retrying: {
       entry: ["logRetrying", "retryIssue"],
       always: [
-        { target: "orchestrating", guard: "hasSubIssues" },
+        // Go directly to orchestrationRunning, not orchestrating.
+        // The orchestrating intermediate checks guards against stale context
+        // (retry actions are queued but not yet applied), which causes
+        // currentPhaseInReview to see the old status and route incorrectly.
+        { target: "orchestrationRunning", guard: "hasSubIssues" },
         { target: "iterating" }
       ]
     },
