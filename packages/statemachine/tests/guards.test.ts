@@ -113,6 +113,8 @@ describe("Terminal State Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.isAlreadyDone({ context })).toBe(true);
@@ -131,6 +133,8 @@ describe("Terminal State Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.isAlreadyDone({ context })).toBe(false);
@@ -149,6 +153,8 @@ describe("Terminal State Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.isAlreadyDone({ context })).toBe(false);
@@ -484,8 +490,8 @@ describe("CI Guards", () => {
       expect(guards.ciPassed({ context })).toBe(false);
     });
 
-    it("returns false when ciResult is first", () => {
-      const context = createTriageContext({ ciResult: "first" });
+    it("returns false when ciResult is skipped", () => {
+      const context = createTriageContext({ ciResult: "skipped" });
       expect(guards.ciPassed({ context })).toBe(false);
     });
   });
@@ -605,7 +611,7 @@ describe("Orchestration Guards", () => {
       const context = createSubIssueContext({
         currentSubIssue: ParentIssueSchema.parse({
           ...createSubIssueContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [x] done item\n- [ ] [Manual] test"),
+          bodyAst: parseMarkdown("## Todo\n\n- [x] done item\n- [ ] [Manual] test"),
         }),
       });
       expect(guards.currentPhaseComplete({ context })).toBe(true);
@@ -615,7 +621,7 @@ describe("Orchestration Guards", () => {
       const context = createSubIssueContext({
         currentSubIssue: ParentIssueSchema.parse({
           ...createSubIssueContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [ ] todo item"),
+          bodyAst: parseMarkdown("## Todo\n\n- [ ] todo item"),
         }),
       });
       expect(guards.currentPhaseComplete({ context })).toBe(false);
@@ -796,7 +802,7 @@ describe("Todo Guards", () => {
         currentSubIssue: ParentIssueSchema.parse({
           ...createSubIssueContext().issue,
           bodyAst: parseMarkdown(
-            "# Task\n\n- [x] done\n- [ ] [Manual] manual task",
+            "## Todo\n\n- [x] done\n- [ ] [Manual] manual task",
           ),
         }),
       });
@@ -807,7 +813,7 @@ describe("Todo Guards", () => {
       const context = createSubIssueContext({
         currentSubIssue: ParentIssueSchema.parse({
           ...createSubIssueContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [ ] todo item"),
+          bodyAst: parseMarkdown("## Todo\n\n- [ ] todo item"),
         }),
       });
       expect(guards.todosDone({ context })).toBe(false);
@@ -818,7 +824,7 @@ describe("Todo Guards", () => {
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
           bodyAst: parseMarkdown(
-            "# Task\n\n- [x] done\n- [ ] [Manual] manual task",
+            "## Todo\n\n- [x] done\n- [ ] [Manual] manual task",
           ),
         }),
       });
@@ -829,7 +835,7 @@ describe("Todo Guards", () => {
       const context = createTriageContext({
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [ ] todo item"),
+          bodyAst: parseMarkdown("## Todo\n\n- [ ] todo item"),
         }),
       });
       expect(guards.todosDone({ context })).toBe(false);
@@ -841,7 +847,7 @@ describe("Todo Guards", () => {
       const context = createTriageContext({
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [ ] todo item"),
+          bodyAst: parseMarkdown("## Todo\n\n- [ ] todo item"),
         }),
       });
       expect(guards.hasPendingTodos({ context })).toBe(true);
@@ -851,7 +857,7 @@ describe("Todo Guards", () => {
       const context = createTriageContext({
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [x] done"),
+          bodyAst: parseMarkdown("## Todo\n\n- [x] done"),
         }),
       });
       expect(guards.hasPendingTodos({ context })).toBe(false);
@@ -986,6 +992,8 @@ describe("PR Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.hasPR({ context })).toBe(true);
@@ -1012,6 +1020,8 @@ describe("PR Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.prIsDraft({ context })).toBe(true);
@@ -1026,6 +1036,8 @@ describe("PR Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.prIsDraft({ context })).toBe(false);
@@ -1047,6 +1059,8 @@ describe("PR Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.prIsReady({ context })).toBe(true);
@@ -1061,6 +1075,8 @@ describe("PR Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.prIsReady({ context })).toBe(false);
@@ -1082,6 +1098,8 @@ describe("PR Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.prIsMerged({ context })).toBe(true);
@@ -1096,6 +1114,8 @@ describe("PR Guards", () => {
           title: "Test PR",
           headRef: "test-branch",
           baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
       expect(guards.prIsMerged({ context })).toBe(false);
@@ -1568,7 +1588,7 @@ describe("Composite Guards", () => {
         ciResult: "success",
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [x] done"),
+          bodyAst: parseMarkdown("## Todo\n\n- [x] done"),
         }),
       });
       expect(guards.readyForReview({ context })).toBe(true);
@@ -1579,7 +1599,7 @@ describe("Composite Guards", () => {
         ciResult: "success",
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [ ] todo"),
+          bodyAst: parseMarkdown("## Todo\n\n- [ ] todo"),
         }),
       });
       expect(guards.readyForReview({ context })).toBe(false);
@@ -1590,7 +1610,7 @@ describe("Composite Guards", () => {
         ciResult: "failure",
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [x] done"),
+          bodyAst: parseMarkdown("## Todo\n\n- [x] done"),
         }),
       });
       expect(guards.readyForReview({ context })).toBe(false);
@@ -1601,7 +1621,7 @@ describe("Composite Guards", () => {
         ciResult: "failure",
         issue: ParentIssueSchema.parse({
           ...createTriageContext().issue,
-          bodyAst: parseMarkdown("# Task\n\n- [ ] todo"),
+          bodyAst: parseMarkdown("## Todo\n\n- [ ] todo"),
         }),
       });
       expect(guards.readyForReview({ context })).toBe(false);
