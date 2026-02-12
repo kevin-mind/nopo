@@ -384,6 +384,16 @@ jobs:
     with:
       filter: buildable
       ref: ${{ github.sha }}
+  discover_services:
+    needs: [mock-detect]
+    # Skip in mock mode — discover only runtime services for deployment
+    if: needs.mock-detect.outputs.mock_mode != 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_services.yml
+    with:
+      filter: service
+      ref: ${{ github.sha }}
   version:
     needs: [mock-detect, context]
     # Skip in mock mode
@@ -463,7 +473,7 @@ jobs:
       environment: stage
       version: ${{ needs.build.outputs.version }}
       digest: ${{ needs.build.outputs.digest }}
-      services: ${{ needs.discover_buildable.outputs.services_json }}
+      services: ${{ needs.discover_services.outputs.services_json }}
       # E2E mode inputs - skips expensive operations and simulates outcome
       e2e_mode: ${{ needs.e2e-detect.outputs.e2e_mode == 'true' }}
       e2e_outcome: ${{ needs.e2e-detect.outputs.release_outcome }}
@@ -472,7 +482,7 @@ jobs:
       - context
       - build
       - test
-      - discover_buildable
+      - discover_services
 
   deploy_prod:
     permissions:
@@ -486,7 +496,7 @@ jobs:
       environment: prod
       version: ${{ needs.build.outputs.version }}
       digest: ${{ needs.build.outputs.digest }}
-      services: ${{ needs.discover_buildable.outputs.services_json }}
+      services: ${{ needs.discover_services.outputs.services_json }}
       # E2E mode inputs - skips expensive operations and simulates outcome
       e2e_mode: ${{ needs.e2e-detect.outputs.e2e_mode == 'true' }}
       e2e_outcome: ${{ needs.e2e-detect.outputs.release_outcome }}
@@ -496,7 +506,7 @@ jobs:
       - build
       - deploy_stage
       - test
-      - discover_buildable
+      - discover_services
 
   # ============================================================================
   # LOG: STAGE DEPLOY SUCCESS
