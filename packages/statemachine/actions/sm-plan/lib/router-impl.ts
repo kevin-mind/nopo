@@ -2080,6 +2080,16 @@ async function handleWorkflowDispatchEvent(
     core.info(`Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`);
   }
 
+  // DEBUG: dump all state for dispatch routing
+  core.info(
+    `DEBUG dispatch: projectStatus=${issueState.issue.projectStatus}, ` +
+      `subIssues.length=${issueState.issue.subIssues?.length ?? "undefined"}, ` +
+      `isSubIssue=${isSubIssue(issueState)}, ` +
+      `hasPR=${!!issueState.issue.pr}, ` +
+      `pr=${issueState.issue.pr ? `#${issueState.issue.pr.number}` : "null"}, ` +
+      `labels=${JSON.stringify(issueState.issue.labels)}`,
+  );
+
   // Check if grooming is needed BEFORE orchestration
   // Grooming needed: has "triaged" label but NOT "groomed" label
   const labels = issueLabels(issueState);
@@ -2108,6 +2118,7 @@ async function handleWorkflowDispatchEvent(
 
   // Check if this is a parent issue with sub-issues
   const subs = subIssueNumbers(issueState);
+  core.info(`DEBUG dispatch: subs.length=${subs.length}, subs=${JSON.stringify(subs)}`);
   if (subs.length > 0) {
     // Smart routing: check if a sub-issue is assigned to bot and needs iteration
     const assignedSubIssue = issueState.issue.subIssues.find(

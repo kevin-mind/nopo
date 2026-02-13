@@ -70908,6 +70908,9 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
     parentIssueStr = String(parentIssueNumber2(issueState));
     core26.info(`Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`);
   }
+  core26.info(
+    `DEBUG dispatch: projectStatus=${issueState.issue.projectStatus}, subIssues.length=${issueState.issue.subIssues?.length ?? "undefined"}, isSubIssue=${isSubIssue2(issueState)}, hasPR=${!!issueState.issue.pr}, pr=${issueState.issue.pr ? `#${issueState.issue.pr.number}` : "null"}, labels=${JSON.stringify(issueState.issue.labels)}`
+  );
   const labels = issueLabels(issueState);
   const hasTriaged = labels.includes("triaged");
   const hasGroomed = labels.includes("groomed");
@@ -70931,6 +70934,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
     };
   }
   const subs = subIssueNumbers(issueState);
+  core26.info(`DEBUG dispatch: subs.length=${subs.length}, subs=${JSON.stringify(subs)}`);
   if (subs.length > 0) {
     const assignedSubIssue = issueState.issue.subIssues.find(
       (sub) => sub.state === "OPEN" && sub.projectStatus !== "Done" && sub.projectStatus !== "In review" && sub.assignees.includes("nopo-bot")
