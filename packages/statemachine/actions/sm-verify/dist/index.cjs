@@ -68334,7 +68334,7 @@ var prReviewAssignedMutator = (current, context2) => {
   addHistoryEntry3(tree.issue, {
     iteration,
     phase,
-    action: "\u{1F4CB} PR Review Assigned"
+    action: successEntry("prReviewAssigned")
   });
   return [tree];
 };

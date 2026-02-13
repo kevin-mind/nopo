@@ -163,7 +163,7 @@ export const prReviewAssignedMutator: StateMutator = (current, context) => {
   addHistoryEntry(tree.issue, {
     iteration,
     phase,
-    action: "📋 PR Review Assigned",
+    action: successEntry("prReviewAssigned"),
   });
   return [tree];
 };
