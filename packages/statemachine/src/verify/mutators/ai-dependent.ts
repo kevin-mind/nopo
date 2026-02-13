@@ -15,41 +15,43 @@ import { cloneTree, addHistoryEntry, successEntry } from "./helpers.js";
  * This is the only predictable structural outcome.
  */
 export const triagingMutator: StateMutator = (current, context) => {
-  const tree = cloneTree(current);
-
-  // Triage adds the "triaged" label
-  if (!tree.issue.labels.includes("triaged")) {
-    tree.issue.labels.push("triaged");
-  }
-
-  // Triage rewrites the body via updateIssueStructure() which always produces:
-  //   ## Requirements  (from requirements array — always present)
-  //   ## Approach      (from initial_approach — always present)
-  //   ## Questions     (from initial_questions — optional)
-  //   + preserved Iteration History / Agent Notes from existing body
-  //
-  // The original Description heading is replaced.
-  tree.issue.body.hasDescription = false;
-  tree.issue.body.hasRequirements = true;
-  tree.issue.body.hasApproach = true;
-
-  // History: predict the final success entry
   const phase = String(context.currentPhase ?? "-");
-  addHistoryEntry(tree.issue, {
-    iteration: context.issue.iteration,
-    phase,
-    action: successEntry("triaging"),
-  });
+
+  // Helper to apply common triage mutations to a fresh clone.
+  const applyTriageMutations = (tree: ReturnType<typeof cloneTree>) => {
+    if (!tree.issue.labels.includes("triaged")) {
+      tree.issue.labels.push("triaged");
+    }
+    // Triage rewrites the body via updateIssueStructure() which always produces:
+    //   ## Requirements  (from requirements array — always present)
+    //   ## Approach      (from initial_approach — always present)
+    //   ## Questions     (from initial_questions — optional)
+    //   + preserved Iteration History / Agent Notes from existing body
+    //
+    // The original Description heading is replaced.
+    tree.issue.body.hasDescription = false;
+    tree.issue.body.hasRequirements = true;
+    tree.issue.body.hasApproach = true;
+    addHistoryEntry(tree.issue, {
+      iteration: context.issue.iteration,
+      phase,
+      action: successEntry("triaging"),
+    });
+  };
 
   // Questions are optional — Claude may or may not produce them.
-  // Two outcomes: with and without questions.
+  // Clone from current independently for each outcome (same pattern as
+  // iteratingMutator) so that cloneTree's history clearing doesn't
+  // discard entries added by a prior fork.
 
   // Outcome 1: triage with questions
-  const withQuestions = cloneTree(tree);
+  const withQuestions = cloneTree(current);
+  applyTriageMutations(withQuestions);
   withQuestions.issue.body.hasQuestions = true;
 
   // Outcome 2: triage without questions
-  const withoutQuestions = cloneTree(tree);
+  const withoutQuestions = cloneTree(current);
+  applyTriageMutations(withoutQuestions);
   withoutQuestions.issue.body.hasQuestions = false;
 
   return [withQuestions, withoutQuestions];

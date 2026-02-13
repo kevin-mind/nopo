@@ -655,13 +655,19 @@ async function run(): Promise<void> {
     // ====================================================================
     // STEP 5: Set Outputs
     // ====================================================================
+    // After a rebase+push the runner stops early, but finalState still
+    // reflects the machine's transition (e.g. "orchestrationRunning").
+    // Override to "rebased" so retrigger naturally skips (not in allowlist).
+    let outputFinalState = deriveResult.finalState;
+    if (runnerResult?.stopReason === "branch_rebased_and_pushed") {
+      outputFinalState = "rebased";
+    }
+
     const retrigger =
-      execSuccess &&
-      !dryRun &&
-      shouldRetrigger(deriveResult.finalState, continueFlag);
+      execSuccess && !dryRun && shouldRetrigger(outputFinalState, continueFlag);
 
     setOutputs({
-      final_state: deriveResult.finalState,
+      final_state: outputFinalState,
       transition_name: deriveResult.transitionName,
       actions_json: JSON.stringify(deriveResult.pendingActions),
       action_count: String(deriveResult.pendingActions.length),

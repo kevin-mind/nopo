@@ -124,6 +124,8 @@ export function getTransitionName(finalState: string): string {
     pivoting: "Pivot",
     // Issue states - Retry flow
     retrying: "Retry",
+    // Issue states - Rebase flow (runner override, not a machine state)
+    rebased: "Rebased",
     // Issue states - Grooming flow
     grooming: "Grooming",
     // Discussion states

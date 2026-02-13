@@ -13,9 +13,19 @@ import { getTransitionName } from "../../runner/derive.js";
 
 /**
  * Deep-clone a PredictableStateTree for mutation.
+ *
+ * History entries are cleared so that only entries added by the mutator
+ * (i.e. predictions for *this* run) end up in the expected tree.  The
+ * verify comparison checks that each expected entry exists somewhere in
+ * the actual (full) history — pre-existing entries are not re-verified.
  */
 export function cloneTree(tree: PredictableStateTree): PredictableStateTree {
-  return structuredClone(tree);
+  const clone = structuredClone(tree);
+  clone.issue.body.historyEntries = [];
+  for (const sub of clone.subIssues) {
+    sub.body.historyEntries = [];
+  }
+  return clone;
 }
 
 /**

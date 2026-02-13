@@ -120,6 +120,23 @@ export const processingMergeMutator: StateMutator = (current, context) => {
 };
 
 /**
+ * rebased: Branch was rebased and force-pushed.
+ * Runner stopped early; CI will re-trigger with the rebased branch.
+ * Predicts the "🔄 Rebased" history entry written by logRunEnd.
+ */
+export const rebasedMutator: StateMutator = (current, context) => {
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration;
+  const tree = cloneTree(current);
+  addHistoryEntry(tree.issue, {
+    iteration,
+    phase,
+    action: "🔄 Rebased",
+  });
+  return [tree];
+};
+
+/**
  * invalidIteration: Fatal error, issue set to Error.
  */
 export const invalidIterationMutator: StateMutator = (current) => {

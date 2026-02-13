@@ -51,8 +51,24 @@ export default class UpScript extends TargetScript {
       throw new Error("DOCKER_TAG is required but was empty");
     }
 
+    const isProduction =
+      this.runner.environment.env.DOCKER_TARGET === "production";
+
+    // In dev mode, include the bind-mount overlay so source is mounted into
+    // containers for hot-reload.  In production mode the container's built
+    // /app is used as-is.
+    const composeOptions = isProduction
+      ? []
+      : [
+          "-f",
+          "docker-compose.yml",
+          "-f",
+          "nopo/docker/docker-compose.dev-overlay.yml",
+        ];
+
     const { data } = await compose.config({
       cwd: this.runner.config.root,
+      composeOptions,
       env: this.env,
     });
     const downServices: string[] = [];
@@ -63,14 +79,17 @@ export default class UpScript extends TargetScript {
       downServices.push(name);
     }
 
-    // Try offline sync first (fast), fall back to online if cache is empty
+    // Try offline sync first (fast), fall back to online if cache is empty.
+    // Sync is only needed in dev mode where host source is bind-mounted.
     const uvSync = async () => {
+      if (isProduction) return;
       try {
         await compose.run(
           "base",
           ["uv", "sync", "--locked", "--active", "--offline"],
           {
             callback: createLogger("sync_uv", "green"),
+            composeOptions,
             commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
             env: this.env,
           },
@@ -79,6 +98,7 @@ export default class UpScript extends TargetScript {
         this.log("Offline uv sync failed, falling back to online sync...");
         await compose.run("base", ["uv", "sync", "--locked", "--active"], {
           callback: createLogger("sync_uv", "green"),
+          composeOptions,
           commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
           env: this.env,
         });
@@ -86,12 +106,14 @@ export default class UpScript extends TargetScript {
     };
 
     const pnpmSync = async () => {
+      if (isProduction) return;
       try {
         await compose.run(
           "base",
           ["sh", "-c", "yes | pnpm install --frozen-lockfile --offline"],
           {
             callback: createLogger("sync_pnpm", "blue"),
+            composeOptions,
             commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
             env: this.env,
           },
@@ -105,6 +127,7 @@ export default class UpScript extends TargetScript {
           ["sh", "-c", "yes | pnpm install --frozen-lockfile"],
           {
             callback: createLogger("sync_pnpm", "blue"),
+            composeOptions,
             commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
             env: this.env,
           },
@@ -117,11 +140,13 @@ export default class UpScript extends TargetScript {
       pnpmSync(),
       compose.downMany(downServices, {
         callback: createLogger("down", "yellow"),
+        composeOptions,
         commandOptions: ["--remove-orphans"],
         env: this.env,
       }),
       compose.pullAll({
         callback: createLogger("pull", "blue"),
+        composeOptions,
         commandOptions: ["--ignore-pull-failures"],
         env: this.env,
       }),
@@ -133,12 +158,14 @@ export default class UpScript extends TargetScript {
       if (targets.length > 0) {
         await compose.upMany(targets, {
           callback: createLogger("up"),
+          composeOptions,
           commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
           env: this.env,
         });
       } else {
         await compose.upAll({
           callback: createLogger("up"),
+          composeOptions,
           commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
           env: this.env,
         });
@@ -150,6 +177,7 @@ export default class UpScript extends TargetScript {
         servicesToLog.map((service: string) =>
           compose.logs(service, {
             callback: createLogger(`log:${service}`),
+            composeOptions,
             commandOptions: ["--no-log-prefix"],
             env: this.env,
           }),

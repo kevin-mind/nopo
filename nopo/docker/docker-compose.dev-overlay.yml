@@ -1,0 +1,10 @@
+services:
+  base:
+    volumes:
+      - ../..:/app:cached
+  backend:
+    volumes:
+      - ../..:/app:cached
+  web:
+    volumes:
+      - ../..:/app:cached
