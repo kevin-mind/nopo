@@ -4,6 +4,7 @@ services:
     pull_policy: never
     restart: always
     volumes:
+      - ../..:/app:cached
       - nopo_uv_cache:/home/nopoapp/.uv
       - nopo_pnpm_store:/home/nopoapp/.local/share/pnpm/store
       - nopo_venv:/home/nopoapp/.venv

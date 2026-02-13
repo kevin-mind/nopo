@@ -5,6 +5,7 @@ import {
   type ScriptDependency,
   type Runner,
   createLogger,
+  exec,
 } from "../lib.ts";
 import EnvScript from "./env.ts";
 import BuildScript from "./build.ts";
@@ -54,21 +55,8 @@ export default class UpScript extends TargetScript {
     const isProduction =
       this.runner.environment.env.DOCKER_TARGET === "production";
 
-    // In dev mode, include the bind-mount overlay so source is mounted into
-    // containers for hot-reload.  In production mode the container's built
-    // /app is used as-is.
-    const composeOptions = isProduction
-      ? []
-      : [
-          "-f",
-          "docker-compose.yml",
-          "-f",
-          "nopo/docker/docker-compose.dev-overlay.yml",
-        ];
-
     const { data } = await compose.config({
       cwd: this.runner.config.root,
-      composeOptions,
       env: this.env,
     });
     const downServices: string[] = [];
@@ -89,7 +77,6 @@ export default class UpScript extends TargetScript {
           ["uv", "sync", "--locked", "--active", "--offline"],
           {
             callback: createLogger("sync_uv", "green"),
-            composeOptions,
             commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
             env: this.env,
           },
@@ -98,7 +85,6 @@ export default class UpScript extends TargetScript {
         this.log("Offline uv sync failed, falling back to online sync...");
         await compose.run("base", ["uv", "sync", "--locked", "--active"], {
           callback: createLogger("sync_uv", "green"),
-          composeOptions,
           commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
           env: this.env,
         });
@@ -113,7 +99,6 @@ export default class UpScript extends TargetScript {
           ["sh", "-c", "yes | pnpm install --frozen-lockfile --offline"],
           {
             callback: createLogger("sync_pnpm", "blue"),
-            composeOptions,
             commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
             env: this.env,
           },
@@ -127,11 +112,39 @@ export default class UpScript extends TargetScript {
           ["sh", "-c", "yes | pnpm install --frozen-lockfile"],
           {
             callback: createLogger("sync_pnpm", "blue"),
-            composeOptions,
             commandOptions: ["--rm", "--no-deps", "--remove-orphans"],
             env: this.env,
           },
         );
+      }
+    };
+
+    // In production mode, run each buildable service's build command inside
+    // Docker so built files land on the host via the bind mount.
+    const buildSync = async () => {
+      if (!isProduction) return;
+      const services = this.runner.config.project.services.entries;
+      for (const [id, service] of Object.entries(services)) {
+        if (!service.build?.command || !service.runtime) continue;
+        if (!(id in data.config.services)) continue;
+
+        const buildEnv = { CI: "true", ...service.build.env };
+        const envFlags = Object.entries(buildEnv).flatMap(([key, value]) => [
+          "-e",
+          `${key}=${value}`,
+        ]);
+
+        this.log(`Building ${id} in production mode...`);
+        await compose.run(id, ["sh", "-c", service.build.command], {
+          callback: createLogger(`build:${id}`, "cyan"),
+          commandOptions: [
+            "--rm",
+            "--no-deps",
+            "--remove-orphans",
+            ...envFlags,
+          ],
+          env: this.env,
+        });
       }
     };
 
@@ -140,17 +153,29 @@ export default class UpScript extends TargetScript {
       pnpmSync(),
       compose.downMany(downServices, {
         callback: createLogger("down", "yellow"),
-        composeOptions,
         commandOptions: ["--remove-orphans"],
         env: this.env,
       }),
       compose.pullAll({
         callback: createLogger("pull", "blue"),
-        composeOptions,
         commandOptions: ["--ignore-pull-failures"],
         env: this.env,
       }),
     ]);
+
+    // buildSync runs after down/pull so the Docker network exists for compose.run.
+    await buildSync();
+
+    // Docker build commands install Linux-specific native packages (e.g. rollup)
+    // into node_modules via the bind mount. Restore host-compatible packages.
+    if (isProduction) {
+      this.log("Restoring host node_modules after Docker build...");
+      await exec("pnpm", ["install", "--frozen-lockfile"], {
+        cwd: this.runner.config.root,
+        env: { ...this.env, CI: "true" },
+        verbose: true,
+      });
+    }
 
     const targets = args.get<string[]>("targets") ?? [];
 
@@ -158,14 +183,12 @@ export default class UpScript extends TargetScript {
       if (targets.length > 0) {
         await compose.upMany(targets, {
           callback: createLogger("up"),
-          composeOptions,
           commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
           env: this.env,
         });
       } else {
         await compose.upAll({
           callback: createLogger("up"),
-          composeOptions,
           commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
           env: this.env,
         });
@@ -177,7 +200,6 @@ export default class UpScript extends TargetScript {
         servicesToLog.map((service: string) =>
           compose.logs(service, {
             callback: createLogger(`log:${service}`),
-            composeOptions,
             commandOptions: ["--no-log-prefix"],
             env: this.env,
           }),

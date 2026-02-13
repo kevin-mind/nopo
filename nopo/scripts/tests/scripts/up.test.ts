@@ -78,12 +78,6 @@ describe("up", () => {
     await runScript(UpScript, config);
     expect(compose.downMany).toHaveBeenCalledWith(["base"], {
       callback: expect.any(Function),
-      composeOptions: [
-        "-f",
-        "docker-compose.yml",
-        "-f",
-        "nopo/docker/docker-compose.dev-overlay.yml",
-      ],
       commandOptions: ["--remove-orphans"],
       env: expect.objectContaining(env),
     });
@@ -97,12 +91,6 @@ describe("up", () => {
     await runScript(UpScript, config);
     expect(compose.upAll).toHaveBeenCalledWith({
       callback: expect.any(Function),
-      composeOptions: [
-        "-f",
-        "docker-compose.yml",
-        "-f",
-        "nopo/docker/docker-compose.dev-overlay.yml",
-      ],
       commandOptions: ["--remove-orphans", "-d", "--no-build", "--wait"],
       env: expect.objectContaining(env),
     });
