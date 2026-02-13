@@ -70996,6 +70996,25 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
       skipReason: ""
     };
   }
+  if (isSubIssue2(issueState) && issueState.issue.projectStatus === "In review" && issueState.issue.pr && !issueState.issue.pr.isDraft) {
+    const pr = issueState.issue.pr;
+    core26.info(
+      `Sub-issue #${issueNum} is in review with PR #${pr.number} \u2014 routing to review`
+    );
+    return {
+      job: "pr-review-requested",
+      resourceType: "pr",
+      resourceNumber: String(pr.number),
+      commentId: "",
+      contextJson: {
+        pr_number: String(pr.number),
+        branch_name: pr.headRef,
+        issue_number: String(issueNum)
+      },
+      skip: false,
+      skipReason: ""
+    };
+  }
   if (isSubIssue2(issueState)) {
     const phaseNumber = extractPhaseNumber(issueTitle(issueState));
     const branchName2 = deriveBranch(

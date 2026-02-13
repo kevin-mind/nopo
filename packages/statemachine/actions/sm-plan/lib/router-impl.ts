@@ -2192,6 +2192,35 @@ async function handleWorkflowDispatchEvent(
     };
   }
 
+  // Check if this is a sub-issue in review with a ready PR — route to review
+  // This handles the prReviewAssigned retrigger case where resource_number
+  // is the sub-issue (not the parent).
+  if (
+    isSubIssue(issueState) &&
+    issueState.issue.projectStatus === "In review" &&
+    issueState.issue.pr &&
+    !issueState.issue.pr.isDraft
+  ) {
+    const pr = issueState.issue.pr;
+    core.info(
+      `Sub-issue #${issueNum} is in review with PR #${pr.number} — routing to review`,
+    );
+
+    return {
+      job: "pr-review-requested",
+      resourceType: "pr",
+      resourceNumber: String(pr.number),
+      commentId: "",
+      contextJson: {
+        pr_number: String(pr.number),
+        branch_name: pr.headRef,
+        issue_number: String(issueNum),
+      },
+      skip: false,
+      skipReason: "",
+    };
+  }
+
   // Check if this is a sub-issue - determine branch from parent and phase
   if (isSubIssue(issueState)) {
     const phaseNumber = extractPhaseNumber(issueTitle(issueState));
