@@ -418,13 +418,17 @@ export const addHistoryEntry = createMutator(
             if (!row) continue;
             const existingRunId = getCellRunId(row, 5);
             if (existingRunId === runId) {
-              // Found existing row - append action
+              // Found existing row - replace or append action
               const actionCell = row.children[3];
               if (actionCell) {
                 const existingAction = getCellText(row, 3);
-                const newAction = existingAction
-                  ? `${existingAction} -> ${input.action}`
-                  : input.action;
+                // Replace "⏳ running..." placeholder instead of appending
+                const newAction =
+                  existingAction === "\u23f3 running..."
+                    ? input.action
+                    : existingAction
+                      ? `${existingAction} -> ${input.action}`
+                      : input.action;
                 actionCell.children = [createTextNode(newAction)];
               }
               return { ...data, issue: { ...data.issue, bodyAst: newAst } };

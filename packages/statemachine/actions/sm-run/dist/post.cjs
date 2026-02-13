@@ -42815,7 +42815,7 @@ var addHistoryEntry2 = createMutator(
               const actionCell = row.children[3];
               if (actionCell) {
                 const existingAction = getCellText2(row, 3);
-                const newAction = existingAction ? `${existingAction} -> ${input.action}` : input.action;
+                const newAction = existingAction === "\u23F3 running..." ? input.action : existingAction ? `${existingAction} -> ${input.action}` : input.action;
                 actionCell.children = [createTextNode(newAction)];
               }
               return { ...data, issue: { ...data.issue, bodyAst: newAst } };
@@ -47909,7 +47909,10 @@ var claudeMachine = setup({
           { target: "retrying", guard: "triggeredByRetry" },
           // Pivot takes priority - can pivot even Done/Blocked issues
           { target: "pivoting", guard: "triggeredByPivot" },
-          // Check terminal states first
+          // All phases complete takes priority — even if parent is Blocked/Error,
+          // if every sub-issue is Done/CLOSED the parent should close.
+          { target: "orchestrationComplete", guard: "allPhasesDone" },
+          // Check terminal states
           { target: "done", guard: "isAlreadyDone" },
           { target: "alreadyBlocked", guard: "isBlocked" },
           { target: "error", guard: "isError" },

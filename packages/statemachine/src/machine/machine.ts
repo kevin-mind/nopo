@@ -347,7 +347,10 @@ export const claudeMachine = setup({
           { target: "retrying", guard: "triggeredByRetry" },
           // Pivot takes priority - can pivot even Done/Blocked issues
           { target: "pivoting", guard: "triggeredByPivot" },
-          // Check terminal states first
+          // All phases complete takes priority — even if parent is Blocked/Error,
+          // if every sub-issue is Done/CLOSED the parent should close.
+          { target: "orchestrationComplete", guard: "allPhasesDone" },
+          // Check terminal states
           { target: "done", guard: "isAlreadyDone" },
           { target: "alreadyBlocked", guard: "isBlocked" },
           { target: "error", guard: "isError" },
