@@ -69947,6 +69947,18 @@ async function executeRequestReview(action, ctx) {
       `Dismissed ${review.state} review ${review.id} from ${action.reviewer} on PR #${action.prNumber}`
     );
   }
+  try {
+    await ctx.octokit.rest.pulls.removeRequestedReviewers({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      pull_number: action.prNumber,
+      reviewers: [action.reviewer]
+    });
+    core5.info(
+      `Removed ${action.reviewer} from requested reviewers on PR #${action.prNumber}`
+    );
+  } catch {
+  }
   await ctx.octokit.rest.pulls.requestReviewers({
     owner: ctx.owner,
     repo: ctx.repo,

@@ -639,6 +639,23 @@ export async function executeRequestReview(
     );
   }
 
+  // Remove the reviewer from the requested list first, then re-add.
+  // If the reviewer is already in requested_reviewers, calling
+  // requestReviewers is a no-op and won't fire the review_requested event.
+  try {
+    await ctx.octokit.rest.pulls.removeRequestedReviewers({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      pull_number: action.prNumber,
+      reviewers: [action.reviewer],
+    });
+    core.info(
+      `Removed ${action.reviewer} from requested reviewers on PR #${action.prNumber}`,
+    );
+  } catch {
+    // Reviewer may not be in the requested list - that's fine
+  }
+
   await ctx.octokit.rest.pulls.requestReviewers({
     owner: ctx.owner,
     repo: ctx.repo,
