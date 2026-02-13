@@ -69920,6 +69920,33 @@ async function executeMarkPRReady(action, ctx) {
   return { ready: true };
 }
 async function executeRequestReview(action, ctx) {
+  const { data: reviews } = await ctx.octokit.rest.pulls.listReviews({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    pull_number: action.prNumber
+  });
+  const existingReviews = reviews.filter(
+    (r) => r.user?.login === action.reviewer && r.state !== "DISMISSED"
+  );
+  for (const review of existingReviews) {
+    await ctx.octokit.graphql(
+      `mutation($reviewId: ID!, $message: String!) {
+        dismissPullRequestReview(input: {
+          pullRequestReviewId: $reviewId
+          message: $message
+        }) {
+          pullRequestReview { id }
+        }
+      }`,
+      {
+        reviewId: review.node_id,
+        message: "Dismissing for re-review after new iteration"
+      }
+    );
+    core5.info(
+      `Dismissed ${review.state} review ${review.id} from ${action.reviewer} on PR #${action.prNumber}`
+    );
+  }
   await ctx.octokit.rest.pulls.requestReviewers({
     owner: ctx.owner,
     repo: ctx.repo,
