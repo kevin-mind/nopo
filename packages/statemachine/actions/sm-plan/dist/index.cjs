@@ -70996,6 +70996,11 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
       skipReason: ""
     };
   }
+  if (isSubIssue2(issueState) && issueState.issue.projectStatus === "In review") {
+    core26.info(
+      `Sub-issue #${issueNum} is in review, checking PR: pr=${issueState.issue.pr ? `#${issueState.issue.pr.number} isDraft=${issueState.issue.pr.isDraft}` : "null"}, branch=${issueState.issue.branch}`
+    );
+  }
   if (isSubIssue2(issueState) && issueState.issue.projectStatus === "In review" && issueState.issue.pr && !issueState.issue.pr.isDraft) {
     const pr = issueState.issue.pr;
     core26.info(

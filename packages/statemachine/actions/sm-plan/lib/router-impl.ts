@@ -2195,6 +2195,11 @@ async function handleWorkflowDispatchEvent(
   // Check if this is a sub-issue in review with a ready PR — route to review
   // This handles the prReviewAssigned retrigger case where resource_number
   // is the sub-issue (not the parent).
+  if (isSubIssue(issueState) && issueState.issue.projectStatus === "In review") {
+    core.info(
+      `Sub-issue #${issueNum} is in review, checking PR: pr=${issueState.issue.pr ? `#${issueState.issue.pr.number} isDraft=${issueState.issue.pr.isDraft}` : "null"}, branch=${issueState.issue.branch}`,
+    );
+  }
   if (
     isSubIssue(issueState) &&
     issueState.issue.projectStatus === "In review" &&
