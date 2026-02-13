@@ -30,14 +30,25 @@ export function cloneTree(tree: PredictableStateTree): PredictableStateTree {
 
 /**
  * Find the sub-issue matching the current phase in the tree.
+ *
+ * When processing a sub-issue directly (e.g., CI completion on the sub-issue),
+ * `currentSubIssue` is null because `findCurrentPhase` looks at the issue's
+ * own sub-issues (which a sub-issue doesn't have). In this case, the issue
+ * itself IS the sub-issue, so we look it up by `context.issue.number`.
  */
 export function findCurrentSubIssue(
   tree: PredictableStateTree,
   context: MachineContext,
 ): PredictableSubIssueState | undefined {
   const subNumber = context.currentSubIssue?.number;
-  if (!subNumber) return undefined;
-  return tree.subIssues.find((s) => s.number === subNumber);
+  if (subNumber) {
+    return tree.subIssues.find((s) => s.number === subNumber);
+  }
+  // Processing a sub-issue directly (not through orchestration)
+  if (context.parentIssue) {
+    return tree.subIssues.find((s) => s.number === context.issue.number);
+  }
+  return undefined;
 }
 
 /**

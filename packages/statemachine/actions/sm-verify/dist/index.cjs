@@ -67912,8 +67912,13 @@ function cloneTree(tree) {
 }
 function findCurrentSubIssue(tree, context2) {
   const subNumber = context2.currentSubIssue?.number;
-  if (!subNumber) return void 0;
-  return tree.subIssues.find((s) => s.number === subNumber);
+  if (subNumber) {
+    return tree.subIssues.find((s) => s.number === subNumber);
+  }
+  if (context2.parentIssue) {
+    return tree.subIssues.find((s) => s.number === context2.issue.number);
+  }
+  return void 0;
 }
 function addHistoryEntry3(issue2, entry) {
   issue2.body.historyEntries.push({
