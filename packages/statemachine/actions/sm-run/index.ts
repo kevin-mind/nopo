@@ -69,6 +69,7 @@ function shouldRetrigger(finalState: string, continueFlag: boolean): boolean {
     "orchestrationRunning", // assigned sub-issue, sm-plan routes to iterate
     "triaging", // after triage, grooming should start
     "resetting", // after reset, automation continues
+    "prReviewAssigned", // ack review request, retrigger outside PR check context
   ]);
 
   return retriggerStates.has(finalState);

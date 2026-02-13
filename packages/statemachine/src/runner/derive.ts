@@ -90,6 +90,7 @@ export function getTransitionName(finalState: string): string {
     prResponding: "PR Response",
     prRespondingHuman: "PR Human Response",
     prReviewSkipped: "PR Review Skipped",
+    prReviewAssigned: "PR Review Assigned",
     prPush: "PR Push",
     // Issue states - Orchestration flows
     orchestrationRunning: "Orchestrate",

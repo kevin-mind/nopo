@@ -151,3 +151,19 @@ export const invalidIterationMutator: StateMutator = (current) => {
 export const subIssueIdleMutator: StateMutator = (current) => {
   return [cloneTree(current)];
 };
+
+/**
+ * prReviewAssigned: Ack review request, retrigger outside PR check context.
+ * Predicts the history entry written by logRunEnd.
+ */
+export const prReviewAssignedMutator: StateMutator = (current, context) => {
+  const phase = String(context.currentPhase ?? "-");
+  const iteration = context.issue.iteration;
+  const tree = cloneTree(current);
+  addHistoryEntry(tree.issue, {
+    iteration,
+    phase,
+    action: "📋 PR Review Assigned",
+  });
+  return [tree];
+};

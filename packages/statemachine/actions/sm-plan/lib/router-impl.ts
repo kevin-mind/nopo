@@ -2145,6 +2145,36 @@ async function handleWorkflowDispatchEvent(
       };
     }
 
+    // Check for sub-issue in review — route to PR review
+    const reviewSubIssue = issueState.issue.subIssues.find(
+      (sub) =>
+        sub.state === "OPEN" &&
+        sub.projectStatus === "In review" &&
+        sub.pr != null &&
+        !sub.pr.isDraft,
+    );
+
+    if (reviewSubIssue && reviewSubIssue.pr) {
+      const branchName = reviewSubIssue.pr.headRef;
+      core.info(
+        `Sub-issue #${reviewSubIssue.number} is in review with PR #${reviewSubIssue.pr.number} — routing to review`,
+      );
+
+      return {
+        job: "pr-review-requested",
+        resourceType: "pr",
+        resourceNumber: String(reviewSubIssue.pr.number),
+        commentId: "",
+        contextJson: {
+          pr_number: String(reviewSubIssue.pr.number),
+          branch_name: branchName,
+          issue_number: String(reviewSubIssue.number),
+        },
+        skip: false,
+        skipReason: "",
+      };
+    }
+
     // No sub-issue ready for iteration — orchestrate (will assign one)
     return {
       job: "issue-orchestrate",

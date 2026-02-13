@@ -1,4 +1,4 @@
-import { and, assign, setup } from "xstate";
+import { and, not, assign, setup } from "xstate";
 import type { MachineContext, Action } from "../schemas/index.js";
 import { guards } from "./guards.js";
 import { emit, accumulateFromEmitter } from "./emit-helper.js";
@@ -393,6 +393,12 @@ export const claudeMachine = setup({
             target: "prReviewing",
             guard: and(["triggeredByPRReview", "ciPassed"]),
           },
+          // Ack review request when CI status is unknown (self-interference) — retrigger
+          {
+            target: "prReviewAssigned",
+            guard: and(["triggeredByPRReview", not("ciFailed")]),
+          },
+          // Skip review when CI explicitly failed
           {
             target: "prReviewSkipped",
             guard: "triggeredByPRReview",
@@ -580,6 +586,15 @@ export const claudeMachine = setup({
      * guard in processingCI.
      */
     prReviewSkipped: {
+      type: "final",
+    },
+
+    /**
+     * PR review was acknowledged but CI status is indeterminate (e.g. the
+     * review workflow's own check suite makes the rollup PENDING).
+     * Retrigger via workflow_dispatch to run outside the PR check context.
+     */
+    prReviewAssigned: {
       type: "final",
     },
 

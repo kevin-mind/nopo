@@ -47,6 +47,7 @@ import {
   processingMergeMutator,
   invalidIterationMutator,
   subIssueIdleMutator,
+  prReviewAssignedMutator,
 } from "./control.js";
 
 /**
@@ -103,6 +104,7 @@ const MUTATOR_REGISTRY: Record<string, StateMutator> = {
   prResponding: noopMutator,
   prRespondingHuman: noopMutator,
   prReviewSkipped: noopMutator,
+  prReviewAssigned: prReviewAssignedMutator,
 };
 
 /**
