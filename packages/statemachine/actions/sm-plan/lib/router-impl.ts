@@ -2080,16 +2080,6 @@ async function handleWorkflowDispatchEvent(
     core.info(`Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`);
   }
 
-  // DEBUG: dump all state for dispatch routing
-  core.info(
-    `DEBUG dispatch: projectStatus=${issueState.issue.projectStatus}, ` +
-      `subIssues.length=${issueState.issue.subIssues?.length ?? "undefined"}, ` +
-      `isSubIssue=${isSubIssue(issueState)}, ` +
-      `hasPR=${!!issueState.issue.pr}, ` +
-      `pr=${issueState.issue.pr ? `#${issueState.issue.pr.number}` : "null"}, ` +
-      `labels=${JSON.stringify(issueState.issue.labels)}`,
-  );
-
   // Check if grooming is needed BEFORE orchestration
   // Grooming needed: has "triaged" label but NOT "groomed" label
   const labels = issueLabels(issueState);
@@ -2118,7 +2108,6 @@ async function handleWorkflowDispatchEvent(
 
   // Check if this is a parent issue with sub-issues
   const subs = subIssueNumbers(issueState);
-  core.info(`DEBUG dispatch: subs.length=${subs.length}, subs=${JSON.stringify(subs)}`);
   if (subs.length > 0) {
     // Smart routing: check if a sub-issue is assigned to bot and needs iteration
     const assignedSubIssue = issueState.issue.subIssues.find(
@@ -2206,11 +2195,6 @@ async function handleWorkflowDispatchEvent(
   // Check if this is a sub-issue in review with a ready PR — route to review
   // This handles the prReviewAssigned retrigger case where resource_number
   // is the sub-issue (not the parent).
-  if (isSubIssue(issueState) && issueState.issue.projectStatus === "In review") {
-    core.info(
-      `Sub-issue #${issueNum} is in review, checking PR: pr=${issueState.issue.pr ? `#${issueState.issue.pr.number} isDraft=${issueState.issue.pr.isDraft}` : "null"}, branch=${issueState.issue.branch}`,
-    );
-  }
   if (
     isSubIssue(issueState) &&
     issueState.issue.projectStatus === "In review" &&
@@ -2305,6 +2289,7 @@ async function detectEvent(
   token: string,
   resourceNumber: string,
   triggerTypeOverride?: string,
+  projectNumber?: number,
 ): Promise<RunnerContext> {
   const octokit = github.getOctokit(token);
   const owner = github.context.repo.owner;
@@ -2386,6 +2371,7 @@ async function detectEvent(
     try {
       const { data } = await parseIssue(owner, repo, resolved.issueNumber, {
         octokit,
+        projectNumber: projectNumber ?? 1,
         fetchPRs: true,
         fetchParent: false, // Handlers use parentIssueNumber from issue data
       });
@@ -2953,12 +2939,21 @@ async function _run(overrideMode?: string): Promise<void> {
     const token = getRequiredInput("github_token");
     const resourceNumber = getOptionalInput("resource_number") || "";
     const contextJsonInput = getOptionalInput("context_json") || "";
+    const projectNumber = parseInt(
+      getOptionalInput("project_number") || "1",
+      10,
+    );
 
     // ======================================================================
     // MODE: "detect" - Event detection only (replaces sm-detect-event)
     // ======================================================================
     if (mode === "detect") {
-      const unifiedContext = await detectEvent(token, resourceNumber);
+      const unifiedContext = await detectEvent(
+        token,
+        resourceNumber,
+        undefined,
+        projectNumber,
+      );
 
       setOutputs({
         context_json: JSON.stringify(unifiedContext),
@@ -2984,7 +2979,12 @@ async function _run(overrideMode?: string): Promise<void> {
     } else {
       // Auto-detect from GitHub event context
       core.info("No context_json provided, running event detection...");
-      const detected = await detectEvent(token, resourceNumber);
+      const detected = await detectEvent(
+        token,
+        resourceNumber,
+        undefined,
+        projectNumber,
+      );
 
       if (detected.skip) {
         core.info(`Skipping: ${detected.skip_reason}`);
@@ -3004,10 +3004,6 @@ async function _run(overrideMode?: string): Promise<void> {
     }
 
     // Parse remaining inputs
-    const projectNumber = parseInt(
-      getOptionalInput("project_number") || "1",
-      10,
-    );
     const maxRetries = parseInt(getOptionalInput("max_retries") || "5", 10);
     const botUsername = getOptionalInput("bot_username") || "nopo-bot";
 
