@@ -79,7 +79,7 @@ export function isSubIssue({ context }: GuardContext): boolean {
  * 2. Bot assigned to parent: the human's deliberate "kick off" signal.
  *    If parent is unassigned, all iteration exits early.
  */
-function subIssueCanIterate({ context }: GuardContext): boolean {
+export function subIssueCanIterate({ context }: GuardContext): boolean {
   if (context.parentIssue === null) return false;
   if (!context.parentIssue.assignees.includes(context.botUsername))
     return false;

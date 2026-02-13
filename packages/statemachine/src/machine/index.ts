@@ -11,6 +11,7 @@ export {
   isTerminal,
   hasSubIssues,
   isSubIssue,
+  subIssueCanIterate,
   needsSubIssues,
   allPhasesDone,
   needsParentInit,
