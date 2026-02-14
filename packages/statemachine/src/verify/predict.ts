@@ -100,7 +100,7 @@ export function predictFromActions(
     { issue: currentTree.issue, subIssues: currentTree.subIssues },
     machineContext,
   );
-  const phase = sub ? `Phase ${machineContext.currentPhase ?? "?"}` : "-";
+  const phase = sub ? String(machineContext.currentPhase ?? "-") : "-";
 
   // Append logRunEnd success entry to each outcome
   const successAction = successEntry(options.finalState);

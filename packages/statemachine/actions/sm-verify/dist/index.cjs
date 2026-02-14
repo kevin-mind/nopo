@@ -73936,7 +73936,7 @@ function predictFromActions(pendingActions, currentTree, machineContext, options
     { issue: currentTree.issue, subIssues: currentTree.subIssues },
     machineContext
   );
-  const phase = sub ? `Phase ${machineContext.currentPhase ?? "?"}` : "-";
+  const phase = sub ? String(machineContext.currentPhase ?? "-") : "-";
   const successAction = successEntry(options.finalState);
   for (const tree of outcomes) {
     addHistoryEntry3(tree.issue, {
