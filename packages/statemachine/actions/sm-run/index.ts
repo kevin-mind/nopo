@@ -177,7 +177,7 @@ async function logRunEnd(
       {
         matchIteration: iteration,
         matchPhase: deriveResult.phase,
-        matchPattern: "\u23f3 running...",
+        matchPattern: "\u23f3",
         newAction: newMessage,
         timestamp: new Date().toISOString(),
         sha: outcome.commitSha || undefined,
@@ -227,7 +227,7 @@ async function logRunEnd(
           {
             matchIteration: iteration,
             matchPhase: deriveResult.phase,
-            matchPattern: "\u23f3 running...",
+            matchPattern: "\u23f3",
             newAction: newMessage,
             timestamp: new Date().toISOString(),
             sha: outcome.commitSha || undefined,

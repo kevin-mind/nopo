@@ -64354,24 +64354,27 @@ var githubActions = {
       prNumber: external_exports.number().int().positive().nullable().optional()
     }),
     {
-      predict: (a) => ({
-        issue: {
-          body: {
-            historyEntries: {
-              add: [
-                {
-                  iteration: a.iteration ?? 0,
-                  phase: a.phase,
-                  action: a.message,
-                  timestamp: null,
-                  sha: null,
-                  runLink: null
-                }
-              ]
+      predict: (a) => {
+        if (a.message.startsWith("\u23F3")) return {};
+        return {
+          issue: {
+            body: {
+              historyEntries: {
+                add: [
+                  {
+                    iteration: a.iteration ?? 0,
+                    phase: a.phase,
+                    action: a.message,
+                    timestamp: null,
+                    sha: null,
+                    runLink: null
+                  }
+                ]
+              }
             }
           }
-        }
-      }),
+        };
+      },
       execute: async (action, ctx) => {
         const octokit = asOctokitLike(ctx);
         const iteration = action.iteration ?? 0;
@@ -74017,7 +74020,7 @@ async function post() {
       {
         matchIteration: iteration,
         matchPhase: phase,
-        matchPattern: "\u23F3 running...",
+        matchPattern: "\u23F3",
         newAction: newMessage,
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         runLink: runUrl,

@@ -62,7 +62,7 @@ async function post(): Promise<void> {
       {
         matchIteration: iteration,
         matchPhase: phase,
-        matchPattern: "\u23f3 running...",
+        matchPattern: "\u23f3",
         newAction: newMessage,
         timestamp: new Date().toISOString(),
         runLink: runUrl,

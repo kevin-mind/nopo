@@ -1316,6 +1316,46 @@ describe("scenario: verification predictions", () => {
     expect(expected.expectedRetrigger).toBe(false);
   });
 
+  it("grooming prediction does not include transient ⏳ placeholder history entries", () => {
+    // The grooming machine emits appendHistory with "⏳ grooming..." placeholder.
+    // These get replaced by logRunEnd before verification runs, so the prediction
+    // should skip them (predict empty diff for ⏳ entries).
+    const context = createContext({
+      trigger: "issue-groom",
+      issue: createIssue({
+        labels: ["triaged", "enhancement", "P1"],
+        projectStatus: "Backlog",
+      }),
+    });
+
+    const machine = new IssueMachine(context, { logger: createMockLogger() });
+    const result = machine.predict();
+    expect(result.state).toBe("grooming");
+
+    const currentTree = extractPredictableTree(context);
+    const outcomes = predictFromActions(
+      result.actions,
+      currentTree,
+      context,
+      { finalState: result.state },
+    );
+
+    expect(outcomes.length).toBeGreaterThan(0);
+
+    // No outcome should have a ⏳ history entry — those are transient placeholders
+    for (const outcome of outcomes) {
+      const historyActions = outcome.issue.body.historyEntries.map(
+        (e) => e.action,
+      );
+      const hasPlaceholder = historyActions.some((a) => a.startsWith("\u23f3"));
+      expect(hasPlaceholder).toBe(false);
+
+      // Should have the success entry (✅ Grooming)
+      const hasSuccess = historyActions.some((a) => a.startsWith("\u2705"));
+      expect(hasSuccess).toBe(true);
+    }
+  });
+
   it("triage prediction on issue without Description section", () => {
     // Issue with no standard sections (bare body text)
     const context = createContext({
