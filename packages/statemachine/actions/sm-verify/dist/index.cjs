@@ -63421,11 +63421,6 @@ var groomingActions = {
           }
         );
         const allAgentsReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
-        const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
-        const decision = allAgentsReady ? "ready" : "needs_info";
-        core3.info(
-          `Grooming decision: ${decision} (agents=${allAgentsReady}, bodyQuestions=${questionStats.unanswered} unanswered)`
-        );
         const existingQuestions = extractQuestionItems(data.issue.bodyAst);
         const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
         const summaryOutput = await runGroomingSummary(
@@ -63435,6 +63430,19 @@ var groomingActions = {
           previousQuestionsText
         );
         const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
+        const answeredIds = new Set(
+          (summaryOutput.answered_questions ?? []).map((q) => q.id)
+        );
+        const userCheckedIds = new Set(
+          existingQuestions.filter((q) => q.checked).map((q) => q.id)
+        );
+        const unansweredCount = (summaryOutput.consolidated_questions ?? []).filter(
+          (q) => !answeredIds.has(q.id) && !userCheckedIds.has(q.id)
+        ).length;
+        const decision = allAgentsReady && unansweredCount === 0 ? "ready" : "needs_info";
+        core3.info(
+          `Grooming decision: ${decision} (agents=${allAgentsReady}, unanswered=${unansweredCount})`
+        );
         if (content3.length > 0) {
           let updatedData = upsertSection2(
             { title: "Questions", content: content3 },
@@ -63444,7 +63452,7 @@ var groomingActions = {
           const answeredCount = (summaryOutput.answered_questions ?? []).length;
           const notes = [
             `Grooming decision: ${decision}`,
-            `Summary: ${questionCount} pending question(s), ${answeredCount} answered`,
+            `Summary: ${questionCount} pending question(s), ${answeredCount} answered, ${unansweredCount} unanswered`,
             summaryOutput.decision_rationale
           ];
           updatedData = appendAgentNotes2(
