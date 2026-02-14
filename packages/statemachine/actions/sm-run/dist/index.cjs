@@ -66250,8 +66250,30 @@ var applyActions = {
     }),
     {
       predict: () => [
-        { target: { labels: { add: ["triaged"] } } },
-        { target: { labels: { add: ["triaged"] } } }
+        {
+          target: {
+            labels: { add: ["triaged"] },
+            body: {
+              // Triage rewrites body with Requirements/Approach sections,
+              // replacing Description/AcceptanceCriteria
+              hasDescription: false,
+              hasAcceptanceCriteria: false,
+              hasRequirements: true,
+              hasApproach: true
+            }
+          }
+        },
+        {
+          target: {
+            labels: { add: ["triaged"] },
+            body: {
+              hasDescription: false,
+              hasAcceptanceCriteria: false,
+              hasRequirements: true,
+              hasApproach: true
+            }
+          }
+        }
       ],
       execute: async (action, ctx, chainCtx) => {
         const { issueNumber, filePath } = action;

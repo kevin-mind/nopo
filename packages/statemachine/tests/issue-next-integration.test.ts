@@ -17,7 +17,12 @@ import { createMachineContext } from "../src/schemas/state.js";
 import type { MachineContext, Action } from "../src/schemas/index.js";
 import type { Logger } from "../src/core/types.js";
 
-import { IssueMachine } from "../src/machines/issue-next-invoke/index.js";
+import {
+  IssueMachine,
+  MachineVerifier,
+} from "../src/machines/issue-next-invoke/index.js";
+import { predictFromActions } from "../src/verify/predict.js";
+import { extractPredictableTree } from "../src/verify/predictable-state.js";
 
 function createMockLogger(): Logger & {
   debug: ReturnType<typeof vi.fn>;
@@ -1204,5 +1209,142 @@ describe("scenario: edge cases", () => {
     expect(result.state).toBe("prReviewAssigned");
     expect(result.actionTypes).not.toContain("runClaude");
     expect(result.actionTypes).not.toContain("log");
+  });
+});
+
+// ============================================================================
+// Scenario: Verification Predictions
+// Tests that MachineVerifier predictions match actual post-execution state.
+// These prevent failed verifications in production.
+// ============================================================================
+
+describe("scenario: verification predictions", () => {
+  it("triage prediction reflects body rewrite (Requirements/Approach, not Description/AcceptanceCriteria)", () => {
+    // Issue with Description and Acceptance Criteria (like user-created issues)
+    const context = createContext({
+      trigger: "issue-triage",
+      issue: createIssue({
+        labels: [],
+        projectStatus: "Backlog",
+        // @ts-expect-error -- mdast Root type mismatch
+        bodyAst: parseMarkdown(
+          [
+            "## Description",
+            "Some description text.",
+            "",
+            "## Acceptance Criteria",
+            "- [ ] Criterion one",
+            "- [ ] Criterion two",
+          ].join("\n"),
+        ),
+      }),
+    });
+
+    const machine = new IssueMachine(context, { logger: createMockLogger() });
+    const result = machine.predict();
+    expect(result.state).toBe("triaging");
+
+    // Extract current tree and run predictions
+    const currentTree = extractPredictableTree(context);
+    const outcomes = predictFromActions(
+      result.actions,
+      currentTree,
+      context,
+      { finalState: result.state },
+    );
+
+    expect(outcomes.length).toBeGreaterThan(0);
+
+    // Every outcome should reflect triage body rewrite
+    for (const outcome of outcomes) {
+      // After triage, Description and AcceptanceCriteria are replaced
+      expect(outcome.issue.body.hasDescription).toBe(false);
+      expect(outcome.issue.body.hasAcceptanceCriteria).toBe(false);
+      // Requirements and Approach are created by triage
+      expect(outcome.issue.body.hasRequirements).toBe(true);
+      expect(outcome.issue.body.hasApproach).toBe(true);
+      // triaged label added
+      expect(outcome.issue.labels).toContain("triaged");
+    }
+  });
+
+  it("triage prediction works via MachineVerifier", () => {
+    const context = createContext({
+      trigger: "issue-triage",
+      issue: createIssue({
+        labels: [],
+        projectStatus: "Backlog",
+      }),
+    });
+
+    const machine = new IssueMachine(context, { logger: createMockLogger() });
+    const result = machine.predict();
+
+    const verifier = new MachineVerifier();
+    const expected = verifier.predictExpectedState(result, context);
+
+    expect(expected.finalState).toBe("triaging");
+    expect(expected.expectedRetrigger).toBe(true);
+    expect(expected.outcomes.length).toBeGreaterThan(0);
+
+    // Body flags should reflect triage rewrite
+    for (const outcome of expected.outcomes) {
+      expect(outcome.issue.body.hasDescription).toBe(false);
+      expect(outcome.issue.body.hasAcceptanceCriteria).toBe(false);
+      expect(outcome.issue.body.hasRequirements).toBe(true);
+      expect(outcome.issue.body.hasApproach).toBe(true);
+    }
+  });
+
+  it("grooming prediction includes triaged+groomed labels", () => {
+    const context = createContext({
+      trigger: "issue-groom",
+      issue: createIssue({
+        labels: ["triaged", "enhancement", "P1"],
+        projectStatus: "Backlog",
+      }),
+    });
+
+    const machine = new IssueMachine(context, { logger: createMockLogger() });
+    const result = machine.predict();
+    expect(result.state).toBe("grooming");
+
+    const verifier = new MachineVerifier();
+    const expected = verifier.predictExpectedState(result, context);
+
+    expect(expected.finalState).toBe("grooming");
+    expect(expected.expectedRetrigger).toBe(false);
+  });
+
+  it("triage prediction on issue without Description section", () => {
+    // Issue with no standard sections (bare body text)
+    const context = createContext({
+      trigger: "issue-triage",
+      issue: createIssue({
+        labels: [],
+        projectStatus: "Backlog",
+        // @ts-expect-error -- mdast Root type mismatch
+        bodyAst: parseMarkdown("Just some plain text about a bug.\n"),
+      }),
+    });
+
+    const machine = new IssueMachine(context, { logger: createMockLogger() });
+    const result = machine.predict();
+    expect(result.state).toBe("triaging");
+
+    const currentTree = extractPredictableTree(context);
+    const outcomes = predictFromActions(
+      result.actions,
+      currentTree,
+      context,
+      { finalState: result.state },
+    );
+
+    // After triage, body should have Requirements/Approach regardless of input
+    for (const outcome of outcomes) {
+      expect(outcome.issue.body.hasDescription).toBe(false);
+      expect(outcome.issue.body.hasRequirements).toBe(true);
+      expect(outcome.issue.body.hasApproach).toBe(true);
+    }
   });
 });
