@@ -63908,6 +63908,28 @@ var groomingActions = {
             recommendedPhases: engineerOutput.recommended_phases
           };
         }
+        try {
+          const { data: infoData, update: infoUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit: asOctokitLike(ctx),
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          await infoUpdate({
+            ...infoData,
+            issue: {
+              ...infoData.issue,
+              labels: [...infoData.issue.labels, "needs-info"]
+            }
+          });
+          core3.info(`Added 'needs-info' label to issue #${action.issueNumber}`);
+        } catch (error8) {
+          core3.warning(`Failed to add 'needs-info' label: ${error8}`);
+        }
         return { applied: true, decision };
       }
     }

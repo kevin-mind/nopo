@@ -32,7 +32,6 @@ import {
 import {
   appendAgentNotes,
   upsertSection,
-  extractQuestionsFromAst,
   extractQuestionItems,
   extractSubIssueSpecs,
   type QuestionItem,
@@ -594,6 +593,30 @@ export const groomingActions = {
             decision,
             recommendedPhases: engineerOutput.recommended_phases,
           };
+        }
+
+        // Add needs-info label for needs_info decision
+        try {
+          const { data: infoData, update: infoUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit: asOctokitLike(ctx),
+              fetchPRs: false,
+              fetchParent: false,
+            },
+          );
+          await infoUpdate({
+            ...infoData,
+            issue: {
+              ...infoData.issue,
+              labels: [...infoData.issue.labels, "needs-info"],
+            },
+          });
+          core.info(`Added 'needs-info' label to issue #${action.issueNumber}`);
+        } catch (error) {
+          core.warning(`Failed to add 'needs-info' label: ${error}`);
         }
 
         return { applied: true, decision };

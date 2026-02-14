@@ -1226,7 +1226,6 @@ describe("scenario: verification predictions", () => {
       issue: createIssue({
         labels: [],
         projectStatus: "Backlog",
-        // @ts-expect-error -- mdast Root type mismatch
         bodyAst: parseMarkdown(
           [
             "## Description",
@@ -1393,7 +1392,6 @@ describe("scenario: verification predictions", () => {
       issue: createIssue({
         labels: [],
         projectStatus: "Backlog",
-        // @ts-expect-error -- mdast Root type mismatch
         bodyAst: parseMarkdown("Just some plain text about a bug.\n"),
       }),
     });
