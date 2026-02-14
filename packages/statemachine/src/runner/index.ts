@@ -47,5 +47,18 @@ export {
   type DeriveDiscussionOptions,
 } from "./derive.js";
 
-// All executor exports for direct use
-export * from "./executors/index.js";
+// Git utility exports (executor logic moved to schemas/actions/)
+export {
+  checkoutBranch,
+  createOrCheckoutBranch,
+  getCurrentBranch,
+  getCurrentSha,
+  hasUncommittedChanges,
+  stageAllChanges,
+  commit,
+  fetch,
+  rebase,
+} from "./helpers/git.js";
+
+// Output schema exports (used by tests + parser)
+export * from "./helpers/output-schemas.js";

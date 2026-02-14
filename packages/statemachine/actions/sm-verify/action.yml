@@ -18,6 +18,10 @@ inputs:
     description: Actual should_retrigger output from sm-run (true/false string)
     required: false
     default: ""
+  use_new_machine:
+    description: Use the new invoke-based state machine (true/false, for logging only)
+    required: false
+    default: "false"
 
 outputs:
   verified:

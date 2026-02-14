@@ -8,6 +8,7 @@
 import * as core from "@actions/core";
 import {
   Verify,
+  IssueNextInvoke,
   type DeriveResult,
   isDiscussionTrigger,
 } from "@more/statemachine";
@@ -56,11 +57,13 @@ export function predictExpectedState(
     // Extract current state tree from the machine context
     const currentTree = Verify.extractPredictableTree(machineContext);
 
-    // Apply the mutator for the final state to get expected outcomes
-    const mutator = Verify.getMutator(finalState);
-    const outcomes = mutator
-      ? mutator(currentTree, machineContext)
-      : [currentTree];
+    // Predict expected outcomes by folding action predictors
+    const outcomes = Verify.predictFromActions(
+      deriveResult.pendingActions,
+      currentTree,
+      machineContext,
+      { finalState },
+    );
 
     const issueNumber =
       machineContext.parentIssue?.number ?? machineContext.issue.number;
@@ -86,6 +89,48 @@ export function predictExpectedState(
     return JSON.stringify(expected);
   } catch (error) {
     core.warning(`Failed to build expected state: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Build expected state JSON from a derive result using the new invoke-based machine.
+ * Uses MachineVerifier instead of the Verify module directly.
+ */
+export function predictExpectedStateNew(
+  deriveResult: DeriveResult,
+): string | null {
+  const { machineContext } = deriveResult;
+
+  if (!machineContext) {
+    core.info("No machine context available — skipping expected state (new)");
+    return null;
+  }
+
+  if (isDiscussionTrigger(machineContext.trigger)) {
+    core.info("Discussion trigger — skipping expected state (new)");
+    return null;
+  }
+
+  try {
+    const verifier = new IssueNextInvoke.MachineVerifier();
+    const machineResult = {
+      state: deriveResult.finalState,
+      actions: deriveResult.pendingActions,
+      context: machineContext,
+    };
+    const expected = verifier.predictExpectedState(
+      machineResult,
+      machineContext,
+    );
+
+    core.info(
+      `Expected state built (new): finalState=${deriveResult.finalState}, outcomes=${expected.outcomes.length}, expectedRetrigger=${expected.expectedRetrigger}`,
+    );
+
+    return JSON.stringify(expected);
+  } catch (error) {
+    core.warning(`Failed to build expected state (new): ${error}`);
     return null;
   }
 }

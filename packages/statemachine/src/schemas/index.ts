@@ -50,45 +50,14 @@ export {
 
 // Action schemas
 export {
+  // Unified action definitions
+  actions,
   // Schema definitions
   ActionSchema,
-  UpdateProjectStatusActionSchema,
-  IncrementIterationActionSchema,
-  RecordFailureActionSchema,
-  ClearFailuresActionSchema,
-  RemoveFromProjectActionSchema,
-  CreateSubIssuesActionSchema,
-  CloseIssueActionSchema,
-  ReopenIssueActionSchema,
-  ResetIssueActionSchema,
-  AppendHistoryActionSchema,
-  UpdateHistoryActionSchema,
-  AddCommentActionSchema,
-  UnassignUserActionSchema,
-  AssignUserActionSchema,
-  CreateBranchActionSchema,
-  GitPushActionSchema,
-  CreatePRActionSchema,
-  ConvertPRToDraftActionSchema,
-  MarkPRReadyActionSchema,
-  RequestReviewActionSchema,
-  MergePRActionSchema,
-  RunClaudeActionSchema,
-  StopActionSchema,
-  BlockActionSchema,
-  LogActionSchema,
-  NoOpActionSchema,
-  AppendAgentNotesActionSchema,
-  AddLabelActionSchema,
-  RemoveLabelActionSchema,
   GroomingAgentTypeSchema,
-  RunClaudeGroomingActionSchema,
-  ApplyGroomingOutputActionSchema,
-  ReconcileSubIssuesActionSchema,
-  ApplyPivotOutputActionSchema,
-  InvestigateResearchThreadsActionSchema,
-  UpdateDiscussionSummaryActionSchema,
   // Types
+  type PredictDiff,
+  type PredictContext,
   type TokenType,
   type UpdateProjectStatusAction,
   type IncrementIterationAction,
@@ -140,6 +109,7 @@ export {
   type ReconcileSubIssuesAction,
   type ApplyPivotOutputAction,
   type Action,
+  type HydratedAction,
   type IssueActionType,
   type DiscussionActionType,
   type SharedActionType,
@@ -152,13 +122,13 @@ export {
   DISCUSSION_ACTION_TYPES,
   SHARED_ACTION_TYPES,
   // Helpers
-  createAction,
+  hydrateActions,
   isTerminalAction,
   shouldStopOnError,
   isIssueAction,
   isDiscussionAction,
   isSharedAction,
-} from "./actions.js";
+} from "./actions/index.js";
 
 // Event schemas
 export { type GitHubEvent, eventToTrigger } from "./events.js";

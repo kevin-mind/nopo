@@ -5,7 +5,7 @@
  */
 
 import type { GitHub } from "@actions/github/lib/utils.js";
-import type { Action, TokenType } from "../schemas/actions.js";
+import type { Action, TokenType } from "../schemas/actions/index.js";
 
 export type Octokit = InstanceType<typeof GitHub>;
 

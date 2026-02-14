@@ -56,6 +56,7 @@ export default {
       ignore: ["actions/claude/dist/**"],
       ignoreDependencies: ["@more/prompt-factory", "esbuild"],
     },
+    "packages/mock-factory": {},
     "packages/statemachine": {
       // Actions are standalone entry points compiled by esbuild
       entry: [
@@ -66,6 +67,10 @@ export default {
         "scripts/*.ts",
       ],
       ignore: ["actions/*/dist/**"],
+      // Internal module re-exports needed for TS declaration emit
+      rules: {
+        exports: "off",
+      },
     },
     ".github/actions-ts": {
       entry: ["*/index.ts", "lib/index.ts", "scripts/*.ts"],

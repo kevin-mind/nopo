@@ -27,9 +27,10 @@ The script will prompt for your configuration and run all commands automatically
 8. [Setup Workload Identity Federation](#8-setup-workload-identity-federation)
 9. [Create Artifact Registry Repository](#9-create-artifact-registry-repository)
 10. [Initial Secrets Setup](#10-initial-secrets-setup)
-11. [Verify Setup](#11-verify-setup)
-12. [Configure DNS with Cloudflare](#12-configure-dns-with-cloudflare)
-13. [Next Steps](#13-next-steps)
+11. [Configure Essential Contacts](#11-configure-essential-contacts)
+12. [Verify Setup](#12-verify-setup)
+13. [Configure DNS with Cloudflare](#13-configure-dns-with-cloudflare)
+14. [Next Steps](#14-next-steps)
 
 ---
 
@@ -383,17 +384,15 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --role="roles/iam.serviceAccountUser" \
   --condition=None
 
-# Service Account Admin - create/manage service accounts
+# Service Account Admin - create/manage service accounts (for Terraform SA lifecycle)
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/iam.serviceAccountAdmin" \
   --condition=None
 
-# Project IAM Admin - manage project-level IAM bindings
-gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/resourcemanager.projectIamAdmin" \
-  --condition=None
+# NOTE: roles/resourcemanager.projectIamAdmin is NOT granted.
+# Terraform manages IAM at the resource level (secrets, storage), not project level.
+# This avoids granting the ability to modify arbitrary project IAM bindings.
 
 # Artifact Registry Admin - manage repositories and IAM policies
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
@@ -616,7 +615,30 @@ gcloud secrets list --project="${PROJECT_ID}"
 
 ---
 
-## 11. Verify Setup
+## 11. Configure Essential Contacts
+
+Set up notification contacts so Google can reach you for security incidents, billing anomalies, and technical issues:
+
+```bash
+# Enable the Essential Contacts API
+gcloud services enable essentialcontacts.googleapis.com --project="${PROJECT_ID}"
+
+# Add your email for security, billing, and technical notifications
+gcloud essential-contacts create \
+  --email="YOUR_EMAIL@example.com" \
+  --notification-categories=security,billing,technical \
+  --language=en \
+  --project="${PROJECT_ID}"
+
+# Verify the contact was created
+gcloud essential-contacts list --project="${PROJECT_ID}"
+```
+
+> **Why this matters:** Essential Contacts ensures critical security notifications (compromised credentials, policy violations) and billing alerts (unexpected spend spikes) reach the right people. Without this, Google has no way to notify you during an incident.
+
+---
+
+## 12. Verify Setup
 
 ### Print Configuration Summary
 
@@ -703,7 +725,7 @@ gcloud iam service-accounts keys list --iam-account="${SA_EMAIL}" --project="${P
 
 ---
 
-## 12. Configure DNS with Cloudflare
+## 13. Configure DNS with Cloudflare
 
 After Terraform creates the load balancer, configure DNS to point your domain to it.
 
@@ -812,7 +834,7 @@ dig +short stage.example.com
 
 ---
 
-## 13. Next Steps
+## 14. Next Steps
 
 ### 1. Configure GitHub Repository
 
@@ -848,7 +870,7 @@ terraform apply
 
 ### 3. Configure DNS
 
-After Terraform completes, configure your DNS using the instructions in [Section 12](#12-configure-dns-with-cloudflare).
+After Terraform completes, configure your DNS using the instructions in [Section 13](#13-configure-dns-with-cloudflare).
 
 ### 4. Trigger First Deployment
 

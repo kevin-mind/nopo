@@ -6,7 +6,7 @@
 
 import { createActor } from "xstate";
 import type { MachineContext } from "../schemas/index.js";
-import { claudeMachine } from "../machine/index.js";
+import { issueMachine } from "../machines/issues/index.js";
 import type { PredictedState } from "./types.js";
 
 /**
@@ -115,7 +115,7 @@ export function statusToExpectedState(status: string | null): string {
  */
 export function predictNextState(context: MachineContext): PredictedState {
   // Create an actor with the context
-  const actor = createActor(claudeMachine, {
+  const actor = createActor(issueMachine, {
     input: context,
   });
 

@@ -14,13 +14,17 @@ import {
   getOptionalInput,
   setOutputs,
   deriveIssueActions,
+  IssueNextInvoke,
   isDiscussionTrigger,
   addHistoryEntry,
   type WorkflowContext,
   type DeriveResult,
 } from "@more/statemachine";
 import { detectEvent } from "./lib/router-impl.js";
-import { predictExpectedState } from "./lib/expected-state.js";
+import {
+  predictExpectedState,
+  predictExpectedStateNew,
+} from "./lib/expected-state.js";
 
 function asOctokitLike(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -85,11 +89,19 @@ async function run(): Promise<void> {
 
   const unifiedContext = await detectEvent(token, resourceNumber, triggerType);
 
-  // Build expected state prediction if not skipping
+  // Build expected state prediction and derive result if not skipping
   let expectedStateJson = "";
+  let deriveResultJson = "";
+
+  const useNewMachine = getOptionalInput("use_new_machine") === "true";
 
   if (!unifiedContext.skip && !isDiscussionTrigger(unifiedContext.trigger)) {
     core.startGroup("Predict expected state");
+    core.info("=".repeat(60));
+    core.info(
+      `MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`,
+    );
+    core.info("=".repeat(60));
 
     try {
       const octokit = github.getOctokit(token);
@@ -98,7 +110,7 @@ async function run(): Promise<void> {
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- WorkflowContext shape is compatible
       const ctx = unifiedContext as unknown as WorkflowContext;
 
-      const deriveResult = await deriveIssueActions({
+      const deriveOptions = {
         trigger: ctx.trigger,
         ctx,
         octokit,
@@ -107,13 +119,24 @@ async function run(): Promise<void> {
         projectNumber,
         maxRetries: 5,
         botUsername: "nopo-bot",
-      });
+      };
+
+      const deriveResult = useNewMachine
+        ? await IssueNextInvoke.deriveFromWorkflow(deriveOptions)
+        : await deriveIssueActions(deriveOptions);
 
       if (deriveResult) {
-        const result = predictExpectedState(deriveResult);
+        const result = useNewMachine
+          ? predictExpectedStateNew(deriveResult)
+          : predictExpectedState(deriveResult);
         if (result) {
           expectedStateJson = result;
         }
+
+        // Serialize DeriveResult for sm-run (strip machineContext — it's large
+        // and not needed for execution, only for derivation).
+        const { machineContext: _mc, ...serializableResult } = deriveResult;
+        deriveResultJson = JSON.stringify(serializableResult);
 
         // Write "⏳ running..." history entry early for instant feedback.
         // sm-run's logRunEnd replaces this with the actual outcome.
@@ -133,6 +156,7 @@ async function run(): Promise<void> {
     concurrency_group: unifiedContext.concurrency_group,
     cancel_in_progress: String(unifiedContext.cancel_in_progress),
     expected_state_json: expectedStateJson,
+    derive_result_json: deriveResultJson,
   });
 }
 

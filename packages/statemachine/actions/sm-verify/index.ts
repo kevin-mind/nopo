@@ -23,8 +23,7 @@ import {
   Verify,
   HISTORY_MESSAGES,
   addHistoryEntry,
-  executeBlock,
-  executeUnassignUser,
+  actions,
   type RunnerContext,
 } from "@more/statemachine";
 
@@ -491,6 +490,10 @@ async function run(): Promise<void> {
       getOptionalInput("project_number") || "1",
       10,
     );
+    const useNewMachine = getOptionalInput("use_new_machine") === "true";
+    if (useNewMachine) {
+      core.info("Verification using new invoke-based machine predictions");
+    }
 
     // Step 1: Parse expected state
     if (!expectedStateJson || expectedStateJson === "") {
@@ -684,25 +687,17 @@ async function run(): Promise<void> {
           serverUrl: process.env.GITHUB_SERVER_URL || "https://github.com",
         };
 
-        await executeBlock(
-          {
-            type: "block",
-            token: "code",
-            issueNumber: expected.issueNumber,
-            reason: "Verification failed",
-          },
-          runnerCtx,
-        );
+        const blockAction = actions.block.create({
+          issueNumber: expected.issueNumber,
+          message: "Verification failed",
+        });
+        await blockAction.execute(runnerCtx);
 
-        await executeUnassignUser(
-          {
-            type: "unassignUser",
-            token: "code",
-            issueNumber: expected.issueNumber,
-            username: "nopo-bot",
-          },
-          runnerCtx,
-        );
+        const unassignAction = actions.unassignUser.create({
+          issueNumber: expected.issueNumber,
+          username: "nopo-bot",
+        });
+        await unassignAction.execute(runnerCtx);
 
         core.info(
           `Blocked issue #${expected.issueNumber} and unassigned nopo-bot`,

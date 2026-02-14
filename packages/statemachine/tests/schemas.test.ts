@@ -47,7 +47,7 @@ describe("schemas", () => {
     it("returns true for stop action", () => {
       const action = ActionSchema.parse({
         type: "stop",
-        reason: "test",
+        message: "test",
       });
       expect(isTerminalAction(action)).toBe(true);
     });
@@ -56,7 +56,7 @@ describe("schemas", () => {
       const action = ActionSchema.parse({
         type: "block",
         issueNumber: 123,
-        reason: "test",
+        message: "test",
       });
       expect(isTerminalAction(action)).toBe(true);
     });

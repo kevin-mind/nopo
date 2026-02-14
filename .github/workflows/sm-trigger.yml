@@ -112,6 +112,7 @@ jobs:
     outputs:
       context_json: ${{ steps.sm-plan.outputs.context_json }}
       expected_state_json: ${{ steps.sm-plan.outputs.expected_state_json }}
+      derive_result_json: ${{ steps.sm-plan.outputs.derive_result_json }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,6 +123,7 @@ jobs:
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           resource_number: ${{ inputs.resource_number || '' }}
           trigger_type: ${{ inputs.trigger_type || '' }}
+          use_new_machine: ${{ vars.USE_NEW_MACHINE || 'true' }}
 
   # ============================================================================
   # STEP 2: sm-run (state machine runner)
@@ -140,8 +142,10 @@ jobs:
     with:
       context_json: ${{ needs.sm-plan.outputs.context_json }}
       expected_state_json: ${{ needs.sm-plan.outputs.expected_state_json || '' }}
+      derive_result_json: ${{ needs.sm-plan.outputs.derive_result_json || '' }}
       dry_run: false
       # For workflow_run and other events (no inputs), always continue
       # For workflow_dispatch, use the explicit input value
       continue: ${{ github.event_name != 'workflow_dispatch' || (inputs.continue != false && inputs.continue != 'false') }}
+      use_new_machine: ${{ vars.USE_NEW_MACHINE || 'true' }}
     secrets: inherit

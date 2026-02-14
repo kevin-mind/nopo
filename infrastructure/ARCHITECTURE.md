@@ -758,17 +758,42 @@ gcloud compute ssl-certificates describe nopo-{env}-ssl-cert \
 
 ### Secret Rotation
 
+Secrets are configured with automatic rotation schedules. Secret Manager publishes to a Pub/Sub topic (`secret-rotation`) when rotation is due, and a Cloud Function (`rotate-django-secret`) handles generating the new secret version.
+
+**Rotation schedules:**
+
+| Secret | Rotation Period | Auto-Rotated |
+|--------|----------------|--------------|
+| `nopo-{env}-django-secret` | 90 days | Yes (Cloud Function generates new random key) |
+| `nopo-{env}-database-url` | 90 days | No (requires coordinated Cloud SQL password update) |
+
+**Automatic rotation flow (Django secret key):**
+
+```
+Secret Manager (rotation timer)
+  → Pub/Sub topic: secret-rotation
+    → Cloud Function: rotate-django-secret
+      → Generates 50-char random secret
+      → Adds as new secret version
+        → Cloud Run picks up on next deploy/restart
+```
+
+**Manual rotation (database password):**
+
 ```bash
-# Add new secret version
-echo -n "new-password" | gcloud secrets versions add nopo-{env}-db-password \
+# 1. Generate new password
+NEW_PASSWORD=$(openssl rand -base64 32)
+
+# 2. Add new secret version
+echo -n "${NEW_PASSWORD}" | gcloud secrets versions add nopo-{env}-database-url \
   --data-file=-
 
-# Update Cloud SQL user password
+# 3. Update Cloud SQL user password
 gcloud sql users set-password app \
   --instance=nopo-{env}-db \
-  --password="new-password"
+  --password="${NEW_PASSWORD}"
 
-# Redeploy Cloud Run to pick up new secret
+# 4. Redeploy Cloud Run to pick up new secret
 gcloud run services update nopo-{env}-backend \
   --region=us-central1
 ```
@@ -777,6 +802,7 @@ gcloud run services update nopo-{env}-backend \
 - [Secret Manager Overview](https://cloud.google.com/secret-manager/docs/overview)
 - [Secret Manager with Cloud Run](https://cloud.google.com/run/docs/configuring/secrets)
 - [Secret Rotation](https://cloud.google.com/secret-manager/docs/rotation-recommendations)
+- [Automatic Rotation with Cloud Functions](https://cloud.google.com/secret-manager/docs/secret-rotation)
 
 ---
 
@@ -1002,13 +1028,15 @@ gcloud run services update nopo-{env}-backend \
 │  │  • Workload Identity Federation (no stored credentials)                        │ │
 │  │  • Least-privilege service accounts                                            │ │
 │  │  • Separate service accounts per environment                                   │ │
-│  │  • IAM conditions for fine-grained access                                      │ │
+│  │  • Essential Contacts for security/billing/technical notifications             │ │
+  │  │  • IAM conditions for fine-grained access                                      │ │
 │  └────────────────────────────────────────────────────────────────────────────────┘ │
 │                                                                                      │
 │  Layer 3: Secrets                                                                    │
 │  ┌────────────────────────────────────────────────────────────────────────────────┐ │
 │  │  • All secrets in Secret Manager                                               │ │
 │  │  • Automatic encryption at rest                                                │ │
+│  │  • Automatic rotation for Django secret key (90-day schedule)                  │ │
 │  │  • Access audit logging                                                        │ │
 │  │  • No secrets in code or environment                                           │ │
 │  └────────────────────────────────────────────────────────────────────────────────┘ │
@@ -1036,7 +1064,7 @@ gcloud run services update nopo-{env}-backend \
 
 | Service Account | Purpose | Roles |
 |-----------------|---------|-------|
-| `github-actions@...` | CI/CD deployment | run.admin, iam.serviceAccountUser, iam.serviceAccountAdmin, resourcemanager.projectIamAdmin, artifactregistry.admin, cloudsql.admin, secretmanager.admin, storage.admin, compute.admin, vpcaccess.admin, servicenetworking.networksAdmin |
+| `github-actions@...` | CI/CD deployment | run.admin, iam.serviceAccountUser, iam.serviceAccountAdmin, artifactregistry.admin, cloudsql.admin, secretmanager.admin, storage.admin, compute.admin, vpcaccess.admin, servicenetworking.networksAdmin |
 | `nopo-{env}-cloudrun@...` | Cloud Run runtime | cloudsql.client, secretmanager.secretAccessor |
 
 **External Documentation:**

@@ -38,6 +38,16 @@ on:
         required: false
         type: string
         default: ''
+      derive_result_json:
+        description: Pre-computed DeriveResult JSON from sm-plan (skips re-derivation)
+        required: false
+        type: string
+        default: ''
+      use_new_machine:
+        description: Use the new invoke-based state machine (true/false)
+        required: false
+        type: string
+        default: 'false'
     outputs:
       final_state:
         description: Final state after machine execution
@@ -231,6 +241,8 @@ jobs:
           continue: ${{ inputs.continue && 'true' || 'false' }}
           e2e_mode: ${{ needs.e2e-detect.outputs.e2e_mode }}
           e2e_review_outcome: ${{ needs.e2e-detect.outputs.review_outcome }}
+          derive_result_json: ${{ inputs.derive_result_json }}
+          use_new_machine: ${{ inputs.use_new_machine }}
 
   # ============================================================================
   # VERIFY STATE CHANGES
@@ -262,6 +274,7 @@ jobs:
           expected_state_json: ${{ inputs.expected_state_json }}
           project_number: ${{ vars.PROJECT_NUMBER || '1' }}
           actual_should_retrigger: ${{ needs.run.outputs.should_retrigger }}
+          use_new_machine: ${{ inputs.use_new_machine }}
 
   # ============================================================================
   # RETRIGGER

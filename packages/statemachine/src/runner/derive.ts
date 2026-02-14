@@ -8,13 +8,13 @@
 
 import * as core from "@actions/core";
 import { createActor } from "xstate";
-import type { Action } from "../schemas/actions.js";
+import type { Action } from "../schemas/actions/index.js";
 import type { TriggerType } from "../schemas/runner-context.js";
 import type { WorkflowContext } from "../schemas/runner-context.js";
 import type { MachineContext } from "../schemas/state.js";
 import type { DiscussionTriggerType } from "../schemas/discussion-triggers.js";
 import type { DiscussionCommand } from "../schemas/discussion-context.js";
-import { claudeMachine } from "../machine/machine.js";
+import { issueMachine } from "../machines/issues/index.js";
 import { buildMachineContext } from "../parser/state-parser.js";
 import { buildDiscussionContext } from "../discussion/context-builder.js";
 import { discussionMachine } from "../discussion/machine.js";
@@ -286,7 +286,7 @@ export async function deriveIssueActions(
   const agentNotes = formatAgentNotesForPrompt(agentNotesEntries);
 
   // Create and run the state machine
-  const actor = createActor(claudeMachine, { input: context });
+  const actor = createActor(issueMachine, { input: context });
   actor.start();
   actor.send({ type: "DETECT" });
 

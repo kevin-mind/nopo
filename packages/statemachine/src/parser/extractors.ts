@@ -14,7 +14,7 @@ import {
   type HistoryEntry,
   type AgentNotesEntry,
 } from "@more/issue-state";
-import type { ExistingSubIssue } from "../runner/executors/output-schemas.js";
+import type { ExistingSubIssue } from "../runner/helpers/output-schemas.js";
 import { z } from "zod";
 import type {
   Root,

@@ -94,6 +94,7 @@ describe("SubIssueDataSchema", () => {
       state: "OPEN",
       bodyAst: parseMarkdown("Do setup"),
       projectStatus: "In progress",
+      assignees: [],
       labels: [],
       branch: "claude/issue/5/phase-1",
       pr: null,

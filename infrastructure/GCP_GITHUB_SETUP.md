@@ -55,15 +55,13 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/iam.serviceAccountUser"
 
-# Service Account Admin - create/manage service accounts
+# Service Account Admin - create/manage service accounts (for Terraform SA lifecycle)
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/iam.serviceAccountAdmin"
 
-# Project IAM Admin - manage project-level IAM bindings
-gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/resourcemanager.projectIamAdmin"
+# NOTE: roles/resourcemanager.projectIamAdmin is NOT granted.
+# Terraform manages IAM at the resource level (secrets, storage), not project level.
 
 # Artifact Registry Admin - manage repositories and IAM policies
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \

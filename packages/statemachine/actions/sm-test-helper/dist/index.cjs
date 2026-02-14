@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs3 = __importStar(require("fs"));
+    var fs10 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs3.existsSync(filePath)) {
+      if (!fs10.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs10.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -996,14 +996,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path3 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path4 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path3 && !path3.startsWith("/")) {
-          path3 = `/${path3}`;
+        if (path4 && !path4.startsWith("/")) {
+          path4 = `/${path4}`;
         }
-        url = new URL(origin + path3);
+        url = new URL(origin + path4);
       }
       return url;
     }
@@ -2617,20 +2617,20 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "node_modules/.pnpm/@fastify+busboy@2.1.1/node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path3) {
-      if (typeof path3 !== "string") {
+    module2.exports = function basename(path4) {
+      if (typeof path4 !== "string") {
         return "";
       }
-      for (var i = path3.length - 1; i >= 0; --i) {
-        switch (path3.charCodeAt(i)) {
+      for (var i = path4.length - 1; i >= 0; --i) {
+        switch (path4.charCodeAt(i)) {
           case 47:
           // '/'
           case 92:
-            path3 = path3.slice(i + 1);
-            return path3 === ".." || path3 === "." ? "" : path3;
+            path4 = path4.slice(i + 1);
+            return path4 === ".." || path4 === "." ? "" : path4;
         }
       }
-      return path3 === ".." || path3 === "." ? "" : path3;
+      return path4 === ".." || path4 === "." ? "" : path4;
     };
   }
 });
@@ -4023,8 +4023,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise = new Promise((resolve2, reject) => {
-        res = resolve2;
+      const promise = new Promise((resolve3, reject) => {
+        res = resolve3;
         rej = reject;
       });
       return { promise, resolve: res, reject: rej };
@@ -4116,15 +4116,15 @@ var require_util2 = __commonJS({
       let reader;
       try {
         reader = body.stream.getReader();
-      } catch (e) {
-        errorSteps(e);
+      } catch (e2) {
+        errorSteps(e2);
         return;
       }
       try {
         const result = await readAllBytes(reader);
         successSteps(result);
-      } catch (e) {
-        errorSteps(e);
+      } catch (e2) {
+        errorSteps(e2);
       }
     }
     var ReadableStream = globalThis.ReadableStream;
@@ -5528,8 +5528,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve2, reject) => {
-              busboy.on("finish", resolve2);
+            const busboyResolve = new Promise((resolve3, reject) => {
+              busboy.on("finish", resolve3);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -5583,8 +5583,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
-        } catch (e) {
-          errorSteps(e);
+        } catch (e2) {
+          errorSteps(e2);
         }
       };
       if (object[kState].body == null) {
@@ -5660,7 +5660,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path: path3,
+        path: path4,
         method,
         body,
         headers,
@@ -5674,11 +5674,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path3 !== "string") {
+        if (typeof path4 !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path3[0] !== "/" && !(path3.startsWith("http://") || path3.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path4[0] !== "/" && !(path4.startsWith("http://") || path4.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path3) !== null) {
+        } else if (invalidPathRegex.exec(path4) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5741,7 +5741,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query2 ? util3.buildURL(path3, query2) : path3;
+        this.path = query2 ? util3.buildURL(path4, query2) : path4;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6063,9 +6063,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback) {
         if (callback === void 0) {
-          return new Promise((resolve2, reject) => {
+          return new Promise((resolve3, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve2(data);
+              return err ? reject(err) : resolve3(data);
             });
           });
         }
@@ -6103,12 +6103,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback === void 0) {
-          return new Promise((resolve2, reject) => {
+          return new Promise((resolve3, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve2(data);
+              ) : resolve3(data);
             });
           });
         }
@@ -6749,9 +6749,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search: search2 } = util3.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path3 = search2 ? `${pathname}${search2}` : pathname;
+        const path4 = search2 ? `${pathname}${search2}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path3;
+        this.opts.path = path4;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7168,16 +7168,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve2) => {
+        return new Promise((resolve3) => {
           if (!this[kSize]) {
-            resolve2(null);
+            resolve3(null);
           } else {
-            this[kClosedResolve] = resolve2;
+            this[kClosedResolve] = resolve3;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve2) => {
+        return new Promise((resolve3) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request = requests[i];
@@ -7188,7 +7188,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve2();
+            resolve3();
           };
           if (this[kHTTP2Session] != null) {
             util3.destroy(this[kHTTP2Session], err);
@@ -7255,7 +7255,7 @@ var require_client = __commonJS({
       let mod;
       try {
         mod = await WebAssembly.compile(Buffer.from(require_llhttp_simd_wasm(), "base64"));
-      } catch (e) {
+      } catch (e2) {
         mod = await WebAssembly.compile(Buffer.from(llhttpWasmData || require_llhttp_wasm(), "base64"));
       }
       return await WebAssembly.instantiate(mod, {
@@ -7768,7 +7768,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve2, reject) => {
+        const socket = await new Promise((resolve3, reject) => {
           client[kConnector]({
             host,
             hostname: hostname2,
@@ -7780,7 +7780,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve2(socket2);
+              resolve3(socket2);
             }
           });
         });
@@ -7991,7 +7991,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path: path3, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path: path4, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8041,7 +8041,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path3} HTTP/1.1\r
+      let header = `${method} ${path4} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8104,7 +8104,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path: path3, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path: path4, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
@@ -8147,7 +8147,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path3;
+      headers[HTTP2_HEADER_PATH] = path4;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -8404,12 +8404,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve2, reject) => {
+      const waitForDrain = () => new Promise((resolve3, reject) => {
         assert2(callback === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback = resolve2;
+          callback = resolve3;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8754,8 +8754,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve2) => {
-            this[kClosedResolve] = resolve2;
+          return new Promise((resolve3) => {
+            this[kClosedResolve] = resolve3;
           });
         }
       }
@@ -9333,7 +9333,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           const signalListenerCleanup = signal ? util3.addAbortListener(signal, () => {
             this.destroy();
           }) : noop;
@@ -9342,7 +9342,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve2(null);
+              resolve3(null);
             }
           }).on("error", noop).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9364,11 +9364,11 @@ var require_readable = __commonJS({
         throw new TypeError("unusable");
       }
       assert2(!stream[kConsume]);
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve3, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve: resolve2,
+          resolve: resolve3,
           reject,
           length: 0,
           body: []
@@ -9403,12 +9403,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve: resolve2, stream, length } = consume2;
+      const { type, body, resolve: resolve3, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve2(toUSVString(Buffer.concat(body)));
+          resolve3(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve2(JSON.parse(Buffer.concat(body)));
+          resolve3(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9416,12 +9416,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve2(dst.buffer);
+          resolve3(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = require("buffer").Blob;
           }
-          resolve2(new Blob2(body, { type: stream[kContentType] }));
+          resolve3(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9676,9 +9676,9 @@ var require_api_request = __commonJS({
     };
     function request(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           request.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve3(data);
           });
         });
       }
@@ -9851,9 +9851,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve3(data);
           });
         });
       }
@@ -10134,9 +10134,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve3(data);
           });
         });
       }
@@ -10225,9 +10225,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve2(data);
+            return err ? reject(err) : resolve3(data);
           });
         });
       }
@@ -10387,20 +10387,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path3) {
-      if (typeof path3 !== "string") {
-        return path3;
+    function safeUrl(path4) {
+      if (typeof path4 !== "string") {
+        return path4;
       }
-      const pathSegments = path3.split("?");
+      const pathSegments = path4.split("?");
       if (pathSegments.length !== 2) {
-        return path3;
+        return path4;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path3, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path3);
+    function matchKey(mockDispatch2, { path: path4, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path4);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10418,7 +10418,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path3 }) => matchValue(safeUrl(path3), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path4 }) => matchValue(safeUrl(path4), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10455,9 +10455,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path3, method, body, headers, query: query2 } = opts;
+      const { path: path4, method, body, headers, query: query2 } = opts;
       return {
-        path: path3,
+        path: path4,
         method,
         body,
         headers,
@@ -10906,10 +10906,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path3, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path4, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path3,
+            Path: path4,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -12346,7 +12346,7 @@ var require_request2 = __commonJS({
     var { URLSerializer } = require_dataURL();
     var { kHeadersList, kConstruct } = require_symbols();
     var assert2 = require("assert");
-    var { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require("events");
+    var { getMaxListeners, setMaxListeners: setMaxListeners2, getEventListeners, defaultMaxListeners } = require("events");
     var TransformStream = globalThis.TransformStream;
     var kAbortController = Symbol("abortController");
     var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
@@ -12553,9 +12553,9 @@ var require_request2 = __commonJS({
             };
             try {
               if (typeof getMaxListeners === "function" && getMaxListeners(signal) === defaultMaxListeners) {
-                setMaxListeners(100, signal);
+                setMaxListeners2(100, signal);
               } else if (getEventListeners(signal, "abort").length >= defaultMaxListeners) {
-                setMaxListeners(100, signal);
+                setMaxListeners2(100, signal);
               }
             } catch {
             }
@@ -13057,8 +13057,8 @@ var require_fetch = __commonJS({
       let requestObject;
       try {
         requestObject = new Request(input, init);
-      } catch (e) {
-        p.reject(e);
+      } catch (e2) {
+        p.reject(e2);
         return p.promise;
       }
       const request = requestObject[kState];
@@ -13723,14 +13723,14 @@ var require_fetch = __commonJS({
             fetchParams.processRequestEndOfBody();
           }
         };
-        const processBodyError = (e) => {
+        const processBodyError = (e2) => {
           if (isCancelled(fetchParams)) {
             return;
           }
-          if (e.name === "AbortError") {
+          if (e2.name === "AbortError") {
             fetchParams.controller.abort();
           } else {
-            fetchParams.controller.terminate(e);
+            fetchParams.controller.terminate(e2);
           }
         };
         requestBody = async function* () {
@@ -13849,7 +13849,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve2, reject) => agent.dispatch(
+        return new Promise((resolve3, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -13925,7 +13925,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve2({
+              resolve3({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -13968,7 +13968,7 @@ var require_fetch = __commonJS({
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve2({
+              resolve3({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -14449,8 +14449,8 @@ var require_util4 = __commonJS({
         }
       })();
     }
-    function fireAProgressEvent(e, reader) {
-      const event = new ProgressEvent(e, {
+    function fireAProgressEvent(e2, reader) {
+      const event = new ProgressEvent(e2, {
         bubbles: false,
         cancelable: false
       });
@@ -15017,8 +15017,8 @@ var require_cache = __commonJS({
         let errorData = null;
         try {
           this.#batchCacheOperations(operations);
-        } catch (e) {
-          errorData = e;
+        } catch (e2) {
+          errorData = e2;
         }
         queueMicrotask(() => {
           if (errorData === null) {
@@ -15097,8 +15097,8 @@ var require_cache = __commonJS({
         let errorData = null;
         try {
           this.#batchCacheOperations(operations);
-        } catch (e) {
-          errorData = e;
+        } catch (e2) {
+          errorData = e2;
         }
         queueMicrotask(() => {
           if (errorData === null) {
@@ -15136,8 +15136,8 @@ var require_cache = __commonJS({
         let requestResponses;
         try {
           requestResponses = this.#batchCacheOperations(operations);
-        } catch (e) {
-          errorData = e;
+        } catch (e2) {
+          errorData = e2;
         }
         queueMicrotask(() => {
           if (errorData === null) {
@@ -15271,10 +15271,10 @@ var require_cache = __commonJS({
             resultList.push([operation.request, operation.response]);
           }
           return resultList;
-        } catch (e) {
+        } catch (e2) {
           this.#relevantRequestResponseList.length = 0;
           this.#relevantRequestResponseList = backupCache;
-          throw e;
+          throw e2;
         }
       }
       /**
@@ -15529,8 +15529,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path3) {
-      for (const char of path3) {
+    function validateCookiePath(path4) {
+      for (const char of path4) {
         const code3 = char.charCodeAt(0);
         if (code3 < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -16230,8 +16230,8 @@ var require_util7 = __commonJS({
     function isClosed(ws) {
       return ws[kReadyState] === states.CLOSED;
     }
-    function fireEvent(e, target, eventConstructor = Event, eventInitDict) {
-      const event = new eventConstructor(e, eventInitDict);
+    function fireEvent(e2, target, eventConstructor = Event, eventInitDict) {
+      const event = new eventConstructor(e2, eventInitDict);
       target.dispatchEvent(event);
     }
     function websocketMessageReceived(ws, type, data) {
@@ -16801,8 +16801,8 @@ var require_websocket = __commonJS({
         let urlRecord;
         try {
           urlRecord = new URL(url, baseURL);
-        } catch (e) {
-          throw new DOMException2(e, "SyntaxError");
+        } catch (e2) {
+          throw new DOMException2(e2, "SyntaxError");
         }
         if (urlRecord.protocol === "http:") {
           urlRecord.protocol = "ws:";
@@ -17210,11 +17210,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path3 = opts.path;
+          let path4 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path3 = `/${path3}`;
+            path4 = `/${path4}`;
           }
-          url = new URL(util3.parseOrigin(url).origin + path3);
+          url = new URL(util3.parseOrigin(url).origin + path4);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -17322,27 +17322,27 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17428,26 +17428,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve3) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve2(output.toString());
+              resolve3(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve3) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve2(Buffer.concat(chunks));
+              resolve3(Buffer.concat(chunks));
             });
           }));
         });
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info26 = this._prepareRequest(verb, parsedUrl, headers);
+          let info19 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info26, data);
+            response = yield this.requestRaw(info19, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info26, data);
+                return authenticationHandler.handleAuthentication(this, info19, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info26 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info26, data);
+              info19 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info19, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,19 +17654,19 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info26, data) {
+      requestRaw(info19, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2, reject) => {
+          return new Promise((resolve3, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve2(res);
+                resolve3(res);
               }
             }
-            this.requestRawWithCallback(info26, data, callbackForResult);
+            this.requestRawWithCallback(info19, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info26, data, onResult) {
+      requestRawWithCallback(info19, data, onResult) {
         if (typeof data === "string") {
-          if (!info26.options.headers) {
-            info26.options.headers = {};
+          if (!info19.options.headers) {
+            info19.options.headers = {};
           }
-          info26.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info19.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info26.httpModule.request(info26.options, (msg) => {
+        const req = info19.httpModule.request(info19.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info26.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info19.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info26 = {};
-        info26.parsedUrl = requestUrl;
-        const usingSsl = info26.parsedUrl.protocol === "https:";
-        info26.httpModule = usingSsl ? https : http;
+        const info19 = {};
+        info19.parsedUrl = requestUrl;
+        const usingSsl = info19.parsedUrl.protocol === "https:";
+        info19.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info26.options = {};
-        info26.options.host = info26.parsedUrl.hostname;
-        info26.options.port = info26.parsedUrl.port ? parseInt(info26.parsedUrl.port) : defaultPort;
-        info26.options.path = (info26.parsedUrl.pathname || "") + (info26.parsedUrl.search || "");
-        info26.options.method = method;
-        info26.options.headers = this._mergeHeaders(headers);
+        info19.options = {};
+        info19.options.host = info19.parsedUrl.hostname;
+        info19.options.port = info19.parsedUrl.port ? parseInt(info19.parsedUrl.port) : defaultPort;
+        info19.options.path = (info19.parsedUrl.pathname || "") + (info19.parsedUrl.search || "");
+        info19.options.method = method;
+        info19.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info26.options.headers["user-agent"] = this.userAgent;
+          info19.options.headers["user-agent"] = this.userAgent;
         }
-        info26.options.agent = this._getAgent(info26.parsedUrl);
+        info19.options.agent = this._getAgent(info19.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info26.options);
+            handler.prepareRequest(info19.options);
           }
         }
-        return info26;
+        return info19;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -17845,12 +17845,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve2) => setTimeout(() => resolve2(), ms));
+          return new Promise((resolve3) => setTimeout(() => resolve3(), ms));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve3, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17858,7 +17858,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve2(response);
+              resolve3(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -17897,7 +17897,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve2(response);
+              resolve3(response);
             }
           }));
         });
@@ -17914,27 +17914,27 @@ var require_auth = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18018,27 +18018,27 @@ var require_oidc_utils = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18116,27 +18116,27 @@ var require_summary = __commonJS({
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18437,7 +18437,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18447,7 +18447,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path3.sep);
+      return pth.replace(/[/\\]/g, path4.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18482,27 +18482,27 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18510,12 +18510,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs3 = __importStar(require("fs"));
-    var path3 = __importStar(require("path"));
-    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    var fs10 = __importStar(require("fs"));
+    var path4 = __importStar(require("path"));
+    _a = fs10.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs3.constants.O_RDONLY;
+    exports2.READONLY = fs10.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -18560,7 +18560,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path3.extname(filePath).toUpperCase();
+            const upperExt = path4.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18584,11 +18584,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path3.dirname(filePath);
-                const upperName = path3.basename(filePath).toUpperCase();
+                const directory = path4.dirname(filePath);
+                const upperName = path4.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path3.join(directory, actualName);
+                    filePath = path4.join(directory, actualName);
                     break;
                   }
                 }
@@ -18655,27 +18655,27 @@ var require_io = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18683,7 +18683,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18692,7 +18692,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path3.join(dest, path3.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path4.join(dest, path4.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18704,7 +18704,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path3.relative(source, newDest) === "") {
+          if (path4.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18717,7 +18717,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path3.join(dest, path3.basename(source));
+            dest = path4.join(dest, path4.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18728,7 +18728,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path3.dirname(dest));
+        yield mkdirP(path4.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18791,7 +18791,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension2 of process.env["PATHEXT"].split(path3.delimiter)) {
+          for (const extension2 of process.env["PATHEXT"].split(path4.delimiter)) {
             if (extension2) {
               extensions.push(extension2);
             }
@@ -18804,12 +18804,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path3.sep)) {
+        if (tool.includes(path4.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path3.delimiter)) {
+          for (const p of process.env.PATH.split(path4.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18817,7 +18817,7 @@ var require_io = __commonJS({
         }
         const matches2 = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path3.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path4.join(directory, tool), extensions);
           if (filePath) {
             matches2.push(filePath);
           }
@@ -18858,8 +18858,8 @@ var require_io = __commonJS({
           try {
             yield ioUtil.lstat(destFile);
             yield ioUtil.unlink(destFile);
-          } catch (e) {
-            if (e.code === "EPERM") {
+          } catch (e2) {
+            if (e2.code === "EPERM") {
               yield ioUtil.chmod(destFile, "0666");
               yield ioUtil.unlink(destFile);
             }
@@ -18903,27 +18903,27 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18933,7 +18933,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19148,10 +19148,10 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path3.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path4.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve2, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve3, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19234,7 +19234,7 @@ var require_toolrunner = __commonJS({
               if (error7) {
                 reject(error7);
               } else {
-                resolve2(exitCode);
+                resolve3(exitCode);
               }
             });
             if (this.options.input) {
@@ -19387,27 +19387,27 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19416,7 +19416,7 @@ var require_exec = __commonJS({
     exports2.getExecOutput = exports2.exec = void 0;
     var string_decoder_1 = require("string_decoder");
     var tr = __importStar(require_toolrunner());
-    function exec11(commandLine, args, options) {
+    function exec13(commandLine, args, options) {
       return __awaiter(this, void 0, void 0, function* () {
         const commandArgs = tr.argStringToArray(commandLine);
         if (commandArgs.length === 0) {
@@ -19428,7 +19428,7 @@ var require_exec = __commonJS({
         return runner.exec();
       });
     }
-    exports2.exec = exec11;
+    exports2.exec = exec13;
     function getExecOutput(commandLine, args, options) {
       var _a, _b;
       return __awaiter(this, void 0, void 0, function* () {
@@ -19451,7 +19451,7 @@ var require_exec = __commonJS({
           }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec11(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec13(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
         return {
@@ -19498,27 +19498,27 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19529,12 +19529,12 @@ var require_platform = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDetails = exports2.isLinux = exports2.isMacOS = exports2.isWindows = exports2.arch = exports2.platform = void 0;
     var os_1 = __importDefault(require("os"));
-    var exec11 = __importStar(require_exec());
+    var exec13 = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version2 } = yield exec11.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version2 } = yield exec13.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
-      const { stdout: name } = yield exec11.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
+      const { stdout: name } = yield exec13.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
         silent: true
       });
       return {
@@ -19544,7 +19544,7 @@ var require_platform = __commonJS({
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       var _a, _b, _c, _d;
-      const { stdout } = yield exec11.getExecOutput("sw_vers", void 0, {
+      const { stdout } = yield exec13.getExecOutput("sw_vers", void 0, {
         silent: true
       });
       const version2 = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
@@ -19555,7 +19555,7 @@ var require_platform = __commonJS({
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout } = yield exec11.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
+      const { stdout } = yield exec13.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
       const [name, version2] = stdout.trim().split("\n");
@@ -19617,27 +19617,27 @@ var require_core = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19648,7 +19648,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19676,7 +19676,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path3.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path4.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -19740,34 +19740,34 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error7;
-    function warning19(message, properties = {}) {
+    function warning15(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning19;
+    exports2.warning = warning15;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info26(message) {
+    function info19(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info26;
-    function startGroup11(name) {
+    exports2.info = info19;
+    function startGroup5(name) {
       (0, command_1.issue)("group", name);
     }
-    exports2.startGroup = startGroup11;
-    function endGroup11() {
+    exports2.startGroup = startGroup5;
+    function endGroup5() {
       (0, command_1.issue)("endgroup");
     }
-    exports2.endGroup = endGroup11;
+    exports2.endGroup = endGroup5;
     function group(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
-        startGroup11(name);
+        startGroup5(name);
         let result;
         try {
           result = yield fn();
         } finally {
-          endGroup11();
+          endGroup5();
         }
         return result;
       });
@@ -19832,8 +19832,8 @@ var require_context = __commonJS({
           if ((0, fs_1.existsSync)(process.env.GITHUB_EVENT_PATH)) {
             this.payload = JSON.parse((0, fs_1.readFileSync)(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
           } else {
-            const path3 = process.env.GITHUB_EVENT_PATH;
-            process.stdout.write(`GITHUB_EVENT_PATH ${path3} does not exist${os_1.EOL}`);
+            const path4 = process.env.GITHUB_EVENT_PATH;
+            process.stdout.write(`GITHUB_EVENT_PATH ${path4} does not exist${os_1.EOL}`);
           }
         }
         this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -19905,27 +19905,27 @@ var require_utils3 = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve2) {
-          resolve2(value);
+        return value instanceof P ? value : new P(function(resolve3) {
+          resolve3(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve2, reject) {
+      return new (P || (P = Promise))(function(resolve3, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
+          } catch (e2) {
+            reject(e2);
           }
         }
         function step(result) {
-          result.done ? resolve2(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -20904,7 +20904,7 @@ var require_dist_node6 = __commonJS({
     var import_request = require_dist_node5();
     function _buildMessageForResponseErrors(data) {
       return `Request failed due to following response errors:
-` + data.errors.map((e) => ` - ${e.message}`).join("\n");
+` + data.errors.map((e2) => ` - ${e2.message}`).join("\n");
     }
     var GraphqlResponseError = class extends Error {
       constructor(request2, headers, response) {
@@ -23974,9 +23974,9 @@ var require_extend = __commonJS({
 });
 
 // packages/statemachine/actions/sm-test-helper/index.ts
-var fs2 = __toESM(require("fs"), 1);
-var path2 = __toESM(require("path"), 1);
-var core26 = __toESM(require_core(), 1);
+var fs9 = __toESM(require("fs"), 1);
+var path3 = __toESM(require("path"), 1);
+var core19 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
@@ -24119,8 +24119,8 @@ var util;
     return util3.objectValues(filtered);
   };
   util3.objectValues = (obj) => {
-    return util3.objectKeys(obj).map(function(e) {
-      return obj[e];
+    return util3.objectKeys(obj).map(function(e2) {
+      return obj[e2];
     });
   };
   util3.objectKeys = typeof Object.keys === "function" ? (obj) => Object.keys(obj) : (object) => {
@@ -24457,8 +24457,8 @@ function getErrorMap() {
 
 // node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path3, errorMaps, issueData } = params;
-  const fullPath = [...path3, ...issueData.path || []];
+  const { data, path: path4, errorMaps, issueData } = params;
+  const fullPath = [...path4, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -24574,11 +24574,11 @@ var errorUtil;
 
 // node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path3, key) {
+  constructor(parent, value, path4, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path3;
+    this._path = path4;
     this._key = key;
   }
   get path() {
@@ -26514,7 +26514,7 @@ var ZodObject = class _ZodObject extends ZodType {
    * upgrade if you are experiencing issues.
    */
   merge(merging) {
-    const merged = new _ZodObject({
+    const merged2 = new _ZodObject({
       unknownKeys: merging._def.unknownKeys,
       catchall: merging._def.catchall,
       shape: () => ({
@@ -26523,7 +26523,7 @@ var ZodObject = class _ZodObject extends ZodType {
       }),
       typeName: ZodFirstPartyTypeKind.ZodObject
     });
-    return merged;
+    return merged2;
   }
   // merge<
   //   Incoming extends AnyZodObject,
@@ -26928,8 +26928,8 @@ var ZodIntersection = class extends ZodType {
       if (isAborted(parsedLeft) || isAborted(parsedRight)) {
         return INVALID;
       }
-      const merged = mergeValues(parsedLeft.value, parsedRight.value);
-      if (!merged.valid) {
+      const merged2 = mergeValues(parsedLeft.value, parsedRight.value);
+      if (!merged2.valid) {
         addIssueToContext(ctx, {
           code: ZodIssueCode.invalid_intersection_types
         });
@@ -26938,7 +26938,7 @@ var ZodIntersection = class extends ZodType {
       if (isDirty(parsedLeft) || isDirty(parsedRight)) {
         status.dirty();
       }
-      return { status: status.value, value: merged.data };
+      return { status: status.value, value: merged2.data };
     };
     if (ctx.common.async) {
       return Promise.all([
@@ -27288,13 +27288,13 @@ var ZodFunction = class _ZodFunction extends ZodType {
       const me = this;
       return OK(async function(...args) {
         const error7 = new ZodError([]);
-        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error7.addIssue(makeArgsIssue(args, e));
+        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e2) => {
+          error7.addIssue(makeArgsIssue(args, e2));
           throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
-        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error7.addIssue(makeReturnsIssue(result, e));
+        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e2) => {
+          error7.addIssue(makeReturnsIssue(result, e2));
           throw error7;
         });
         return parsedReturns;
@@ -28629,13 +28629,13 @@ var VFile = class {
    * @returns {undefined}
    *   Nothing.
    */
-  set path(path3) {
-    if (isUrl(path3)) {
-      path3 = (0, import_node_url.fileURLToPath)(path3);
+  set path(path4) {
+    if (isUrl(path4)) {
+      path4 = (0, import_node_url.fileURLToPath)(path4);
     }
-    assertNonEmpty(path3, "path");
-    if (this.path !== path3) {
-      this.history.push(path3);
+    assertNonEmpty(path4, "path");
+    if (this.path !== path4) {
+      this.history.push(path4);
     }
   }
   /**
@@ -28902,8 +28902,8 @@ function assertNonEmpty(part, name) {
     throw new Error("`" + name + "` cannot be empty");
   }
 }
-function assertPath(path3, name) {
-  if (!path3) {
+function assertPath(path4, name) {
+  if (!path4) {
     throw new Error("Setting `" + name + "` requires `path` to be set too");
   }
 }
@@ -29171,7 +29171,7 @@ var Processor = class _Processor extends CallableInstance {
     assertParser("process", this.parser || this.Parser);
     assertCompiler("process", this.compiler || this.Compiler);
     return done ? executor(void 0, done) : new Promise(executor);
-    function executor(resolve2, reject) {
+    function executor(resolve3, reject) {
       const realFile = vfile(file);
       const parseTree = (
         /** @type {HeadTree extends undefined ? Node : HeadTree} */
@@ -29202,8 +29202,8 @@ var Processor = class _Processor extends CallableInstance {
       function realDone(error7, file2) {
         if (error7 || !file2) {
           reject(error7);
-        } else if (resolve2) {
-          resolve2(file2);
+        } else if (resolve3) {
+          resolve3(file2);
         } else {
           ok(done, "`done` is defined if `resolve` is not");
           done(void 0, file2);
@@ -29305,7 +29305,7 @@ var Processor = class _Processor extends CallableInstance {
       file = void 0;
     }
     return done ? executor(void 0, done) : new Promise(executor);
-    function executor(resolve2, reject) {
+    function executor(resolve3, reject) {
       ok(
         typeof file !== "function",
         "`file` can\u2019t be a `done` anymore, we checked"
@@ -29319,8 +29319,8 @@ var Processor = class _Processor extends CallableInstance {
         );
         if (error7) {
           reject(error7);
-        } else if (resolve2) {
-          resolve2(resultingTree);
+        } else if (resolve3) {
+          resolve3(resultingTree);
         } else {
           ok(done, "`done` is defined if `resolve` is not");
           done(void 0, resultingTree, file2);
@@ -32148,10 +32148,10 @@ function resolveAll(constructs2, events, context2) {
   const called = [];
   let index2 = -1;
   while (++index2 < constructs2.length) {
-    const resolve2 = constructs2[index2].resolveAll;
-    if (resolve2 && !called.includes(resolve2)) {
-      events = resolve2(events, context2);
-      called.push(resolve2);
+    const resolve3 = constructs2[index2].resolveAll;
+    if (resolve3 && !called.includes(resolve3)) {
+      events = resolve3(events, context2);
+      called.push(resolve3);
     }
   }
   return events;
@@ -32606,9 +32606,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info26(code3);
+    return info19(code3);
   }
-  function info26(code3) {
+  function info19(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32623,7 +32623,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info26;
+    return info19;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35462,11 +35462,11 @@ function createTokenizer(parser2, initialize, from) {
     context2.events.push(["exit", token, context2]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info26) {
-    addResult(construct, info26.from);
+  function onsuccessfulconstruct(construct, info19) {
+    addResult(construct, info19.from);
   }
-  function onsuccessfulcheck(_, info26) {
-    info26.restore();
+  function onsuccessfulcheck(_, info19) {
+    info19.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35474,7 +35474,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info26;
+      let info19;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35510,7 +35510,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info26 = store();
+          info19 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context2.currentConstruct = construct;
@@ -35531,12 +35531,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info26);
+        onreturn(currentConstruct, info19);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info26.restore();
+        info19.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -36889,7 +36889,7 @@ function transformGfmAutolinkLiterals(tree) {
     { ignore: ["link", "linkReference"] }
   );
 }
-function findUrl(_, protocol, domain2, path3, match) {
+function findUrl(_, protocol, domain2, path4, match) {
   let prefix = "";
   if (!previous2(match)) {
     return false;
@@ -36902,7 +36902,7 @@ function findUrl(_, protocol, domain2, path3, match) {
   if (!isCorrectDomain(domain2)) {
     return false;
   }
-  const parts = splitUrl(domain2 + path3);
+  const parts = splitUrl(domain2 + path4);
   if (!parts[0]) return false;
   const result = {
     type: "link",
@@ -37005,8 +37005,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info26) {
-  const tracker = state.createTracker(info26);
+function footnoteReference(node2, _, state, info19) {
+  const tracker = state.createTracker(info19);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37044,8 +37044,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info26) {
-    const tracker = state.createTracker(info26);
+  function footnoteDefinition(node2, _, state, info19) {
+    const tracker = state.createTracker(info19);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37109,8 +37109,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info26) {
-  const tracker = state.createTracker(info26);
+function handleDelete(node2, _, state, info19) {
+  const tracker = state.createTracker(info19);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37337,9 +37337,9 @@ function map(left, right) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info26) {
+function blockquote(node2, _, state, info19) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37374,11 +37374,11 @@ function listInScope(stack, list4, none) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info26) {
+function hardBreak(_, _1, state, info19) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info26.before) ? "" : " ";
+      return /[ \t]/.test(info19.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37430,7 +37430,7 @@ function checkFence(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info26) {
+function code(node2, _, state, info19) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37440,7 +37440,7 @@ function code(node2, _, state, info26) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37493,12 +37493,12 @@ function checkQuote(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info26) {
+function definition2(node2, _, state, info19) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37608,10 +37608,10 @@ function encodeInfo(outside, inside, marker) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info26) {
+function emphasis(node2, _, state, info19) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37622,7 +37622,7 @@ function emphasis(node2, _, state, info26) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info26.before.charCodeAt(info26.before.length - 1),
+    info19.before.charCodeAt(info19.before.length - 1),
     betweenHead,
     marker
   );
@@ -37630,7 +37630,7 @@ function emphasis(node2, _, state, info26) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info19.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37683,9 +37683,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info26) {
+function heading(node2, _, state, info19) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37735,12 +37735,12 @@ function htmlPeek() {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info26) {
+function image(node2, _, state, info19) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37792,11 +37792,11 @@ function imagePeek() {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info26) {
+function imageReference(node2, _, state, info19) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37877,10 +37877,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info26) {
+function link(node2, _, state, info19) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37957,11 +37957,11 @@ function linkPeek(node2, _, state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info26) {
+function linkReference(node2, _, state, info19) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38048,7 +38048,7 @@ function checkRule(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info26) {
+function list3(node2, parent, state, info19) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38080,7 +38080,7 @@ function list3(node2, parent, state, info26) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info26);
+  const value = state.containerFlow(node2, info19);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38099,7 +38099,7 @@ function checkListItemIndent(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info26) {
+function listItem(node2, parent, state, info19) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38109,7 +38109,7 @@ function listItem(node2, parent, state, info26) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38128,10 +38128,10 @@ function listItem(node2, parent, state, info26) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info26) {
+function paragraph(node2, _, state, info19) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info26);
+  const value = state.containerPhrasing(node2, info19);
   subexit();
   exit3();
   return value;
@@ -38166,12 +38166,12 @@ var phrasing = (
 );
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info26) {
+function root(node2, _, state, info19) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info26);
+  return container.call(state, node2, info19);
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38187,10 +38187,10 @@ function checkStrong(state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info26) {
+function strong(node2, _, state, info19) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38201,7 +38201,7 @@ function strong(node2, _, state, info26) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info26.before.charCodeAt(info26.before.length - 1),
+    info19.before.charCodeAt(info19.before.length - 1),
     betweenHead,
     marker
   );
@@ -38209,7 +38209,7 @@ function strong(node2, _, state, info26) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info26.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info19.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38226,8 +38226,8 @@ function strongPeek(_, _1, state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info26) {
-  return state.safe(node2.value, info26);
+function text3(node2, _, state, info19) {
+  return state.safe(node2.value, info19);
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38442,15 +38442,15 @@ function compilePattern(pattern) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info26) {
+function containerPhrasing(parent, state, info19) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info26.before;
+  let before = info19.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info26);
+  let tracker = state.createTracker(info19);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38464,7 +38464,7 @@ function containerPhrasing(parent, state, info26) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info26.after;
+      after = info19.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38472,7 +38472,7 @@ function containerPhrasing(parent, state, info26) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info26);
+      tracker = state.createTracker(info19);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38501,10 +38501,10 @@ function containerPhrasing(parent, state, info26) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info26) {
+function containerFlow(parent, state, info19) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38740,11 +38740,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info26) {
-  return containerPhrasing(parent, this, info26);
+function containerPhrasingBound(parent, info19) {
+  return containerPhrasing(parent, this, info19);
 }
-function containerFlowBound(parent, info26) {
-  return containerFlow(parent, this, info26);
+function containerFlowBound(parent, info19) {
+  return containerFlow(parent, this, info19);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38841,19 +38841,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info26) {
-    return serializeData(handleTableAsData(node2, state, info26), node2.align);
+  function handleTable(node2, _, state, info19) {
+    return serializeData(handleTableAsData(node2, state, info19), node2.align);
   }
-  function handleTableRow(node2, _, state, info26) {
-    const row = handleTableRowAsData(node2, state, info26);
+  function handleTableRow(node2, _, state, info19) {
+    const row = handleTableRowAsData(node2, state, info19);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info26) {
+  function handleTableCell(node2, _, state, info19) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info26,
+      ...info19,
       before: around,
       after: around
     });
@@ -38872,24 +38872,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info26) {
+  function handleTableAsData(node2, state, info19) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info26);
+      result[index2] = handleTableRowAsData(children[index2], state, info19);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info26) {
+  function handleTableRowAsData(node2, state, info19) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info26);
+      result[index2] = handleTableCell(children[index2], node2, state, info19);
     }
     subexit();
     return result;
@@ -38955,16 +38955,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info26) {
+function listItemWithTaskListItem(node2, parent, state, info19) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info26);
+  const tracker = state.createTracker(info19);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info26,
+    ...info19,
     ...tracker.current()
   });
   if (checkable) {
@@ -40514,6 +40514,37 @@ query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
 }
 `;
 
+// packages/issue-state/src/graphql/pr-queries.ts
+var CONVERT_PR_TO_DRAFT_MUTATION = `
+mutation ConvertPRToDraft($prId: ID!) {
+  convertPullRequestToDraft(input: { pullRequestId: $prId }) {
+    pullRequest {
+      id
+      isDraft
+    }
+  }
+}
+`;
+var MARK_PR_READY_MUTATION = `
+mutation MarkPRReady($prId: ID!) {
+  markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
+    pullRequest {
+      id
+      isDraft
+    }
+  }
+}
+`;
+var GET_PR_ID_QUERY = `
+query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      id
+    }
+  }
+}
+`;
+
 // packages/issue-state/src/graphql/project-queries.ts
 var GET_PROJECT_ITEM_QUERY = `
 query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
@@ -40591,6 +40622,19 @@ mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value
   }
 }
 `;
+var CLEAR_PROJECT_FIELD_MUTATION = `
+mutation ClearProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+  clearProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+`;
 var ADD_ISSUE_TO_PROJECT_MUTATION = `
 mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
   addProjectV2ItemById(input: {
@@ -40599,6 +40643,39 @@ mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
   }) {
     item {
       id
+    }
+  }
+}
+`;
+var DELETE_PROJECT_ITEM_MUTATION = `
+mutation DeleteProjectItem($projectId: ID!, $itemId: ID!) {
+  deleteProjectV2Item(input: {
+    projectId: $projectId
+    itemId: $itemId
+  }) {
+    deletedItemId
+  }
+}
+`;
+var GET_PROJECT_FIELDS_QUERY = `
+query GetProjectFields($owner: String!, $projectNumber: Int!) {
+  organization(login: $owner) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 30) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options { id name }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
     }
   }
 }
@@ -40628,6 +40705,93 @@ var GET_REPO_ID_QUERY = `
 query GetRepoId($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
     id
+  }
+}
+`;
+
+// packages/issue-state/src/graphql/discussion-queries.ts
+var GET_DISCUSSION_ID_QUERY = `
+query GetDiscussionId($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    discussion(number: $number) {
+      id
+    }
+  }
+}
+`;
+var ADD_DISCUSSION_COMMENT_MUTATION = `
+mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var ADD_DISCUSSION_REPLY_MUTATION = `
+mutation AddDiscussionReply($discussionId: ID!, $replyToId: ID!, $body: String!) {
+  addDiscussionComment(input: {
+    discussionId: $discussionId
+    replyToId: $replyToId
+    body: $body
+  }) {
+    comment {
+      id
+      body
+    }
+  }
+}
+`;
+var UPDATE_DISCUSSION_MUTATION = `
+mutation UpdateDiscussion($discussionId: ID!, $body: String!) {
+  updateDiscussion(input: {
+    discussionId: $discussionId
+    body: $body
+  }) {
+    discussion {
+      id
+      body
+    }
+  }
+}
+`;
+var ADD_REACTION_MUTATION = `
+mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
+  addReaction(input: {
+    subjectId: $subjectId
+    content: $content
+  }) {
+    reaction {
+      id
+      content
+    }
+  }
+}
+`;
+
+// packages/issue-state/src/graphql/label-queries.ts
+var GET_LABEL_IDS_QUERY = `
+query GetLabelIds($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    labels(first: 100) {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+}
+`;
+var ADD_LABELS_MUTATION = `
+mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
+  addLabelsToLabelable(input: { labelableId: $labelableId, labelIds: $labelIds }) {
+    labelable {
+      __typename
+    }
   }
 }
 `;
@@ -41167,7 +41331,7 @@ async function parseIssue(owner, repo, issueNumber, options) {
 }
 
 // packages/issue-state/src/create-issue.ts
-var GET_PROJECT_FIELDS_QUERY = `
+var GET_PROJECT_FIELDS_QUERY2 = `
 query GetProjectFields($org: String!, $projectNumber: Int!) {
   organization(login: $org) {
     projectV2(number: $projectNumber) {
@@ -41236,7 +41400,7 @@ async function addIssueToProject(octokit, projectId, issueId) {
 async function getProjectFieldInfo2(octokit, organization, projectNumber) {
   try {
     const response = await octokit.graphql(
-      GET_PROJECT_FIELDS_QUERY,
+      GET_PROJECT_FIELDS_QUERY2,
       {
         org: organization,
         projectNumber
@@ -41420,6 +41584,94 @@ async function createIssue(owner, repo, input, options) {
     subIssueNumbers
   };
 }
+async function addSubIssueToParent(owner, repo, parentIssueNumber2, input, options) {
+  const {
+    octokit,
+    projectNumber,
+    organization = owner,
+    projectStatus
+  } = options;
+  const repositoryId = await getRepoId(octokit, owner, repo);
+  const parentQuery = `
+    query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }
+  `;
+  const parentResult = await octokit.graphql(parentQuery, {
+    owner,
+    repo,
+    issueNumber: parentIssueNumber2
+  });
+  if (!parentResult.repository?.issue?.id) {
+    throw new Error(`Parent issue #${parentIssueNumber2} not found`);
+  }
+  const parentIssueId = parentResult.repository.issue.id;
+  let bodyString = "";
+  if (input.body) {
+    if (typeof input.body === "string") {
+      bodyString = input.body;
+    } else {
+      bodyString = serializeMarkdown(input.body);
+    }
+  }
+  const subIssue = await createIssueInRepo(
+    octokit,
+    repositoryId,
+    input.title,
+    bodyString
+  );
+  await linkSubIssue(octokit, parentIssueId, subIssue.id);
+  if (input.labels && input.labels.length > 0) {
+    await octokit.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      labels: input.labels
+    });
+  }
+  if (input.assignees && input.assignees.length > 0) {
+    await octokit.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      assignees: input.assignees
+    });
+  }
+  if (projectNumber) {
+    const fieldInfo = await getProjectFieldInfo2(
+      octokit,
+      organization,
+      projectNumber
+    );
+    if (fieldInfo) {
+      const projectItemId = await addIssueToProject(
+        octokit,
+        fieldInfo.projectId,
+        subIssue.id
+      );
+      if (projectStatus && fieldInfo.statusFieldId) {
+        const optionId = fieldInfo.statusOptions.get(projectStatus);
+        if (optionId) {
+          await updateProjectField2(
+            octokit,
+            fieldInfo.projectId,
+            projectItemId,
+            fieldInfo.statusFieldId,
+            { singleSelectOptionId: optionId }
+          );
+        }
+      }
+    }
+  }
+  return {
+    issueNumber: subIssue.number,
+    issueId: subIssue.id
+  };
+}
 
 // packages/issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
@@ -41446,6 +41698,53 @@ var AgentNotesEntrySchema = external_exports.object({
   timestamp: external_exports.string(),
   notes: external_exports.array(external_exports.string())
 });
+
+// packages/issue-state/src/sections/builders.ts
+function createText(value) {
+  return { type: "text", value };
+}
+function createHeading(depth, text5) {
+  return {
+    type: "heading",
+    depth,
+    children: [createText(text5)]
+  };
+}
+function createParagraph(text5) {
+  return {
+    type: "paragraph",
+    children: [createText(text5)]
+  };
+}
+function createListItem(text5, checked) {
+  return {
+    type: "listItem",
+    checked: checked ?? null,
+    children: [createParagraph(text5)]
+  };
+}
+function createTodoList(items) {
+  return {
+    type: "list",
+    ordered: false,
+    children: items.map(
+      (item) => createListItem(
+        item.manual ? `[Manual] ${item.text}` : item.text,
+        item.checked
+      )
+    )
+  };
+}
+function createBulletList(items) {
+  return {
+    type: "list",
+    ordered: false,
+    children: items.map((text5) => createListItem(text5))
+  };
+}
+function createSection(title, content3, depth = 2) {
+  return [createHeading(depth, title), ...content3];
+}
 
 // packages/issue-state/src/comment-ops.ts
 async function createComment(owner, repo, issueNumber, body, octokit) {
@@ -41716,7 +42015,9 @@ var MachineContextSchema = external_exports.object({
   botUsername: external_exports.string().default("nopo-bot")
 });
 
-// packages/statemachine/src/schemas/actions.ts
+// packages/statemachine/src/schemas/actions/_shared.ts
+var core = __toESM(require_core(), 1);
+var fs = __toESM(require("fs"), 1);
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
 var ArtifactSchema = external_exports.object({
   /** Unique name for the artifact (used for upload/download matching) */
@@ -41733,341 +42034,16 @@ var BaseActionSchema = external_exports.object({
   /** Artifact this action consumes (will be downloaded before execution) */
   consumesArtifact: ArtifactSchema.optional()
 });
-var UpdateProjectStatusActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateProjectStatus"),
-  issueNumber: external_exports.number().int().positive(),
-  status: ProjectStatusSchema.nullable()
-});
-var IncrementIterationActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("incrementIteration"),
-  issueNumber: external_exports.number().int().positive()
-});
-var RecordFailureActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("recordFailure"),
-  issueNumber: external_exports.number().int().positive(),
-  failureType: external_exports.enum(["ci", "workflow", "review"]).optional()
-});
-var ClearFailuresActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("clearFailures"),
-  issueNumber: external_exports.number().int().positive()
-});
-var RemoveFromProjectActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("removeFromProject"),
-  issueNumber: external_exports.number().int().positive()
-});
 var PhaseDefinitionSchema = external_exports.object({
   title: external_exports.string().min(1),
   body: external_exports.string()
 });
-var CreateSubIssuesActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createSubIssues"),
-  parentIssueNumber: external_exports.number().int().positive(),
-  phases: external_exports.array(PhaseDefinitionSchema).min(1)
-});
-var CloseIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("closeIssue"),
-  issueNumber: external_exports.number().int().positive(),
-  reason: external_exports.enum(["completed", "not_planned"]).default("completed")
-});
-var ReopenIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("reopenIssue"),
-  issueNumber: external_exports.number().int().positive()
-});
-var ResetIssueActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("resetIssue"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Sub-issue numbers to reset */
-  subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
-  botUsername: external_exports.string().min(1)
-});
-var AppendHistoryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("appendHistory"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Iteration number from project field */
-  iteration: external_exports.number().int().min(0).optional(),
-  phase: external_exports.string(),
-  message: external_exports.string(),
-  /** ISO 8601 timestamp of when the workflow started */
-  timestamp: external_exports.string().optional(),
-  commitSha: external_exports.string().optional(),
-  /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().nullable().optional(),
-  runLink: external_exports.string().optional()
-});
-var UpdateHistoryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateHistory"),
-  issueNumber: external_exports.number().int().positive(),
-  matchIteration: external_exports.number().int().min(0),
-  matchPhase: external_exports.string(),
-  matchPattern: external_exports.string(),
-  newMessage: external_exports.string(),
-  /** ISO 8601 timestamp (optional - preserves existing if not provided) */
-  timestamp: external_exports.string().optional(),
-  commitSha: external_exports.string().optional(),
-  /** PR number to link in the SHA column (alternative to commitSha) */
-  prNumber: external_exports.number().int().positive().nullable().optional(),
-  runLink: external_exports.string().optional()
-});
-var UpdateIssueBodyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateIssueBody"),
-  issueNumber: external_exports.number().int().positive(),
-  body: external_exports.string()
-});
-var AddCommentActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addComment"),
-  issueNumber: external_exports.number().int().positive(),
-  body: external_exports.string()
-});
-var UnassignUserActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("unassignUser"),
-  issueNumber: external_exports.number().int().positive(),
-  username: external_exports.string().min(1)
-});
-var AssignUserActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("assignUser"),
-  issueNumber: external_exports.number().int().positive(),
-  username: external_exports.string().min(1)
-});
-var CreateBranchActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createBranch"),
-  branchName: external_exports.string().min(1),
-  baseBranch: external_exports.string().default("main"),
-  /** Git worktree to run the command in */
-  worktree: external_exports.string().optional()
-});
-var GitPushActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("gitPush"),
-  branchName: external_exports.string().min(1),
-  force: external_exports.boolean().default(false)
-});
-var CreatePRActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createPR"),
-  title: external_exports.string().min(1),
-  body: external_exports.string(),
-  branchName: external_exports.string().min(1),
-  baseBranch: external_exports.string().default("main"),
-  draft: external_exports.boolean().default(true),
-  issueNumber: external_exports.number().int().positive()
-});
-var ConvertPRToDraftActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("convertPRToDraft"),
-  prNumber: external_exports.number().int().positive()
-});
-var MarkPRReadyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("markPRReady"),
-  prNumber: external_exports.number().int().positive()
-});
-var RequestReviewActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("requestReview"),
-  prNumber: external_exports.number().int().positive(),
-  reviewer: external_exports.string().min(1)
-});
-var MergePRActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("mergePR"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive(),
-  mergeMethod: external_exports.enum(["merge", "squash", "rebase"]).default("squash")
-});
-var SubmitReviewActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("submitReview"),
-  prNumber: external_exports.number().int().positive(),
-  decision: external_exports.enum(["approve", "request_changes", "comment"]),
-  body: external_exports.string()
-});
-var RemoveReviewerActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("removeReviewer"),
-  prNumber: external_exports.number().int().positive(),
-  reviewer: external_exports.string().min(1)
-});
-var RunClaudeActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("runClaude"),
-  /** Direct prompt string */
-  prompt: external_exports.string().min(1).optional(),
-  /** Path to prompt file (relative to repo root) - will be read and substituted */
-  promptFile: external_exports.string().min(1).optional(),
-  /** Prompt directory name (resolved to {promptsDir}/{name}/) - contains prompt.txt and optional outputs.json */
-  promptDir: external_exports.string().min(1).optional(),
-  /** Base directory for prompts (defaults to .github/prompts/) */
-  promptsDir: external_exports.string().min(1).optional(),
-  /** Template variables for prompt substitution */
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  issueNumber: external_exports.number().int().positive(),
-  allowedTools: external_exports.array(external_exports.string()).optional(),
-  worktree: external_exports.string().optional()
-});
-var AddDiscussionCommentActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addDiscussionComment"),
-  discussionNodeId: external_exports.string().min(1),
-  body: external_exports.string().min(1),
-  /** If provided, this comment is a reply to another comment */
-  replyToNodeId: external_exports.string().optional()
-});
-var UpdateDiscussionBodyActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateDiscussionBody"),
-  discussionNodeId: external_exports.string().min(1),
-  newBody: external_exports.string().min(1)
-});
-var AddDiscussionReactionActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addDiscussionReaction"),
-  /** Node ID of the discussion or comment */
-  subjectId: external_exports.string().min(1),
-  content: external_exports.enum([
-    "THUMBS_UP",
-    "THUMBS_DOWN",
-    "LAUGH",
-    "HOORAY",
-    "CONFUSED",
-    "HEART",
-    "ROCKET",
-    "EYES"
-  ])
-});
-var CreateIssuesFromDiscussionActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("createIssuesFromDiscussion"),
-  discussionNumber: external_exports.number().int().positive(),
-  issues: external_exports.array(
-    external_exports.object({
-      title: external_exports.string().min(1),
-      body: external_exports.string(),
-      labels: external_exports.array(external_exports.string()).default([])
-    })
-  )
-});
-var StopActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("stop"),
-  reason: external_exports.string().min(1)
-});
-var BlockActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("block"),
-  issueNumber: external_exports.number().int().positive(),
-  reason: external_exports.string().min(1)
-});
-var LogActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("log"),
-  level: external_exports.enum(["debug", "info", "warning", "error"]).default("info"),
-  message: external_exports.string(),
-  /** Git worktree context (informational) */
-  worktree: external_exports.string().optional()
-});
-var NoOpActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("noop"),
-  reason: external_exports.string().optional()
-});
-var ApplyTriageOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyTriageOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("triage-output.json")
-});
-var ApplyIterateOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyIterateOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json"),
-  /** PR number for review transition when all_done */
-  prNumber: external_exports.number().int().positive().optional(),
-  /** Reviewer username to request review from */
-  reviewer: external_exports.string().optional()
-});
-var AppendAgentNotesActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("appendAgentNotes"),
-  issueNumber: external_exports.number().int().positive(),
-  notes: external_exports.array(external_exports.string()),
-  runId: external_exports.string(),
-  runLink: external_exports.string(),
-  timestamp: external_exports.string().optional()
-});
-var ApplyReviewOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyReviewOutput"),
-  prNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json"),
-  /** Git worktree to read the output file from */
-  worktree: external_exports.string().optional()
-});
-var ApplyPRResponseOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyPRResponseOutput"),
-  prNumber: external_exports.number().int().positive(),
-  issueNumber: external_exports.number().int().positive(),
-  filePath: external_exports.string().default("claude-structured-output.json"),
-  reviewer: external_exports.string().default("nopo-reviewer"),
-  /** Git worktree to read the output file from */
-  worktree: external_exports.string().optional()
-});
-var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionResearchOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Prompt variables to pass to investigation agents */
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionRespondOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** If provided, post as a reply to this comment */
-  replyToNodeId: external_exports.string().optional(),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionSummarizeOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
-var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyDiscussionPlanOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Path to the structured output file (for artifact-based execution) */
-  filePath: external_exports.string().optional(),
-  /** Artifact to download before execution */
-  consumesArtifact: ArtifactSchema.optional()
-});
 var ResearchThreadSchema = external_exports.object({
-  /** The comment node ID for posting replies */
   commentNodeId: external_exports.string().min(1),
-  /** Thread title */
   title: external_exports.string().min(1),
-  /** The main question to investigate */
   question: external_exports.string().min(1),
-  /** Areas to investigate */
   investigationAreas: external_exports.array(external_exports.string()),
-  /** Expected deliverables */
   expectedDeliverables: external_exports.array(external_exports.string())
-});
-var InvestigateResearchThreadsActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("investigateResearchThreads"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Research threads to investigate */
-  threads: external_exports.array(ResearchThreadSchema),
-  /** Template variables for investigation prompts */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var UpdateDiscussionSummaryActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("updateDiscussionSummary"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string().min(1),
-  /** Template variables for summary prompt */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var AddLabelActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("addLabel"),
-  issueNumber: external_exports.number().int().positive(),
-  label: external_exports.string().min(1)
-});
-var RemoveLabelActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("removeLabel"),
-  issueNumber: external_exports.number().int().positive(),
-  label: external_exports.string().min(1)
 });
 var GroomingAgentTypeSchema = external_exports.enum([
   "pm",
@@ -42075,6780 +42051,84 @@ var GroomingAgentTypeSchema = external_exports.enum([
   "qa",
   "research"
 ]);
-var RunClaudeGroomingActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("runClaudeGrooming"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Template variables for grooming prompts */
-  promptVars: external_exports.record(external_exports.string()).optional()
-});
-var ApplyGroomingOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyGroomingOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Path to the combined grooming output file */
-  filePath: external_exports.string().default("grooming-output.json")
-});
-var ReconcileSubIssuesActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("reconcileSubIssues"),
-  issueNumber: external_exports.number().int().positive()
-});
-var ApplyPivotOutputActionSchema = BaseActionSchema.extend({
-  type: external_exports.literal("applyPivotOutput"),
-  issueNumber: external_exports.number().int().positive(),
-  /** Path to the pivot output file */
-  filePath: external_exports.string().default("claude-structured-output.json")
-});
-var ActionSchema = external_exports.discriminatedUnion("type", [
-  // Project field actions
-  UpdateProjectStatusActionSchema,
-  IncrementIterationActionSchema,
-  RecordFailureActionSchema,
-  ClearFailuresActionSchema,
-  RemoveFromProjectActionSchema,
-  // Issue actions
-  CreateSubIssuesActionSchema,
-  CloseIssueActionSchema,
-  ReopenIssueActionSchema,
-  ResetIssueActionSchema,
-  AppendHistoryActionSchema,
-  UpdateHistoryActionSchema,
-  UpdateIssueBodyActionSchema,
-  AddCommentActionSchema,
-  UnassignUserActionSchema,
-  AssignUserActionSchema,
-  // Label actions
-  AddLabelActionSchema,
-  RemoveLabelActionSchema,
-  // Git actions
-  CreateBranchActionSchema,
-  GitPushActionSchema,
-  // PR actions
-  CreatePRActionSchema,
-  ConvertPRToDraftActionSchema,
-  MarkPRReadyActionSchema,
-  RequestReviewActionSchema,
-  MergePRActionSchema,
-  SubmitReviewActionSchema,
-  RemoveReviewerActionSchema,
-  // Claude actions
-  RunClaudeActionSchema,
-  // Grooming actions
-  RunClaudeGroomingActionSchema,
-  ApplyGroomingOutputActionSchema,
-  ReconcileSubIssuesActionSchema,
-  // Pivot actions
-  ApplyPivotOutputActionSchema,
-  // Discussion actions
-  AddDiscussionCommentActionSchema,
-  UpdateDiscussionBodyActionSchema,
-  AddDiscussionReactionActionSchema,
-  CreateIssuesFromDiscussionActionSchema,
-  // Control flow actions
-  StopActionSchema,
-  BlockActionSchema,
-  LogActionSchema,
-  NoOpActionSchema,
-  // Triage actions
-  ApplyTriageOutputActionSchema,
-  // Iterate actions
-  ApplyIterateOutputActionSchema,
-  // Agent notes actions
-  AppendAgentNotesActionSchema,
-  // Review actions
-  ApplyReviewOutputActionSchema,
-  // PR response actions
-  ApplyPRResponseOutputActionSchema,
-  // Discussion apply actions
-  ApplyDiscussionResearchOutputActionSchema,
-  ApplyDiscussionRespondOutputActionSchema,
-  ApplyDiscussionSummarizeOutputActionSchema,
-  ApplyDiscussionPlanOutputActionSchema,
-  // Discussion parallel investigation actions
-  InvestigateResearchThreadsActionSchema,
-  UpdateDiscussionSummaryActionSchema
-]);
-var ISSUE_ACTION_TYPES = [
-  // Project field actions
-  "updateProjectStatus",
-  "incrementIteration",
-  "recordFailure",
-  "clearFailures",
-  "removeFromProject",
-  // Issue actions
-  "createSubIssues",
-  "closeIssue",
-  "reopenIssue",
-  "resetIssue",
-  "appendHistory",
-  "updateHistory",
-  "updateIssueBody",
-  "addComment",
-  "unassignUser",
-  "assignUser",
-  // Label actions
-  "addLabel",
-  "removeLabel",
-  // Git actions
-  "createBranch",
-  "gitPush",
-  // PR actions
-  "createPR",
-  "convertPRToDraft",
-  "markPRReady",
-  "requestReview",
-  "mergePR",
-  "submitReview",
-  "removeReviewer",
-  // Claude actions (shared but primarily issue-focused)
-  "runClaude",
-  // Grooming actions
-  "runClaudeGrooming",
-  "applyGroomingOutput",
-  "reconcileSubIssues",
-  // Pivot actions
-  "applyPivotOutput",
-  // Triage/iterate/review actions
-  "applyTriageOutput",
-  "applyIterateOutput",
-  "appendAgentNotes",
-  "applyReviewOutput",
-  "applyPRResponseOutput",
-  // Block action
-  "block"
-];
-var DISCUSSION_ACTION_TYPES = [
-  "addDiscussionComment",
-  "updateDiscussionBody",
-  "addDiscussionReaction",
-  "createIssuesFromDiscussion",
-  "applyDiscussionResearchOutput",
-  "applyDiscussionRespondOutput",
-  "applyDiscussionSummarizeOutput",
-  "applyDiscussionPlanOutput"
-];
-var SHARED_ACTION_TYPES = [
-  "stop",
-  "log",
-  "noop",
-  "runClaude"
-];
-var ISSUE_ACTION_SET = new Set(ISSUE_ACTION_TYPES);
-var DISCUSSION_ACTION_SET = new Set(DISCUSSION_ACTION_TYPES);
-var SHARED_ACTION_SET = new Set(SHARED_ACTION_TYPES);
-
-// packages/statemachine/src/schemas/issue-triggers.ts
-var IssueTriggerTypeSchema = external_exports.enum([
-  // Issue triggers
-  "issue-assigned",
-  "issue-edited",
-  "issue-closed",
-  "issue-triage",
-  "issue-groom",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-pivot",
-  "issue-reset",
-  "issue-retry",
-  // PR triggers
-  "pr-review-requested",
-  "pr-review-submitted",
-  "pr-review",
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  "pr-push",
-  // Workflow triggers
-  "workflow-run-completed",
-  // Merge queue logging triggers
-  "merge-queue-entered",
-  "merge-queue-failed",
-  "pr-merged",
-  "deployed-stage",
-  "deployed-prod",
-  "deployed-stage-failed",
-  "deployed-prod-failed"
-]);
-var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
-
-// packages/statemachine/src/schemas/discussion-triggers.ts
-var DiscussionTriggerTypeSchema = external_exports.enum([
-  "discussion-created",
-  "discussion-comment",
-  "discussion-command"
-]);
-var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
-
-// packages/statemachine/src/schemas/discussion-context.ts
-var DiscussionCommandSchema = external_exports.enum([
-  "summarize",
-  "plan",
-  "complete"
-]);
-var ResearchThreadSchema2 = external_exports.object({
-  nodeId: external_exports.string(),
-  topic: external_exports.string(),
-  replyCount: external_exports.number().int().min(0)
-});
-var DiscussionSchema = external_exports.object({
-  number: external_exports.number().int().positive(),
-  nodeId: external_exports.string(),
-  title: external_exports.string(),
-  body: external_exports.string(),
-  commentCount: external_exports.number().int().min(0).default(0),
-  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
-  command: DiscussionCommandSchema.optional(),
-  commentId: external_exports.string().optional(),
-  commentBody: external_exports.string().optional(),
-  commentAuthor: external_exports.string().optional()
-});
-var DiscussionContextSchema = external_exports.object({
-  // Trigger info
-  trigger: DiscussionTriggerTypeSchema,
-  // Repository info
-  owner: external_exports.string().min(1),
-  repo: external_exports.string().min(1),
-  // Discussion being worked on
-  discussion: DiscussionSchema,
-  // Config
-  maxRetries: external_exports.number().int().positive().default(5),
-  botUsername: external_exports.string().default("nopo-bot")
-});
-
-// packages/statemachine/src/schemas/runner-context.ts
-var TriggerTypeSchema2 = external_exports.union([
-  IssueTriggerTypeSchema,
-  DiscussionTriggerTypeSchema
-]);
-var JobTypeSchema = external_exports.enum([
-  // Issue jobs
-  "issue-triage",
-  "issue-groom",
-  "issue-iterate",
-  "issue-orchestrate",
-  "issue-comment",
-  "issue-reset",
-  "issue-pivot",
-  // PR jobs
-  "pr-push",
-  "pr-review-requested",
-  // When someone requests a review from the bot
-  "pr-review",
-  // Legacy: when bot should review (has review decision)
-  "pr-review-approved",
-  "pr-response",
-  "pr-human-response",
-  // Merge queue and deployment logging
-  "merge-queue-logging",
-  "merge-queue-failure-logging",
-  "merged-logging",
-  "deployed-stage-logging",
-  "deployed-prod-logging",
-  "deployed-stage-failure-logging",
-  "deployed-prod-failure-logging",
-  // Discussion jobs
-  "discussion-research",
-  "discussion-respond",
-  "discussion-summarize",
-  "discussion-plan",
-  "discussion-complete",
-  // Empty (skip)
-  ""
-]);
-var ResourceTypeSchema = external_exports.enum(["issue", "pr", "discussion", ""]);
-var ContextTypeSchema = external_exports.enum(["issue", "pr"]);
-var WorkflowContextSchema = external_exports.object({
-  // ========================================
-  // Routing & Control (previously separate outputs)
-  // ========================================
-  /** Job type to run (e.g., "issue-iterate", "pr-review", "discussion-research") */
-  job: JobTypeSchema,
-  /** Trigger type for the state machine */
-  trigger: TriggerTypeSchema2,
-  /** Type of resource being processed */
-  resource_type: ResourceTypeSchema,
-  /** Resource number (issue, PR, or discussion number) */
-  resource_number: external_exports.string(),
-  /** Parent issue number for sub-issues (or "0" if not a sub-issue) */
-  parent_issue: external_exports.string().default("0"),
-  /** Comment ID that triggered this run (for reactions) */
-  comment_id: external_exports.string().default(""),
-  /** Concurrency group name */
-  concurrency_group: external_exports.string(),
-  /** Whether to cancel in-progress runs in the same group */
-  cancel_in_progress: external_exports.boolean().default(false),
-  /** Whether to skip processing */
-  skip: external_exports.boolean().default(false),
-  /** Reason for skipping (if skip is true) */
-  skip_reason: external_exports.string().default(""),
-  // ========================================
-  // Issue-specific fields
-  // ========================================
-  /** Issue number */
-  issue_number: external_exports.string().optional(),
-  /** Issue title */
-  issue_title: external_exports.string().optional(),
-  /** Issue body */
-  issue_body: external_exports.string().optional(),
-  /** Branch name for the work */
-  branch_name: external_exports.string().optional(),
-  /** Whether the branch already exists */
-  existing_branch: external_exports.string().optional(),
-  /** Phase number for sub-issues */
-  phase_number: external_exports.string().optional(),
-  /** Comma-separated list of sub-issue numbers */
-  sub_issues: external_exports.string().optional(),
-  /** Project status from GitHub Project field */
-  project_status: external_exports.string().optional(),
-  /** Project iteration from GitHub Project field */
-  project_iteration: external_exports.string().optional(),
-  /** Project failures from GitHub Project field */
-  project_failures: external_exports.string().optional(),
-  /** Closed sub-issue number (for sub_issue_closed trigger) */
-  closed_sub_issue: external_exports.string().optional(),
-  // ========================================
-  // CI-specific fields (workflow_run_completed)
-  // ========================================
-  /** CI result (success, failure, cancelled, skipped) */
-  ci_result: CIResultSchema.optional(),
-  /** CI run URL */
-  ci_run_url: external_exports.string().optional(),
-  /** CI commit SHA */
-  ci_commit_sha: external_exports.string().optional(),
-  // ========================================
-  // Review-specific fields (pr_review_submitted)
-  // ========================================
-  /** Review decision */
-  review_decision: ReviewDecisionSchema2.optional(),
-  /** Review state (lowercase version: approved, changes_requested, commented) */
-  review_state: external_exports.string().optional(),
-  /** Review body */
-  review_body: external_exports.string().optional(),
-  /** Review ID */
-  review_id: external_exports.string().optional(),
-  /** Reviewer username */
-  reviewer: external_exports.string().optional(),
-  /** Reviewer login (alias for reviewer) */
-  reviewer_login: external_exports.string().optional(),
-  // ========================================
-  // PR-specific fields
-  // ========================================
-  /** PR number */
-  pr_number: external_exports.string().optional(),
-  /** Whether PR is a draft */
-  is_draft: external_exports.boolean().optional(),
-  /** Issue section content (for pr-review job) */
-  issue_section: external_exports.string().optional(),
-  /** Merge queue head ref */
-  head_ref: external_exports.string().optional(),
-  /** Merge queue head SHA */
-  head_sha: external_exports.string().optional(),
-  // ========================================
-  // Comment-specific fields (issue_comment)
-  // ========================================
-  /** Context type for comment (Issue or PR) */
-  context_type: ContextTypeSchema.optional(),
-  /** Context description for comment */
-  context_description: external_exports.string().optional(),
-  // ========================================
-  // Discussion-specific fields
-  // ========================================
-  /** Discussion number */
-  discussion_number: external_exports.string().optional(),
-  /** Discussion title */
-  discussion_title: external_exports.string().optional(),
-  /** Discussion body */
-  discussion_body: external_exports.string().optional(),
-  /** Comment body (for discussion comments) */
-  comment_body: external_exports.string().optional(),
-  /** Comment author username */
-  comment_author: external_exports.string().optional(),
-  /** Discussion command (/summarize, /plan, /complete) */
-  command: DiscussionCommandSchema.optional(),
-  /** Whether this is a test automation run */
-  is_test_automation: external_exports.boolean().optional(),
-  // ========================================
-  // Internal trigger type tracking
-  // ========================================
-  /**
-   * Internal trigger type (may differ from the job name)
-   * Used when the state machine needs a different trigger than the job implies
-   */
-  trigger_type: external_exports.string().optional()
-});
-var MinimalTriggerContextSchema = external_exports.object({
-  // ========================================
-  // Routing & Control (required)
-  // ========================================
-  /** Job type to run */
-  job: JobTypeSchema,
-  /** Trigger type for the state machine */
-  trigger: TriggerTypeSchema2,
-  /** Type of resource being processed */
-  resource_type: ResourceTypeSchema,
-  /** Resource number (issue, PR, or discussion number) */
-  resource_number: external_exports.string(),
-  /** Concurrency group name */
-  concurrency_group: external_exports.string(),
-  /** Whether to cancel in-progress runs in the same group */
-  cancel_in_progress: external_exports.boolean().default(false),
-  /** Whether to skip processing */
-  skip: external_exports.boolean().default(false),
-  /** Reason for skipping (if skip is true) */
-  skip_reason: external_exports.string().default(""),
-  /** Comment ID that triggered this run (for reactions) */
-  comment_id: external_exports.string().default(""),
-  // ========================================
-  // CI Event Data (workflow_run_completed only)
-  // ========================================
-  /** CI result (point-in-time from workflow_run event) */
-  ci_result: CIResultSchema.optional(),
-  /** CI run URL (point-in-time from workflow_run event) */
-  ci_run_url: external_exports.string().optional(),
-  /** CI commit SHA (point-in-time from workflow_run event) */
-  ci_commit_sha: external_exports.string().optional(),
-  // ========================================
-  // Review Event Data (pr_review_submitted only)
-  // ========================================
-  /** Review decision (point-in-time from review event) */
-  review_decision: ReviewDecisionSchema2.optional(),
-  /** Review state (lowercase: approved, changes_requested, commented) */
-  review_state: external_exports.string().optional(),
-  /** Review body (point-in-time from review event) */
-  review_body: external_exports.string().optional(),
-  /** Review ID (point-in-time from review event) */
-  review_id: external_exports.string().optional(),
-  /** Reviewer username (point-in-time from review event) */
-  reviewer: external_exports.string().optional(),
-  // ========================================
-  // Comment Event Data (issue_comment only)
-  // ========================================
-  /** Context type for @claude mentions (issue or pr) */
-  context_type: ContextTypeSchema.optional(),
-  /** Context description for @claude mentions */
-  context_description: external_exports.string().optional(),
-  /** Pivot description (for /pivot command) */
-  pivot_description: external_exports.string().optional(),
-  // ========================================
-  // Discussion Event Data
-  // ========================================
-  /** Discussion number (for discussion triggers) */
-  discussion_number: external_exports.string().optional(),
-  /** Discussion command (/summarize, /plan, /complete) */
-  command: DiscussionCommandSchema.optional(),
-  /** Comment body (for discussion comments) */
-  comment_body: external_exports.string().optional(),
-  /** Comment author username */
-  comment_author: external_exports.string().optional(),
-  /** Whether this is a test automation run */
-  is_test_automation: external_exports.boolean().optional(),
-  // ========================================
-  // Merge Queue Event Data
-  // ========================================
-  /** Merge queue head ref */
-  head_ref: external_exports.string().optional(),
-  /** Merge queue head SHA */
-  head_sha: external_exports.string().optional()
-});
-
-// packages/statemachine/src/parser/issue-adapter.ts
-function deriveBranchName2(parentIssueNumber2, phaseNumber) {
-  if (phaseNumber !== void 0 && phaseNumber > 0) {
-    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
-  }
-  return `claude/issue/${parentIssueNumber2}`;
+function mkSchema(type, fields) {
+  return BaseActionSchema.extend({ type: external_exports.literal(type) }).extend(fields);
 }
-
-// packages/statemachine/src/parser/type-guards.ts
-function isList(node2) {
-  return node2.type === "list";
-}
-function isHeading(node2) {
-  return node2.type === "heading";
-}
-function childrenAsRootContent(node2) {
-  return node2.children ?? [];
-}
-
-// packages/statemachine/src/parser/extractors.ts
-function findHeadingIndex(ast, text5) {
-  return ast.children.findIndex((node2) => {
-    if (node2.type !== "heading") return false;
-    const firstChild = node2.children[0];
-    return firstChild?.type === "text" && firstChild.value === text5;
-  });
-}
-function findHeadingIndexAny(ast, texts) {
-  return ast.children.findIndex((node2) => {
-    if (node2.type !== "heading") return false;
-    const firstChild = node2.children[0];
-    return firstChild?.type === "text" && texts.includes(firstChild.value);
-  });
-}
-function getNodeText(node2) {
-  if (!node2) return "";
-  if (node2.type === "text") return node2.value;
-  if (node2.type === "inlineCode") return node2.value;
-  if ("children" in node2 && Array.isArray(node2.children)) {
-    return childrenAsRootContent(node2).map(getNodeText).join("");
-  }
-  return "";
-}
-function getLinkUrl(node2) {
-  if (!node2) return null;
-  if (node2.type === "link") return node2.url;
-  if ("children" in node2 && Array.isArray(node2.children)) {
-    for (const child of childrenAsRootContent(node2)) {
-      const url = getLinkUrl(child);
-      if (url) return url;
-    }
-  }
-  return null;
-}
-var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
-  const ast = data.issue.bodyAst;
-  const todosIdx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
-  if (todosIdx === -1) {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  const listNode = ast.children[todosIdx + 1];
-  if (!listNode || !isList(listNode)) {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const item of listNode.children) {
-    if (item.type === "listItem" && item.checked !== void 0) {
-      total++;
-      if (item.checked) {
-        completed++;
-      } else {
-        const text5 = getNodeText(item);
-        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
-        if (!isManual) {
-          uncheckedNonManual++;
-        }
-      }
-    }
-  }
-  return { total, completed, uncheckedNonManual };
-});
-function extractTodosFromAst(bodyAst) {
-  const todosIdx = findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES);
-  if (todosIdx === -1) {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  const listNode = bodyAst.children[todosIdx + 1];
-  if (!listNode || !isList(listNode)) {
-    return { total: 0, completed: 0, uncheckedNonManual: 0 };
-  }
-  let total = 0;
-  let completed = 0;
-  let uncheckedNonManual = 0;
-  for (const item of listNode.children) {
-    if (item.type === "listItem" && item.checked !== void 0) {
-      total++;
-      if (item.checked) {
-        completed++;
-      } else {
-        const text5 = getNodeText(item);
-        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
-        if (!isManual) {
-          uncheckedNonManual++;
-        }
-      }
-    }
-  }
-  return { total, completed, uncheckedNonManual };
-}
-function getCellText(row, index2) {
-  const cell = row.children[index2];
-  if (!cell) return "";
-  return childrenAsRootContent(cell).map(getNodeText).join("");
-}
-function getCellLinkUrl(row, index2) {
-  const cell = row.children[index2];
-  if (!cell) return null;
-  for (const child of childrenAsRootContent(cell)) {
-    const url = getLinkUrl(child);
-    if (url) return url;
-  }
-  return null;
-}
-var historyExtractor = createExtractor(
-  external_exports.array(HistoryEntrySchema),
-  (data) => {
-    const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex(ast, SECTION_NAMES.ITERATION_HISTORY);
-    if (historyIdx === -1) return [];
-    const tableNode = ast.children.slice(historyIdx + 1).find((n) => n.type === "table");
-    if (!tableNode) return [];
-    return tableNode.children.slice(1).map((row) => {
-      const timestamp = getCellText(row, 0) || null;
-      const iterationStr = getCellText(row, 1) || "0";
-      const phase = getCellText(row, 2) || "";
-      const action = getCellText(row, 3) || "";
-      const sha = getCellText(row, 4) || null;
-      const runLink = getCellLinkUrl(row, 5);
-      return {
-        timestamp: timestamp === "-" ? null : timestamp,
-        iteration: parseInt(iterationStr, 10) || 0,
-        phase,
-        action,
-        sha: sha === "-" ? null : sha,
-        runLink
-      };
+function defAction(schema, config2) {
+  const type = schema.shape.type._def.value;
+  function create(params) {
+    const action = { token: "code", ...params, type };
+    Object.defineProperty(action, "execute", {
+      value: (ctx, chainCtx) => config2.execute(action, ctx, chainCtx),
+      enumerable: false
     });
+    return action;
   }
-);
-var QuestionStatsSchema = external_exports.object({
-  total: external_exports.number(),
-  answered: external_exports.number(),
-  unanswered: external_exports.number()
-});
-var questionsExtractor = createExtractor(
-  QuestionStatsSchema,
-  (data) => {
-    return extractQuestionsFromAst(data.issue.bodyAst);
+  return { schema, predict: config2.predict, execute: config2.execute, create };
+}
+function asOctokitLike(ctx) {
+  return ctx.octokit;
+}
+function getStructuredOutput(action, chainCtx) {
+  if (chainCtx?.lastClaudeStructuredOutput) {
+    core.info("Using structured output from chain context");
+    return chainCtx.lastClaudeStructuredOutput;
   }
-);
-function extractQuestionsFromAst(bodyAst) {
-  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
-  if (questionsIdx === -1) {
-    return { total: 0, answered: 0, unanswered: 0 };
-  }
-  const listNode = bodyAst.children[questionsIdx + 1];
-  if (!listNode || !isList(listNode)) {
-    return { total: 0, answered: 0, unanswered: 0 };
-  }
-  let total = 0;
-  let answered = 0;
-  for (const item of listNode.children) {
-    if (item.type === "listItem" && item.checked !== void 0) {
-      total++;
-      if (item.checked) {
-        answered++;
+  if (action.filePath) {
+    core.info(`Checking for structured output file: ${action.filePath}`);
+    core.info(`Current working directory: ${process.cwd()}`);
+    try {
+      const files = fs.readdirSync(".");
+      core.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
+    } catch (e2) {
+      core.warning(`Failed to list files: ${e2}`);
+    }
+    if (fs.existsSync(action.filePath)) {
+      try {
+        const content3 = fs.readFileSync(action.filePath, "utf-8");
+        const parsed = JSON.parse(content3);
+        core.info(`Loaded structured output from file: ${action.filePath}`);
+        return parsed;
+      } catch (e2) {
+        core.warning(
+          `Failed to read structured output from ${action.filePath}: ${e2}`
+        );
       }
-    }
-  }
-  return { total, answered, unanswered: total - answered };
-}
-var agentNotesExtractor = createExtractor(
-  external_exports.array(AgentNotesEntrySchema),
-  (data) => {
-    const ast = data.issue.bodyAst;
-    const notesIdx = findHeadingIndex(ast, SECTION_NAMES.AGENT_NOTES);
-    if (notesIdx === -1) return [];
-    const entries = [];
-    for (let i = notesIdx + 1; i < ast.children.length; i++) {
-      const node2 = ast.children[i];
-      if (!node2) continue;
-      if (node2.type === "heading" && node2.depth === 2) break;
-      if (node2.type === "heading" && node2.depth === 3) {
-        const linkNode = node2.children[0];
-        if (!linkNode || linkNode.type !== "link") continue;
-        const linkText = getNodeText(linkNode);
-        const runMatch = linkText.match(/Run\s+(\d+)/);
-        if (!runMatch || !runMatch[1]) continue;
-        const runId = runMatch[1];
-        const runLink = linkNode.url;
-        const headingText = getNodeText(node2);
-        const timestampMatch = headingText.match(/-\s*(.+)$/);
-        const timestamp = timestampMatch?.[1]?.trim() || "";
-        const listNode = ast.children[i + 1];
-        const notes = listNode && isList(listNode) ? listNode.children.map((item) => getNodeText(item)) : [];
-        entries.push({
-          runId,
-          runLink,
-          timestamp,
-          notes
-        });
-      }
-    }
-    return entries;
-  }
-);
-function extractHistoryFromAst(bodyAst) {
-  const historyIdx = findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY);
-  if (historyIdx === -1) return [];
-  const tableNode = bodyAst.children.slice(historyIdx + 1).find((n) => n.type === "table");
-  if (!tableNode) return [];
-  return tableNode.children.slice(1).map((row) => {
-    const timestamp = getCellText(row, 0) || null;
-    const iterationStr = getCellText(row, 1) || "0";
-    const phase = getCellText(row, 2) || "";
-    const action = getCellText(row, 3) || "";
-    const sha = getCellText(row, 4) || null;
-    const runLink = getCellLinkUrl(row, 5);
-    return {
-      timestamp: timestamp === "-" ? null : timestamp,
-      iteration: parseInt(iterationStr, 10) || 0,
-      phase,
-      action,
-      sha: sha === "-" ? null : sha,
-      runLink
-    };
-  });
-}
-function extractAgentNotesFromAst(bodyAst) {
-  const notesIdx = findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES);
-  if (notesIdx === -1) return [];
-  const entries = [];
-  for (let i = notesIdx + 1; i < bodyAst.children.length; i++) {
-    const node2 = bodyAst.children[i];
-    if (!node2) continue;
-    if (node2.type === "heading" && node2.depth === 2) break;
-    if (node2.type === "heading" && node2.depth === 3) {
-      const linkNode = node2.children[0];
-      if (!linkNode || linkNode.type !== "link") continue;
-      const linkText = getNodeText(linkNode);
-      const runMatch = linkText.match(/Run\s+(\d+)/);
-      if (!runMatch || !runMatch[1]) continue;
-      const runId = runMatch[1];
-      const runLink = linkNode.url;
-      const headingText = getNodeText(node2);
-      const timestampMatch = headingText.match(/-\s*(.+)$/);
-      const timestamp = timestampMatch?.[1]?.trim() || "";
-      const listNode = bodyAst.children[i + 1];
-      const notes = listNode && isList(listNode) ? listNode.children.map((item) => getNodeText(item)) : [];
-      entries.push({ runId, runLink, timestamp, notes });
-    }
-  }
-  return entries;
-}
-function extractSubIssueBodyStructure(bodyAst) {
-  const todoStats = extractTodosFromAst(bodyAst);
-  const questionStats = extractQuestionsFromAst(bodyAst);
-  const historyEntries = extractHistoryFromAst(bodyAst);
-  const agentNotesEntries = extractAgentNotesFromAst(bodyAst);
-  return SubIssueBodyStructureSchema.parse({
-    hasDescription: findHeadingIndex(bodyAst, SECTION_NAMES.DESCRIPTION) !== -1,
-    hasTodos: findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES) !== -1,
-    hasHistory: findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY) !== -1,
-    hasAgentNotes: findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES) !== -1,
-    hasQuestions: findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS) !== -1,
-    hasAffectedAreas: findHeadingIndex(bodyAst, SECTION_NAMES.AFFECTED_AREAS) !== -1,
-    todoStats: todoStats.total > 0 ? todoStats : null,
-    questionStats: questionStats.total > 0 ? questionStats : null,
-    historyEntries,
-    agentNotesEntries
-  });
-}
-function extractParentIssueBodyStructure(bodyAst) {
-  const base = extractSubIssueBodyStructure(bodyAst);
-  return ParentIssueBodyStructureSchema.parse({
-    ...base,
-    hasRequirements: findHeadingIndex(bodyAst, SECTION_NAMES.REQUIREMENTS) !== -1,
-    hasApproach: findHeadingIndex(bodyAst, SECTION_NAMES.APPROACH) !== -1,
-    hasAcceptanceCriteria: findHeadingIndex(bodyAst, SECTION_NAMES.ACCEPTANCE_CRITERIA) !== -1,
-    hasTesting: findHeadingIndex(bodyAst, SECTION_NAMES.TESTING) !== -1,
-    hasRelated: findHeadingIndex(bodyAst, SECTION_NAMES.RELATED) !== -1
-  });
-}
-var subIssueBodyStructureExtractor = createExtractor(
-  SubIssueBodyStructureSchema,
-  (data) => extractSubIssueBodyStructure(data.issue.bodyAst)
-);
-var parentIssueBodyStructureExtractor = createExtractor(
-  ParentIssueBodyStructureSchema,
-  (data) => extractParentIssueBodyStructure(data.issue.bodyAst)
-);
-
-// packages/statemachine/src/parser/mutators.ts
-function findHeadingIndex2(ast, text5) {
-  return ast.children.findIndex((node2) => {
-    if (node2.type !== "heading") return false;
-    const firstChild = node2.children[0];
-    return firstChild?.type === "text" && firstChild.value === text5;
-  });
-}
-function findHeadingIndexAny2(ast, texts) {
-  return ast.children.findIndex((node2) => {
-    if (node2.type !== "heading") return false;
-    const firstChild = node2.children[0];
-    return firstChild?.type === "text" && texts.includes(firstChild.value);
-  });
-}
-function getNodeText2(node2) {
-  if (!node2) return "";
-  if (node2.type === "text") return node2.value;
-  if (node2.type === "inlineCode") return node2.value;
-  if ("children" in node2 && Array.isArray(node2.children)) {
-    return childrenAsRootContent(node2).map(getNodeText2).join("");
-  }
-  return "";
-}
-function createTextNode(value) {
-  return { type: "text", value };
-}
-function createParagraphNode(text5) {
-  return { type: "paragraph", children: [createTextNode(text5)] };
-}
-function createHeadingNode(depth, text5) {
-  return { type: "heading", depth, children: [createTextNode(text5)] };
-}
-function createLinkNode(url, text5) {
-  return { type: "link", url, children: [createTextNode(text5)] };
-}
-function createListItemNode(text5, checked = null) {
-  return {
-    type: "listItem",
-    checked,
-    spread: false,
-    children: [createParagraphNode(text5)]
-  };
-}
-function createTableCell(content3) {
-  return { type: "tableCell", children: content3 };
-}
-function createTableRowNode(cells) {
-  return { type: "tableRow", children: cells };
-}
-function formatTimestamp(isoTimestamp) {
-  if (!isoTimestamp) return "-";
-  try {
-    const date3 = new Date(isoTimestamp);
-    if (isNaN(date3.getTime())) return "-";
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    const month = months[date3.getUTCMonth()];
-    const day = date3.getUTCDate();
-    const hours = String(date3.getUTCHours()).padStart(2, "0");
-    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
-    return `${month} ${day} ${hours}:${minutes}`;
-  } catch {
-    return "-";
-  }
-}
-function extractRunIdFromUrl(url) {
-  const match = url.match(/\/actions\/runs\/(\d+)/);
-  return match?.[1] ?? null;
-}
-var checkOffTodo = createMutator(
-  external_exports.object({ todoText: external_exports.string() }),
-  (input, data) => {
-    const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
-    if (todosIdx === -1) return data;
-    const listNode = ast.children[todosIdx + 1];
-    if (!listNode || !isList(listNode)) return data;
-    const newAst = structuredClone(ast);
-    const newListNode = newAst.children[todosIdx + 1];
-    if (!newListNode || !isList(newListNode)) return data;
-    const newList = newListNode;
-    for (const item of newList.children) {
-      if (item.checked === false) {
-        const text5 = getNodeText2(item);
-        if (text5.toLowerCase().includes(input.todoText.toLowerCase())) {
-          item.checked = true;
-          break;
-        }
-      }
-    }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-var uncheckTodo = createMutator(
-  external_exports.object({ todoText: external_exports.string() }),
-  (input, data) => {
-    const ast = data.issue.bodyAst;
-    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
-    if (todosIdx === -1) return data;
-    const listNode = ast.children[todosIdx + 1];
-    if (!listNode || !isList(listNode)) return data;
-    const newAst = structuredClone(ast);
-    const newListNode = newAst.children[todosIdx + 1];
-    if (!newListNode || !isList(newListNode)) return data;
-    const newList = newListNode;
-    for (const item of newList.children) {
-      if (item.checked === true) {
-        const text5 = getNodeText2(item);
-        if (text5.toLowerCase().includes(input.todoText.toLowerCase())) {
-          item.checked = false;
-          break;
-        }
-      }
-    }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-var addTodo = createMutator(
-  external_exports.object({
-    text: external_exports.string(),
-    checked: external_exports.boolean().default(false),
-    isManual: external_exports.boolean().default(false)
-  }),
-  (input, data) => {
-    const ast = data.issue.bodyAst;
-    const newAst = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
-    const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
-    const newItem = createListItemNode(todoText, input.checked);
-    if (todosIdx === -1) {
-      const heading2 = createHeadingNode(2, SECTION_NAMES.TODOS);
-      const list4 = {
-        type: "list",
-        ordered: false,
-        spread: false,
-        children: [newItem]
-      };
-      newAst.children.push(heading2, list4);
     } else {
-      const listNode = newAst.children[todosIdx + 1];
-      if (listNode && isList(listNode)) {
-        listNode.children.push(newItem);
-      } else {
-        const list4 = {
-          type: "list",
-          ordered: false,
-          spread: false,
-          children: [newItem]
-        };
-        newAst.children.splice(todosIdx + 1, 0, list4);
-      }
+      core.warning(`File not found: ${action.filePath}`);
     }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-function createHistoryHeaderRow() {
-  return createTableRowNode([
-    createTableCell([createTextNode("Time")]),
-    createTableCell([createTextNode("#")]),
-    createTableCell([createTextNode("Phase")]),
-    createTableCell([createTextNode("Action")]),
-    createTableCell([createTextNode("SHA")]),
-    createTableCell([createTextNode("Run")])
-  ]);
-}
-function createHistoryDataRow(entry, repoUrl) {
-  let shaCell;
-  if (entry.sha) {
-    const shortSha = entry.sha.slice(0, 7);
-    const url = repoUrl ? `${repoUrl}/commit/${entry.sha}` : "#";
-    const code3 = { type: "inlineCode", value: shortSha };
-    const link2 = { type: "link", url, children: [code3] };
-    shaCell = [link2];
-  } else {
-    shaCell = [createTextNode("-")];
-  }
-  let runCell;
-  if (entry.runLink) {
-    const runId = extractRunIdFromUrl(entry.runLink);
-    const linkText = runId || "Run";
-    runCell = [createLinkNode(entry.runLink, linkText)];
-  } else {
-    runCell = [createTextNode("-")];
-  }
-  return createTableRowNode([
-    createTableCell([createTextNode(entry.timestamp || "-")]),
-    createTableCell([createTextNode(String(entry.iteration))]),
-    createTableCell([createTextNode(entry.phase)]),
-    createTableCell([createTextNode(entry.action)]),
-    createTableCell(shaCell),
-    createTableCell(runCell)
-  ]);
-}
-function getCellText2(row, index2) {
-  const cell = row.children[index2];
-  if (!cell) return "";
-  return childrenAsRootContent(cell).map(getNodeText2).join("");
-}
-function getCellRunId(row, index2) {
-  const cell = row.children[index2];
-  if (!cell) return null;
-  for (const child of childrenAsRootContent(cell)) {
-    if (child.type === "link") {
-      const linkText = getNodeText2(child);
-      if (/^\d+$/.test(linkText)) {
-        return linkText;
-      }
-      return extractRunIdFromUrl(child.url);
-    }
-  }
-  return null;
-}
-var addHistoryEntry2 = createMutator(
-  external_exports.object({
-    iteration: external_exports.number(),
-    phase: external_exports.string(),
-    action: external_exports.string(),
-    timestamp: external_exports.string().nullable().optional(),
-    sha: external_exports.string().nullable().optional(),
-    runLink: external_exports.string().nullable().optional(),
-    repoUrl: external_exports.string().optional()
-  }),
-  (input, data) => {
-    const ast = data.issue.bodyAst;
-    const newAst = structuredClone(ast);
-    const historyIdx = findHeadingIndex2(
-      newAst,
-      SECTION_NAMES.ITERATION_HISTORY
-    );
-    const entry = {
-      iteration: input.iteration,
-      phase: input.phase,
-      action: input.action,
-      timestamp: input.timestamp ? formatTimestamp(input.timestamp) : formatTimestamp((/* @__PURE__ */ new Date()).toISOString()),
-      sha: input.sha ?? null,
-      runLink: input.runLink ?? null
-    };
-    const newRow = createHistoryDataRow(entry, input.repoUrl);
-    const runId = input.runLink ? extractRunIdFromUrl(input.runLink) : null;
-    if (historyIdx === -1) {
-      const heading2 = createHeadingNode(2, SECTION_NAMES.ITERATION_HISTORY);
-      const table = {
-        type: "table",
-        align: null,
-        children: [createHistoryHeaderRow(), newRow]
-      };
-      newAst.children.push(heading2, table);
-    } else {
-      let tableIdx = -1;
-      for (let i = historyIdx + 1; i < newAst.children.length; i++) {
-        if (newAst.children[i]?.type === "table") {
-          tableIdx = i;
-          break;
-        }
-        if (newAst.children[i]?.type === "heading") break;
-      }
-      if (tableIdx === -1) {
-        const table = {
-          type: "table",
-          align: null,
-          children: [createHistoryHeaderRow(), newRow]
-        };
-        newAst.children.splice(historyIdx + 1, 0, table);
-      } else {
-        const tableNode = newAst.children[tableIdx];
-        if (!tableNode || tableNode.type !== "table") return data;
-        const table = tableNode;
-        if (runId) {
-          for (let i = 1; i < table.children.length; i++) {
-            const row = table.children[i];
-            if (!row) continue;
-            const existingRunId = getCellRunId(row, 5);
-            if (existingRunId === runId) {
-              const actionCell = row.children[3];
-              if (actionCell) {
-                const existingAction = getCellText2(row, 3);
-                const newAction = existingAction === "\u23F3 running..." ? input.action : existingAction ? `${existingAction} -> ${input.action}` : input.action;
-                actionCell.children = [createTextNode(newAction)];
-              }
-              return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-            }
-          }
-        }
-        table.children.push(newRow);
-      }
-    }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-var updateHistoryEntry2 = createMutator(
-  external_exports.object({
-    matchIteration: external_exports.number(),
-    matchPhase: external_exports.string(),
-    matchPattern: external_exports.string(),
-    newAction: external_exports.string(),
-    timestamp: external_exports.string().nullable().optional(),
-    sha: external_exports.string().nullable().optional(),
-    runLink: external_exports.string().nullable().optional(),
-    repoUrl: external_exports.string().optional()
-  }),
-  (input, data) => {
-    const ast = data.issue.bodyAst;
-    const historyIdx = findHeadingIndex2(ast, SECTION_NAMES.ITERATION_HISTORY);
-    if (historyIdx === -1) return data;
-    let tableIdx = -1;
-    for (let i = historyIdx + 1; i < ast.children.length; i++) {
-      if (ast.children[i]?.type === "table") {
-        tableIdx = i;
-        break;
-      }
-      if (ast.children[i]?.type === "heading") break;
-    }
-    if (tableIdx === -1) return data;
-    const tableNode = ast.children[tableIdx];
-    if (!tableNode || tableNode.type !== "table") return data;
-    let matchRowIdx = -1;
-    for (let i = tableNode.children.length - 1; i >= 1; i--) {
-      const row2 = tableNode.children[i];
-      if (!row2) continue;
-      const rowIteration = getCellText2(row2, 1);
-      const rowPhase = getCellText2(row2, 2);
-      const rowAction = getCellText2(row2, 3);
-      if (rowIteration === String(input.matchIteration) && rowPhase === input.matchPhase && rowAction.includes(input.matchPattern)) {
-        matchRowIdx = i;
-        break;
-      }
-    }
-    if (matchRowIdx === -1) return data;
-    const newAst = structuredClone(ast);
-    const newTableNode = newAst.children[tableIdx];
-    if (!newTableNode || newTableNode.type !== "table") return data;
-    const newTable = newTableNode;
-    const row = newTable.children[matchRowIdx];
-    if (!row) return data;
-    const actionCell = row.children[3];
-    if (actionCell) {
-      actionCell.children = [createTextNode(input.newAction)];
-    }
-    if (input.timestamp) {
-      const timeCell = row.children[0];
-      if (timeCell) {
-        timeCell.children = [createTextNode(formatTimestamp(input.timestamp))];
-      }
-    }
-    if (input.sha) {
-      const shaCell = row.children[4];
-      if (shaCell) {
-        const shortSha = input.sha.slice(0, 7);
-        const url = input.repoUrl ? `${input.repoUrl}/commit/${input.sha}` : "#";
-        const code3 = { type: "inlineCode", value: shortSha };
-        const link2 = { type: "link", url, children: [code3] };
-        shaCell.children = [link2];
-      }
-    }
-    if (input.runLink) {
-      const runCell = row.children[5];
-      if (runCell) {
-        const runId = extractRunIdFromUrl(input.runLink);
-        const linkText = runId || "Run";
-        runCell.children = [createLinkNode(input.runLink, linkText)];
-      }
-    }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-var appendAgentNotes2 = createMutator(
-  external_exports.object({
-    runId: external_exports.string(),
-    runLink: external_exports.string(),
-    timestamp: external_exports.string().optional(),
-    notes: external_exports.array(external_exports.string())
-  }),
-  (input, data) => {
-    if (input.notes.length === 0) return data;
-    const ast = data.issue.bodyAst;
-    const newAst = structuredClone(ast);
-    const notesIdx = findHeadingIndex2(newAst, SECTION_NAMES.AGENT_NOTES);
-    const formattedTimestamp = formatTimestamp(
-      input.timestamp || (/* @__PURE__ */ new Date()).toISOString()
-    );
-    const headerLink = createLinkNode(input.runLink, `Run ${input.runId}`);
-    const headerText = createTextNode(` - ${formattedTimestamp}`);
-    const entryHeader = {
-      type: "heading",
-      depth: 3,
-      children: [headerLink, headerText]
-    };
-    const noteItems = input.notes.slice(0, 10).map((note) => {
-      const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
-      return createListItemNode(truncated, null);
-    });
-    const notesList = {
-      type: "list",
-      ordered: false,
-      spread: false,
-      children: noteItems
-    };
-    if (notesIdx === -1) {
-      const sectionHeader = createHeadingNode(2, SECTION_NAMES.AGENT_NOTES);
-      newAst.children.push(sectionHeader, entryHeader, notesList);
-    } else {
-      newAst.children.splice(notesIdx + 1, 0, entryHeader, notesList);
-    }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-var upsertSection2 = createMutator(
-  external_exports.object({
-    title: external_exports.string(),
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
-    content: external_exports.array(external_exports.record(external_exports.unknown())),
-    sectionOrder: external_exports.array(external_exports.string()).optional()
-  }),
-  (input, data) => {
-    const ast = data.issue.bodyAst;
-    const newAst = structuredClone(ast);
-    const sectionIdx = findHeadingIndex2(newAst, input.title);
-    const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
-    if (sectionIdx !== -1) {
-      let endIdx = sectionIdx + 1;
-      for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
-        const node2 = newAst.children[i];
-        if (node2 && isHeading(node2) && node2.depth === 2) {
-          break;
-        }
-        endIdx = i + 1;
-      }
-      newAst.children.splice(
-        sectionIdx + 1,
-        endIdx - sectionIdx - 1,
-        ...input.content
-      );
-    } else {
-      const targetOrderIdx = sectionOrder.indexOf(input.title);
-      let insertIdx = newAst.children.length;
-      if (targetOrderIdx >= 0) {
-        for (let i = targetOrderIdx + 1; i < sectionOrder.length; i++) {
-          const nextSection = sectionOrder[i];
-          if (!nextSection) continue;
-          const nextIdx = findHeadingIndex2(newAst, nextSection);
-          if (nextIdx !== -1) {
-            insertIdx = nextIdx;
-            break;
-          }
-        }
-      }
-      const heading2 = createHeadingNode(2, input.title);
-      newAst.children.splice(insertIdx, 0, heading2, ...input.content);
-    }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-var applyTodoModifications = createMutator(
-  external_exports.object({
-    modifications: external_exports.array(
-      external_exports.object({
-        action: external_exports.enum(["add", "modify", "remove"]),
-        index: external_exports.number(),
-        text: external_exports.string().optional()
-      })
-    )
-  }),
-  (input, data) => {
-    const ast = data.issue.bodyAst;
-    const newAst = structuredClone(ast);
-    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
-    if (todosIdx === -1) return data;
-    const listNode = newAst.children[todosIdx + 1];
-    if (!listNode || !isList(listNode)) return data;
-    for (const mod of input.modifications) {
-      if (mod.action === "add") {
-        const newItem = createListItemNode(mod.text || "", false);
-        if (mod.index < 0) {
-          listNode.children.splice(0, 0, newItem);
-        } else if (mod.index >= listNode.children.length) {
-          listNode.children.push(newItem);
-        } else {
-          listNode.children.splice(mod.index + 1, 0, newItem);
-        }
-      } else if (mod.action === "modify") {
-        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
-        const item = listNode.children[mod.index];
-        if (!item || item.checked === true) continue;
-        item.children = [createParagraphNode(mod.text || "")];
-      } else if (mod.action === "remove") {
-        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
-        const item = listNode.children[mod.index];
-        if (!item || item.checked === true) continue;
-        listNode.children.splice(mod.index, 1);
-      }
-    }
-    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
-  }
-);
-var replaceBody = createMutator(
-  external_exports.object({
-    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
-    bodyAst: external_exports.object({
-      type: external_exports.literal("root"),
-      children: external_exports.array(external_exports.record(external_exports.unknown()))
-    }).passthrough()
-    /* eslint-enable @typescript-eslint/consistent-type-assertions */
-  }),
-  (input, data) => ({
-    ...data,
-    issue: { ...data.issue, bodyAst: input.bodyAst }
-  })
-);
-
-// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
-function getGlobal() {
-  if (typeof globalThis !== "undefined") {
-    return globalThis;
-  }
-  if (typeof self !== "undefined") {
-    return self;
-  }
-  if (typeof window !== "undefined") {
-    return window;
-  }
-  if (typeof global !== "undefined") {
-    return global;
-  }
-}
-function getDevTools() {
-  const w = getGlobal();
-  if (w.__xstate__) {
-    return w.__xstate__;
   }
   return void 0;
 }
-var devToolsAdapter = (service) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-  const devTools = getDevTools();
-  if (devTools) {
-    devTools.register(service);
-  }
-};
 
-// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/raise-f11495d1.esm.js
-var Mailbox = class {
-  constructor(_process) {
-    this._process = _process;
-    this._active = false;
-    this._current = null;
-    this._last = null;
-  }
-  start() {
-    this._active = true;
-    this.flush();
-  }
-  clear() {
-    if (this._current) {
-      this._current.next = null;
-      this._last = this._current;
-    }
-  }
-  enqueue(event) {
-    const enqueued = {
-      value: event,
-      next: null
-    };
-    if (this._current) {
-      this._last.next = enqueued;
-      this._last = enqueued;
-      return;
-    }
-    this._current = enqueued;
-    this._last = enqueued;
-    if (this._active) {
-      this.flush();
-    }
-  }
-  flush() {
-    while (this._current) {
-      const consumed = this._current;
-      this._process(consumed.value);
-      this._current = consumed.next;
-    }
-    this._last = null;
-  }
-};
-var STATE_DELIMITER = ".";
-var TARGETLESS_KEY = "";
-var NULL_EVENT = "";
-var STATE_IDENTIFIER = "#";
-var WILDCARD = "*";
-var XSTATE_INIT = "xstate.init";
-var XSTATE_ERROR = "xstate.error";
-var XSTATE_STOP = "xstate.stop";
-function createAfterEvent(delayRef, id) {
-  return {
-    type: `xstate.after.${delayRef}.${id}`
-  };
-}
-function createDoneStateEvent(id, output) {
-  return {
-    type: `xstate.done.state.${id}`,
-    output
-  };
-}
-function createDoneActorEvent(invokeId, output) {
-  return {
-    type: `xstate.done.actor.${invokeId}`,
-    output,
-    actorId: invokeId
-  };
-}
-function createErrorActorEvent(id, error7) {
-  return {
-    type: `xstate.error.actor.${id}`,
-    error: error7,
-    actorId: id
-  };
-}
-function createInitEvent(input) {
-  return {
-    type: XSTATE_INIT,
-    input
-  };
-}
-function reportUnhandledError(err) {
-  setTimeout(() => {
-    throw err;
-  });
-}
-var symbolObservable = (() => typeof Symbol === "function" && Symbol.observable || "@@observable")();
-function matchesState(parentStateId, childStateId) {
-  const parentStateValue = toStateValue(parentStateId);
-  const childStateValue = toStateValue(childStateId);
-  if (typeof childStateValue === "string") {
-    if (typeof parentStateValue === "string") {
-      return childStateValue === parentStateValue;
-    }
-    return false;
-  }
-  if (typeof parentStateValue === "string") {
-    return parentStateValue in childStateValue;
-  }
-  return Object.keys(parentStateValue).every((key) => {
-    if (!(key in childStateValue)) {
-      return false;
-    }
-    return matchesState(parentStateValue[key], childStateValue[key]);
-  });
-}
-function toStatePath(stateId) {
-  if (isArray(stateId)) {
-    return stateId;
-  }
-  const result = [];
-  let segment = "";
-  for (let i = 0; i < stateId.length; i++) {
-    const char = stateId.charCodeAt(i);
-    switch (char) {
-      // \
-      case 92:
-        segment += stateId[i + 1];
-        i++;
-        continue;
-      // .
-      case 46:
-        result.push(segment);
-        segment = "";
-        continue;
-    }
-    segment += stateId[i];
-  }
-  result.push(segment);
-  return result;
-}
-function toStateValue(stateValue) {
-  if (isMachineSnapshot(stateValue)) {
-    return stateValue.value;
-  }
-  if (typeof stateValue !== "string") {
-    return stateValue;
-  }
-  const statePath = toStatePath(stateValue);
-  return pathToStateValue(statePath);
-}
-function pathToStateValue(statePath) {
-  if (statePath.length === 1) {
-    return statePath[0];
-  }
-  const value = {};
-  let marker = value;
-  for (let i = 0; i < statePath.length - 1; i++) {
-    if (i === statePath.length - 2) {
-      marker[statePath[i]] = statePath[i + 1];
-    } else {
-      const previous3 = marker;
-      marker = {};
-      previous3[statePath[i]] = marker;
-    }
-  }
-  return value;
-}
-function mapValues(collection, iteratee) {
-  const result = {};
-  const collectionKeys = Object.keys(collection);
-  for (let i = 0; i < collectionKeys.length; i++) {
-    const key = collectionKeys[i];
-    result[key] = iteratee(collection[key], key, collection, i);
-  }
-  return result;
-}
-function toArrayStrict(value) {
-  if (isArray(value)) {
-    return value;
-  }
-  return [value];
-}
-function toArray(value) {
-  if (value === void 0) {
-    return [];
-  }
-  return toArrayStrict(value);
-}
-function resolveOutput(mapper, context2, event, self2) {
-  if (typeof mapper === "function") {
-    return mapper({
-      context: context2,
-      event,
-      self: self2
-    });
-  }
-  return mapper;
-}
-function isArray(value) {
-  return Array.isArray(value);
-}
-function isErrorActorEvent(event) {
-  return event.type.startsWith("xstate.error.actor");
-}
-function toTransitionConfigArray(configLike) {
-  return toArrayStrict(configLike).map((transitionLike) => {
-    if (typeof transitionLike === "undefined" || typeof transitionLike === "string") {
-      return {
-        target: transitionLike
-      };
-    }
-    return transitionLike;
-  });
-}
-function normalizeTarget(target) {
-  if (target === void 0 || target === TARGETLESS_KEY) {
-    return void 0;
-  }
-  return toArray(target);
-}
-function toObserver(nextHandler, errorHandler, completionHandler) {
-  const isObserver = typeof nextHandler === "object";
-  const self2 = isObserver ? nextHandler : void 0;
-  return {
-    next: (isObserver ? nextHandler.next : nextHandler)?.bind(self2),
-    error: (isObserver ? nextHandler.error : errorHandler)?.bind(self2),
-    complete: (isObserver ? nextHandler.complete : completionHandler)?.bind(self2)
-  };
-}
-function createInvokeId(stateNodeId, index2) {
-  return `${index2}.${stateNodeId}`;
-}
-function resolveReferencedActor(machine, src) {
-  const match = src.match(/^xstate\.invoke\.(\d+)\.(.*)/);
-  if (!match) {
-    return machine.implementations.actors[src];
-  }
-  const [, indexStr, nodeId] = match;
-  const node2 = machine.getStateNodeById(nodeId);
-  const invokeConfig = node2.config.invoke;
-  return (Array.isArray(invokeConfig) ? invokeConfig[indexStr] : invokeConfig).src;
-}
-function matchesEventDescriptor(eventType, descriptor) {
-  if (descriptor === eventType) {
-    return true;
-  }
-  if (descriptor === WILDCARD) {
-    return true;
-  }
-  if (!descriptor.endsWith(".*")) {
-    return false;
-  }
-  const partialEventTokens = descriptor.split(".");
-  const eventTokens = eventType.split(".");
-  for (let tokenIndex = 0; tokenIndex < partialEventTokens.length; tokenIndex++) {
-    const partialEventToken = partialEventTokens[tokenIndex];
-    const eventToken = eventTokens[tokenIndex];
-    if (partialEventToken === "*") {
-      const isLastToken = tokenIndex === partialEventTokens.length - 1;
-      return isLastToken;
-    }
-    if (partialEventToken !== eventToken) {
-      return false;
-    }
-  }
-  return true;
-}
-function createScheduledEventId(actorRef, id) {
-  return `${actorRef.sessionId}.${id}`;
-}
-var idCounter = 0;
-function createSystem(rootActor, options) {
-  const children = /* @__PURE__ */ new Map();
-  const keyedActors = /* @__PURE__ */ new Map();
-  const reverseKeyedActors = /* @__PURE__ */ new WeakMap();
-  const inspectionObservers = /* @__PURE__ */ new Set();
-  const timerMap = {};
-  const {
-    clock,
-    logger
-  } = options;
-  const scheduler = {
-    schedule: (source, target, event, delay, id = Math.random().toString(36).slice(2)) => {
-      const scheduledEvent = {
-        source,
-        target,
-        event,
-        delay,
-        id,
-        startedAt: Date.now()
-      };
-      const scheduledEventId = createScheduledEventId(source, id);
-      system._snapshot._scheduledEvents[scheduledEventId] = scheduledEvent;
-      const timeout = clock.setTimeout(() => {
-        delete timerMap[scheduledEventId];
-        delete system._snapshot._scheduledEvents[scheduledEventId];
-        system._relay(source, target, event);
-      }, delay);
-      timerMap[scheduledEventId] = timeout;
-    },
-    cancel: (source, id) => {
-      const scheduledEventId = createScheduledEventId(source, id);
-      const timeout = timerMap[scheduledEventId];
-      delete timerMap[scheduledEventId];
-      delete system._snapshot._scheduledEvents[scheduledEventId];
-      if (timeout !== void 0) {
-        clock.clearTimeout(timeout);
-      }
-    },
-    cancelAll: (actorRef) => {
-      for (const scheduledEventId in system._snapshot._scheduledEvents) {
-        const scheduledEvent = system._snapshot._scheduledEvents[scheduledEventId];
-        if (scheduledEvent.source === actorRef) {
-          scheduler.cancel(actorRef, scheduledEvent.id);
-        }
-      }
-    }
-  };
-  const sendInspectionEvent = (event) => {
-    if (!inspectionObservers.size) {
-      return;
-    }
-    const resolvedInspectionEvent = {
-      ...event,
-      rootId: rootActor.sessionId
-    };
-    inspectionObservers.forEach((observer) => observer.next?.(resolvedInspectionEvent));
-  };
-  const system = {
-    _snapshot: {
-      _scheduledEvents: (options?.snapshot && options.snapshot.scheduler) ?? {}
-    },
-    _bookId: () => `x:${idCounter++}`,
-    _register: (sessionId, actorRef) => {
-      children.set(sessionId, actorRef);
-      return sessionId;
-    },
-    _unregister: (actorRef) => {
-      children.delete(actorRef.sessionId);
-      const systemId = reverseKeyedActors.get(actorRef);
-      if (systemId !== void 0) {
-        keyedActors.delete(systemId);
-        reverseKeyedActors.delete(actorRef);
-      }
-    },
-    get: (systemId) => {
-      return keyedActors.get(systemId);
-    },
-    getAll: () => {
-      return Object.fromEntries(keyedActors.entries());
-    },
-    _set: (systemId, actorRef) => {
-      const existing = keyedActors.get(systemId);
-      if (existing && existing !== actorRef) {
-        throw new Error(`Actor with system ID '${systemId}' already exists.`);
-      }
-      keyedActors.set(systemId, actorRef);
-      reverseKeyedActors.set(actorRef, systemId);
-    },
-    inspect: (observerOrFn) => {
-      const observer = toObserver(observerOrFn);
-      inspectionObservers.add(observer);
-      return {
-        unsubscribe() {
-          inspectionObservers.delete(observer);
-        }
-      };
-    },
-    _sendInspectionEvent: sendInspectionEvent,
-    _relay: (source, target, event) => {
-      system._sendInspectionEvent({
-        type: "@xstate.event",
-        sourceRef: source,
-        actorRef: target,
-        event
-      });
-      target._send(event);
-    },
-    scheduler,
-    getSnapshot: () => {
-      return {
-        _scheduledEvents: {
-          ...system._snapshot._scheduledEvents
-        }
-      };
-    },
-    start: () => {
-      const scheduledEvents = system._snapshot._scheduledEvents;
-      system._snapshot._scheduledEvents = {};
-      for (const scheduledId in scheduledEvents) {
-        const {
-          source,
-          target,
-          event,
-          delay,
-          id
-        } = scheduledEvents[scheduledId];
-        scheduler.schedule(source, target, event, delay, id);
-      }
-    },
-    _clock: clock,
-    _logger: logger
-  };
-  return system;
-}
-var executingCustomAction = false;
-var $$ACTOR_TYPE = 1;
-var ProcessingStatus = /* @__PURE__ */ function(ProcessingStatus2) {
-  ProcessingStatus2[ProcessingStatus2["NotStarted"] = 0] = "NotStarted";
-  ProcessingStatus2[ProcessingStatus2["Running"] = 1] = "Running";
-  ProcessingStatus2[ProcessingStatus2["Stopped"] = 2] = "Stopped";
-  return ProcessingStatus2;
-}({});
-var defaultOptions = {
-  clock: {
-    setTimeout: (fn, ms) => {
-      return setTimeout(fn, ms);
-    },
-    clearTimeout: (id) => {
-      return clearTimeout(id);
-    }
-  },
-  logger: console.log.bind(console),
-  devTools: false
-};
-var Actor = class {
-  /**
-   * Creates a new actor instance for the given logic with the provided options,
-   * if any.
-   *
-   * @param logic The logic to create an actor from
-   * @param options Actor options
-   */
-  constructor(logic, options) {
-    this.logic = logic;
-    this._snapshot = void 0;
-    this.clock = void 0;
-    this.options = void 0;
-    this.id = void 0;
-    this.mailbox = new Mailbox(this._process.bind(this));
-    this.observers = /* @__PURE__ */ new Set();
-    this.eventListeners = /* @__PURE__ */ new Map();
-    this.logger = void 0;
-    this._processingStatus = ProcessingStatus.NotStarted;
-    this._parent = void 0;
-    this._syncSnapshot = void 0;
-    this.ref = void 0;
-    this._actorScope = void 0;
-    this.systemId = void 0;
-    this.sessionId = void 0;
-    this.system = void 0;
-    this._doneEvent = void 0;
-    this.src = void 0;
-    this._deferred = [];
-    const resolvedOptions = {
-      ...defaultOptions,
-      ...options
-    };
-    const {
-      clock,
-      logger,
-      parent,
-      syncSnapshot,
-      id,
-      systemId,
-      inspect
-    } = resolvedOptions;
-    this.system = parent ? parent.system : createSystem(this, {
-      clock,
-      logger
-    });
-    if (inspect && !parent) {
-      this.system.inspect(toObserver(inspect));
-    }
-    this.sessionId = this.system._bookId();
-    this.id = id ?? this.sessionId;
-    this.logger = options?.logger ?? this.system._logger;
-    this.clock = options?.clock ?? this.system._clock;
-    this._parent = parent;
-    this._syncSnapshot = syncSnapshot;
-    this.options = resolvedOptions;
-    this.src = resolvedOptions.src ?? logic;
-    this.ref = this;
-    this._actorScope = {
-      self: this,
-      id: this.id,
-      sessionId: this.sessionId,
-      logger: this.logger,
-      defer: (fn) => {
-        this._deferred.push(fn);
-      },
-      system: this.system,
-      stopChild: (child) => {
-        if (child._parent !== this) {
-          throw new Error(`Cannot stop child actor ${child.id} of ${this.id} because it is not a child`);
-        }
-        child._stop();
-      },
-      emit: (emittedEvent) => {
-        const listeners = this.eventListeners.get(emittedEvent.type);
-        const wildcardListener = this.eventListeners.get("*");
-        if (!listeners && !wildcardListener) {
-          return;
-        }
-        const allListeners = [...listeners ? listeners.values() : [], ...wildcardListener ? wildcardListener.values() : []];
-        for (const handler of allListeners) {
-          try {
-            handler(emittedEvent);
-          } catch (err) {
-            reportUnhandledError(err);
-          }
-        }
-      },
-      actionExecutor: (action) => {
-        const exec11 = () => {
-          this._actorScope.system._sendInspectionEvent({
-            type: "@xstate.action",
-            actorRef: this,
-            action: {
-              type: action.type,
-              params: action.params
-            }
-          });
-          if (!action.exec) {
-            return;
-          }
-          const saveExecutingCustomAction = executingCustomAction;
-          try {
-            executingCustomAction = true;
-            action.exec(action.info, action.params);
-          } finally {
-            executingCustomAction = saveExecutingCustomAction;
-          }
-        };
-        if (this._processingStatus === ProcessingStatus.Running) {
-          exec11();
-        } else {
-          this._deferred.push(exec11);
-        }
-      }
-    };
-    this.send = this.send.bind(this);
-    this.system._sendInspectionEvent({
-      type: "@xstate.actor",
-      actorRef: this
-    });
-    if (systemId) {
-      this.systemId = systemId;
-      this.system._set(systemId, this);
-    }
-    this._initState(options?.snapshot ?? options?.state);
-    if (systemId && this._snapshot.status !== "active") {
-      this.system._unregister(this);
-    }
-  }
-  _initState(persistedState) {
-    try {
-      this._snapshot = persistedState ? this.logic.restoreSnapshot ? this.logic.restoreSnapshot(persistedState, this._actorScope) : persistedState : this.logic.getInitialSnapshot(this._actorScope, this.options?.input);
-    } catch (err) {
-      this._snapshot = {
-        status: "error",
-        output: void 0,
-        error: err
-      };
-    }
-  }
-  update(snapshot, event) {
-    this._snapshot = snapshot;
-    let deferredFn;
-    while (deferredFn = this._deferred.shift()) {
-      try {
-        deferredFn();
-      } catch (err) {
-        this._deferred.length = 0;
-        this._snapshot = {
-          ...snapshot,
-          status: "error",
-          error: err
-        };
-      }
-    }
-    switch (this._snapshot.status) {
-      case "active":
-        for (const observer of this.observers) {
-          try {
-            observer.next?.(snapshot);
-          } catch (err) {
-            reportUnhandledError(err);
-          }
-        }
-        break;
-      case "done":
-        for (const observer of this.observers) {
-          try {
-            observer.next?.(snapshot);
-          } catch (err) {
-            reportUnhandledError(err);
-          }
-        }
-        this._stopProcedure();
-        this._complete();
-        this._doneEvent = createDoneActorEvent(this.id, this._snapshot.output);
-        if (this._parent) {
-          this.system._relay(this, this._parent, this._doneEvent);
-        }
-        break;
-      case "error":
-        this._error(this._snapshot.error);
-        break;
-    }
-    this.system._sendInspectionEvent({
-      type: "@xstate.snapshot",
-      actorRef: this,
-      event,
-      snapshot
-    });
-  }
-  /**
-   * Subscribe an observer to an actor’s snapshot values.
-   *
-   * @remarks
-   * The observer will receive the actor’s snapshot value when it is emitted.
-   * The observer can be:
-   *
-   * - A plain function that receives the latest snapshot, or
-   * - An observer object whose `.next(snapshot)` method receives the latest
-   *   snapshot
-   *
-   * @example
-   *
-   * ```ts
-   * // Observer as a plain function
-   * const subscription = actor.subscribe((snapshot) => {
-   *   console.log(snapshot);
-   * });
-   * ```
-   *
-   * @example
-   *
-   * ```ts
-   * // Observer as an object
-   * const subscription = actor.subscribe({
-   *   next(snapshot) {
-   *     console.log(snapshot);
-   *   },
-   *   error(err) {
-   *     // ...
-   *   },
-   *   complete() {
-   *     // ...
-   *   }
-   * });
-   * ```
-   *
-   * The return value of `actor.subscribe(observer)` is a subscription object
-   * that has an `.unsubscribe()` method. You can call
-   * `subscription.unsubscribe()` to unsubscribe the observer:
-   *
-   * @example
-   *
-   * ```ts
-   * const subscription = actor.subscribe((snapshot) => {
-   *   // ...
-   * });
-   *
-   * // Unsubscribe the observer
-   * subscription.unsubscribe();
-   * ```
-   *
-   * When the actor is stopped, all of its observers will automatically be
-   * unsubscribed.
-   *
-   * @param observer - Either a plain function that receives the latest
-   *   snapshot, or an observer object whose `.next(snapshot)` method receives
-   *   the latest snapshot
-   */
-  subscribe(nextListenerOrObserver, errorListener, completeListener) {
-    const observer = toObserver(nextListenerOrObserver, errorListener, completeListener);
-    if (this._processingStatus !== ProcessingStatus.Stopped) {
-      this.observers.add(observer);
-    } else {
-      switch (this._snapshot.status) {
-        case "done":
-          try {
-            observer.complete?.();
-          } catch (err) {
-            reportUnhandledError(err);
-          }
-          break;
-        case "error": {
-          const err = this._snapshot.error;
-          if (!observer.error) {
-            reportUnhandledError(err);
-          } else {
-            try {
-              observer.error(err);
-            } catch (err2) {
-              reportUnhandledError(err2);
-            }
-          }
-          break;
-        }
-      }
-    }
-    return {
-      unsubscribe: () => {
-        this.observers.delete(observer);
-      }
-    };
-  }
-  on(type, handler) {
-    let listeners = this.eventListeners.get(type);
-    if (!listeners) {
-      listeners = /* @__PURE__ */ new Set();
-      this.eventListeners.set(type, listeners);
-    }
-    const wrappedHandler = handler.bind(void 0);
-    listeners.add(wrappedHandler);
-    return {
-      unsubscribe: () => {
-        listeners.delete(wrappedHandler);
-      }
-    };
-  }
-  /** Starts the Actor from the initial state */
-  start() {
-    if (this._processingStatus === ProcessingStatus.Running) {
-      return this;
-    }
-    if (this._syncSnapshot) {
-      this.subscribe({
-        next: (snapshot) => {
-          if (snapshot.status === "active") {
-            this.system._relay(this, this._parent, {
-              type: `xstate.snapshot.${this.id}`,
-              snapshot
-            });
-          }
-        },
-        error: () => {
-        }
-      });
-    }
-    this.system._register(this.sessionId, this);
-    if (this.systemId) {
-      this.system._set(this.systemId, this);
-    }
-    this._processingStatus = ProcessingStatus.Running;
-    const initEvent = createInitEvent(this.options.input);
-    this.system._sendInspectionEvent({
-      type: "@xstate.event",
-      sourceRef: this._parent,
-      actorRef: this,
-      event: initEvent
-    });
-    const status = this._snapshot.status;
-    switch (status) {
-      case "done":
-        this.update(this._snapshot, initEvent);
-        return this;
-      case "error":
-        this._error(this._snapshot.error);
-        return this;
-    }
-    if (!this._parent) {
-      this.system.start();
-    }
-    if (this.logic.start) {
-      try {
-        this.logic.start(this._snapshot, this._actorScope);
-      } catch (err) {
-        this._snapshot = {
-          ...this._snapshot,
-          status: "error",
-          error: err
-        };
-        this._error(err);
-        return this;
-      }
-    }
-    this.update(this._snapshot, initEvent);
-    if (this.options.devTools) {
-      this.attachDevTools();
-    }
-    this.mailbox.start();
-    return this;
-  }
-  _process(event) {
-    let nextState;
-    let caughtError;
-    try {
-      nextState = this.logic.transition(this._snapshot, event, this._actorScope);
-    } catch (err) {
-      caughtError = {
-        err
-      };
-    }
-    if (caughtError) {
-      const {
-        err
-      } = caughtError;
-      this._snapshot = {
-        ...this._snapshot,
-        status: "error",
-        error: err
-      };
-      this._error(err);
-      return;
-    }
-    this.update(nextState, event);
-    if (event.type === XSTATE_STOP) {
-      this._stopProcedure();
-      this._complete();
-    }
-  }
-  _stop() {
-    if (this._processingStatus === ProcessingStatus.Stopped) {
-      return this;
-    }
-    this.mailbox.clear();
-    if (this._processingStatus === ProcessingStatus.NotStarted) {
-      this._processingStatus = ProcessingStatus.Stopped;
-      return this;
-    }
-    this.mailbox.enqueue({
-      type: XSTATE_STOP
-    });
-    return this;
-  }
-  /** Stops the Actor and unsubscribe all listeners. */
-  stop() {
-    if (this._parent) {
-      throw new Error("A non-root actor cannot be stopped directly.");
-    }
-    return this._stop();
-  }
-  _complete() {
-    for (const observer of this.observers) {
-      try {
-        observer.complete?.();
-      } catch (err) {
-        reportUnhandledError(err);
-      }
-    }
-    this.observers.clear();
-    this.eventListeners.clear();
-  }
-  _reportError(err) {
-    if (!this.observers.size) {
-      if (!this._parent) {
-        reportUnhandledError(err);
-      }
-      this.eventListeners.clear();
-      return;
-    }
-    let reportError = false;
-    for (const observer of this.observers) {
-      const errorListener = observer.error;
-      reportError ||= !errorListener;
-      try {
-        errorListener?.(err);
-      } catch (err2) {
-        reportUnhandledError(err2);
-      }
-    }
-    this.observers.clear();
-    this.eventListeners.clear();
-    if (reportError) {
-      reportUnhandledError(err);
-    }
-  }
-  _error(err) {
-    this._stopProcedure();
-    this._reportError(err);
-    if (this._parent) {
-      this.system._relay(this, this._parent, createErrorActorEvent(this.id, err));
-    }
-  }
-  // TODO: atm children don't belong entirely to the actor so
-  // in a way - it's not even super aware of them
-  // so we can't stop them from here but we really should!
-  // right now, they are being stopped within the machine's transition
-  // but that could throw and leave us with "orphaned" active actors
-  _stopProcedure() {
-    if (this._processingStatus !== ProcessingStatus.Running) {
-      return this;
-    }
-    this.system.scheduler.cancelAll(this);
-    this.mailbox.clear();
-    this.mailbox = new Mailbox(this._process.bind(this));
-    this._processingStatus = ProcessingStatus.Stopped;
-    this.system._unregister(this);
-    return this;
-  }
-  /** @internal */
-  _send(event) {
-    if (this._processingStatus === ProcessingStatus.Stopped) {
-      return;
-    }
-    this.mailbox.enqueue(event);
-  }
-  /**
-   * Sends an event to the running Actor to trigger a transition.
-   *
-   * @param event The event to send
-   */
-  send(event) {
-    this.system._relay(void 0, this, event);
-  }
-  attachDevTools() {
-    const {
-      devTools
-    } = this.options;
-    if (devTools) {
-      const resolvedDevToolsAdapter = typeof devTools === "function" ? devTools : devToolsAdapter;
-      resolvedDevToolsAdapter(this);
-    }
-  }
-  toJSON() {
-    return {
-      xstate$$type: $$ACTOR_TYPE,
-      id: this.id
-    };
-  }
-  /**
-   * Obtain the internal state of the actor, which can be persisted.
-   *
-   * @remarks
-   * The internal state can be persisted from any actor, not only machines.
-   *
-   * Note that the persisted state is not the same as the snapshot from
-   * {@link Actor.getSnapshot}. Persisted state represents the internal state of
-   * the actor, while snapshots represent the actor's last emitted value.
-   *
-   * Can be restored with {@link ActorOptions.state}
-   * @see https://stately.ai/docs/persistence
-   */
-  getPersistedSnapshot(options) {
-    return this.logic.getPersistedSnapshot(this._snapshot, options);
-  }
-  [symbolObservable]() {
-    return this;
-  }
-  /**
-   * Read an actor’s snapshot synchronously.
-   *
-   * @remarks
-   * The snapshot represent an actor's last emitted value.
-   *
-   * When an actor receives an event, its internal state may change. An actor
-   * may emit a snapshot when a state transition occurs.
-   *
-   * Note that some actors, such as callback actors generated with
-   * `fromCallback`, will not emit snapshots.
-   * @see {@link Actor.subscribe} to subscribe to an actor’s snapshot values.
-   * @see {@link Actor.getPersistedSnapshot} to persist the internal state of an actor (which is more than just a snapshot).
-   */
-  getSnapshot() {
-    return this._snapshot;
-  }
-};
-function createActor(logic, ...[options]) {
-  return new Actor(logic, options);
-}
-function resolveCancel(_, snapshot, actionArgs, actionParams, {
-  sendId
-}) {
-  const resolvedSendId = typeof sendId === "function" ? sendId(actionArgs, actionParams) : sendId;
-  return [snapshot, {
-    sendId: resolvedSendId
-  }, void 0];
-}
-function executeCancel(actorScope, params) {
-  actorScope.defer(() => {
-    actorScope.system.scheduler.cancel(actorScope.self, params.sendId);
-  });
-}
-function cancel(sendId) {
-  function cancel2(_args, _params) {
-  }
-  cancel2.type = "xstate.cancel";
-  cancel2.sendId = sendId;
-  cancel2.resolve = resolveCancel;
-  cancel2.execute = executeCancel;
-  return cancel2;
-}
-function resolveSpawn(actorScope, snapshot, actionArgs, _actionParams, {
-  id,
-  systemId,
-  src,
-  input,
-  syncSnapshot
-}) {
-  const logic = typeof src === "string" ? resolveReferencedActor(snapshot.machine, src) : src;
-  const resolvedId = typeof id === "function" ? id(actionArgs) : id;
-  let actorRef;
-  let resolvedInput = void 0;
-  if (logic) {
-    resolvedInput = typeof input === "function" ? input({
-      context: snapshot.context,
-      event: actionArgs.event,
-      self: actorScope.self
-    }) : input;
-    actorRef = createActor(logic, {
-      id: resolvedId,
-      src,
-      parent: actorScope.self,
-      syncSnapshot,
-      systemId,
-      input: resolvedInput
-    });
-  }
-  return [cloneMachineSnapshot(snapshot, {
-    children: {
-      ...snapshot.children,
-      [resolvedId]: actorRef
-    }
-  }), {
-    id,
-    systemId,
-    actorRef,
-    src,
-    input: resolvedInput
-  }, void 0];
-}
-function executeSpawn(actorScope, {
-  actorRef
-}) {
-  if (!actorRef) {
-    return;
-  }
-  actorScope.defer(() => {
-    if (actorRef._processingStatus === ProcessingStatus.Stopped) {
-      return;
-    }
-    actorRef.start();
-  });
-}
-function spawnChild(...[src, {
-  id,
-  systemId,
-  input,
-  syncSnapshot = false
-} = {}]) {
-  function spawnChild2(_args, _params) {
-  }
-  spawnChild2.type = "xstate.spawnChild";
-  spawnChild2.id = id;
-  spawnChild2.systemId = systemId;
-  spawnChild2.src = src;
-  spawnChild2.input = input;
-  spawnChild2.syncSnapshot = syncSnapshot;
-  spawnChild2.resolve = resolveSpawn;
-  spawnChild2.execute = executeSpawn;
-  return spawnChild2;
-}
-function resolveStop(_, snapshot, args, actionParams, {
-  actorRef
-}) {
-  const actorRefOrString = typeof actorRef === "function" ? actorRef(args, actionParams) : actorRef;
-  const resolvedActorRef = typeof actorRefOrString === "string" ? snapshot.children[actorRefOrString] : actorRefOrString;
-  let children = snapshot.children;
-  if (resolvedActorRef) {
-    children = {
-      ...children
-    };
-    delete children[resolvedActorRef.id];
-  }
-  return [cloneMachineSnapshot(snapshot, {
-    children
-  }), resolvedActorRef, void 0];
-}
-function unregisterRecursively(actorScope, actorRef) {
-  const snapshot = actorRef.getSnapshot();
-  if (snapshot && "children" in snapshot) {
-    for (const child of Object.values(snapshot.children)) {
-      unregisterRecursively(actorScope, child);
-    }
-  }
-  actorScope.system._unregister(actorRef);
-}
-function executeStop(actorScope, actorRef) {
-  if (!actorRef) {
-    return;
-  }
-  unregisterRecursively(actorScope, actorRef);
-  if (actorRef._processingStatus !== ProcessingStatus.Running) {
-    actorScope.stopChild(actorRef);
-    return;
-  }
-  actorScope.defer(() => {
-    actorScope.stopChild(actorRef);
-  });
-}
-function stopChild(actorRef) {
-  function stop2(_args, _params) {
-  }
-  stop2.type = "xstate.stopChild";
-  stop2.actorRef = actorRef;
-  stop2.resolve = resolveStop;
-  stop2.execute = executeStop;
-  return stop2;
-}
-function checkNot(snapshot, {
-  context: context2,
-  event
-}, {
-  guards: guards2
-}) {
-  return !evaluateGuard(guards2[0], context2, event, snapshot);
-}
-function not(guard) {
-  function not2(_args, _params) {
-    return false;
-  }
-  not2.check = checkNot;
-  not2.guards = [guard];
-  return not2;
-}
-function checkAnd(snapshot, {
-  context: context2,
-  event
-}, {
-  guards: guards2
-}) {
-  return guards2.every((guard) => evaluateGuard(guard, context2, event, snapshot));
-}
-function and(guards2) {
-  function and2(_args, _params) {
-    return false;
-  }
-  and2.check = checkAnd;
-  and2.guards = guards2;
-  return and2;
-}
-function evaluateGuard(guard, context2, event, snapshot) {
-  const {
-    machine
-  } = snapshot;
-  const isInline = typeof guard === "function";
-  const resolved = isInline ? guard : machine.implementations.guards[typeof guard === "string" ? guard : guard.type];
-  if (!isInline && !resolved) {
-    throw new Error(`Guard '${typeof guard === "string" ? guard : guard.type}' is not implemented.'.`);
-  }
-  if (typeof resolved !== "function") {
-    return evaluateGuard(resolved, context2, event, snapshot);
-  }
-  const guardArgs = {
-    context: context2,
-    event
-  };
-  const guardParams = isInline || typeof guard === "string" ? void 0 : "params" in guard ? typeof guard.params === "function" ? guard.params({
-    context: context2,
-    event
-  }) : guard.params : void 0;
-  if (!("check" in resolved)) {
-    return resolved(guardArgs, guardParams);
-  }
-  const builtinGuard = resolved;
-  return builtinGuard.check(
-    snapshot,
-    guardArgs,
-    resolved
-    // this holds all params
-  );
-}
-function isAtomicStateNode(stateNode) {
-  return stateNode.type === "atomic" || stateNode.type === "final";
-}
-function getChildren(stateNode) {
-  return Object.values(stateNode.states).filter((sn) => sn.type !== "history");
-}
-function getProperAncestors(stateNode, toStateNode) {
-  const ancestors = [];
-  if (toStateNode === stateNode) {
-    return ancestors;
-  }
-  let m = stateNode.parent;
-  while (m && m !== toStateNode) {
-    ancestors.push(m);
-    m = m.parent;
-  }
-  return ancestors;
-}
-function getAllStateNodes(stateNodes) {
-  const nodeSet = new Set(stateNodes);
-  const adjList = getAdjList(nodeSet);
-  for (const s of nodeSet) {
-    if (s.type === "compound" && (!adjList.get(s) || !adjList.get(s).length)) {
-      getInitialStateNodesWithTheirAncestors(s).forEach((sn) => nodeSet.add(sn));
-    } else {
-      if (s.type === "parallel") {
-        for (const child of getChildren(s)) {
-          if (child.type === "history") {
-            continue;
-          }
-          if (!nodeSet.has(child)) {
-            const initialStates = getInitialStateNodesWithTheirAncestors(child);
-            for (const initialStateNode of initialStates) {
-              nodeSet.add(initialStateNode);
-            }
-          }
-        }
-      }
-    }
-  }
-  for (const s of nodeSet) {
-    let m = s.parent;
-    while (m) {
-      nodeSet.add(m);
-      m = m.parent;
-    }
-  }
-  return nodeSet;
-}
-function getValueFromAdj(baseNode, adjList) {
-  const childStateNodes = adjList.get(baseNode);
-  if (!childStateNodes) {
-    return {};
-  }
-  if (baseNode.type === "compound") {
-    const childStateNode = childStateNodes[0];
-    if (childStateNode) {
-      if (isAtomicStateNode(childStateNode)) {
-        return childStateNode.key;
-      }
-    } else {
-      return {};
-    }
-  }
-  const stateValue = {};
-  for (const childStateNode of childStateNodes) {
-    stateValue[childStateNode.key] = getValueFromAdj(childStateNode, adjList);
-  }
-  return stateValue;
-}
-function getAdjList(stateNodes) {
-  const adjList = /* @__PURE__ */ new Map();
-  for (const s of stateNodes) {
-    if (!adjList.has(s)) {
-      adjList.set(s, []);
-    }
-    if (s.parent) {
-      if (!adjList.has(s.parent)) {
-        adjList.set(s.parent, []);
-      }
-      adjList.get(s.parent).push(s);
-    }
-  }
-  return adjList;
-}
-function getStateValue(rootNode, stateNodes) {
-  const config2 = getAllStateNodes(stateNodes);
-  return getValueFromAdj(rootNode, getAdjList(config2));
-}
-function isInFinalState(stateNodeSet, stateNode) {
-  if (stateNode.type === "compound") {
-    return getChildren(stateNode).some((s) => s.type === "final" && stateNodeSet.has(s));
-  }
-  if (stateNode.type === "parallel") {
-    return getChildren(stateNode).every((sn) => isInFinalState(stateNodeSet, sn));
-  }
-  return stateNode.type === "final";
-}
-var isStateId = (str) => str[0] === STATE_IDENTIFIER;
-function getCandidates(stateNode, receivedEventType) {
-  const candidates = stateNode.transitions.get(receivedEventType) || [...stateNode.transitions.keys()].filter((eventDescriptor) => matchesEventDescriptor(receivedEventType, eventDescriptor)).sort((a, b) => b.length - a.length).flatMap((key) => stateNode.transitions.get(key));
-  return candidates;
-}
-function getDelayedTransitions(stateNode) {
-  const afterConfig = stateNode.config.after;
-  if (!afterConfig) {
-    return [];
-  }
-  const mutateEntryExit = (delay) => {
-    const afterEvent = createAfterEvent(delay, stateNode.id);
-    const eventType = afterEvent.type;
-    stateNode.entry.push(raise(afterEvent, {
-      id: eventType,
-      delay
-    }));
-    stateNode.exit.push(cancel(eventType));
-    return eventType;
-  };
-  const delayedTransitions = Object.keys(afterConfig).flatMap((delay) => {
-    const configTransition = afterConfig[delay];
-    const resolvedTransition = typeof configTransition === "string" ? {
-      target: configTransition
-    } : configTransition;
-    const resolvedDelay = Number.isNaN(+delay) ? delay : +delay;
-    const eventType = mutateEntryExit(resolvedDelay);
-    return toArray(resolvedTransition).map((transition) => ({
-      ...transition,
-      event: eventType,
-      delay: resolvedDelay
-    }));
-  });
-  return delayedTransitions.map((delayedTransition) => {
-    const {
-      delay
-    } = delayedTransition;
-    return {
-      ...formatTransition(stateNode, delayedTransition.event, delayedTransition),
-      delay
-    };
-  });
-}
-function formatTransition(stateNode, descriptor, transitionConfig) {
-  const normalizedTarget = normalizeTarget(transitionConfig.target);
-  const reenter = transitionConfig.reenter ?? false;
-  const target = resolveTarget(stateNode, normalizedTarget);
-  const transition = {
-    ...transitionConfig,
-    actions: toArray(transitionConfig.actions),
-    guard: transitionConfig.guard,
-    target,
-    source: stateNode,
-    reenter,
-    eventType: descriptor,
-    toJSON: () => ({
-      ...transition,
-      source: `#${stateNode.id}`,
-      target: target ? target.map((t) => `#${t.id}`) : void 0
-    })
-  };
-  return transition;
-}
-function formatTransitions(stateNode) {
-  const transitions = /* @__PURE__ */ new Map();
-  if (stateNode.config.on) {
-    for (const descriptor of Object.keys(stateNode.config.on)) {
-      if (descriptor === NULL_EVENT) {
-        throw new Error('Null events ("") cannot be specified as a transition key. Use `always: { ... }` instead.');
-      }
-      const transitionsConfig = stateNode.config.on[descriptor];
-      transitions.set(descriptor, toTransitionConfigArray(transitionsConfig).map((t) => formatTransition(stateNode, descriptor, t)));
-    }
-  }
-  if (stateNode.config.onDone) {
-    const descriptor = `xstate.done.state.${stateNode.id}`;
-    transitions.set(descriptor, toTransitionConfigArray(stateNode.config.onDone).map((t) => formatTransition(stateNode, descriptor, t)));
-  }
-  for (const invokeDef of stateNode.invoke) {
-    if (invokeDef.onDone) {
-      const descriptor = `xstate.done.actor.${invokeDef.id}`;
-      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onDone).map((t) => formatTransition(stateNode, descriptor, t)));
-    }
-    if (invokeDef.onError) {
-      const descriptor = `xstate.error.actor.${invokeDef.id}`;
-      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onError).map((t) => formatTransition(stateNode, descriptor, t)));
-    }
-    if (invokeDef.onSnapshot) {
-      const descriptor = `xstate.snapshot.${invokeDef.id}`;
-      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onSnapshot).map((t) => formatTransition(stateNode, descriptor, t)));
-    }
-  }
-  for (const delayedTransition of stateNode.after) {
-    let existing = transitions.get(delayedTransition.eventType);
-    if (!existing) {
-      existing = [];
-      transitions.set(delayedTransition.eventType, existing);
-    }
-    existing.push(delayedTransition);
-  }
-  return transitions;
-}
-function formatInitialTransition(stateNode, _target) {
-  const resolvedTarget = typeof _target === "string" ? stateNode.states[_target] : _target ? stateNode.states[_target.target] : void 0;
-  if (!resolvedTarget && _target) {
-    throw new Error(
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-base-to-string
-      `Initial state node "${_target}" not found on parent state node #${stateNode.id}`
-    );
-  }
-  const transition = {
-    source: stateNode,
-    actions: !_target || typeof _target === "string" ? [] : toArray(_target.actions),
-    eventType: null,
-    reenter: false,
-    target: resolvedTarget ? [resolvedTarget] : [],
-    toJSON: () => ({
-      ...transition,
-      source: `#${stateNode.id}`,
-      target: resolvedTarget ? [`#${resolvedTarget.id}`] : []
-    })
-  };
-  return transition;
-}
-function resolveTarget(stateNode, targets) {
-  if (targets === void 0) {
-    return void 0;
-  }
-  return targets.map((target) => {
-    if (typeof target !== "string") {
-      return target;
-    }
-    if (isStateId(target)) {
-      return stateNode.machine.getStateNodeById(target);
-    }
-    const isInternalTarget = target[0] === STATE_DELIMITER;
-    if (isInternalTarget && !stateNode.parent) {
-      return getStateNodeByPath(stateNode, target.slice(1));
-    }
-    const resolvedTarget = isInternalTarget ? stateNode.key + target : target;
-    if (stateNode.parent) {
-      try {
-        const targetStateNode = getStateNodeByPath(stateNode.parent, resolvedTarget);
-        return targetStateNode;
-      } catch (err) {
-        throw new Error(`Invalid transition definition for state node '${stateNode.id}':
-${err.message}`);
-      }
-    } else {
-      throw new Error(`Invalid target: "${target}" is not a valid target from the root node. Did you mean ".${target}"?`);
-    }
-  });
-}
-function resolveHistoryDefaultTransition(stateNode) {
-  const normalizedTarget = normalizeTarget(stateNode.config.target);
-  if (!normalizedTarget) {
-    return stateNode.parent.initial;
-  }
-  return {
-    target: normalizedTarget.map((t) => typeof t === "string" ? getStateNodeByPath(stateNode.parent, t) : t)
-  };
-}
-function isHistoryNode(stateNode) {
-  return stateNode.type === "history";
-}
-function getInitialStateNodesWithTheirAncestors(stateNode) {
-  const states = getInitialStateNodes(stateNode);
-  for (const initialState of states) {
-    for (const ancestor of getProperAncestors(initialState, stateNode)) {
-      states.add(ancestor);
-    }
-  }
-  return states;
-}
-function getInitialStateNodes(stateNode) {
-  const set = /* @__PURE__ */ new Set();
-  function iter(descStateNode) {
-    if (set.has(descStateNode)) {
-      return;
-    }
-    set.add(descStateNode);
-    if (descStateNode.type === "compound") {
-      iter(descStateNode.initial.target[0]);
-    } else if (descStateNode.type === "parallel") {
-      for (const child of getChildren(descStateNode)) {
-        iter(child);
-      }
-    }
-  }
-  iter(stateNode);
-  return set;
-}
-function getStateNode(stateNode, stateKey) {
-  if (isStateId(stateKey)) {
-    return stateNode.machine.getStateNodeById(stateKey);
-  }
-  if (!stateNode.states) {
-    throw new Error(`Unable to retrieve child state '${stateKey}' from '${stateNode.id}'; no child states exist.`);
-  }
-  const result = stateNode.states[stateKey];
-  if (!result) {
-    throw new Error(`Child state '${stateKey}' does not exist on '${stateNode.id}'`);
-  }
-  return result;
-}
-function getStateNodeByPath(stateNode, statePath) {
-  if (typeof statePath === "string" && isStateId(statePath)) {
-    try {
-      return stateNode.machine.getStateNodeById(statePath);
-    } catch {
-    }
-  }
-  const arrayStatePath = toStatePath(statePath).slice();
-  let currentStateNode = stateNode;
-  while (arrayStatePath.length) {
-    const key = arrayStatePath.shift();
-    if (!key.length) {
-      break;
-    }
-    currentStateNode = getStateNode(currentStateNode, key);
-  }
-  return currentStateNode;
-}
-function getStateNodes(stateNode, stateValue) {
-  if (typeof stateValue === "string") {
-    const childStateNode = stateNode.states[stateValue];
-    if (!childStateNode) {
-      throw new Error(`State '${stateValue}' does not exist on '${stateNode.id}'`);
-    }
-    return [stateNode, childStateNode];
-  }
-  const childStateKeys = Object.keys(stateValue);
-  const childStateNodes = childStateKeys.map((subStateKey) => getStateNode(stateNode, subStateKey)).filter(Boolean);
-  return [stateNode.machine.root, stateNode].concat(childStateNodes, childStateKeys.reduce((allSubStateNodes, subStateKey) => {
-    const subStateNode = getStateNode(stateNode, subStateKey);
-    if (!subStateNode) {
-      return allSubStateNodes;
-    }
-    const subStateNodes = getStateNodes(subStateNode, stateValue[subStateKey]);
-    return allSubStateNodes.concat(subStateNodes);
-  }, []));
-}
-function transitionAtomicNode(stateNode, stateValue, snapshot, event) {
-  const childStateNode = getStateNode(stateNode, stateValue);
-  const next = childStateNode.next(snapshot, event);
-  if (!next || !next.length) {
-    return stateNode.next(snapshot, event);
-  }
-  return next;
-}
-function transitionCompoundNode(stateNode, stateValue, snapshot, event) {
-  const subStateKeys = Object.keys(stateValue);
-  const childStateNode = getStateNode(stateNode, subStateKeys[0]);
-  const next = transitionNode(childStateNode, stateValue[subStateKeys[0]], snapshot, event);
-  if (!next || !next.length) {
-    return stateNode.next(snapshot, event);
-  }
-  return next;
-}
-function transitionParallelNode(stateNode, stateValue, snapshot, event) {
-  const allInnerTransitions = [];
-  for (const subStateKey of Object.keys(stateValue)) {
-    const subStateValue = stateValue[subStateKey];
-    if (!subStateValue) {
-      continue;
-    }
-    const subStateNode = getStateNode(stateNode, subStateKey);
-    const innerTransitions = transitionNode(subStateNode, subStateValue, snapshot, event);
-    if (innerTransitions) {
-      allInnerTransitions.push(...innerTransitions);
-    }
-  }
-  if (!allInnerTransitions.length) {
-    return stateNode.next(snapshot, event);
-  }
-  return allInnerTransitions;
-}
-function transitionNode(stateNode, stateValue, snapshot, event) {
-  if (typeof stateValue === "string") {
-    return transitionAtomicNode(stateNode, stateValue, snapshot, event);
-  }
-  if (Object.keys(stateValue).length === 1) {
-    return transitionCompoundNode(stateNode, stateValue, snapshot, event);
-  }
-  return transitionParallelNode(stateNode, stateValue, snapshot, event);
-}
-function getHistoryNodes(stateNode) {
-  return Object.keys(stateNode.states).map((key) => stateNode.states[key]).filter((sn) => sn.type === "history");
-}
-function isDescendant(childStateNode, parentStateNode) {
-  let marker = childStateNode;
-  while (marker.parent && marker.parent !== parentStateNode) {
-    marker = marker.parent;
-  }
-  return marker.parent === parentStateNode;
-}
-function hasIntersection(s1, s2) {
-  const set1 = new Set(s1);
-  const set2 = new Set(s2);
-  for (const item of set1) {
-    if (set2.has(item)) {
-      return true;
-    }
-  }
-  for (const item of set2) {
-    if (set1.has(item)) {
-      return true;
-    }
-  }
-  return false;
-}
-function removeConflictingTransitions(enabledTransitions, stateNodeSet, historyValue) {
-  const filteredTransitions = /* @__PURE__ */ new Set();
-  for (const t1 of enabledTransitions) {
-    let t1Preempted = false;
-    const transitionsToRemove = /* @__PURE__ */ new Set();
-    for (const t2 of filteredTransitions) {
-      if (hasIntersection(computeExitSet([t1], stateNodeSet, historyValue), computeExitSet([t2], stateNodeSet, historyValue))) {
-        if (isDescendant(t1.source, t2.source)) {
-          transitionsToRemove.add(t2);
-        } else {
-          t1Preempted = true;
-          break;
-        }
-      }
-    }
-    if (!t1Preempted) {
-      for (const t3 of transitionsToRemove) {
-        filteredTransitions.delete(t3);
-      }
-      filteredTransitions.add(t1);
-    }
-  }
-  return Array.from(filteredTransitions);
-}
-function findLeastCommonAncestor(stateNodes) {
-  const [head, ...tail] = stateNodes;
-  for (const ancestor of getProperAncestors(head, void 0)) {
-    if (tail.every((sn) => isDescendant(sn, ancestor))) {
-      return ancestor;
-    }
-  }
-}
-function getEffectiveTargetStates(transition, historyValue) {
-  if (!transition.target) {
-    return [];
-  }
-  const targets = /* @__PURE__ */ new Set();
-  for (const targetNode of transition.target) {
-    if (isHistoryNode(targetNode)) {
-      if (historyValue[targetNode.id]) {
-        for (const node2 of historyValue[targetNode.id]) {
-          targets.add(node2);
-        }
-      } else {
-        for (const node2 of getEffectiveTargetStates(resolveHistoryDefaultTransition(targetNode), historyValue)) {
-          targets.add(node2);
-        }
-      }
-    } else {
-      targets.add(targetNode);
-    }
-  }
-  return [...targets];
-}
-function getTransitionDomain(transition, historyValue) {
-  const targetStates = getEffectiveTargetStates(transition, historyValue);
-  if (!targetStates) {
-    return;
-  }
-  if (!transition.reenter && targetStates.every((target) => target === transition.source || isDescendant(target, transition.source))) {
-    return transition.source;
-  }
-  const lca = findLeastCommonAncestor(targetStates.concat(transition.source));
-  if (lca) {
-    return lca;
-  }
-  if (transition.reenter) {
-    return;
-  }
-  return transition.source.machine.root;
-}
-function computeExitSet(transitions, stateNodeSet, historyValue) {
-  const statesToExit = /* @__PURE__ */ new Set();
-  for (const t of transitions) {
-    if (t.target?.length) {
-      const domain2 = getTransitionDomain(t, historyValue);
-      if (t.reenter && t.source === domain2) {
-        statesToExit.add(domain2);
-      }
-      for (const stateNode of stateNodeSet) {
-        if (isDescendant(stateNode, domain2)) {
-          statesToExit.add(stateNode);
-        }
-      }
-    }
-  }
-  return [...statesToExit];
-}
-function areStateNodeCollectionsEqual(prevStateNodes, nextStateNodeSet) {
-  if (prevStateNodes.length !== nextStateNodeSet.size) {
-    return false;
-  }
-  for (const node2 of prevStateNodes) {
-    if (!nextStateNodeSet.has(node2)) {
-      return false;
-    }
-  }
-  return true;
-}
-function microstep(transitions, currentSnapshot, actorScope, event, isInitial, internalQueue) {
-  if (!transitions.length) {
-    return currentSnapshot;
-  }
-  const mutStateNodeSet = new Set(currentSnapshot._nodes);
-  let historyValue = currentSnapshot.historyValue;
-  const filteredTransitions = removeConflictingTransitions(transitions, mutStateNodeSet, historyValue);
-  let nextState = currentSnapshot;
-  if (!isInitial) {
-    [nextState, historyValue] = exitStates(nextState, event, actorScope, filteredTransitions, mutStateNodeSet, historyValue, internalQueue, actorScope.actionExecutor);
-  }
-  nextState = resolveActionsAndContext(nextState, event, actorScope, filteredTransitions.flatMap((t) => t.actions), internalQueue, void 0);
-  nextState = enterStates(nextState, event, actorScope, filteredTransitions, mutStateNodeSet, internalQueue, historyValue, isInitial);
-  const nextStateNodes = [...mutStateNodeSet];
-  if (nextState.status === "done") {
-    nextState = resolveActionsAndContext(nextState, event, actorScope, nextStateNodes.sort((a, b) => b.order - a.order).flatMap((state) => state.exit), internalQueue, void 0);
-  }
-  try {
-    if (historyValue === currentSnapshot.historyValue && areStateNodeCollectionsEqual(currentSnapshot._nodes, mutStateNodeSet)) {
-      return nextState;
-    }
-    return cloneMachineSnapshot(nextState, {
-      _nodes: nextStateNodes,
-      historyValue
-    });
-  } catch (e) {
-    throw e;
-  }
-}
-function getMachineOutput(snapshot, event, actorScope, rootNode, rootCompletionNode) {
-  if (rootNode.output === void 0) {
-    return;
-  }
-  const doneStateEvent = createDoneStateEvent(rootCompletionNode.id, rootCompletionNode.output !== void 0 && rootCompletionNode.parent ? resolveOutput(rootCompletionNode.output, snapshot.context, event, actorScope.self) : void 0);
-  return resolveOutput(rootNode.output, snapshot.context, doneStateEvent, actorScope.self);
-}
-function enterStates(currentSnapshot, event, actorScope, filteredTransitions, mutStateNodeSet, internalQueue, historyValue, isInitial) {
-  let nextSnapshot = currentSnapshot;
-  const statesToEnter = /* @__PURE__ */ new Set();
-  const statesForDefaultEntry = /* @__PURE__ */ new Set();
-  computeEntrySet(filteredTransitions, historyValue, statesForDefaultEntry, statesToEnter);
-  if (isInitial) {
-    statesForDefaultEntry.add(currentSnapshot.machine.root);
-  }
-  const completedNodes = /* @__PURE__ */ new Set();
-  for (const stateNodeToEnter of [...statesToEnter].sort((a, b) => a.order - b.order)) {
-    mutStateNodeSet.add(stateNodeToEnter);
-    const actions = [];
-    actions.push(...stateNodeToEnter.entry);
-    for (const invokeDef of stateNodeToEnter.invoke) {
-      actions.push(spawnChild(invokeDef.src, {
-        ...invokeDef,
-        syncSnapshot: !!invokeDef.onSnapshot
-      }));
-    }
-    if (statesForDefaultEntry.has(stateNodeToEnter)) {
-      const initialActions = stateNodeToEnter.initial.actions;
-      actions.push(...initialActions);
-    }
-    nextSnapshot = resolveActionsAndContext(nextSnapshot, event, actorScope, actions, internalQueue, stateNodeToEnter.invoke.map((invokeDef) => invokeDef.id));
-    if (stateNodeToEnter.type === "final") {
-      const parent = stateNodeToEnter.parent;
-      let ancestorMarker = parent?.type === "parallel" ? parent : parent?.parent;
-      let rootCompletionNode = ancestorMarker || stateNodeToEnter;
-      if (parent?.type === "compound") {
-        internalQueue.push(createDoneStateEvent(parent.id, stateNodeToEnter.output !== void 0 ? resolveOutput(stateNodeToEnter.output, nextSnapshot.context, event, actorScope.self) : void 0));
-      }
-      while (ancestorMarker?.type === "parallel" && !completedNodes.has(ancestorMarker) && isInFinalState(mutStateNodeSet, ancestorMarker)) {
-        completedNodes.add(ancestorMarker);
-        internalQueue.push(createDoneStateEvent(ancestorMarker.id));
-        rootCompletionNode = ancestorMarker;
-        ancestorMarker = ancestorMarker.parent;
-      }
-      if (ancestorMarker) {
-        continue;
-      }
-      nextSnapshot = cloneMachineSnapshot(nextSnapshot, {
-        status: "done",
-        output: getMachineOutput(nextSnapshot, event, actorScope, nextSnapshot.machine.root, rootCompletionNode)
-      });
-    }
-  }
-  return nextSnapshot;
-}
-function computeEntrySet(transitions, historyValue, statesForDefaultEntry, statesToEnter) {
-  for (const t of transitions) {
-    const domain2 = getTransitionDomain(t, historyValue);
-    for (const s of t.target || []) {
-      if (!isHistoryNode(s) && // if the target is different than the source then it will *definitely* be entered
-      (t.source !== s || // we know that the domain can't lie within the source
-      // if it's different than the source then it's outside of it and it means that the target has to be entered as well
-      t.source !== domain2 || // reentering transitions always enter the target, even if it's the source itself
-      t.reenter)) {
-        statesToEnter.add(s);
-        statesForDefaultEntry.add(s);
-      }
-      addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
-    }
-    const targetStates = getEffectiveTargetStates(t, historyValue);
-    for (const s of targetStates) {
-      const ancestors = getProperAncestors(s, domain2);
-      if (domain2?.type === "parallel") {
-        ancestors.push(domain2);
-      }
-      addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, ancestors, !t.source.parent && t.reenter ? void 0 : domain2);
-    }
-  }
-}
-function addDescendantStatesToEnter(stateNode, historyValue, statesForDefaultEntry, statesToEnter) {
-  if (isHistoryNode(stateNode)) {
-    if (historyValue[stateNode.id]) {
-      const historyStateNodes = historyValue[stateNode.id];
-      for (const s of historyStateNodes) {
-        statesToEnter.add(s);
-        addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
-      }
-      for (const s of historyStateNodes) {
-        addProperAncestorStatesToEnter(s, stateNode.parent, statesToEnter, historyValue, statesForDefaultEntry);
-      }
-    } else {
-      const historyDefaultTransition = resolveHistoryDefaultTransition(stateNode);
-      for (const s of historyDefaultTransition.target) {
-        statesToEnter.add(s);
-        if (historyDefaultTransition === stateNode.parent?.initial) {
-          statesForDefaultEntry.add(stateNode.parent);
-        }
-        addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
-      }
-      for (const s of historyDefaultTransition.target) {
-        addProperAncestorStatesToEnter(s, stateNode.parent, statesToEnter, historyValue, statesForDefaultEntry);
-      }
-    }
-  } else {
-    if (stateNode.type === "compound") {
-      const [initialState] = stateNode.initial.target;
-      if (!isHistoryNode(initialState)) {
-        statesToEnter.add(initialState);
-        statesForDefaultEntry.add(initialState);
-      }
-      addDescendantStatesToEnter(initialState, historyValue, statesForDefaultEntry, statesToEnter);
-      addProperAncestorStatesToEnter(initialState, stateNode, statesToEnter, historyValue, statesForDefaultEntry);
-    } else {
-      if (stateNode.type === "parallel") {
-        for (const child of getChildren(stateNode).filter((sn) => !isHistoryNode(sn))) {
-          if (![...statesToEnter].some((s) => isDescendant(s, child))) {
-            if (!isHistoryNode(child)) {
-              statesToEnter.add(child);
-              statesForDefaultEntry.add(child);
-            }
-            addDescendantStatesToEnter(child, historyValue, statesForDefaultEntry, statesToEnter);
-          }
-        }
-      }
-    }
-  }
-}
-function addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, ancestors, reentrancyDomain) {
-  for (const anc of ancestors) {
-    if (!reentrancyDomain || isDescendant(anc, reentrancyDomain)) {
-      statesToEnter.add(anc);
-    }
-    if (anc.type === "parallel") {
-      for (const child of getChildren(anc).filter((sn) => !isHistoryNode(sn))) {
-        if (![...statesToEnter].some((s) => isDescendant(s, child))) {
-          statesToEnter.add(child);
-          addDescendantStatesToEnter(child, historyValue, statesForDefaultEntry, statesToEnter);
-        }
-      }
-    }
-  }
-}
-function addProperAncestorStatesToEnter(stateNode, toStateNode, statesToEnter, historyValue, statesForDefaultEntry) {
-  addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, getProperAncestors(stateNode, toStateNode));
-}
-function exitStates(currentSnapshot, event, actorScope, transitions, mutStateNodeSet, historyValue, internalQueue, _actionExecutor) {
-  let nextSnapshot = currentSnapshot;
-  const statesToExit = computeExitSet(transitions, mutStateNodeSet, historyValue);
-  statesToExit.sort((a, b) => b.order - a.order);
-  let changedHistory;
-  for (const exitStateNode of statesToExit) {
-    for (const historyNode of getHistoryNodes(exitStateNode)) {
-      let predicate;
-      if (historyNode.history === "deep") {
-        predicate = (sn) => isAtomicStateNode(sn) && isDescendant(sn, exitStateNode);
-      } else {
-        predicate = (sn) => {
-          return sn.parent === exitStateNode;
-        };
-      }
-      changedHistory ??= {
-        ...historyValue
-      };
-      changedHistory[historyNode.id] = Array.from(mutStateNodeSet).filter(predicate);
-    }
-  }
-  for (const s of statesToExit) {
-    nextSnapshot = resolveActionsAndContext(nextSnapshot, event, actorScope, [...s.exit, ...s.invoke.map((def) => stopChild(def.id))], internalQueue, void 0);
-    mutStateNodeSet.delete(s);
-  }
-  return [nextSnapshot, changedHistory || historyValue];
-}
-function getAction(machine, actionType) {
-  return machine.implementations.actions[actionType];
-}
-function resolveAndExecuteActionsWithContext(currentSnapshot, event, actorScope, actions, extra, retries) {
-  const {
-    machine
-  } = currentSnapshot;
-  let intermediateSnapshot = currentSnapshot;
-  for (const action of actions) {
-    const isInline = typeof action === "function";
-    const resolvedAction = isInline ? action : (
-      // the existing type of `.actions` assumes non-nullable `TExpressionAction`
-      // it's fine to cast this here to get a common type and lack of errors in the rest of the code
-      // our logic below makes sure that we call those 2 "variants" correctly
-      getAction(machine, typeof action === "string" ? action : action.type)
-    );
-    const actionArgs = {
-      context: intermediateSnapshot.context,
-      event,
-      self: actorScope.self,
-      system: actorScope.system
-    };
-    const actionParams = isInline || typeof action === "string" ? void 0 : "params" in action ? typeof action.params === "function" ? action.params({
-      context: intermediateSnapshot.context,
-      event
-    }) : action.params : void 0;
-    if (!resolvedAction || !("resolve" in resolvedAction)) {
-      actorScope.actionExecutor({
-        type: typeof action === "string" ? action : typeof action === "object" ? action.type : action.name || "(anonymous)",
-        info: actionArgs,
-        params: actionParams,
-        exec: resolvedAction
-      });
-      continue;
-    }
-    const builtinAction = resolvedAction;
-    const [nextState, params, actions2] = builtinAction.resolve(
-      actorScope,
-      intermediateSnapshot,
-      actionArgs,
-      actionParams,
-      resolvedAction,
-      // this holds all params
-      extra
-    );
-    intermediateSnapshot = nextState;
-    if ("retryResolve" in builtinAction) {
-      retries?.push([builtinAction, params]);
-    }
-    if ("execute" in builtinAction) {
-      actorScope.actionExecutor({
-        type: builtinAction.type,
-        info: actionArgs,
-        params,
-        exec: builtinAction.execute.bind(null, actorScope, params)
-      });
-    }
-    if (actions2) {
-      intermediateSnapshot = resolveAndExecuteActionsWithContext(intermediateSnapshot, event, actorScope, actions2, extra, retries);
-    }
-  }
-  return intermediateSnapshot;
-}
-function resolveActionsAndContext(currentSnapshot, event, actorScope, actions, internalQueue, deferredActorIds) {
-  const retries = deferredActorIds ? [] : void 0;
-  const nextState = resolveAndExecuteActionsWithContext(currentSnapshot, event, actorScope, actions, {
-    internalQueue,
-    deferredActorIds
-  }, retries);
-  retries?.forEach(([builtinAction, params]) => {
-    builtinAction.retryResolve(actorScope, nextState, params);
-  });
-  return nextState;
-}
-function macrostep(snapshot, event, actorScope, internalQueue) {
-  let nextSnapshot = snapshot;
-  const microstates = [];
-  function addMicrostate(microstate, event2, transitions) {
-    actorScope.system._sendInspectionEvent({
-      type: "@xstate.microstep",
-      actorRef: actorScope.self,
-      event: event2,
-      snapshot: microstate,
-      _transitions: transitions
-    });
-    microstates.push(microstate);
-  }
-  if (event.type === XSTATE_STOP) {
-    nextSnapshot = cloneMachineSnapshot(stopChildren(nextSnapshot, event, actorScope), {
-      status: "stopped"
-    });
-    addMicrostate(nextSnapshot, event, []);
-    return {
-      snapshot: nextSnapshot,
-      microstates
-    };
-  }
-  let nextEvent = event;
-  if (nextEvent.type !== XSTATE_INIT) {
-    const currentEvent = nextEvent;
-    const isErr = isErrorActorEvent(currentEvent);
-    const transitions = selectTransitions(currentEvent, nextSnapshot);
-    if (isErr && !transitions.length) {
-      nextSnapshot = cloneMachineSnapshot(snapshot, {
-        status: "error",
-        error: currentEvent.error
-      });
-      addMicrostate(nextSnapshot, currentEvent, []);
-      return {
-        snapshot: nextSnapshot,
-        microstates
-      };
-    }
-    nextSnapshot = microstep(
-      transitions,
-      snapshot,
-      actorScope,
-      nextEvent,
-      false,
-      // isInitial
-      internalQueue
-    );
-    addMicrostate(nextSnapshot, currentEvent, transitions);
-  }
-  let shouldSelectEventlessTransitions = true;
-  while (nextSnapshot.status === "active") {
-    let enabledTransitions = shouldSelectEventlessTransitions ? selectEventlessTransitions(nextSnapshot, nextEvent) : [];
-    const previousState = enabledTransitions.length ? nextSnapshot : void 0;
-    if (!enabledTransitions.length) {
-      if (!internalQueue.length) {
-        break;
-      }
-      nextEvent = internalQueue.shift();
-      enabledTransitions = selectTransitions(nextEvent, nextSnapshot);
-    }
-    nextSnapshot = microstep(enabledTransitions, nextSnapshot, actorScope, nextEvent, false, internalQueue);
-    shouldSelectEventlessTransitions = nextSnapshot !== previousState;
-    addMicrostate(nextSnapshot, nextEvent, enabledTransitions);
-  }
-  if (nextSnapshot.status !== "active") {
-    stopChildren(nextSnapshot, nextEvent, actorScope);
-  }
-  return {
-    snapshot: nextSnapshot,
-    microstates
-  };
-}
-function stopChildren(nextState, event, actorScope) {
-  return resolveActionsAndContext(nextState, event, actorScope, Object.values(nextState.children).map((child) => stopChild(child)), [], void 0);
-}
-function selectTransitions(event, nextState) {
-  return nextState.machine.getTransitionData(nextState, event);
-}
-function selectEventlessTransitions(nextState, event) {
-  const enabledTransitionSet = /* @__PURE__ */ new Set();
-  const atomicStates = nextState._nodes.filter(isAtomicStateNode);
-  for (const stateNode of atomicStates) {
-    loop: for (const s of [stateNode].concat(getProperAncestors(stateNode, void 0))) {
-      if (!s.always) {
-        continue;
-      }
-      for (const transition of s.always) {
-        if (transition.guard === void 0 || evaluateGuard(transition.guard, nextState.context, event, nextState)) {
-          enabledTransitionSet.add(transition);
-          break loop;
-        }
-      }
-    }
-  }
-  return removeConflictingTransitions(Array.from(enabledTransitionSet), new Set(nextState._nodes), nextState.historyValue);
-}
-function resolveStateValue(rootNode, stateValue) {
-  const allStateNodes = getAllStateNodes(getStateNodes(rootNode, stateValue));
-  return getStateValue(rootNode, [...allStateNodes]);
-}
-function isMachineSnapshot(value) {
-  return !!value && typeof value === "object" && "machine" in value && "value" in value;
-}
-var machineSnapshotMatches = function matches(testValue) {
-  return matchesState(testValue, this.value);
-};
-var machineSnapshotHasTag = function hasTag(tag) {
-  return this.tags.has(tag);
-};
-var machineSnapshotCan = function can(event) {
-  const transitionData = this.machine.getTransitionData(this, event);
-  return !!transitionData?.length && // Check that at least one transition is not forbidden
-  transitionData.some((t) => t.target !== void 0 || t.actions.length);
-};
-var machineSnapshotToJSON = function toJSON() {
-  const {
-    _nodes: nodes,
-    tags,
-    machine,
-    getMeta: getMeta2,
-    toJSON: toJSON2,
-    can: can2,
-    hasTag: hasTag2,
-    matches: matches2,
-    ...jsonValues
-  } = this;
-  return {
-    ...jsonValues,
-    tags: Array.from(tags)
-  };
-};
-var machineSnapshotGetMeta = function getMeta() {
-  return this._nodes.reduce((acc, stateNode) => {
-    if (stateNode.meta !== void 0) {
-      acc[stateNode.id] = stateNode.meta;
-    }
-    return acc;
-  }, {});
-};
-function createMachineSnapshot(config2, machine) {
-  return {
-    status: config2.status,
-    output: config2.output,
-    error: config2.error,
-    machine,
-    context: config2.context,
-    _nodes: config2._nodes,
-    value: getStateValue(machine.root, config2._nodes),
-    tags: new Set(config2._nodes.flatMap((sn) => sn.tags)),
-    children: config2.children,
-    historyValue: config2.historyValue || {},
-    matches: machineSnapshotMatches,
-    hasTag: machineSnapshotHasTag,
-    can: machineSnapshotCan,
-    getMeta: machineSnapshotGetMeta,
-    toJSON: machineSnapshotToJSON
-  };
-}
-function cloneMachineSnapshot(snapshot, config2 = {}) {
-  return createMachineSnapshot({
-    ...snapshot,
-    ...config2
-  }, snapshot.machine);
-}
-function serializeHistoryValue(historyValue) {
-  if (typeof historyValue !== "object" || historyValue === null) {
-    return {};
-  }
-  const result = {};
-  for (const key in historyValue) {
-    const value = historyValue[key];
-    if (Array.isArray(value)) {
-      result[key] = value.map((item) => ({
-        id: item.id
-      }));
-    }
-  }
-  return result;
-}
-function getPersistedSnapshot(snapshot, options) {
-  const {
-    _nodes: nodes,
-    tags,
-    machine,
-    children,
-    context: context2,
-    can: can2,
-    hasTag: hasTag2,
-    matches: matches2,
-    getMeta: getMeta2,
-    toJSON: toJSON2,
-    ...jsonValues
-  } = snapshot;
-  const childrenJson = {};
-  for (const id in children) {
-    const child = children[id];
-    childrenJson[id] = {
-      snapshot: child.getPersistedSnapshot(options),
-      src: child.src,
-      systemId: child.systemId,
-      syncSnapshot: child._syncSnapshot
-    };
-  }
-  const persisted = {
-    ...jsonValues,
-    context: persistContext(context2),
-    children: childrenJson,
-    historyValue: serializeHistoryValue(jsonValues.historyValue)
-  };
-  return persisted;
-}
-function persistContext(contextPart) {
-  let copy;
-  for (const key in contextPart) {
-    const value = contextPart[key];
-    if (value && typeof value === "object") {
-      if ("sessionId" in value && "send" in value && "ref" in value) {
-        copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
-          ...contextPart
-        };
-        copy[key] = {
-          xstate$$type: $$ACTOR_TYPE,
-          id: value.id
-        };
-      } else {
-        const result = persistContext(value);
-        if (result !== value) {
-          copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
-            ...contextPart
-          };
-          copy[key] = result;
-        }
-      }
-    }
-  }
-  return copy ?? contextPart;
-}
-function resolveRaise(_, snapshot, args, actionParams, {
-  event: eventOrExpr,
-  id,
-  delay
-}, {
-  internalQueue
-}) {
-  const delaysMap = snapshot.machine.implementations.delays;
-  if (typeof eventOrExpr === "string") {
-    throw new Error(
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `Only event objects may be used with raise; use raise({ type: "${eventOrExpr}" }) instead`
-    );
-  }
-  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
-  let resolvedDelay;
-  if (typeof delay === "string") {
-    const configDelay = delaysMap && delaysMap[delay];
-    resolvedDelay = typeof configDelay === "function" ? configDelay(args, actionParams) : configDelay;
-  } else {
-    resolvedDelay = typeof delay === "function" ? delay(args, actionParams) : delay;
-  }
-  if (typeof resolvedDelay !== "number") {
-    internalQueue.push(resolvedEvent);
-  }
-  return [snapshot, {
-    event: resolvedEvent,
-    id,
-    delay: resolvedDelay
-  }, void 0];
-}
-function executeRaise(actorScope, params) {
-  const {
-    event,
-    delay,
-    id
-  } = params;
-  if (typeof delay === "number") {
-    actorScope.defer(() => {
-      const self2 = actorScope.self;
-      actorScope.system.scheduler.schedule(self2, self2, event, delay, id);
-    });
-    return;
-  }
-}
-function raise(eventOrExpr, options) {
-  function raise2(_args, _params) {
-  }
-  raise2.type = "xstate.raise";
-  raise2.event = eventOrExpr;
-  raise2.id = options?.id;
-  raise2.delay = options?.delay;
-  raise2.resolve = resolveRaise;
-  raise2.execute = executeRaise;
-  return raise2;
-}
-
-// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/actors/dist/xstate-actors.esm.js
-function fromTransition(transition, initialContext) {
-  return {
-    config: transition,
-    transition: (snapshot, event, actorScope) => {
-      return {
-        ...snapshot,
-        context: transition(snapshot.context, event, actorScope)
-      };
-    },
-    getInitialSnapshot: (_, input) => {
-      return {
-        status: "active",
-        output: void 0,
-        error: void 0,
-        context: typeof initialContext === "function" ? initialContext({
-          input
-        }) : initialContext
-      };
-    },
-    getPersistedSnapshot: (snapshot) => snapshot,
-    restoreSnapshot: (snapshot) => snapshot
-  };
-}
-var emptyLogic = fromTransition((_) => void 0, void 0);
-
-// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/assign-5d7df46f.esm.js
-function createSpawner(actorScope, {
-  machine,
-  context: context2
-}, event, spawnedChildren) {
-  const spawn = (src, options) => {
-    if (typeof src === "string") {
-      const logic = resolveReferencedActor(machine, src);
-      if (!logic) {
-        throw new Error(`Actor logic '${src}' not implemented in machine '${machine.id}'`);
-      }
-      const actorRef = createActor(logic, {
-        id: options?.id,
-        parent: actorScope.self,
-        syncSnapshot: options?.syncSnapshot,
-        input: typeof options?.input === "function" ? options.input({
-          context: context2,
-          event,
-          self: actorScope.self
-        }) : options?.input,
-        src,
-        systemId: options?.systemId
-      });
-      spawnedChildren[actorRef.id] = actorRef;
-      return actorRef;
-    } else {
-      const actorRef = createActor(src, {
-        id: options?.id,
-        parent: actorScope.self,
-        syncSnapshot: options?.syncSnapshot,
-        input: options?.input,
-        src,
-        systemId: options?.systemId
-      });
-      return actorRef;
-    }
-  };
-  return (src, options) => {
-    const actorRef = spawn(src, options);
-    spawnedChildren[actorRef.id] = actorRef;
-    actorScope.defer(() => {
-      if (actorRef._processingStatus === ProcessingStatus.Stopped) {
-        return;
-      }
-      actorRef.start();
-    });
-    return actorRef;
-  };
-}
-function resolveAssign(actorScope, snapshot, actionArgs, actionParams, {
-  assignment
-}) {
-  if (!snapshot.context) {
-    throw new Error("Cannot assign to undefined `context`. Ensure that `context` is defined in the machine config.");
-  }
-  const spawnedChildren = {};
-  const assignArgs = {
-    context: snapshot.context,
-    event: actionArgs.event,
-    spawn: createSpawner(actorScope, snapshot, actionArgs.event, spawnedChildren),
-    self: actorScope.self,
-    system: actorScope.system
-  };
-  let partialUpdate = {};
-  if (typeof assignment === "function") {
-    partialUpdate = assignment(assignArgs, actionParams);
-  } else {
-    for (const key of Object.keys(assignment)) {
-      const propAssignment = assignment[key];
-      partialUpdate[key] = typeof propAssignment === "function" ? propAssignment(assignArgs, actionParams) : propAssignment;
-    }
-  }
-  const updatedContext = Object.assign({}, snapshot.context, partialUpdate);
-  return [cloneMachineSnapshot(snapshot, {
-    context: updatedContext,
-    children: Object.keys(spawnedChildren).length ? {
-      ...snapshot.children,
-      ...spawnedChildren
-    } : snapshot.children
-  }), void 0, void 0];
-}
-function assign(assignment) {
-  function assign2(_args, _params) {
-  }
-  assign2.type = "xstate.assign";
-  assign2.assignment = assignment;
-  assign2.resolve = resolveAssign;
-  return assign2;
-}
-
-// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/StateMachine-d08f7a0b.esm.js
-var cache = /* @__PURE__ */ new WeakMap();
-function memo(object, key, fn) {
-  let memoizedData = cache.get(object);
-  if (!memoizedData) {
-    memoizedData = {
-      [key]: fn()
-    };
-    cache.set(object, memoizedData);
-  } else if (!(key in memoizedData)) {
-    memoizedData[key] = fn();
-  }
-  return memoizedData[key];
-}
-var EMPTY_OBJECT = {};
-var toSerializableAction = (action) => {
-  if (typeof action === "string") {
-    return {
-      type: action
-    };
-  }
-  if (typeof action === "function") {
-    if ("resolve" in action) {
-      return {
-        type: action.type
-      };
-    }
-    return {
-      type: action.name
-    };
-  }
-  return action;
-};
-var StateNode = class _StateNode {
-  constructor(config2, options) {
-    this.config = config2;
-    this.key = void 0;
-    this.id = void 0;
-    this.type = void 0;
-    this.path = void 0;
-    this.states = void 0;
-    this.history = void 0;
-    this.entry = void 0;
-    this.exit = void 0;
-    this.parent = void 0;
-    this.machine = void 0;
-    this.meta = void 0;
-    this.output = void 0;
-    this.order = -1;
-    this.description = void 0;
-    this.tags = [];
-    this.transitions = void 0;
-    this.always = void 0;
-    this.parent = options._parent;
-    this.key = options._key;
-    this.machine = options._machine;
-    this.path = this.parent ? this.parent.path.concat(this.key) : [];
-    this.id = this.config.id || [this.machine.id, ...this.path].join(STATE_DELIMITER);
-    this.type = this.config.type || (this.config.states && Object.keys(this.config.states).length ? "compound" : this.config.history ? "history" : "atomic");
-    this.description = this.config.description;
-    this.order = this.machine.idMap.size;
-    this.machine.idMap.set(this.id, this);
-    this.states = this.config.states ? mapValues(this.config.states, (stateConfig, key) => {
-      const stateNode = new _StateNode(stateConfig, {
-        _parent: this,
-        _key: key,
-        _machine: this.machine
-      });
-      return stateNode;
-    }) : EMPTY_OBJECT;
-    if (this.type === "compound" && !this.config.initial) {
-      throw new Error(`No initial state specified for compound state node "#${this.id}". Try adding { initial: "${Object.keys(this.states)[0]}" } to the state config.`);
-    }
-    this.history = this.config.history === true ? "shallow" : this.config.history || false;
-    this.entry = toArray(this.config.entry).slice();
-    this.exit = toArray(this.config.exit).slice();
-    this.meta = this.config.meta;
-    this.output = this.type === "final" || !this.parent ? this.config.output : void 0;
-    this.tags = toArray(config2.tags).slice();
-  }
-  /** @internal */
-  _initialize() {
-    this.transitions = formatTransitions(this);
-    if (this.config.always) {
-      this.always = toTransitionConfigArray(this.config.always).map((t) => formatTransition(this, NULL_EVENT, t));
-    }
-    Object.keys(this.states).forEach((key) => {
-      this.states[key]._initialize();
-    });
-  }
-  /** The well-structured state node definition. */
-  get definition() {
-    return {
-      id: this.id,
-      key: this.key,
-      version: this.machine.version,
-      type: this.type,
-      initial: this.initial ? {
-        target: this.initial.target,
-        source: this,
-        actions: this.initial.actions.map(toSerializableAction),
-        eventType: null,
-        reenter: false,
-        toJSON: () => ({
-          target: this.initial.target.map((t) => `#${t.id}`),
-          source: `#${this.id}`,
-          actions: this.initial.actions.map(toSerializableAction),
-          eventType: null
-        })
-      } : void 0,
-      history: this.history,
-      states: mapValues(this.states, (state) => {
-        return state.definition;
-      }),
-      on: this.on,
-      transitions: [...this.transitions.values()].flat().map((t) => ({
-        ...t,
-        actions: t.actions.map(toSerializableAction)
-      })),
-      entry: this.entry.map(toSerializableAction),
-      exit: this.exit.map(toSerializableAction),
-      meta: this.meta,
-      order: this.order || -1,
-      output: this.output,
-      invoke: this.invoke,
-      description: this.description,
-      tags: this.tags
-    };
-  }
-  /** @internal */
-  toJSON() {
-    return this.definition;
-  }
-  /** The logic invoked as actors by this state node. */
-  get invoke() {
-    return memo(this, "invoke", () => toArray(this.config.invoke).map((invokeConfig, i) => {
-      const {
-        src,
-        systemId
-      } = invokeConfig;
-      const resolvedId = invokeConfig.id ?? createInvokeId(this.id, i);
-      const sourceName = typeof src === "string" ? src : `xstate.invoke.${createInvokeId(this.id, i)}`;
-      return {
-        ...invokeConfig,
-        src: sourceName,
-        id: resolvedId,
-        systemId,
-        toJSON() {
-          const {
-            onDone,
-            onError,
-            ...invokeDefValues
-          } = invokeConfig;
-          return {
-            ...invokeDefValues,
-            type: "xstate.invoke",
-            src: sourceName,
-            id: resolvedId
-          };
-        }
-      };
-    }));
-  }
-  /** The mapping of events to transitions. */
-  get on() {
-    return memo(this, "on", () => {
-      const transitions = this.transitions;
-      return [...transitions].flatMap(([descriptor, t]) => t.map((t2) => [descriptor, t2])).reduce((map4, [descriptor, transition]) => {
-        map4[descriptor] = map4[descriptor] || [];
-        map4[descriptor].push(transition);
-        return map4;
-      }, {});
-    });
-  }
-  get after() {
-    return memo(this, "delayedTransitions", () => getDelayedTransitions(this));
-  }
-  get initial() {
-    return memo(this, "initial", () => formatInitialTransition(this, this.config.initial));
-  }
-  /** @internal */
-  next(snapshot, event) {
-    const eventType = event.type;
-    const actions = [];
-    let selectedTransition;
-    const candidates = memo(this, `candidates-${eventType}`, () => getCandidates(this, eventType));
-    for (const candidate of candidates) {
-      const {
-        guard
-      } = candidate;
-      const resolvedContext = snapshot.context;
-      let guardPassed = false;
-      try {
-        guardPassed = !guard || evaluateGuard(guard, resolvedContext, event, snapshot);
-      } catch (err) {
-        const guardType = typeof guard === "string" ? guard : typeof guard === "object" ? guard.type : void 0;
-        throw new Error(`Unable to evaluate guard ${guardType ? `'${guardType}' ` : ""}in transition for event '${eventType}' in state node '${this.id}':
-${err.message}`);
-      }
-      if (guardPassed) {
-        actions.push(...candidate.actions);
-        selectedTransition = candidate;
-        break;
-      }
-    }
-    return selectedTransition ? [selectedTransition] : void 0;
-  }
-  /** All the event types accepted by this state node and its descendants. */
-  get events() {
-    return memo(this, "events", () => {
-      const {
-        states
-      } = this;
-      const events = new Set(this.ownEvents);
-      if (states) {
-        for (const stateId of Object.keys(states)) {
-          const state = states[stateId];
-          if (state.states) {
-            for (const event of state.events) {
-              events.add(`${event}`);
-            }
-          }
-        }
-      }
-      return Array.from(events);
-    });
-  }
-  /**
-   * All the events that have transitions directly from this state node.
-   *
-   * Excludes any inert events.
-   */
-  get ownEvents() {
-    const keys = Object.keys(Object.fromEntries(this.transitions));
-    const events = new Set(keys.filter((descriptor) => {
-      return this.transitions.get(descriptor).some((transition) => !(!transition.target && !transition.actions.length && !transition.reenter));
-    }));
-    return Array.from(events);
-  }
-};
-var STATE_IDENTIFIER2 = "#";
-var StateMachine = class _StateMachine {
-  constructor(config2, implementations) {
-    this.config = config2;
-    this.version = void 0;
-    this.schemas = void 0;
-    this.implementations = void 0;
-    this.__xstatenode = true;
-    this.idMap = /* @__PURE__ */ new Map();
-    this.root = void 0;
-    this.id = void 0;
-    this.states = void 0;
-    this.events = void 0;
-    this.id = config2.id || "(machine)";
-    this.implementations = {
-      actors: implementations?.actors ?? {},
-      actions: implementations?.actions ?? {},
-      delays: implementations?.delays ?? {},
-      guards: implementations?.guards ?? {}
-    };
-    this.version = this.config.version;
-    this.schemas = this.config.schemas;
-    this.transition = this.transition.bind(this);
-    this.getInitialSnapshot = this.getInitialSnapshot.bind(this);
-    this.getPersistedSnapshot = this.getPersistedSnapshot.bind(this);
-    this.restoreSnapshot = this.restoreSnapshot.bind(this);
-    this.start = this.start.bind(this);
-    this.root = new StateNode(config2, {
-      _key: this.id,
-      _machine: this
-    });
-    this.root._initialize();
-    this.states = this.root.states;
-    this.events = this.root.events;
-  }
-  /**
-   * Clones this state machine with the provided implementations.
-   *
-   * @param implementations Options (`actions`, `guards`, `actors`, `delays`) to
-   *   recursively merge with the existing options.
-   * @returns A new `StateMachine` instance with the provided implementations.
-   */
-  provide(implementations) {
-    const {
-      actions,
-      guards: guards2,
-      actors,
-      delays
-    } = this.implementations;
-    return new _StateMachine(this.config, {
-      actions: {
-        ...actions,
-        ...implementations.actions
-      },
-      guards: {
-        ...guards2,
-        ...implementations.guards
-      },
-      actors: {
-        ...actors,
-        ...implementations.actors
-      },
-      delays: {
-        ...delays,
-        ...implementations.delays
-      }
-    });
-  }
-  resolveState(config2) {
-    const resolvedStateValue = resolveStateValue(this.root, config2.value);
-    const nodeSet = getAllStateNodes(getStateNodes(this.root, resolvedStateValue));
-    return createMachineSnapshot({
-      _nodes: [...nodeSet],
-      context: config2.context || {},
-      children: {},
-      status: isInFinalState(nodeSet, this.root) ? "done" : config2.status || "active",
-      output: config2.output,
-      error: config2.error,
-      historyValue: config2.historyValue
-    }, this);
-  }
-  /**
-   * Determines the next snapshot given the current `snapshot` and received
-   * `event`. Calculates a full macrostep from all microsteps.
-   *
-   * @param snapshot The current snapshot
-   * @param event The received event
-   */
-  transition(snapshot, event, actorScope) {
-    return macrostep(snapshot, event, actorScope, []).snapshot;
-  }
-  /**
-   * Determines the next state given the current `state` and `event`. Calculates
-   * a microstep.
-   *
-   * @param state The current state
-   * @param event The received event
-   */
-  microstep(snapshot, event, actorScope) {
-    return macrostep(snapshot, event, actorScope, []).microstates;
-  }
-  getTransitionData(snapshot, event) {
-    return transitionNode(this.root, snapshot.value, snapshot, event) || [];
-  }
-  /**
-   * The initial state _before_ evaluating any microsteps. This "pre-initial"
-   * state is provided to initial actions executed in the initial state.
-   */
-  getPreInitialState(actorScope, initEvent, internalQueue) {
-    const {
-      context: context2
-    } = this.config;
-    const preInitial = createMachineSnapshot({
-      context: typeof context2 !== "function" && context2 ? context2 : {},
-      _nodes: [this.root],
-      children: {},
-      status: "active"
-    }, this);
-    if (typeof context2 === "function") {
-      const assignment = ({
-        spawn,
-        event,
-        self: self2
-      }) => context2({
-        spawn,
-        input: event.input,
-        self: self2
-      });
-      return resolveActionsAndContext(preInitial, initEvent, actorScope, [assign(assignment)], internalQueue, void 0);
-    }
-    return preInitial;
-  }
-  /**
-   * Returns the initial `State` instance, with reference to `self` as an
-   * `ActorRef`.
-   */
-  getInitialSnapshot(actorScope, input) {
-    const initEvent = createInitEvent(input);
-    const internalQueue = [];
-    const preInitialState = this.getPreInitialState(actorScope, initEvent, internalQueue);
-    const nextState = microstep([{
-      target: [...getInitialStateNodes(this.root)],
-      source: this.root,
-      reenter: true,
-      actions: [],
-      eventType: null,
-      toJSON: null
-      // TODO: fix
-    }], preInitialState, actorScope, initEvent, true, internalQueue);
-    const {
-      snapshot: macroState
-    } = macrostep(nextState, initEvent, actorScope, internalQueue);
-    return macroState;
-  }
-  start(snapshot) {
-    Object.values(snapshot.children).forEach((child) => {
-      if (child.getSnapshot().status === "active") {
-        child.start();
-      }
-    });
-  }
-  getStateNodeById(stateId) {
-    const fullPath = toStatePath(stateId);
-    const relativePath = fullPath.slice(1);
-    const resolvedStateId = isStateId(fullPath[0]) ? fullPath[0].slice(STATE_IDENTIFIER2.length) : fullPath[0];
-    const stateNode = this.idMap.get(resolvedStateId);
-    if (!stateNode) {
-      throw new Error(`Child state node '#${resolvedStateId}' does not exist on machine '${this.id}'`);
-    }
-    return getStateNodeByPath(stateNode, relativePath);
-  }
-  get definition() {
-    return this.root.definition;
-  }
-  toJSON() {
-    return this.definition;
-  }
-  getPersistedSnapshot(snapshot, options) {
-    return getPersistedSnapshot(snapshot, options);
-  }
-  restoreSnapshot(snapshot, _actorScope) {
-    const children = {};
-    const snapshotChildren = snapshot.children;
-    Object.keys(snapshotChildren).forEach((actorId) => {
-      const actorData = snapshotChildren[actorId];
-      const childState = actorData.snapshot;
-      const src = actorData.src;
-      const logic = typeof src === "string" ? resolveReferencedActor(this, src) : src;
-      if (!logic) {
-        return;
-      }
-      const actorRef = createActor(logic, {
-        id: actorId,
-        parent: _actorScope.self,
-        syncSnapshot: actorData.syncSnapshot,
-        snapshot: childState,
-        src,
-        systemId: actorData.systemId
-      });
-      children[actorId] = actorRef;
-    });
-    function resolveHistoryReferencedState(root3, referenced) {
-      if (referenced instanceof StateNode) {
-        return referenced;
-      }
-      try {
-        return root3.machine.getStateNodeById(referenced.id);
-      } catch {
-      }
-    }
-    function reviveHistoryValue(root3, historyValue) {
-      if (!historyValue || typeof historyValue !== "object") {
-        return {};
-      }
-      const revived = {};
-      for (const key in historyValue) {
-        const arr = historyValue[key];
-        for (const item of arr) {
-          const resolved = resolveHistoryReferencedState(root3, item);
-          if (!resolved) {
-            continue;
-          }
-          revived[key] ??= [];
-          revived[key].push(resolved);
-        }
-      }
-      return revived;
-    }
-    const revivedHistoryValue = reviveHistoryValue(this.root, snapshot.historyValue);
-    const restoredSnapshot = createMachineSnapshot({
-      ...snapshot,
-      children,
-      _nodes: Array.from(getAllStateNodes(getStateNodes(this.root, snapshot.value))),
-      historyValue: revivedHistoryValue
-    }, this);
-    const seen = /* @__PURE__ */ new Set();
-    function reviveContext(contextPart, children2) {
-      if (seen.has(contextPart)) {
-        return;
-      }
-      seen.add(contextPart);
-      for (const key in contextPart) {
-        const value = contextPart[key];
-        if (value && typeof value === "object") {
-          if ("xstate$$type" in value && value.xstate$$type === $$ACTOR_TYPE) {
-            contextPart[key] = children2[value.id];
-            continue;
-          }
-          reviveContext(value, children2);
-        }
-      }
-    }
-    reviveContext(restoredSnapshot.context, children);
-    return restoredSnapshot;
-  }
-};
-
-// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/log-46a8697a.esm.js
-function resolveEmit(_, snapshot, args, actionParams, {
-  event: eventOrExpr
-}) {
-  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
-  return [snapshot, {
-    event: resolvedEvent
-  }, void 0];
-}
-function executeEmit(actorScope, {
-  event
-}) {
-  actorScope.defer(() => actorScope.emit(event));
-}
-function emit(eventOrExpr) {
-  function emit3(_args, _params) {
-  }
-  emit3.type = "xstate.emit";
-  emit3.event = eventOrExpr;
-  emit3.resolve = resolveEmit;
-  emit3.execute = executeEmit;
-  return emit3;
-}
-var SpecialTargets = /* @__PURE__ */ function(SpecialTargets2) {
-  SpecialTargets2["Parent"] = "#_parent";
-  SpecialTargets2["Internal"] = "#_internal";
-  return SpecialTargets2;
-}({});
-function resolveSendTo(actorScope, snapshot, args, actionParams, {
-  to,
-  event: eventOrExpr,
-  id,
-  delay
-}, extra) {
-  const delaysMap = snapshot.machine.implementations.delays;
-  if (typeof eventOrExpr === "string") {
-    throw new Error(
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `Only event objects may be used with sendTo; use sendTo({ type: "${eventOrExpr}" }) instead`
-    );
-  }
-  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
-  let resolvedDelay;
-  if (typeof delay === "string") {
-    const configDelay = delaysMap && delaysMap[delay];
-    resolvedDelay = typeof configDelay === "function" ? configDelay(args, actionParams) : configDelay;
-  } else {
-    resolvedDelay = typeof delay === "function" ? delay(args, actionParams) : delay;
-  }
-  const resolvedTarget = typeof to === "function" ? to(args, actionParams) : to;
-  let targetActorRef;
-  if (typeof resolvedTarget === "string") {
-    if (resolvedTarget === SpecialTargets.Parent) {
-      targetActorRef = actorScope.self._parent;
-    } else if (resolvedTarget === SpecialTargets.Internal) {
-      targetActorRef = actorScope.self;
-    } else if (resolvedTarget.startsWith("#_")) {
-      targetActorRef = snapshot.children[resolvedTarget.slice(2)];
-    } else {
-      targetActorRef = extra.deferredActorIds?.includes(resolvedTarget) ? resolvedTarget : snapshot.children[resolvedTarget];
-    }
-    if (!targetActorRef) {
-      throw new Error(`Unable to send event to actor '${resolvedTarget}' from machine '${snapshot.machine.id}'.`);
-    }
-  } else {
-    targetActorRef = resolvedTarget || actorScope.self;
-  }
-  return [snapshot, {
-    to: targetActorRef,
-    targetId: typeof resolvedTarget === "string" ? resolvedTarget : void 0,
-    event: resolvedEvent,
-    id,
-    delay: resolvedDelay
-  }, void 0];
-}
-function retryResolveSendTo(_, snapshot, params) {
-  if (typeof params.to === "string") {
-    params.to = snapshot.children[params.to];
-  }
-}
-function executeSendTo(actorScope, params) {
-  actorScope.defer(() => {
-    const {
-      to,
-      event,
-      delay,
-      id
-    } = params;
-    if (typeof delay === "number") {
-      actorScope.system.scheduler.schedule(actorScope.self, to, event, delay, id);
-      return;
-    }
-    actorScope.system._relay(
-      actorScope.self,
-      // at this point, in a deferred task, it should already be mutated by retryResolveSendTo
-      // if it initially started as a string
-      to,
-      event.type === XSTATE_ERROR ? createErrorActorEvent(actorScope.self.id, event.data) : event
-    );
-  });
-}
-function sendTo(to, eventOrExpr, options) {
-  function sendTo2(_args, _params) {
-  }
-  sendTo2.type = "xstate.sendTo";
-  sendTo2.to = to;
-  sendTo2.event = eventOrExpr;
-  sendTo2.id = options?.id;
-  sendTo2.delay = options?.delay;
-  sendTo2.resolve = resolveSendTo;
-  sendTo2.retryResolve = retryResolveSendTo;
-  sendTo2.execute = executeSendTo;
-  return sendTo2;
-}
-function sendParent(event, options) {
-  return sendTo(SpecialTargets.Parent, event, options);
-}
-function resolveEnqueueActions(actorScope, snapshot, args, actionParams, {
-  collect
-}) {
-  const actions = [];
-  const enqueue = function enqueue2(action) {
-    actions.push(action);
-  };
-  enqueue.assign = (...args2) => {
-    actions.push(assign(...args2));
-  };
-  enqueue.cancel = (...args2) => {
-    actions.push(cancel(...args2));
-  };
-  enqueue.raise = (...args2) => {
-    actions.push(raise(...args2));
-  };
-  enqueue.sendTo = (...args2) => {
-    actions.push(sendTo(...args2));
-  };
-  enqueue.sendParent = (...args2) => {
-    actions.push(sendParent(...args2));
-  };
-  enqueue.spawnChild = (...args2) => {
-    actions.push(spawnChild(...args2));
-  };
-  enqueue.stopChild = (...args2) => {
-    actions.push(stopChild(...args2));
-  };
-  enqueue.emit = (...args2) => {
-    actions.push(emit(...args2));
-  };
-  collect({
-    context: args.context,
-    event: args.event,
-    enqueue,
-    check: (guard) => evaluateGuard(guard, snapshot.context, args.event, snapshot),
-    self: actorScope.self,
-    system: actorScope.system
-  }, actionParams);
-  return [snapshot, void 0, actions];
-}
-function enqueueActions(collect) {
-  function enqueueActions2(_args, _params) {
-  }
-  enqueueActions2.type = "xstate.enqueueActions";
-  enqueueActions2.collect = collect;
-  enqueueActions2.resolve = resolveEnqueueActions;
-  return enqueueActions2;
-}
-function resolveLog(_, snapshot, actionArgs, actionParams, {
-  value,
-  label
-}) {
-  return [snapshot, {
-    value: typeof value === "function" ? value(actionArgs, actionParams) : value,
-    label
-  }, void 0];
-}
-function executeLog({
-  logger
-}, {
-  value,
-  label
-}) {
-  if (label) {
-    logger(label, value);
-  } else {
-    logger(value);
-  }
-}
-function log(value = ({
-  context: context2,
-  event
-}) => ({
-  context: context2,
-  event
-}), label) {
-  function log2(_args, _params) {
-  }
-  log2.type = "xstate.log";
-  log2.value = value;
-  log2.label = label;
-  log2.resolve = resolveLog;
-  log2.execute = executeLog;
-  return log2;
-}
-
-// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/xstate.esm.js
-function createMachine(config2, implementations) {
-  return new StateMachine(config2, implementations);
-}
-function setup({
-  schemas,
-  actors,
-  actions,
-  guards: guards2,
-  delays
-}) {
-  return {
-    assign,
-    sendTo,
-    raise,
-    log,
-    cancel,
-    stopChild,
-    enqueueActions,
-    emit,
-    spawnChild,
-    createStateConfig: (config2) => config2,
-    createAction: (fn) => fn,
-    createMachine: (config2) => createMachine({
-      ...config2,
-      schemas
-    }, {
-      actors,
-      actions,
-      guards: guards2,
-      delays
-    }),
-    extend: (extended) => setup({
-      schemas,
-      actors,
-      actions: {
-        ...actions,
-        ...extended.actions
-      },
-      guards: {
-        ...guards2,
-        ...extended.guards
-      },
-      delays: {
-        ...delays,
-        ...extended.delays
-      }
-    })
-  };
-}
-
-// packages/statemachine/src/machine/guards.ts
-function isAlreadyDone({ context: context2 }) {
-  if (context2.issue.projectStatus === "Done" && context2.pr?.state === "MERGED") {
-    return true;
-  }
-  return false;
-}
-function isBlocked({ context: context2 }) {
-  return context2.issue.projectStatus === "Blocked";
-}
-function isError({ context: context2 }) {
-  return context2.issue.projectStatus === "Error";
-}
-function isTerminal({ context: context2 }) {
-  const status = context2.issue.projectStatus;
-  return status !== null && isTerminalStatus(status);
-}
-function hasSubIssues({ context: context2 }) {
-  return context2.issue.hasSubIssues;
-}
-function isSubIssue({ context: context2 }) {
-  return context2.parentIssue !== null;
-}
-function subIssueCanIterate({ context: context2 }) {
-  if (context2.parentIssue === null) return false;
-  if (!context2.parentIssue.assignees.includes(context2.botUsername))
-    return false;
-  return context2.issue.assignees.includes(context2.botUsername);
-}
-function needsSubIssues(_guardContext) {
-  return false;
-}
-function allPhasesDone({ context: context2 }) {
-  const hasGroomedLabel = context2.issue.labels.some(
-    (l) => l.toLowerCase() === "groomed"
-  );
-  if (!hasGroomedLabel) {
-    return false;
-  }
-  if (context2.issue.subIssues.length === 0) {
-    return false;
-  }
-  return context2.issue.subIssues.every(
-    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
-  );
-}
-function needsParentInit({ context: context2 }) {
-  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
-}
-function currentPhaseComplete({ context: context2 }) {
-  if (!context2.currentSubIssue) {
-    return false;
-  }
-  const todos = extractTodosFromAst(context2.currentSubIssue.bodyAst);
-  return todos.uncheckedNonManual === 0;
-}
-function hasNextPhase({ context: context2 }) {
-  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
-    return false;
-  }
-  return context2.currentPhase < context2.totalPhases;
-}
-function subIssueNeedsAssignment({ context: context2 }) {
-  return context2.currentSubIssue !== null;
-}
-function isInReview({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    return context2.currentSubIssue.projectStatus === "In review";
-  }
-  return context2.issue.projectStatus === "In review";
-}
-function currentPhaseNeedsWork({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    const status = context2.currentSubIssue.projectStatus;
-    return status === "In progress" || status === null;
-  }
-  return context2.issue.projectStatus === "In progress";
-}
-function currentPhaseInReview({ context: context2 }) {
-  return isInReview({ context: context2 });
-}
-function todosDone({ context: context2 }) {
-  if (context2.currentSubIssue) {
-    const todos2 = extractTodosFromAst(context2.currentSubIssue.bodyAst);
-    return todos2.uncheckedNonManual === 0;
-  }
-  const todos = extractTodosFromAst(context2.issue.bodyAst);
-  return todos.uncheckedNonManual === 0;
-}
-function hasPendingTodos({ context: context2 }) {
-  return !todosDone({ context: context2 });
-}
-function ciPassed({ context: context2 }) {
-  return context2.ciResult === "success";
-}
-function ciFailed({ context: context2 }) {
-  return context2.ciResult === "failure";
-}
-function ciCancelled({ context: context2 }) {
-  return context2.ciResult === "cancelled";
-}
-function maxFailuresReached({ context: context2 }) {
-  return context2.issue.failures >= context2.maxRetries;
-}
-function hasFailures({ context: context2 }) {
-  return context2.issue.failures > 0;
-}
-function reviewApproved({ context: context2 }) {
-  return context2.reviewDecision === "APPROVED";
-}
-function reviewRequestedChanges({ context: context2 }) {
-  return context2.reviewDecision === "CHANGES_REQUESTED";
-}
-function reviewCommented({ context: context2 }) {
-  return context2.reviewDecision === "COMMENTED";
-}
-function hasPR({ context: context2 }) {
-  return context2.hasPR && context2.pr !== null;
-}
-function prIsDraft({ context: context2 }) {
-  return context2.pr?.isDraft === true;
-}
-function prIsReady({ context: context2 }) {
-  return context2.pr !== null && !context2.pr.isDraft;
-}
-function prIsMerged({ context: context2 }) {
-  return context2.pr?.state === "MERGED";
-}
-function hasBranch({ context: context2 }) {
-  return context2.hasBranch;
-}
-function needsBranch({ context: context2 }) {
-  return !context2.hasBranch && context2.branch !== null;
-}
-function botIsAssigned({ context: context2 }) {
-  return context2.issue.assignees.includes(context2.botUsername);
-}
-function isFirstIteration({ context: context2 }) {
-  return context2.issue.iteration === 0;
-}
-function triggeredByAssignment({ context: context2 }) {
-  return context2.trigger === "issue-assigned";
-}
-function triggeredByEdit({ context: context2 }) {
-  return context2.trigger === "issue-edited";
-}
-function triggeredByCI({ context: context2 }) {
-  return context2.trigger === "workflow-run-completed";
-}
-function triggeredByReview({ context: context2 }) {
-  return context2.trigger === "pr-review-submitted";
-}
-function triggeredByReviewRequest({ context: context2 }) {
-  return context2.trigger === "pr-review-requested";
-}
-function triggeredByTriage({ context: context2 }) {
-  return context2.trigger === "issue-triage";
-}
-function triggeredByComment({ context: context2 }) {
-  return context2.trigger === "issue-comment";
-}
-function triggeredByOrchestrate({ context: context2 }) {
-  return context2.trigger === "issue-orchestrate";
-}
-function triggeredByPRReview({ context: context2 }) {
-  return context2.trigger === "pr-review-requested" || context2.trigger === "pr-review";
-}
-function triggeredByPRResponse({ context: context2 }) {
-  return context2.trigger === "pr-response";
-}
-function triggeredByPRHumanResponse({ context: context2 }) {
-  return context2.trigger === "pr-human-response";
-}
-function triggeredByPRReviewApproved({
-  context: context2
-}) {
-  return context2.trigger === "pr-review-approved";
-}
-function triggeredByPRPush({ context: context2 }) {
-  return context2.trigger === "pr-push";
-}
-function triggeredByReset({ context: context2 }) {
-  return context2.trigger === "issue-reset";
-}
-function triggeredByPivot({ context: context2 }) {
-  return context2.trigger === "issue-pivot";
-}
-function triggeredByRetry({ context: context2 }) {
-  return context2.trigger === "issue-retry";
-}
-function triggeredByMergeQueueEntry({ context: context2 }) {
-  return context2.trigger === "merge-queue-entered";
-}
-function triggeredByMergeQueueFailure({
-  context: context2
-}) {
-  return context2.trigger === "merge-queue-failed";
-}
-function triggeredByPRMerged({ context: context2 }) {
-  return context2.trigger === "pr-merged";
-}
-function triggeredByDeployedStage({ context: context2 }) {
-  return context2.trigger === "deployed-stage";
-}
-function triggeredByDeployedProd({ context: context2 }) {
-  return context2.trigger === "deployed-prod";
-}
-function triggeredByDeployedStageFailure({ context: context2 }) {
-  return context2.trigger === "deployed-stage-failed";
-}
-function triggeredByDeployedProdFailure({ context: context2 }) {
-  return context2.trigger === "deployed-prod-failed";
-}
-function needsTriage({ context: context2 }) {
-  if (context2.parentIssue !== null) return false;
-  return !context2.issue.labels.includes("triaged");
-}
-function isTriaged({ context: context2 }) {
-  return context2.issue.labels.includes("triaged");
-}
-function triggeredByGroom({ context: context2 }) {
-  return context2.trigger === "issue-groom";
-}
-function triggeredByGroomSummary({ context: context2 }) {
-  return context2.trigger === "issue-groom-summary";
-}
-function needsGrooming({ context: context2 }) {
-  const labels = context2.issue.labels;
-  const hasTriaged = labels.includes("triaged");
-  const hasGroomed = labels.includes("groomed");
-  return hasTriaged && !hasGroomed;
-}
-function isGroomed({ context: context2 }) {
-  return context2.issue.labels.includes("groomed");
-}
-function needsInfo({ context: context2 }) {
-  return context2.issue.labels.includes("needs-info");
-}
-function readyForReview({ context: context2 }) {
-  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
-}
-function shouldContinueIterating({ context: context2 }) {
-  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
-}
-function shouldBlock({ context: context2 }) {
-  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
-}
-var guards = {
-  // Terminal state guards
-  isAlreadyDone,
-  isBlocked,
-  isError,
-  isTerminal,
-  // Sub-issue guards
-  hasSubIssues,
-  isSubIssue,
-  subIssueCanIterate,
-  needsSubIssues,
-  allPhasesDone,
-  // Orchestration guards
-  needsParentInit,
-  currentPhaseComplete,
-  hasNextPhase,
-  subIssueNeedsAssignment,
-  // Phase state guards
-  isInReview,
-  currentPhaseNeedsWork,
-  currentPhaseInReview,
-  // Todo guards
-  todosDone,
-  hasPendingTodos,
-  // CI guards
-  ciPassed,
-  ciFailed,
-  ciCancelled,
-  // Failure guards
-  maxFailuresReached,
-  hasFailures,
-  // Review guards
-  reviewApproved,
-  reviewRequestedChanges,
-  reviewCommented,
-  // PR guards
-  hasPR,
-  prIsDraft,
-  prIsReady,
-  prIsMerged,
-  // Branch guards
-  hasBranch,
-  needsBranch,
-  // Assignment guards
-  botIsAssigned,
-  isFirstIteration,
-  // Trigger guards
-  triggeredByAssignment,
-  triggeredByEdit,
-  triggeredByCI,
-  triggeredByReview,
-  triggeredByReviewRequest,
-  triggeredByTriage,
-  triggeredByComment,
-  triggeredByOrchestrate,
-  triggeredByPRReview,
-  triggeredByPRResponse,
-  triggeredByPRHumanResponse,
-  triggeredByPRReviewApproved,
-  triggeredByPRPush,
-  triggeredByReset,
-  triggeredByRetry,
-  triggeredByPivot,
-  // Merge queue logging guards
-  triggeredByMergeQueueEntry,
-  triggeredByMergeQueueFailure,
-  triggeredByPRMerged,
-  triggeredByDeployedStage,
-  triggeredByDeployedProd,
-  triggeredByDeployedStageFailure,
-  triggeredByDeployedProdFailure,
-  // Triage guards
-  needsTriage,
-  isTriaged,
-  // Grooming guards
-  triggeredByGroom,
-  triggeredByGroomSummary,
-  needsGrooming,
-  isGroomed,
-  needsInfo,
-  // Composite guards
-  readyForReview,
-  shouldContinueIterating,
-  shouldBlock
-};
-
-// packages/statemachine/src/machine/emit-helper.ts
-function accumulateFromEmitter(existingActions, context2, emitter) {
-  return [...existingActions, ...emitter({ context: context2 })];
-}
-function emit2(emitter) {
-  return assign({
-    pendingActions: ({ context: context2 }) => accumulateFromEmitter(context2.pendingActions, context2, emitter)
-  });
-}
-
-// packages/statemachine/src/machine/actions.ts
-function formatCommentsForPrompt(comments) {
-  if (comments.length === 0) {
-    return "No comments yet.";
-  }
-  return comments.map((c) => `### ${c.author} (${c.createdAt})
-${c.body}`).join("\n\n---\n\n");
-}
-function emitSetWorking({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber,
-      status: "In progress"
-    }
-  ];
-}
-function emitSetReview({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber,
-      status: "In review"
-    }
-  ];
-}
-function emitSetInProgress({ context: context2 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context2.issue.number,
-      status: "In progress"
-    }
-  ];
-}
-function emitSetDone({ context: context2 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context2.issue.number,
-      status: "Done"
-    }
-  ];
-}
-function emitSetBlocked({ context: context2 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context2.issue.number,
-      status: "Blocked"
-    }
-  ];
-}
-function emitSetError({ context: context2 }) {
-  return [
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context2.issue.number,
-      status: "Error"
-    }
-  ];
-}
-function emitLogInvalidIteration({
-  context: context2
-}) {
-  const message = HISTORY_MESSAGES.INVALID_ITERATION;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber: context2.issue.number,
-      iteration: context2.issue.iteration,
-      phase: String(context2.currentPhase ?? "-"),
-      message,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    },
-    {
-      type: "addComment",
-      token: "code",
-      issueNumber: context2.issue.number,
-      body: `## \u274C Invalid Iteration Attempt
-
-This issue cannot be iterated on directly because it has no parent issue.
-
-**Only sub-issues can be iterated on.** Parent issues must go through orchestration which manages their sub-issues.
-
-### To Fix
-
-1. Run grooming on this issue to create sub-issues
-2. Then trigger orchestration on the parent issue
-
-Issue #${context2.issue.number} has been set to Error status.`
-    }
-  ];
-}
-function emitIncrementIteration({
-  context: context2
-}) {
-  return [
-    {
-      type: "incrementIteration",
-      token: "code",
-      issueNumber: context2.issue.number
-    }
-  ];
-}
-function emitRecordFailure({ context: context2 }) {
-  return [
-    {
-      type: "recordFailure",
-      token: "code",
-      issueNumber: context2.issue.number,
-      failureType: "ci"
-    }
-  ];
-}
-function emitClearFailures({ context: context2 }) {
-  return [
-    {
-      type: "clearFailures",
-      token: "code",
-      issueNumber: context2.issue.number
-    }
-  ];
-}
-function emitCloseIssue({ context: context2 }) {
-  return [
-    {
-      type: "closeIssue",
-      token: "code",
-      issueNumber: context2.issue.number,
-      reason: "completed"
-    }
-  ];
-}
-function emitUnassign({ context: context2 }) {
-  return [
-    {
-      type: "unassignUser",
-      token: "code",
-      issueNumber: context2.issue.number,
-      username: context2.botUsername
-    }
-  ];
-}
-function emitBlock({ context: context2 }) {
-  return [
-    {
-      type: "block",
-      token: "code",
-      issueNumber: context2.issue.number,
-      reason: `Max failures (${context2.maxRetries}) reached`
-    }
-  ];
-}
-function emitResetIssue({ context: context2 }) {
-  const actions = [
-    {
-      type: "resetIssue",
-      token: "code",
-      issueNumber: context2.issue.number,
-      subIssueNumbers: context2.issue.subIssues.map((s) => s.number),
-      botUsername: context2.botUsername
-    },
-    {
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context2.issue.number,
-      status: "Backlog"
-    },
-    {
-      type: "clearFailures",
-      token: "code",
-      issueNumber: context2.issue.number
-    }
-  ];
-  for (const subIssue of context2.issue.subIssues) {
-    actions.push({
-      type: "removeFromProject",
-      token: "code",
-      issueNumber: subIssue.number
-    });
-    actions.push({
-      type: "clearFailures",
-      token: "code",
-      issueNumber: subIssue.number
-    });
-  }
-  return actions;
-}
-function emitAppendHistory({ context: context2 }, message, phase) {
-  const phaseStr = phase ?? context2.currentPhase ?? "-";
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber: context2.issue.number,
-      iteration: context2.issue.iteration,
-      phase: String(phaseStr),
-      message,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitLogCIFailure({ context: context2 }) {
-  return [
-    {
-      type: "updateHistory",
-      token: "code",
-      issueNumber: context2.issue.number,
-      matchIteration: context2.issue.iteration,
-      matchPhase: String(context2.currentPhase ?? "-"),
-      matchPattern: HISTORY_ICONS.ITERATING,
-      newMessage: HISTORY_MESSAGES.CI_FAILED,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitLogIterationStarted({
-  context: context2
-}) {
-  return emitAppendHistory({ context: context2 }, HISTORY_MESSAGES.ITERATING);
-}
-function emitLogCISuccess({ context: context2 }) {
-  return [
-    {
-      type: "updateHistory",
-      token: "code",
-      issueNumber: context2.issue.number,
-      matchIteration: context2.issue.iteration,
-      matchPhase: String(context2.currentPhase ?? "-"),
-      matchPattern: HISTORY_ICONS.ITERATING,
-      newMessage: HISTORY_MESSAGES.CI_PASSED,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitLogReviewRequested({
-  context: context2
-}) {
-  return emitAppendHistory({ context: context2 }, HISTORY_MESSAGES.REVIEW_REQUESTED);
-}
-function emitCreateBranch({ context: context2 }) {
-  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
-  return [
-    {
-      type: "createBranch",
-      token: "code",
-      branchName,
-      baseBranch: "main",
-      // createBranch needs to run from main to create the new branch
-      worktree: "main"
-    }
-  ];
-}
-function emitCreatePR({ context: context2 }) {
-  if (context2.pr) {
-    return [];
-  }
-  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  return [
-    {
-      type: "createPR",
-      token: "code",
-      title: context2.currentSubIssue?.title ?? context2.issue.title,
-      body: `Fixes #${issueNumber}`,
-      branchName,
-      baseBranch: "main",
-      draft: true,
-      issueNumber
-    }
-  ];
-}
-function emitMarkReady({ context: context2 }) {
-  if (!context2.pr) {
-    return [];
-  }
-  return [
-    {
-      type: "markPRReady",
-      token: "code",
-      prNumber: context2.pr.number
-    }
-  ];
-}
-function emitConvertToDraft({ context: context2 }) {
-  if (!context2.pr) {
-    return [];
-  }
-  return [
-    {
-      type: "convertPRToDraft",
-      token: "code",
-      prNumber: context2.pr.number
-    }
-  ];
-}
-function emitRequestReview({ context: context2 }) {
-  if (!context2.pr) {
-    return [];
-  }
-  return [
-    {
-      type: "requestReview",
-      token: "code",
-      prNumber: context2.pr.number,
-      reviewer: "nopo-reviewer"
-    }
-  ];
-}
-function emitMergePR({ context: context2 }) {
-  if (!context2.pr) {
-    return [];
-  }
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  return [
-    {
-      type: "mergePR",
-      token: "code",
-      prNumber: context2.pr.number,
-      issueNumber,
-      mergeMethod: "squash"
-    }
-  ];
-}
-function buildIteratePromptVars(context2, ciResultOverride) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
-  const branchName = context2.branch ?? deriveBranchName2(context2.issue.number, context2.currentPhase ?? void 0);
-  const iteration = context2.issue.iteration;
-  const failures = context2.issue.failures;
-  const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
-  const isSubIssue2 = context2.parentIssue !== null && context2.currentPhase !== null;
-  const parentIssueNumber2 = context2.parentIssue?.number;
-  const phaseNumber = context2.currentPhase;
-  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber2}
-- **Phase**: ${phaseNumber}
-
-> This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
-  const prCreateCommand = isSubIssue2 ? `\`\`\`bash
-gh pr create --draft --reviewer nopo-bot \\
-  --title "${issueTitle}" \\
-  --body "Fixes #${issueNumber}
-Related to #${parentIssueNumber2}
-
-Phase ${phaseNumber} of parent issue."
-\`\`\`` : `\`\`\`bash
-gh pr create --draft --reviewer nopo-bot \\
-  --title "${issueTitle}" \\
-  --body "Fixes #${issueNumber}"
-\`\`\``;
-  const issueBodyAst = context2.currentSubIssue?.bodyAst ?? context2.issue.bodyAst;
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
-  return {
-    ISSUE_NUMBER: String(issueNumber),
-    ISSUE_TITLE: issueTitle,
-    ISSUE_BODY: serializeMarkdown(issueBodyAst),
-    ISSUE_COMMENTS: issueComments,
-    ITERATION: String(iteration),
-    LAST_CI_RESULT: ciResult,
-    CONSECUTIVE_FAILURES: String(failures),
-    BRANCH_NAME: branchName,
-    PARENT_CONTEXT: parentContext,
-    PR_CREATE_COMMAND: prCreateCommand,
-    EXISTING_BRANCH_SECTION: "",
-    AGENT_NOTES: ""
-    // Injected by workflow from previous runs
-  };
-}
-function emitRunClaude({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const promptVars = buildIteratePromptVars(context2);
-  const iterateArtifact = {
-    name: "claude-iterate-output",
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "iterate",
-      promptVars,
-      issueNumber,
-      // Structured output is saved to claude-structured-output.json by run-claude action
-      producesArtifact: iterateArtifact
-    },
-    // Apply iterate output: check off completed todos, store agent notes
-    // Downloads the artifact before execution
-    // Includes PR info for review transition when all_done
-    {
-      type: "applyIterateOutput",
-      token: "code",
-      issueNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: iterateArtifact,
-      prNumber: context2.pr?.number,
-      reviewer: "nopo-reviewer"
-    }
-  ];
-}
-function emitRunClaudeFixCI({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const promptVars = buildIteratePromptVars(context2, "failure");
-  promptVars.EXISTING_BRANCH_SECTION = `## CI Failure Context
-CI Run: ${context2.ciRunUrl ?? "N/A"}
-Commit: ${context2.ciCommitSha ?? "N/A"}
-
-Review the CI logs at the link above and fix the failing tests or build errors.`;
-  const iterateArtifact = {
-    name: "claude-iterate-output",
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "iterate",
-      promptVars,
-      issueNumber,
-      // Structured output is saved to claude-structured-output.json by run-claude action
-      producesArtifact: iterateArtifact
-    },
-    // Apply iterate output: check off completed todos, store agent notes
-    // Downloads the artifact before execution
-    // Includes PR info for review transition when all_done
-    {
-      type: "applyIterateOutput",
-      token: "code",
-      issueNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: iterateArtifact,
-      prNumber: context2.pr?.number,
-      reviewer: "nopo-reviewer"
-    }
-  ];
-}
-function emitRunClaudeTriage({ context: context2 }) {
-  const issueNumber = context2.issue.number;
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
-  const promptVars = {
-    ISSUE_NUMBER: String(issueNumber),
-    ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
-    ISSUE_COMMENTS: issueComments,
-    AGENT_NOTES: ""
-    // Injected by workflow from previous runs
-  };
-  const triageArtifact = {
-    name: "claude-triage-output",
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      // Uses structured output from prompts/triage/
-      promptDir: "triage",
-      promptVars,
-      issueNumber,
-      // No worktree - runs from current directory (main checkout)
-      // Structured output is saved to claude-structured-output.json by run-claude action
-      producesArtifact: triageArtifact
-    },
-    // Apply labels and project fields from structured output
-    // Downloads the artifact before execution
-    {
-      type: "applyTriageOutput",
-      token: "code",
-      issueNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: triageArtifact
-    }
-    // Note: History entry is handled by workflow bookend logging
-  ];
-}
-function emitRunClaudeComment({ context: context2 }) {
-  const issueNumber = context2.issue.number;
-  const promptVars = {
-    ISSUE_NUMBER: String(issueNumber),
-    CONTEXT_TYPE: context2.commentContextType ?? "issue",
-    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "comment",
-      promptVars,
-      issueNumber
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
-    }
-  ];
-}
-function emitRunClaudePRReview({
-  context: context2
-}) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prNumber = context2.pr?.number;
-  if (!prNumber) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No PR found for review",
-        worktree: "main"
-      }
-    ];
-  }
-  const promptVars = {
-    PR_NUMBER: String(prNumber),
-    ISSUE_NUMBER: String(issueNumber),
-    PR_TITLE: context2.pr?.title ?? "",
-    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
-    BASE_REF: context2.pr?.baseRef ?? "main",
-    REPO_OWNER: context2.owner,
-    REPO_NAME: context2.repo
-  };
-  const reviewArtifact = {
-    name: "claude-review-output",
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      // runClaude uses code token for checkout/execution
-      promptDir: "review",
-      promptVars,
-      issueNumber,
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
-      // Structured output is saved to claude-structured-output.json by run-claude action
-      producesArtifact: reviewArtifact
-    },
-    // Apply review output: submit the PR review using structured output
-    // Downloads the artifact before execution
-    // worktree: "main" ensures we checkout main where the executor code is,
-    // not the PR branch being reviewed
-    {
-      type: "applyReviewOutput",
-      token: "review",
-      // submitReview uses review token for different user
-      prNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: reviewArtifact,
-      worktree: "main"
-    }
-  ];
-}
-function emitRunClaudePRResponse({
-  context: context2
-}) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prNumber = context2.pr?.number;
-  if (!prNumber) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No PR found for response",
-        worktree: "main"
-      }
-    ];
-  }
-  const promptVars = {
-    PR_NUMBER: String(prNumber),
-    ISSUE_NUMBER: String(issueNumber),
-    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
-    BASE_REF: context2.pr?.baseRef ?? "main",
-    REPO_OWNER: context2.owner,
-    REPO_NAME: context2.repo,
-    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A",
-    AGENT_NOTES: ""
-    // Will be injected by workflow from previous runs
-  };
-  const responseArtifact = {
-    name: "claude-pr-response-output",
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "review-response",
-      promptVars,
-      issueNumber,
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
-      // Structured output is saved to claude-structured-output.json by run-claude action
-      producesArtifact: responseArtifact
-    },
-    // Apply PR response output: post comment, re-request review if no commits
-    // Downloads the artifact before execution
-    // worktree: "main" ensures we checkout main where the executor code is,
-    // not the PR branch being reviewed
-    {
-      type: "applyPRResponseOutput",
-      token: "code",
-      prNumber,
-      issueNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: responseArtifact,
-      reviewer: "nopo-reviewer",
-      worktree: "main"
-    }
-  ];
-}
-function emitRunClaudePRHumanResponse({
-  context: context2
-}) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const prNumber = context2.pr?.number;
-  if (!prNumber) {
-    return [
-      {
-        type: "log",
-        token: "code",
-        level: "warning",
-        message: "No PR found for human response",
-        worktree: "main"
-      }
-    ];
-  }
-  const promptVars = {
-    PR_NUMBER: String(prNumber),
-    ISSUE_NUMBER: String(issueNumber),
-    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
-    BASE_REF: context2.pr?.baseRef ?? "main",
-    REPO_OWNER: context2.owner,
-    REPO_NAME: context2.repo,
-    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
-    REVIEWER: context2.reviewerId ?? "N/A",
-    AGENT_NOTES: ""
-    // Will be injected by workflow from previous runs
-  };
-  const responseArtifact = {
-    name: "claude-pr-human-response-output",
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "human-review-response",
-      promptVars,
-      issueNumber,
-      // worktree intentionally omitted - checkout happens at repo root to the correct branch
-      // Structured output is saved to claude-structured-output.json by run-claude action
-      producesArtifact: responseArtifact
-    },
-    // Apply PR response output: post comment, re-request review if no commits
-    // Downloads the artifact before execution
-    // worktree: "main" ensures we checkout main where the executor code is,
-    // not the PR branch being reviewed
-    {
-      type: "applyPRResponseOutput",
-      token: "code",
-      prNumber,
-      issueNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: responseArtifact,
-      reviewer: context2.reviewerId ?? "nopo-reviewer",
-      worktree: "main"
-    }
-  ];
-}
-function emitInitializeParent({ context: context2 }) {
-  const actions = [];
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: context2.issue.number,
-    iteration: context2.issue.iteration,
-    phase: "1",
-    message: HISTORY_MESSAGES.initialized(context2.issue.subIssues.length),
-    timestamp: context2.workflowStartedAt ?? void 0
-  });
-  return actions;
-}
-function emitAdvancePhase({ context: context2 }) {
-  const actions = [];
-  if (!context2.currentSubIssue || context2.currentPhase === null) {
-    return actions;
-  }
-  actions.push({
-    type: "updateProjectStatus",
-    token: "code",
-    issueNumber: context2.currentSubIssue.number,
-    status: "Done"
-  });
-  actions.push({
-    type: "closeIssue",
-    token: "code",
-    issueNumber: context2.currentSubIssue.number,
-    reason: "completed"
-  });
-  const nextPhase = context2.currentPhase + 1;
-  const nextSubIssue = context2.issue.subIssues[nextPhase - 1];
-  if (nextSubIssue) {
-    actions.push({
-      type: "appendHistory",
-      token: "code",
-      issueNumber: context2.issue.number,
-      iteration: context2.issue.iteration,
-      phase: String(nextPhase),
-      message: HISTORY_MESSAGES.phaseStarted(nextPhase),
-      timestamp: context2.workflowStartedAt ?? void 0
-    });
-  }
-  return actions;
-}
-function emitOrchestrate({ context: context2 }) {
-  const actions = [];
-  actions.push({
-    type: "log",
-    token: "code",
-    level: "info",
-    message: `Orchestrating issue #${context2.issue.number} with ${context2.issue.subIssues.length} phases`,
-    worktree: "main"
-  });
-  const needsInit = context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog";
-  if (needsInit) {
-    actions.push(...emitInitializeParent({ context: context2 }));
-  }
-  const phaseComplete = context2.currentSubIssue && context2.currentSubIssue.state === "CLOSED";
-  if (phaseComplete && context2.currentPhase !== null) {
-    const hasNext = context2.currentPhase < context2.totalPhases;
-    if (hasNext) {
-      actions.push(...emitAdvancePhase({ context: context2 }));
-    }
-  }
-  let subIssueToAssign = context2.currentSubIssue;
-  if (phaseComplete && context2.currentPhase !== null) {
-    const nextPhase = context2.currentPhase + 1;
-    if (nextPhase <= context2.totalPhases) {
-      subIssueToAssign = context2.issue.subIssues[nextPhase - 1] ?? null;
-    } else {
-      subIssueToAssign = null;
-    }
-  }
-  if (!context2.issue.assignees.includes(context2.botUsername)) {
-    actions.push({
-      type: "assignUser",
-      token: "code",
-      issueNumber: context2.issue.number,
-      username: context2.botUsername
-    });
-  }
-  if (subIssueToAssign && !subIssueToAssign.assignees.includes(context2.botUsername)) {
-    actions.push({
-      type: "assignUser",
-      token: "code",
-      issueNumber: subIssueToAssign.number,
-      username: context2.botUsername
-    });
-  }
-  return actions;
-}
-function emitAllPhasesDone({ context: context2 }) {
-  const actions = [];
-  actions.push({
-    type: "log",
-    token: "code",
-    level: "info",
-    message: `All phases complete for issue #${context2.issue.number}`,
-    worktree: "main"
-  });
-  actions.push({
-    type: "updateProjectStatus",
-    token: "code",
-    issueNumber: context2.issue.number,
-    status: "Done"
-  });
-  actions.push({
-    type: "closeIssue",
-    token: "code",
-    issueNumber: context2.issue.number,
-    reason: "completed"
-  });
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber: context2.issue.number,
-    iteration: context2.issue.iteration,
-    phase: "-",
-    message: HISTORY_MESSAGES.ALL_PHASES_COMPLETE,
-    timestamp: context2.workflowStartedAt ?? void 0
-  });
-  return actions;
-}
-function emitStop(_ctx, reason) {
-  return [
-    {
-      type: "stop",
-      token: "code",
-      reason
-    }
-  ];
-}
-function emitLog(_ctx, message, level = "info") {
-  return [
-    {
-      type: "log",
-      token: "code",
-      level,
-      message,
-      // Log actions don't need the code branch - run from main
-      worktree: "main"
-    }
-  ];
-}
-function emitTransitionToReview({
-  context: context2
-}) {
-  const actions = [];
-  if (context2.issue.failures > 0) {
-    actions.push(...emitClearFailures({ context: context2 }));
-  }
-  if (context2.pr?.isDraft) {
-    actions.push(...emitMarkReady({ context: context2 }));
-  }
-  actions.push(...emitSetReview({ context: context2 }));
-  actions.push(...emitRequestReview({ context: context2 }));
-  return actions;
-}
-function emitHandleCIFailure({ context: context2 }) {
-  const actions = [];
-  actions.push(...emitRecordFailure({ context: context2 }));
-  actions.push(...emitLogCIFailure({ context: context2 }));
-  return actions;
-}
-function emitBlockIssue({ context: context2 }) {
-  const actions = [];
-  actions.push(...emitSetBlocked({ context: context2 }));
-  actions.push(...emitUnassign({ context: context2 }));
-  actions.push(
-    ...emitAppendHistory(
-      { context: context2 },
-      HISTORY_MESSAGES.blocked(context2.issue.failures)
-    )
-  );
-  actions.push(...emitBlock({ context: context2 }));
-  return actions;
-}
-function emitRetryIssue({ context: context2 }) {
-  const actions = [];
-  actions.push(...emitClearFailures({ context: context2 }));
-  if (context2.currentSubIssue) {
-    actions.push({
-      type: "clearFailures",
-      token: "code",
-      issueNumber: context2.currentSubIssue.number
-    });
-    actions.push({
-      type: "updateProjectStatus",
-      token: "code",
-      issueNumber: context2.currentSubIssue.number,
-      status: null
-    });
-  }
-  actions.push({
-    type: "updateProjectStatus",
-    token: "code",
-    issueNumber: context2.issue.number,
-    status: "In progress"
-  });
-  if (!context2.issue.assignees.includes(context2.botUsername)) {
-    actions.push({
-      type: "assignUser",
-      token: "code",
-      issueNumber: context2.issue.number,
-      username: context2.botUsername
-    });
-  }
-  return actions;
-}
-function emitMergeQueueEntry({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration,
-      phase,
-      message: HISTORY_MESSAGES.ENTERED_QUEUE,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitMergeQueueFailure({
-  context: context2
-}) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration,
-      phase,
-      message: HISTORY_MESSAGES.REMOVED_FROM_QUEUE,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitMerged({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration,
-      phase,
-      message: HISTORY_MESSAGES.MERGED,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitDeployedStage({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration,
-      phase,
-      message: HISTORY_MESSAGES.DEPLOYED_STAGE,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitDeployedProd({ context: context2 }) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration,
-      phase,
-      message: HISTORY_MESSAGES.RELEASED_PROD,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      commitSha: context2.ciCommitSha ?? void 0,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitDeployedStageFailure({
-  context: context2
-}) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration,
-      phase,
-      message: HISTORY_MESSAGES.STAGE_DEPLOY_FAILED,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitDeployedProdFailure({
-  context: context2
-}) {
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  const iteration = context2.issue.iteration ?? 0;
-  return [
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration,
-      phase,
-      message: HISTORY_MESSAGES.PROD_DEPLOY_FAILED,
-      runLink: context2.ciRunUrl ?? void 0
-    }
-  ];
-}
-function emitPushToDraft({ context: context2 }) {
-  const actions = [];
-  if (context2.pr) {
-    actions.push({
-      type: "convertPRToDraft",
-      token: "code",
-      prNumber: context2.pr.number
-    });
-    actions.push({
-      type: "removeReviewer",
-      token: "code",
-      prNumber: context2.pr.number,
-      reviewer: "nopo-bot"
-    });
-  }
-  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
-  const phase = String(context2.currentPhase ?? "-");
-  actions.push({
-    type: "appendHistory",
-    token: "code",
-    issueNumber,
-    iteration: 0,
-    // Push-to-draft doesn't have iteration context
-    phase,
-    message: HISTORY_MESSAGES.CODE_PUSHED,
-    commitSha: context2.ciCommitSha ?? void 0,
-    runLink: context2.ciRunUrl ?? void 0
-  });
-  return actions;
-}
-function buildGroomingPromptVars(context2) {
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
-  return {
-    ISSUE_NUMBER: String(context2.issue.number),
-    ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
-    ISSUE_COMMENTS: issueComments,
-    ISSUE_LABELS: context2.issue.labels.join(", ")
-  };
-}
-function emitRunClaudeGrooming({
-  context: context2
-}) {
-  const issueNumber = context2.issue.number;
-  const promptVars = buildGroomingPromptVars(context2);
-  const groomingArtifact = {
-    name: "claude-grooming-output",
-    path: "grooming-output.json"
-  };
-  return [
-    // Log grooming start in history
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration: 0,
-      // Grooming is pre-iteration
-      phase: "groom",
-      message: HISTORY_MESSAGES.GROOMING,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
-    },
-    // Run all 4 grooming agents in parallel
-    {
-      type: "runClaudeGrooming",
-      token: "code",
-      issueNumber,
-      promptVars,
-      producesArtifact: groomingArtifact
-    },
-    // Apply grooming output: run summary and make decision
-    {
-      type: "applyGroomingOutput",
-      token: "code",
-      issueNumber,
-      filePath: "grooming-output.json",
-      consumesArtifact: groomingArtifact
-    },
-    // Reconcile sub-issues: create/update/delete based on semantic matching
-    {
-      type: "reconcileSubIssues",
-      token: "code",
-      issueNumber
-    }
-  ];
-}
-function emitRunClaudePivot({ context: context2 }) {
-  const issueNumber = context2.issue.number;
-  const subIssuesInfo = context2.issue.subIssues.map((s) => ({
-    number: s.number,
-    title: s.title,
-    state: s.state,
-    body: serializeMarkdown(s.bodyAst),
-    projectStatus: s.projectStatus,
-    todos: extractTodosFromAst(s.bodyAst)
-  }));
-  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
-  const promptVars = {
-    ISSUE_NUMBER: String(issueNumber),
-    ISSUE_TITLE: context2.issue.title,
-    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
-    ISSUE_COMMENTS: issueComments,
-    PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
-    SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
-  };
-  const pivotArtifact = {
-    name: "claude-pivot-output",
-    path: "claude-structured-output.json"
-  };
-  return [
-    // Log pivot start in history
-    {
-      type: "appendHistory",
-      token: "code",
-      issueNumber,
-      iteration: context2.issue.iteration,
-      phase: "pivot",
-      message: HISTORY_MESSAGES.ANALYZING_PIVOT,
-      timestamp: context2.workflowStartedAt ?? void 0,
-      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
-    },
-    // Run Claude pivot analysis
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "pivot",
-      promptVars,
-      issueNumber,
-      producesArtifact: pivotArtifact
-    },
-    // Apply pivot output: validate safety, apply changes, post summary
-    {
-      type: "applyPivotOutput",
-      token: "code",
-      issueNumber,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: pivotArtifact
-    }
-  ];
-}
-
-// packages/statemachine/src/machine/machine.ts
-var claudeMachine = setup({
-  types: {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    events: {},
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    input: {}
-  },
-  guards: {
-    isAlreadyDone: ({ context: context2 }) => guards.isAlreadyDone({ context: context2 }),
-    isBlocked: ({ context: context2 }) => guards.isBlocked({ context: context2 }),
-    isError: ({ context: context2 }) => guards.isError({ context: context2 }),
-    needsSubIssues: ({ context: context2 }) => guards.needsSubIssues({ context: context2 }),
-    hasSubIssues: ({ context: context2 }) => guards.hasSubIssues({ context: context2 }),
-    isSubIssue: ({ context: context2 }) => guards.isSubIssue({ context: context2 }),
-    subIssueCanIterate: ({ context: context2 }) => guards.subIssueCanIterate({ context: context2 }),
-    isInReview: ({ context: context2 }) => guards.isInReview({ context: context2 }),
-    allPhasesDone: ({ context: context2 }) => guards.allPhasesDone({ context: context2 }),
-    currentPhaseNeedsWork: ({ context: context2 }) => guards.currentPhaseNeedsWork({ context: context2 }),
-    currentPhaseInReview: ({ context: context2 }) => guards.currentPhaseInReview({ context: context2 }),
-    todosDone: ({ context: context2 }) => guards.todosDone({ context: context2 }),
-    maxFailuresReached: ({ context: context2 }) => guards.maxFailuresReached({ context: context2 }),
-    ciPassed: ({ context: context2 }) => guards.ciPassed({ context: context2 }),
-    ciFailed: ({ context: context2 }) => guards.ciFailed({ context: context2 }),
-    reviewApproved: ({ context: context2 }) => guards.reviewApproved({ context: context2 }),
-    reviewRequestedChanges: ({ context: context2 }) => guards.reviewRequestedChanges({ context: context2 }),
-    readyForReview: ({ context: context2 }) => guards.readyForReview({ context: context2 }),
-    shouldContinueIterating: ({ context: context2 }) => guards.shouldContinueIterating({ context: context2 }),
-    shouldBlock: ({ context: context2 }) => guards.shouldBlock({ context: context2 }),
-    hasPR: ({ context: context2 }) => guards.hasPR({ context: context2 }),
-    prIsDraft: ({ context: context2 }) => guards.prIsDraft({ context: context2 }),
-    hasBranch: ({ context: context2 }) => guards.hasBranch({ context: context2 }),
-    triggeredByCI: ({ context: context2 }) => guards.triggeredByCI({ context: context2 }),
-    triggeredByReview: ({ context: context2 }) => guards.triggeredByReview({ context: context2 }),
-    triggeredByTriage: ({ context: context2 }) => guards.triggeredByTriage({ context: context2 }),
-    triggeredByComment: ({ context: context2 }) => guards.triggeredByComment({ context: context2 }),
-    triggeredByOrchestrate: ({ context: context2 }) => guards.triggeredByOrchestrate({ context: context2 }),
-    triggeredByPRReview: ({ context: context2 }) => guards.triggeredByPRReview({ context: context2 }),
-    triggeredByPRResponse: ({ context: context2 }) => guards.triggeredByPRResponse({ context: context2 }),
-    triggeredByPRHumanResponse: ({ context: context2 }) => guards.triggeredByPRHumanResponse({ context: context2 }),
-    triggeredByPRReviewApproved: ({ context: context2 }) => guards.triggeredByPRReviewApproved({ context: context2 }),
-    triggeredByPRPush: ({ context: context2 }) => guards.triggeredByPRPush({ context: context2 }),
-    triggeredByReset: ({ context: context2 }) => guards.triggeredByReset({ context: context2 }),
-    triggeredByRetry: ({ context: context2 }) => guards.triggeredByRetry({ context: context2 }),
-    triggeredByPivot: ({ context: context2 }) => guards.triggeredByPivot({ context: context2 }),
-    // Merge queue logging guards
-    triggeredByMergeQueueEntry: ({ context: context2 }) => guards.triggeredByMergeQueueEntry({ context: context2 }),
-    triggeredByMergeQueueFailure: ({ context: context2 }) => guards.triggeredByMergeQueueFailure({ context: context2 }),
-    triggeredByPRMerged: ({ context: context2 }) => guards.triggeredByPRMerged({ context: context2 }),
-    triggeredByDeployedStage: ({ context: context2 }) => guards.triggeredByDeployedStage({ context: context2 }),
-    triggeredByDeployedProd: ({ context: context2 }) => guards.triggeredByDeployedProd({ context: context2 }),
-    triggeredByDeployedStageFailure: ({ context: context2 }) => guards.triggeredByDeployedStageFailure({ context: context2 }),
-    triggeredByDeployedProdFailure: ({ context: context2 }) => guards.triggeredByDeployedProdFailure({ context: context2 }),
-    needsTriage: ({ context: context2 }) => guards.needsTriage({ context: context2 }),
-    // Grooming guards
-    triggeredByGroom: ({ context: context2 }) => guards.triggeredByGroom({ context: context2 }),
-    triggeredByGroomSummary: ({ context: context2 }) => guards.triggeredByGroomSummary({ context: context2 }),
-    needsGrooming: ({ context: context2 }) => guards.needsGrooming({ context: context2 }),
-    isGroomed: ({ context: context2 }) => guards.isGroomed({ context: context2 })
-  },
-  actions: {
-    // Log actions
-    logDetecting: emit2(
-      (ctx) => emitLog(ctx, "Detecting initial state")
-    ),
-    logIterating: emit2(
-      (ctx) => emitLog(ctx, `Starting iteration ${ctx.context.issue.iteration + 1}`)
-    ),
-    logFixingCI: emit2(
-      (ctx) => emitLog(ctx, `Fixing CI (iteration ${ctx.context.issue.iteration + 1})`)
-    ),
-    logReviewing: emit2(
-      (ctx) => emitLog(ctx, "PR is under review")
-    ),
-    logTriaging: emit2(
-      (ctx) => emitLog(ctx, `Triaging issue #${ctx.context.issue.number}`)
-    ),
-    logCommenting: emit2(
-      (ctx) => emitLog(ctx, `Responding to comment on #${ctx.context.issue.number}`)
-    ),
-    logWaitingForReview: emit2(
-      (ctx) => emitLog(ctx, "Waiting for review on current phase")
-    ),
-    logAwaitingMerge: emit2(
-      (ctx) => emitLog(
-        ctx,
-        `PR #${ctx.context.pr?.number} marked ready for merge - awaiting human action`
-      )
-    ),
-    // Iteration history logging (writes to issue body)
-    historyIterationStarted: emit2(emitLogIterationStarted),
-    historyCISuccess: emit2(emitLogCISuccess),
-    historyReviewRequested: emit2(emitLogReviewRequested),
-    // Status actions
-    setWorking: emit2(emitSetWorking),
-    setReview: emit2(emitSetReview),
-    setInProgress: emit2(emitSetInProgress),
-    setDone: emit2(emitSetDone),
-    setBlocked: emit2(emitSetBlocked),
-    setError: emit2(emitSetError),
-    logInvalidIteration: emit2(emitLogInvalidIteration),
-    // Iteration actions
-    incrementIteration: emit2(emitIncrementIteration),
-    recordFailure: emit2(emitRecordFailure),
-    clearFailures: emit2(emitClearFailures),
-    // Issue actions
-    closeIssue: emit2(emitCloseIssue),
-    unassign: emit2(emitUnassign),
-    // Git actions
-    createBranch: emit2(emitCreateBranch),
-    // Claude actions
-    runClaude: emit2(emitRunClaude),
-    runClaudeFixCI: emit2(emitRunClaudeFixCI),
-    runClaudeTriage: emit2(emitRunClaudeTriage),
-    runClaudeComment: emit2(emitRunClaudeComment),
-    // PR actions
-    createPR: emit2(emitCreatePR),
-    markPRReady: emit2(emitMarkReady),
-    requestReview: emit2(emitRequestReview),
-    convertToDraft: emit2(emitConvertToDraft),
-    mergePR: emit2(emitMergePR),
-    runClaudePRReview: emit2(emitRunClaudePRReview),
-    runClaudePRResponse: emit2(emitRunClaudePRResponse),
-    runClaudePRHumanResponse: emit2(emitRunClaudePRHumanResponse),
-    logPRReviewing: emit2(
-      (ctx) => emitLog(ctx, `Reviewing PR #${ctx.context.pr?.number ?? "unknown"}`)
-    ),
-    logPRResponding: emit2(
-      (ctx) => emitLog(
-        ctx,
-        `Responding to review on PR #${ctx.context.pr?.number ?? "unknown"}`
-      )
-    ),
-    // Compound actions
-    transitionToReview: emit2(emitTransitionToReview),
-    handleCIFailure: emit2(emitHandleCIFailure),
-    blockIssue: emit2(emitBlockIssue),
-    // Orchestration actions
-    orchestrate: emit2(emitOrchestrate),
-    allPhasesDone: emit2(emitAllPhasesDone),
-    logOrchestrating: emit2(
-      (ctx) => emitLog(
-        ctx,
-        `Orchestrating issue #${ctx.context.issue.number} (phase ${ctx.context.currentPhase}/${ctx.context.totalPhases})`
-      )
-    ),
-    // Stop action (needs event.reason - inline assign)
-    stopWithReason: assign({
-      pendingActions: ({ context: context2, event }) => {
-        const reason = "reason" in event && typeof event.reason === "string" ? event.reason : "unknown";
-        return accumulateFromEmitter(
-          context2.pendingActions,
-          context2,
-          (ctx) => emitStop(ctx, reason)
-        );
-      }
-    }),
-    // Merge queue logging actions
-    logMergeQueueEntry: emit2(emitMergeQueueEntry),
-    logMergeQueueFailure: emit2(emitMergeQueueFailure),
-    logMerged: emit2(emitMerged),
-    logDeployedStage: emit2(emitDeployedStage),
-    logDeployedProd: emit2(emitDeployedProd),
-    logDeployedStageFailure: emit2(emitDeployedStageFailure),
-    logDeployedProdFailure: emit2(emitDeployedProdFailure),
-    // Push to draft action
-    pushToDraft: emit2(emitPushToDraft),
-    // Reset action
-    resetIssue: emit2(emitResetIssue),
-    logResetting: emit2(
-      (ctx) => emitLog(
-        ctx,
-        `Resetting issue #${ctx.context.issue.number} to initial state`
-      )
-    ),
-    // Retry actions
-    retryIssue: emit2(emitRetryIssue),
-    logRetrying: emit2(
-      (ctx) => emitLog(
-        ctx,
-        `Retrying issue #${ctx.context.issue.number} (clearing failures)`
-      )
-    ),
-    // Grooming actions
-    runClaudeGrooming: emit2(emitRunClaudeGrooming),
-    logGrooming: emit2(
-      (ctx) => emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`)
-    ),
-    // Pivot actions
-    runClaudePivot: emit2(emitRunClaudePivot),
-    logPivoting: emit2(
-      (ctx) => emitLog(ctx, `Pivoting issue #${ctx.context.issue.number}`)
-    )
-  }
-}).createMachine({
-  id: "claude-automation",
-  initial: "detecting",
-  context: ({ input }) => ({
-    ...input,
-    pendingActions: []
-  }),
-  states: {
-    /**
-     * Initial state - determine what to do based on context
-     *
-     * Uses event-based transitions (DETECT) instead of `always` to ensure
-     * only ONE state transition happens per invocation. This prevents the
-     * iteration counter from advancing multiple times in a single run.
-     */
-    detecting: {
-      entry: "logDetecting",
-      on: {
-        DETECT: [
-          // Reset takes priority - can reset even Done/Blocked issues
-          { target: "resetting", guard: "triggeredByReset" },
-          // Retry takes priority - can retry even Blocked issues (circuit breaker recovery)
-          { target: "retrying", guard: "triggeredByRetry" },
-          // Pivot takes priority - can pivot even Done/Blocked issues
-          { target: "pivoting", guard: "triggeredByPivot" },
-          // All phases complete takes priority — even if parent is Blocked/Error,
-          // if every sub-issue is Done/CLOSED the parent should close.
-          { target: "orchestrationComplete", guard: "allPhasesDone" },
-          // Check terminal states
-          { target: "done", guard: "isAlreadyDone" },
-          { target: "alreadyBlocked", guard: "isBlocked" },
-          { target: "error", guard: "isError" },
-          // Merge queue logging events (handle early, they're log-only)
-          {
-            target: "mergeQueueLogging",
-            guard: "triggeredByMergeQueueEntry"
-          },
-          {
-            target: "mergeQueueFailureLogging",
-            guard: "triggeredByMergeQueueFailure"
-          },
-          // PR merged -> process merge (close sub-issue, then orchestrate)
-          { target: "processingMerge", guard: "triggeredByPRMerged" },
-          { target: "deployedStageLogging", guard: "triggeredByDeployedStage" },
-          { target: "deployedProdLogging", guard: "triggeredByDeployedProd" },
-          {
-            target: "deployedStageFailureLogging",
-            guard: "triggeredByDeployedStageFailure"
-          },
-          {
-            target: "deployedProdFailureLogging",
-            guard: "triggeredByDeployedProdFailure"
-          },
-          // Check if this is a triage request
-          {
-            target: "triaging",
-            guard: "triggeredByTriage"
-          },
-          // Check if this is a comment (@claude mention)
-          {
-            target: "commenting",
-            guard: "triggeredByComment"
-          },
-          // Check if this is an orchestration request
-          {
-            target: "orchestrating",
-            guard: "triggeredByOrchestrate"
-          },
-          // Check if this is a PR review request (bot should review)
-          // Only review if CI has passed — prevents reviewing PRs with failing CI
-          {
-            target: "prReviewing",
-            guard: and(["triggeredByPRReview", "ciPassed"])
-          },
-          // Ack review request when CI status is unknown (self-interference) — retrigger
-          {
-            target: "prReviewAssigned",
-            guard: and(["triggeredByPRReview", not("ciFailed")])
-          },
-          // Skip review when CI explicitly failed
-          {
-            target: "prReviewSkipped",
-            guard: "triggeredByPRReview"
-          },
-          // Check if this is a PR response (bot responds to bot's review)
-          {
-            target: "prResponding",
-            guard: "triggeredByPRResponse"
-          },
-          // Check if this is a PR human response (bot responds to human's review)
-          {
-            target: "prRespondingHuman",
-            guard: "triggeredByPRHumanResponse"
-          },
-          // Check if this is a PR review approval (Claude approved via nopo-reviewer)
-          {
-            target: "processingReview",
-            guard: "triggeredByPRReviewApproved"
-          },
-          // Check if this is a push to a PR branch
-          {
-            target: "prPush",
-            guard: "triggeredByPRPush"
-          },
-          // Check if this is a CI completion event
-          {
-            target: "processingCI",
-            guard: "triggeredByCI"
-          },
-          // Check if this is a review submission event (for orchestration)
-          {
-            target: "processingReview",
-            guard: "triggeredByReview"
-          },
-          // Check if issue needs triage (no "triaged" label)
-          // This ensures untriaged issues get triaged before any work begins
-          {
-            target: "triaging",
-            guard: "needsTriage"
-          },
-          // Sub-issues with bot assigned iterate - check BEFORE grooming and orchestration
-          // to prevent sub-issues from being groomed or routed to orchestration
-          { target: "iterating", guard: "subIssueCanIterate" },
-          // Sub-issues without bot assignment: no-op (bot edits, reconciliation, etc.)
-          { target: "subIssueIdle", guard: "isSubIssue" },
-          // Check if this is a grooming trigger (parent issues only)
-          {
-            target: "grooming",
-            guard: "triggeredByGroom"
-          },
-          // Check if issue needs grooming (has triaged but not groomed)
-          // This ensures triaged parent issues get groomed before any work begins
-          {
-            target: "grooming",
-            guard: "needsGrooming"
-          },
-          // Check for multi-phase work (parent issues only)
-          { target: "initializing", guard: "needsSubIssues" },
-          { target: "orchestrating", guard: "hasSubIssues" },
-          // Check current state
-          { target: "reviewing", guard: "isInReview" },
-          // Check if ready for review (CI passed + todos done) from any trigger
-          // This allows the state machine to "catch up" when re-triggered
-          { target: "transitioningToReview", guard: "readyForReview" },
-          // FATAL: Parent issue without sub-issues cannot iterate
-          // This catches misconfigured issues that weren't properly groomed
-          { target: "invalidIteration" }
-        ]
-      }
-    },
-    /**
-     * Triage an issue - analyze, label, create sub-issues
-     */
-    triaging: {
-      entry: ["logTriaging", "runClaudeTriage"],
-      type: "final"
-    },
-    /**
-     * Groom an issue - run PM, Engineer, QA, Research agents in parallel
-     *
-     * This runs 4 grooming agents to analyze the issue and determine if it's
-     * ready for implementation. The applyGroomingOutput action then runs the
-     * summary agent and applies the decision:
-     * - ready: add "groomed" label, set status to Ready
-     * - needs_info: add "needs-info" label, post questions
-     * - blocked: set status to Blocked, post reason
-     */
-    grooming: {
-      entry: ["logGrooming", "runClaudeGrooming"],
-      type: "final"
-    },
-    /**
-     * Pivot an issue - modify specifications mid-flight (/pivot command)
-     *
-     * This is a TERMINAL state - after pivot analysis and changes are applied,
-     * the workflow STOPS. The user must review changes and manually restart
-     * with /lfg to continue implementation.
-     *
-     * Safety constraints enforced by the executor:
-     * - Cannot modify checked todos ([x] items are immutable)
-     * - Cannot modify closed sub-issues
-     * - For completed work changes, creates NEW sub-issues (reversion/extension)
-     */
-    pivoting: {
-      entry: ["logPivoting", "runClaudePivot"],
-      type: "final"
-    },
-    /**
-     * Reset an issue to initial state (/reset command)
-     * - Reopens closed issues
-     * - Sets parent status to Backlog, sub-issues to Ready
-     * - Clears iteration and failure counters
-     * - Unassigns bot
-     */
-    resetting: {
-      entry: ["logResetting", "resetIssue"],
-      type: "final"
-    },
-    /**
-     * Retry an issue - clear failures and resume work (/retry command)
-     * Circuit breaker recovery: clears failure counter, sets status to
-     * In Progress, re-assigns bot, then routes to orchestrating or iterating.
-     */
-    retrying: {
-      entry: ["logRetrying", "retryIssue"],
-      always: [
-        // Go directly to orchestrationRunning, not orchestrating.
-        // The orchestrating intermediate checks guards against stale context
-        // (retry actions are queued but not yet applied), which causes
-        // currentPhaseInReview to see the old status and route incorrectly.
-        { target: "orchestrationRunning", guard: "hasSubIssues" },
-        { target: "iterating" }
-      ]
-    },
-    /**
-     * Respond to a comment (@claude mention)
-     */
-    commenting: {
-      entry: ["logCommenting", "runClaudeComment"],
-      type: "final"
-    },
-    /**
-     * Bot reviews a PR
-     *
-     * Claude analyzes the PR and writes review-output.json.
-     * The runner then submits the review via GitHub API.
-     */
-    prReviewing: {
-      entry: ["logPRReviewing", "runClaudePRReview"],
-      type: "final"
-    },
-    /**
-     * Bot responds to its own (or another bot's) review feedback
-     *
-     * Claude addresses review comments and pushes changes.
-     */
-    prResponding: {
-      entry: ["logPRResponding", "runClaudePRResponse"],
-      type: "final"
-    },
-    /**
-     * Bot responds to human review feedback
-     *
-     * Claude addresses human reviewer's comments and pushes changes.
-     */
-    prRespondingHuman: {
-      entry: ["logPRResponding", "runClaudePRHumanResponse"],
-      type: "final"
-    },
-    /**
-     * PR review skipped because CI has not passed
-     *
-     * Review was requested but CI hasn't passed yet. The state machine
-     * will naturally request review once CI passes via the readyForReview
-     * guard in processingCI.
-     */
-    prReviewSkipped: {
-      type: "final"
-    },
-    /**
-     * PR review was acknowledged but CI status is indeterminate (e.g. the
-     * review workflow's own check suite makes the rollup PENDING).
-     * Retrigger via workflow_dispatch to run outside the PR check context.
-     */
-    prReviewAssigned: {
-      type: "final"
-    },
-    /**
-     * PR Push - converts PR to draft and removes reviewer
-     *
-     * Triggered when code is pushed to a PR branch. This cancels in-flight
-     * reviews and signals that iteration will continue.
-     */
-    prPush: {
-      entry: ["pushToDraft", "setInProgress"],
-      type: "final"
-    },
-    /**
-     * Create sub-issues for phased work
-     */
-    initializing: {
-      entry: ["setInProgress"],
-      always: "orchestrating"
-    },
-    /**
-     * Manage multi-phase work (parent issue orchestration)
-     *
-     * This state handles parent issues with sub-issues:
-     * - If all phases done: emit completion actions
-     * - If current phase in review: wait (no-op, review completion triggers next run)
-     * - Otherwise: emit orchestration actions (init, advance, assign sub-issue)
-     *
-     * After emitting actions, this becomes a final state because:
-     * - Sub-issue iteration happens in a separate workflow run
-     * - Orchestration triggers sub-issue assignment which triggers iteration
-     */
-    orchestrating: {
-      entry: ["logOrchestrating"],
-      always: [
-        // All phases complete - mark parent done
-        {
-          target: "orchestrationComplete",
-          guard: "allPhasesDone"
-        },
-        // Current phase is in review - wait for review to complete
-        {
-          target: "orchestrationWaiting",
-          guard: "currentPhaseInReview"
-        },
-        // Otherwise, run orchestration (init, advance, assign)
-        {
-          target: "orchestrationRunning"
-        }
-      ]
-    },
-    /**
-     * Orchestration running - emits actions and stops
-     */
-    orchestrationRunning: {
-      entry: ["orchestrate"],
-      type: "final"
-    },
-    /**
-     * Waiting for current phase review to complete
-     */
-    orchestrationWaiting: {
-      entry: ["logWaitingForReview"],
-      type: "final"
-    },
-    /**
-     * All phases complete
-     */
-    orchestrationComplete: {
-      entry: ["allPhasesDone"],
-      type: "final"
-    },
-    /**
-     * Process CI completion
-     */
-    processingCI: {
-      always: [
-        // CI passed and todos done -> go to review
-        {
-          target: "transitioningToReview",
-          guard: "readyForReview",
-          actions: ["historyCISuccess"]
-        },
-        // CI passed but todos not done -> continue iterating
-        {
-          target: "iterating",
-          guard: "ciPassed",
-          actions: ["clearFailures", "historyCISuccess"]
-        },
-        // CI failed and max failures -> block
-        {
-          target: "blocked",
-          guard: "shouldBlock",
-          actions: ["blockIssue"]
-        },
-        // CI failed -> iterate to fix
-        {
-          target: "iteratingFix",
-          guard: "ciFailed",
-          actions: ["handleCIFailure"]
-        },
-        // Fallback
-        { target: "iterating" }
-      ]
-    },
-    /**
-     * Process review submission
-     */
-    processingReview: {
-      always: [
-        // Approved -> mark ready for merge and wait for human to merge
-        {
-          target: "awaitingMerge",
-          guard: "reviewApproved",
-          actions: ["mergePR"]
-        },
-        // Changes requested -> iterate to address
-        // NOTE: setWorking is NOT included here because iterating entry already calls it
-        {
-          target: "iterating",
-          guard: "reviewRequestedChanges",
-          actions: ["convertToDraft"]
-        },
-        // Just commented -> stay in review
-        { target: "reviewing" }
-      ]
-    },
-    /**
-     * Waiting for human to merge the PR
-     * PR has "ready-to-merge" label, waiting for actual merge
-     */
-    awaitingMerge: {
-      entry: ["logAwaitingMerge", "setReview"],
-      type: "final"
-    },
-    /**
-     * Processing a merged PR
-     * Closes the sub-issue and advances to orchestrating
-     */
-    processingMerge: {
-      entry: ["logMerged", "setDone", "closeIssue"],
-      always: "orchestrating"
-    },
-    /**
-     * Transitioning to review state
-     */
-    transitioningToReview: {
-      entry: ["transitionToReview", "historyReviewRequested"],
-      always: "reviewing"
-    },
-    /**
-     * Claude is working on implementation
-     */
-    iterating: {
-      entry: [
-        "createBranch",
-        "setWorking",
-        "incrementIteration",
-        "historyIterationStarted",
-        "logIterating",
-        "runClaude",
-        "createPR"
-      ],
-      on: {
-        CI_SUCCESS: [
-          {
-            target: "transitioningToReview",
-            guard: "todosDone",
-            actions: ["historyCISuccess"]
-          },
-          {
-            target: "iterating",
-            actions: ["clearFailures", "historyCISuccess"]
-          }
-        ],
-        CI_FAILURE: [
-          {
-            target: "blocked",
-            guard: "maxFailuresReached",
-            actions: ["blockIssue"]
-          },
-          {
-            target: "iteratingFix",
-            actions: ["handleCIFailure"]
-          }
-        ]
-      },
-      // Auto-stop after entry actions (no event-driven transitions in initial run)
-      type: "final"
-    },
-    /**
-     * Claude is fixing CI failures
-     */
-    iteratingFix: {
-      entry: [
-        "createBranch",
-        "incrementIteration",
-        "historyIterationStarted",
-        "logFixingCI",
-        "runClaudeFixCI",
-        "createPR"
-      ],
-      on: {
-        CI_SUCCESS: [
-          {
-            target: "transitioningToReview",
-            guard: "todosDone",
-            actions: ["historyCISuccess"]
-          },
-          {
-            target: "iterating",
-            actions: ["clearFailures", "historyCISuccess"]
-          }
-        ],
-        CI_FAILURE: [
-          {
-            target: "blocked",
-            guard: "maxFailuresReached",
-            actions: ["blockIssue"]
-          },
-          {
-            target: "iteratingFix",
-            actions: ["handleCIFailure"]
-          }
-        ]
-      },
-      type: "final"
-    },
-    /**
-     * PR is under review
-     */
-    reviewing: {
-      entry: ["logReviewing", "setReview"],
-      on: {
-        REVIEW_APPROVED: "orchestrating",
-        // NOTE: setWorking NOT included - iterating entry already calls it
-        REVIEW_CHANGES_REQUESTED: {
-          target: "iterating",
-          actions: ["convertToDraft"]
-        },
-        REVIEW_COMMENTED: "reviewing"
-      },
-      type: "final"
-    },
-    /**
-     * Circuit breaker triggered
-     * NOTE: Entry actions removed - blockIssue action already emits setBlocked + unassign
-     */
-    blocked: {
-      type: "final"
-    },
-    /**
-     * Already blocked - issue was in Blocked status when event arrived.
-     * No actions needed, just exit. Reached when sm-verify (or circuit breaker)
-     * previously set Blocked status and a new event fires before manual recovery.
-     */
-    alreadyBlocked: {
-      type: "final"
-    },
-    /**
-     * Unrecoverable error
-     */
-    error: {
-      type: "final"
-    },
-    /**
-     * Sub-issue edited but not assigned to bot - skip silently
-     *
-     * This handles bot-initiated edits (reconciliation, triage body updates)
-     * that fire issues:edited events on sub-issues. Without bot assignment,
-     * these should not trigger iteration.
-     */
-    subIssueIdle: {
-      entry: [
-        emit2(
-          (ctx) => emitLog(
-            ctx,
-            `Sub-issue #${ctx.context.issue.number} edited but not assigned \u2014 skipping`
-          )
-        )
-      ],
-      type: "final"
-    },
-    /**
-     * Invalid iteration attempt - parent issue without sub-issues tried to iterate
-     *
-     * This is a FATAL error that indicates the issue was not properly groomed.
-     * Only sub-issues (issues with a parent) can be iterated on directly.
-     * Parent issues must go through orchestration which manages their sub-issues.
-     *
-     * To fix: Run grooming on this issue to create sub-issues, then trigger
-     * orchestration on the parent.
-     */
-    invalidIteration: {
-      entry: ["logInvalidIteration", "setError"],
-      type: "final"
-    },
-    // =========================================================================
-    // Merge Queue Logging States
-    // =========================================================================
-    // These states handle logging of merge queue, merge, and deployment events
-    // They emit history entries to both sub-issue AND parent issue for visibility
-    /**
-     * Log merge queue entry event
-     */
-    mergeQueueLogging: {
-      entry: ["logMergeQueueEntry"],
-      type: "final"
-    },
-    /**
-     * Log merge queue failure event
-     */
-    mergeQueueFailureLogging: {
-      entry: ["logMergeQueueFailure"],
-      type: "final"
-    },
-    /**
-     * Log PR merged event
-     */
-    mergedLogging: {
-      entry: ["logMerged"],
-      type: "final"
-    },
-    /**
-     * Log stage deployment event
-     */
-    deployedStageLogging: {
-      entry: ["logDeployedStage"],
-      type: "final"
-    },
-    /**
-     * Log production deployment event
-     */
-    deployedProdLogging: {
-      entry: ["logDeployedProd"],
-      type: "final"
-    },
-    /**
-     * Log stage deployment failure
-     */
-    deployedStageFailureLogging: {
-      entry: ["logDeployedStageFailure"],
-      type: "final"
-    },
-    /**
-     * Log production deployment failure
-     */
-    deployedProdFailureLogging: {
-      entry: ["logDeployedProdFailure"],
-      type: "final"
-    },
-    /**
-     * All work complete
-     */
-    done: {
-      entry: ["setDone", "closeIssue"],
-      type: "final"
-    }
-  }
-});
+// packages/statemachine/src/schemas/actions/grooming.ts
+var core3 = __toESM(require_core(), 1);
+var fs5 = __toESM(require("fs"), 1);
 
 // packages/claude/src/executor.ts
-var core = __toESM(require_core(), 1);
+var core2 = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
+var fs3 = __toESM(require("fs"), 1);
 
 // node_modules/.pnpm/@anthropic-ai+claude-agent-sdk@0.1.77_zod@3.25.76/node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs
-var fs = __toESM(require("fs"), 1);
-var import_promises = require("fs/promises");
 var import_path = require("path");
-var import_os = require("os");
+var import_url = require("url");
+var import_events = require("events");
+var import_child_process = require("child_process");
+var import_readline = require("readline");
+var fs2 = __toESM(require("fs"), 1);
+var import_promises = require("fs/promises");
 var import_path2 = require("path");
+var import_os = require("os");
+var import_path3 = require("path");
 var import_process = require("process");
 var import_fs = require("fs");
 var import_crypto = require("crypto");
+var import_crypto2 = require("crypto");
+var import_fs2 = require("fs");
+var import_path4 = require("path");
+var import_crypto3 = require("crypto");
+var import_meta = {};
 var __create2 = Object.create;
 var __getProtoOf2 = Object.getPrototypeOf;
 var __defProp2 = Object.defineProperty;
@@ -49396,17 +42676,17 @@ var require_codegen = __commonJS2((exports2) => {
       const cond = this.condition;
       if (cond === true)
         return this.nodes;
-      let e = this.else;
-      if (e) {
-        const ns = e.optimizeNodes();
-        e = this.else = Array.isArray(ns) ? new Else(ns) : ns;
+      let e2 = this.else;
+      if (e2) {
+        const ns = e2.optimizeNodes();
+        e2 = this.else = Array.isArray(ns) ? new Else(ns) : ns;
       }
-      if (e) {
+      if (e2) {
         if (cond === false)
-          return e instanceof If ? e : e.nodes;
+          return e2 instanceof If ? e2 : e2.nodes;
         if (this.nodes.length)
           return this;
-        return new If(not2(cond), e instanceof If ? [e] : e.nodes);
+        return new If(not2(cond), e2 instanceof If ? [e2] : e2.nodes);
       }
       if (cond === false || !this.nodes.length)
         return;
@@ -49820,8 +43100,8 @@ var require_codegen = __commonJS2((exports2) => {
       delete names[n.str];
       return c;
     }
-    function canOptimize(e) {
-      return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+    function canOptimize(e2) {
+      return e2 instanceof code_1._Code && e2._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
     }
   }
   function subtractNames(names, from) {
@@ -50570,8 +43850,8 @@ var require_code2 = __commonJS2((exports2) => {
         compositeRule: true
       }, schValid);
       gen.assign(valid, (0, codegen_1._)`${valid} || ${schValid}`);
-      const merged = cxt.mergeValidEvaluated(schCxt, schValid);
-      if (!merged)
+      const merged2 = cxt.mergeValidEvaluated(schCxt, schValid);
+      if (!merged2)
         gen.if((0, codegen_1.not)(valid));
     }));
     cxt.result(valid, () => cxt.reset(), () => cxt.error(true));
@@ -50626,7 +43906,7 @@ var require_keyword = __commonJS2((exports2) => {
     }
     function validateAsync() {
       const ruleErrs = gen.let("ruleErrs", null);
-      gen.try(() => assignValid((0, codegen_1._)`await `), (e) => gen.assign(valid, false).if((0, codegen_1._)`${e} instanceof ${it.ValidationError}`, () => gen.assign(ruleErrs, (0, codegen_1._)`${e}.errors`), () => gen.throw(e)));
+      gen.try(() => assignValid((0, codegen_1._)`await `), (e2) => gen.assign(valid, false).if((0, codegen_1._)`${e2} instanceof ${it.ValidationError}`, () => gen.assign(ruleErrs, (0, codegen_1._)`${e2}.errors`), () => gen.throw(e2)));
       return ruleErrs;
     }
     function validateSync() {
@@ -51671,12 +44951,12 @@ var require_compile = __commonJS2((exports2) => {
       }
       sch.validate = validate;
       return sch;
-    } catch (e) {
+    } catch (e2) {
       delete sch.validate;
       delete sch.validateName;
       if (sourceCode)
         this.logger.error("Error compiling schema, function code:", sourceCode);
-      throw e;
+      throw e2;
     } finally {
       this._compilations.delete(sch);
     }
@@ -51688,7 +44968,7 @@ var require_compile = __commonJS2((exports2) => {
     const schOrFunc = root22.refs[ref];
     if (schOrFunc)
       return schOrFunc;
-    let _sch = resolve2.call(this, root22, ref);
+    let _sch = resolve3.call(this, root22, ref);
     if (_sch === void 0) {
       const schema = (_a = root22.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
       const { schemaId } = this.opts;
@@ -51715,7 +44995,7 @@ var require_compile = __commonJS2((exports2) => {
   function sameSchemaEnv(s1, s2) {
     return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
   }
-  function resolve2(root22, ref) {
+  function resolve3(root22, ref) {
     let sch;
     while (typeof (sch = this.refs[ref]) == "string")
       ref = sch;
@@ -52099,8 +45379,8 @@ var require_schemes = __commonJS2((exports2, module2) => {
       wsComponents.secure = void 0;
     }
     if (wsComponents.resourceName) {
-      const [path3, query2] = wsComponents.resourceName.split("?");
-      wsComponents.path = path3 && path3 !== "/" ? path3 : void 0;
+      const [path4, query2] = wsComponents.resourceName.split("?");
+      wsComponents.path = path4 && path4 !== "/" ? path4 : void 0;
       wsComponents.query = query2;
       wsComponents.resourceName = void 0;
     }
@@ -52213,7 +45493,7 @@ var require_fast_uri = __commonJS2((exports2, module2) => {
     }
     return uri;
   }
-  function resolve2(baseURI, relativeURI, options) {
+  function resolve3(baseURI, relativeURI, options) {
     const schemelessOptions = Object.assign({ scheme: "null" }, options);
     const resolved = resolveComponents(parse6(baseURI, schemelessOptions), parse6(relativeURI, schemelessOptions), schemelessOptions, true);
     return serialize2(resolved, { ...schemelessOptions, skipEscape: true });
@@ -52416,8 +45696,8 @@ var require_fast_uri = __commonJS2((exports2, module2) => {
         if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
           try {
             parsed.host = URL.domainToASCII(parsed.host.toLowerCase());
-          } catch (e) {
-            parsed.error = parsed.error || "Host's domain name can not be converted to ASCII: " + e;
+          } catch (e2) {
+            parsed.error = parsed.error || "Host's domain name can not be converted to ASCII: " + e2;
           }
         }
       }
@@ -52446,7 +45726,7 @@ var require_fast_uri = __commonJS2((exports2, module2) => {
   var fastUri = {
     SCHEMES,
     normalize,
-    resolve: resolve2,
+    resolve: resolve3,
     resolveComponents,
     equal,
     serialize: serialize2,
@@ -52651,11 +45931,11 @@ var require_core2 = __commonJS2((exports2) => {
       async function _compileAsync(sch) {
         try {
           return this._compileSchemaEnv(sch);
-        } catch (e) {
-          if (!(e instanceof ref_error_1.default))
-            throw e;
-          checkLoaded.call(this, e);
-          await loadMissingSchema.call(this, e.missingSchema);
+        } catch (e2) {
+          if (!(e2 instanceof ref_error_1.default))
+            throw e2;
+          checkLoaded.call(this, e2);
+          await loadMissingSchema.call(this, e2.missingSchema);
           return _compileAsync.call(this, sch);
         }
       }
@@ -52838,7 +46118,7 @@ var require_core2 = __commonJS2((exports2) => {
     errorsText(errors3 = this.errors, { separator = ", ", dataVar = "data" } = {}) {
       if (!errors3 || errors3.length === 0)
         return "No errors";
-      return errors3.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text5, msg) => text5 + separator + msg);
+      return errors3.map((e2) => `${dataVar}${e2.instancePath} ${e2.message}`).reduce((text5, msg) => text5 + separator + msg);
     }
     $dataMetaSchema(metaSchema, keywordsJsonPointers) {
       const rules = this.RULES.all;
@@ -53136,9 +46416,9 @@ var require_ref = __commonJS2((exports2) => {
         addEvaluatedFrom(v);
         if (!allErrors)
           gen.assign(valid, true);
-      }, (e) => {
-        gen.if((0, codegen_1._)`!(${e} instanceof ${it.ValidationError})`, () => gen.throw(e));
-        addErrorsFrom(e);
+      }, (e2) => {
+        gen.if((0, codegen_1._)`!(${e2} instanceof ${it.ValidationError})`, () => gen.throw(e2));
+        addErrorsFrom(e2);
         if (!allErrors)
           gen.assign(valid, false);
       });
@@ -53186,7 +46466,7 @@ var require_core22 = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   var id_1 = require_id();
   var ref_1 = require_ref();
-  var core27 = [
+  var core22 = [
     "$schema",
     "$id",
     "$defs",
@@ -53196,7 +46476,7 @@ var require_core22 = __commonJS2((exports2) => {
     id_1.default,
     ref_1.default
   ];
-  exports2.default = core27;
+  exports2.default = core22;
 });
 var require_limitNumber = __commonJS2((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
@@ -55037,7 +48317,7 @@ var require_formats = __commonJS2((exports2) => {
     try {
       new RegExp(str);
       return true;
-    } catch (e) {
+    } catch (e2) {
       return false;
     }
   }
@@ -55146,6 +48426,12 @@ var require_dist = __commonJS2((exports2, module2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   exports2.default = formatsPlugin;
 });
+var DEFAULT_MAX_LISTENERS = 50;
+function createAbortController(maxListeners = DEFAULT_MAX_LISTENERS) {
+  const controller = new AbortController();
+  (0, import_events.setMaxListeners)(maxListeners, controller.signal);
+  return controller;
+}
 var freeGlobal = typeof global == "object" && global && global.Object === Object && global;
 var _freeGlobal_default = freeGlobal;
 var freeSelf = typeof self == "object" && self && self.Object === Object && self;
@@ -55162,7 +48448,7 @@ function getRawTag(value) {
   try {
     value[symToStringTag] = void 0;
     var unmasked = true;
-  } catch (e) {
+  } catch (e2) {
   }
   var result = nativeObjectToString.call(value);
   if (unmasked) {
@@ -55224,11 +48510,11 @@ function toSource(func) {
   if (func != null) {
     try {
       return funcToString.call(func);
-    } catch (e) {
+    } catch (e2) {
     }
     try {
       return func + "";
-    } catch (e) {
+    } catch (e2) {
     }
   }
   return "";
@@ -55535,7 +48821,7 @@ function shouldShowDebugMessage(message, filter) {
   return shouldShowDebugCategories(categories, filter);
 }
 function getClaudeConfigHomeDir() {
-  return process.env.CLAUDE_CONFIG_DIR ?? (0, import_path.join)((0, import_os.homedir)(), ".claude");
+  return process.env.CLAUDE_CONFIG_DIR ?? (0, import_path2.join)((0, import_os.homedir)(), ".claude");
 }
 function isEnvTruthy(envVar) {
   if (!envVar)
@@ -55773,6 +49059,10 @@ function jsonStringify(value, replacer, space) {
   const description = describeValue(value);
   return withSlowLogging(`JSON.stringify(${description})`, () => JSON.stringify(value, replacer, space));
 }
+var jsonParse = (text5, reviver) => {
+  const length = typeof text5 === "string" ? text5.length : 0;
+  return withSlowLogging(`JSON.parse(${length} chars)`, () => JSON.parse(text5, reviver));
+};
 var isDebugMode = memoize_default(() => {
   return isEnvTruthy(process.env.DEBUG) || isEnvTruthy(process.env.DEBUG_SDK) || process.argv.includes("--debug") || process.argv.includes("-d") || isDebugToStdErr() || process.argv.some((arg) => arg.startsWith("--debug="));
 });
@@ -55802,11 +49092,11 @@ function getDebugWriter() {
   if (!debugWriter) {
     debugWriter = createBufferedWriter({
       writeFn: (content3) => {
-        const path3 = getDebugLogPath();
-        if (!getFsImplementation().existsSync((0, import_path2.dirname)(path3))) {
-          getFsImplementation().mkdirSync((0, import_path2.dirname)(path3));
+        const path4 = getDebugLogPath();
+        if (!getFsImplementation().existsSync((0, import_path3.dirname)(path4))) {
+          getFsImplementation().mkdirSync((0, import_path3.dirname)(path4));
         }
-        getFsImplementation().appendFileSync(path3, content3);
+        getFsImplementation().appendFileSync(path4, content3);
         updateLatestDebugLogSymlink();
       },
       flushIntervalMs: 1e3,
@@ -55837,7 +49127,7 @@ function logForDebugging(message, { level } = {
   getDebugWriter().write(output);
 }
 function getDebugLogPath() {
-  return process.env.CLAUDE_CODE_DEBUG_LOGS_DIR ?? (0, import_path2.join)(getClaudeConfigHomeDir(), "debug", `${getSessionId()}.txt`);
+  return process.env.CLAUDE_CODE_DEBUG_LOGS_DIR ?? (0, import_path3.join)(getClaudeConfigHomeDir(), "debug", `${getSessionId()}.txt`);
 }
 var updateLatestDebugLogSymlink = memoize_default(() => {
   if (process.argv[2] === "--ripgrep") {
@@ -55845,8 +49135,8 @@ var updateLatestDebugLogSymlink = memoize_default(() => {
   }
   try {
     const debugLogPath = getDebugLogPath();
-    const debugLogsDir = (0, import_path2.dirname)(debugLogPath);
-    const latestSymlinkPath = (0, import_path2.join)(debugLogsDir, "latest");
+    const debugLogsDir = (0, import_path3.dirname)(debugLogPath);
+    const latestSymlinkPath = (0, import_path3.join)(debugLogsDir, "latest");
     if (!getFsImplementation().existsSync(debugLogsDir)) {
       getFsImplementation().mkdirSync(debugLogsDir);
     }
@@ -55877,90 +49167,90 @@ var NodeFsOperations = {
     return process.cwd();
   },
   existsSync(fsPath) {
-    return withSlowLogging2(`existsSync(${fsPath})`, () => fs.existsSync(fsPath));
+    return withSlowLogging2(`existsSync(${fsPath})`, () => fs2.existsSync(fsPath));
   },
   async stat(fsPath) {
     return (0, import_promises.stat)(fsPath);
   },
   statSync(fsPath) {
-    return withSlowLogging2(`statSync(${fsPath})`, () => fs.statSync(fsPath));
+    return withSlowLogging2(`statSync(${fsPath})`, () => fs2.statSync(fsPath));
   },
   lstatSync(fsPath) {
-    return withSlowLogging2(`lstatSync(${fsPath})`, () => fs.lstatSync(fsPath));
+    return withSlowLogging2(`lstatSync(${fsPath})`, () => fs2.lstatSync(fsPath));
   },
   readFileSync(fsPath, options) {
-    return withSlowLogging2(`readFileSync(${fsPath})`, () => fs.readFileSync(fsPath, { encoding: options.encoding }));
+    return withSlowLogging2(`readFileSync(${fsPath})`, () => fs2.readFileSync(fsPath, { encoding: options.encoding }));
   },
   readFileBytesSync(fsPath) {
-    return withSlowLogging2(`readFileBytesSync(${fsPath})`, () => fs.readFileSync(fsPath));
+    return withSlowLogging2(`readFileBytesSync(${fsPath})`, () => fs2.readFileSync(fsPath));
   },
   readSync(fsPath, options) {
     return withSlowLogging2(`readSync(${fsPath}, ${options.length} bytes)`, () => {
       let fd = void 0;
       try {
-        fd = fs.openSync(fsPath, "r");
+        fd = fs2.openSync(fsPath, "r");
         const buffer = Buffer.alloc(options.length);
-        const bytesRead = fs.readSync(fd, buffer, 0, options.length, 0);
+        const bytesRead = fs2.readSync(fd, buffer, 0, options.length, 0);
         return { buffer, bytesRead };
       } finally {
         if (fd)
-          fs.closeSync(fd);
+          fs2.closeSync(fd);
       }
     });
   },
-  appendFileSync(path3, data, options) {
-    return withSlowLogging2(`appendFileSync(${path3}, ${data.length} chars)`, () => {
-      if (!fs.existsSync(path3) && options?.mode !== void 0) {
-        const fd = fs.openSync(path3, "a", options.mode);
+  appendFileSync(path4, data, options) {
+    return withSlowLogging2(`appendFileSync(${path4}, ${data.length} chars)`, () => {
+      if (!fs2.existsSync(path4) && options?.mode !== void 0) {
+        const fd = fs2.openSync(path4, "a", options.mode);
         try {
-          fs.appendFileSync(fd, data);
+          fs2.appendFileSync(fd, data);
         } finally {
-          fs.closeSync(fd);
+          fs2.closeSync(fd);
         }
       } else {
-        fs.appendFileSync(path3, data);
+        fs2.appendFileSync(path4, data);
       }
     });
   },
   copyFileSync(src, dest) {
-    return withSlowLogging2(`copyFileSync(${src} \u2192 ${dest})`, () => fs.copyFileSync(src, dest));
+    return withSlowLogging2(`copyFileSync(${src} \u2192 ${dest})`, () => fs2.copyFileSync(src, dest));
   },
-  unlinkSync(path3) {
-    return withSlowLogging2(`unlinkSync(${path3})`, () => fs.unlinkSync(path3));
+  unlinkSync(path4) {
+    return withSlowLogging2(`unlinkSync(${path4})`, () => fs2.unlinkSync(path4));
   },
   renameSync(oldPath, newPath) {
-    return withSlowLogging2(`renameSync(${oldPath} \u2192 ${newPath})`, () => fs.renameSync(oldPath, newPath));
+    return withSlowLogging2(`renameSync(${oldPath} \u2192 ${newPath})`, () => fs2.renameSync(oldPath, newPath));
   },
-  linkSync(target, path3) {
-    return withSlowLogging2(`linkSync(${target} \u2192 ${path3})`, () => fs.linkSync(target, path3));
+  linkSync(target, path4) {
+    return withSlowLogging2(`linkSync(${target} \u2192 ${path4})`, () => fs2.linkSync(target, path4));
   },
-  symlinkSync(target, path3) {
-    return withSlowLogging2(`symlinkSync(${target} \u2192 ${path3})`, () => fs.symlinkSync(target, path3));
+  symlinkSync(target, path4) {
+    return withSlowLogging2(`symlinkSync(${target} \u2192 ${path4})`, () => fs2.symlinkSync(target, path4));
   },
-  readlinkSync(path3) {
-    return withSlowLogging2(`readlinkSync(${path3})`, () => fs.readlinkSync(path3));
+  readlinkSync(path4) {
+    return withSlowLogging2(`readlinkSync(${path4})`, () => fs2.readlinkSync(path4));
   },
-  realpathSync(path3) {
-    return withSlowLogging2(`realpathSync(${path3})`, () => fs.realpathSync(path3));
+  realpathSync(path4) {
+    return withSlowLogging2(`realpathSync(${path4})`, () => fs2.realpathSync(path4));
   },
   mkdirSync(dirPath, options) {
     return withSlowLogging2(`mkdirSync(${dirPath})`, () => {
-      if (!fs.existsSync(dirPath)) {
+      if (!fs2.existsSync(dirPath)) {
         const mkdirOptions = {
           recursive: true
         };
         if (options?.mode !== void 0) {
           mkdirOptions.mode = options.mode;
         }
-        fs.mkdirSync(dirPath, mkdirOptions);
+        fs2.mkdirSync(dirPath, mkdirOptions);
       }
     });
   },
   readdirSync(dirPath) {
-    return withSlowLogging2(`readdirSync(${dirPath})`, () => fs.readdirSync(dirPath, { withFileTypes: true }));
+    return withSlowLogging2(`readdirSync(${dirPath})`, () => fs2.readdirSync(dirPath, { withFileTypes: true }));
   },
   readdirStringSync(dirPath) {
-    return withSlowLogging2(`readdirStringSync(${dirPath})`, () => fs.readdirSync(dirPath));
+    return withSlowLogging2(`readdirStringSync(${dirPath})`, () => fs2.readdirSync(dirPath));
   },
   isDirEmptySync(dirPath) {
     return withSlowLogging2(`isDirEmptySync(${dirPath})`, () => {
@@ -55969,19 +49259,1046 @@ var NodeFsOperations = {
     });
   },
   rmdirSync(dirPath) {
-    return withSlowLogging2(`rmdirSync(${dirPath})`, () => fs.rmdirSync(dirPath));
+    return withSlowLogging2(`rmdirSync(${dirPath})`, () => fs2.rmdirSync(dirPath));
   },
-  rmSync(path3, options) {
-    return withSlowLogging2(`rmSync(${path3})`, () => fs.rmSync(path3, options));
+  rmSync(path4, options) {
+    return withSlowLogging2(`rmSync(${path4})`, () => fs2.rmSync(path4, options));
   },
-  createWriteStream(path3) {
-    return fs.createWriteStream(path3);
+  createWriteStream(path4) {
+    return fs2.createWriteStream(path4);
   }
 };
 var activeFs = NodeFsOperations;
 function getFsImplementation() {
   return activeFs;
 }
+var AbortError = class extends Error {
+};
+function isRunningWithBun() {
+  return process.versions.bun !== void 0;
+}
+var debugFilePath = null;
+var initialized = false;
+function getOrCreateDebugFile() {
+  if (initialized) {
+    return debugFilePath;
+  }
+  initialized = true;
+  if (!process.env.DEBUG_CLAUDE_AGENT_SDK) {
+    return null;
+  }
+  const debugDir = (0, import_path4.join)(getClaudeConfigHomeDir(), "debug");
+  debugFilePath = (0, import_path4.join)(debugDir, `sdk-${(0, import_crypto2.randomUUID)()}.txt`);
+  if (!(0, import_fs2.existsSync)(debugDir)) {
+    (0, import_fs2.mkdirSync)(debugDir, { recursive: true });
+  }
+  process.stderr.write(`SDK debug logs: ${debugFilePath}
+`);
+  return debugFilePath;
+}
+function logForSdkDebugging(message) {
+  const path4 = getOrCreateDebugFile();
+  if (!path4) {
+    return;
+  }
+  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+  const output = `${timestamp} ${message}
+`;
+  (0, import_fs2.appendFileSync)(path4, output);
+}
+function mergeSandboxIntoExtraArgs(extraArgs, sandbox) {
+  const effectiveExtraArgs = { ...extraArgs };
+  if (sandbox) {
+    let settingsObj = { sandbox };
+    if (effectiveExtraArgs.settings) {
+      try {
+        const existingSettings = jsonParse(effectiveExtraArgs.settings);
+        settingsObj = { ...existingSettings, sandbox };
+      } catch {
+      }
+    }
+    effectiveExtraArgs.settings = jsonStringify(settingsObj);
+  }
+  return effectiveExtraArgs;
+}
+var ProcessTransport = class {
+  options;
+  process;
+  processStdin;
+  processStdout;
+  ready = false;
+  abortController;
+  exitError;
+  exitListeners = [];
+  processExitHandler;
+  abortHandler;
+  constructor(options) {
+    this.options = options;
+    this.abortController = options.abortController || createAbortController();
+    this.initialize();
+  }
+  getDefaultExecutable() {
+    return isRunningWithBun() ? "bun" : "node";
+  }
+  spawnLocalProcess(spawnOptions) {
+    const { command, args, cwd: cwd2, env, signal } = spawnOptions;
+    const stderrMode = env.DEBUG_CLAUDE_AGENT_SDK || this.options.stderr ? "pipe" : "ignore";
+    const childProcess = (0, import_child_process.spawn)(command, args, {
+      cwd: cwd2,
+      stdio: ["pipe", "pipe", stderrMode],
+      signal,
+      env,
+      windowsHide: true
+    });
+    if (env.DEBUG_CLAUDE_AGENT_SDK || this.options.stderr) {
+      childProcess.stderr.on("data", (data) => {
+        const message = data.toString();
+        logForSdkDebugging(message);
+        if (this.options.stderr) {
+          this.options.stderr(message);
+        }
+      });
+    }
+    const mappedProcess = {
+      stdin: childProcess.stdin,
+      stdout: childProcess.stdout,
+      get killed() {
+        return childProcess.killed;
+      },
+      get exitCode() {
+        return childProcess.exitCode;
+      },
+      kill: childProcess.kill.bind(childProcess),
+      on: childProcess.on.bind(childProcess),
+      once: childProcess.once.bind(childProcess),
+      off: childProcess.off.bind(childProcess)
+    };
+    return mappedProcess;
+  }
+  initialize() {
+    try {
+      const {
+        additionalDirectories = [],
+        betas,
+        cwd: cwd2,
+        executable = this.getDefaultExecutable(),
+        executableArgs = [],
+        extraArgs = {},
+        pathToClaudeCodeExecutable,
+        env = { ...process.env },
+        maxThinkingTokens,
+        maxTurns,
+        maxBudgetUsd,
+        model,
+        fallbackModel,
+        jsonSchema,
+        permissionMode,
+        allowDangerouslySkipPermissions,
+        permissionPromptToolName,
+        continueConversation,
+        resume,
+        settingSources,
+        allowedTools = [],
+        disallowedTools = [],
+        tools,
+        mcpServers,
+        strictMcpConfig,
+        canUseTool,
+        includePartialMessages,
+        plugins,
+        sandbox
+      } = this.options;
+      const args = [
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--input-format",
+        "stream-json"
+      ];
+      if (maxThinkingTokens !== void 0) {
+        args.push("--max-thinking-tokens", maxThinkingTokens.toString());
+      }
+      if (maxTurns)
+        args.push("--max-turns", maxTurns.toString());
+      if (maxBudgetUsd !== void 0) {
+        args.push("--max-budget-usd", maxBudgetUsd.toString());
+      }
+      if (model)
+        args.push("--model", model);
+      if (betas && betas.length > 0) {
+        args.push("--betas", betas.join(","));
+      }
+      if (jsonSchema) {
+        args.push("--json-schema", jsonStringify(jsonSchema));
+      }
+      if (env.DEBUG_CLAUDE_AGENT_SDK) {
+        args.push("--debug-to-stderr");
+      }
+      if (canUseTool) {
+        if (permissionPromptToolName) {
+          throw new Error("canUseTool callback cannot be used with permissionPromptToolName. Please use one or the other.");
+        }
+        args.push("--permission-prompt-tool", "stdio");
+      } else if (permissionPromptToolName) {
+        args.push("--permission-prompt-tool", permissionPromptToolName);
+      }
+      if (continueConversation)
+        args.push("--continue");
+      if (resume)
+        args.push("--resume", resume);
+      if (allowedTools.length > 0) {
+        args.push("--allowedTools", allowedTools.join(","));
+      }
+      if (disallowedTools.length > 0) {
+        args.push("--disallowedTools", disallowedTools.join(","));
+      }
+      if (tools !== void 0) {
+        if (Array.isArray(tools)) {
+          if (tools.length === 0) {
+            args.push("--tools", "");
+          } else {
+            args.push("--tools", tools.join(","));
+          }
+        } else {
+          args.push("--tools", "default");
+        }
+      }
+      if (mcpServers && Object.keys(mcpServers).length > 0) {
+        args.push("--mcp-config", jsonStringify({ mcpServers }));
+      }
+      if (settingSources) {
+        args.push("--setting-sources", settingSources.join(","));
+      }
+      if (strictMcpConfig) {
+        args.push("--strict-mcp-config");
+      }
+      if (permissionMode) {
+        args.push("--permission-mode", permissionMode);
+      }
+      if (allowDangerouslySkipPermissions) {
+        args.push("--allow-dangerously-skip-permissions");
+      }
+      if (fallbackModel) {
+        if (model && fallbackModel === model) {
+          throw new Error("Fallback model cannot be the same as the main model. Please specify a different model for fallbackModel option.");
+        }
+        args.push("--fallback-model", fallbackModel);
+      }
+      if (includePartialMessages) {
+        args.push("--include-partial-messages");
+      }
+      for (const dir of additionalDirectories) {
+        args.push("--add-dir", dir);
+      }
+      if (plugins && plugins.length > 0) {
+        for (const plugin of plugins) {
+          if (plugin.type === "local") {
+            args.push("--plugin-dir", plugin.path);
+          } else {
+            throw new Error(`Unsupported plugin type: ${plugin.type}`);
+          }
+        }
+      }
+      if (this.options.forkSession) {
+        args.push("--fork-session");
+      }
+      if (this.options.resumeSessionAt) {
+        args.push("--resume-session-at", this.options.resumeSessionAt);
+      }
+      if (this.options.persistSession === false) {
+        args.push("--no-session-persistence");
+      }
+      const effectiveExtraArgs = mergeSandboxIntoExtraArgs(extraArgs ?? {}, sandbox);
+      for (const [flag, value] of Object.entries(effectiveExtraArgs)) {
+        if (value === null) {
+          args.push(`--${flag}`);
+        } else {
+          args.push(`--${flag}`, value);
+        }
+      }
+      if (!env.CLAUDE_CODE_ENTRYPOINT) {
+        env.CLAUDE_CODE_ENTRYPOINT = "sdk-ts";
+      }
+      delete env.NODE_OPTIONS;
+      if (env.DEBUG_CLAUDE_AGENT_SDK) {
+        env.DEBUG = "1";
+      } else {
+        delete env.DEBUG;
+      }
+      const isNative = isNativeBinary(pathToClaudeCodeExecutable);
+      const spawnCommand = isNative ? pathToClaudeCodeExecutable : executable;
+      const spawnArgs = isNative ? [...executableArgs, ...args] : [...executableArgs, pathToClaudeCodeExecutable, ...args];
+      const spawnOptions = {
+        command: spawnCommand,
+        args: spawnArgs,
+        cwd: cwd2,
+        env,
+        signal: this.abortController.signal
+      };
+      if (this.options.spawnClaudeCodeProcess) {
+        logForSdkDebugging(`Spawning Claude Code (custom): ${spawnCommand} ${spawnArgs.join(" ")}`);
+        this.process = this.options.spawnClaudeCodeProcess(spawnOptions);
+      } else {
+        const fs22 = getFsImplementation();
+        if (!fs22.existsSync(pathToClaudeCodeExecutable)) {
+          const errorMessage = isNative ? `Claude Code native binary not found at ${pathToClaudeCodeExecutable}. Please ensure Claude Code is installed via native installer or specify a valid path with options.pathToClaudeCodeExecutable.` : `Claude Code executable not found at ${pathToClaudeCodeExecutable}. Is options.pathToClaudeCodeExecutable set?`;
+          throw new ReferenceError(errorMessage);
+        }
+        logForSdkDebugging(`Spawning Claude Code: ${spawnCommand} ${spawnArgs.join(" ")}`);
+        this.process = this.spawnLocalProcess(spawnOptions);
+      }
+      this.processStdin = this.process.stdin;
+      this.processStdout = this.process.stdout;
+      const cleanup = () => {
+        if (this.process && !this.process.killed) {
+          this.process.kill("SIGTERM");
+        }
+      };
+      this.processExitHandler = cleanup;
+      this.abortHandler = cleanup;
+      process.on("exit", this.processExitHandler);
+      this.abortController.signal.addEventListener("abort", this.abortHandler);
+      this.process.on("error", (error7) => {
+        this.ready = false;
+        if (this.abortController.signal.aborted) {
+          this.exitError = new AbortError("Claude Code process aborted by user");
+        } else {
+          this.exitError = new Error(`Failed to spawn Claude Code process: ${error7.message}`);
+          logForSdkDebugging(this.exitError.message);
+        }
+      });
+      this.process.on("exit", (code3, signal) => {
+        this.ready = false;
+        if (this.abortController.signal.aborted) {
+          this.exitError = new AbortError("Claude Code process aborted by user");
+        } else {
+          const error7 = this.getProcessExitError(code3, signal);
+          if (error7) {
+            this.exitError = error7;
+            logForSdkDebugging(error7.message);
+          }
+        }
+      });
+      this.ready = true;
+    } catch (error7) {
+      this.ready = false;
+      throw error7;
+    }
+  }
+  getProcessExitError(code3, signal) {
+    if (code3 !== 0 && code3 !== null) {
+      return new Error(`Claude Code process exited with code ${code3}`);
+    } else if (signal) {
+      return new Error(`Claude Code process terminated by signal ${signal}`);
+    }
+    return;
+  }
+  write(data) {
+    if (this.abortController.signal.aborted) {
+      throw new AbortError("Operation aborted");
+    }
+    if (!this.ready || !this.processStdin) {
+      throw new Error("ProcessTransport is not ready for writing");
+    }
+    if (this.process?.killed || this.process?.exitCode !== null) {
+      throw new Error("Cannot write to terminated process");
+    }
+    if (this.exitError) {
+      throw new Error(`Cannot write to process that exited with error: ${this.exitError.message}`);
+    }
+    logForSdkDebugging(`[ProcessTransport] Writing to stdin: ${data.substring(0, 100)}`);
+    try {
+      const written = this.processStdin.write(data);
+      if (!written) {
+        logForSdkDebugging("[ProcessTransport] Write buffer full, data queued");
+      }
+    } catch (error7) {
+      this.ready = false;
+      throw new Error(`Failed to write to process stdin: ${error7.message}`);
+    }
+  }
+  close() {
+    if (this.processStdin) {
+      this.processStdin.end();
+      this.processStdin = void 0;
+    }
+    if (this.abortHandler) {
+      this.abortController.signal.removeEventListener("abort", this.abortHandler);
+      this.abortHandler = void 0;
+    }
+    for (const { handler } of this.exitListeners) {
+      this.process?.off("exit", handler);
+    }
+    this.exitListeners = [];
+    if (this.process && !this.process.killed) {
+      this.process.kill("SIGTERM");
+      setTimeout(() => {
+        if (this.process && !this.process.killed) {
+          this.process.kill("SIGKILL");
+        }
+      }, 5e3);
+    }
+    this.ready = false;
+    if (this.processExitHandler) {
+      process.off("exit", this.processExitHandler);
+      this.processExitHandler = void 0;
+    }
+  }
+  isReady() {
+    return this.ready;
+  }
+  async *readMessages() {
+    if (!this.processStdout) {
+      throw new Error("ProcessTransport output stream not available");
+    }
+    const rl = (0, import_readline.createInterface)({ input: this.processStdout });
+    try {
+      for await (const line of rl) {
+        if (line.trim()) {
+          const message = jsonParse(line);
+          yield message;
+        }
+      }
+      await this.waitForExit();
+    } catch (error7) {
+      throw error7;
+    } finally {
+      rl.close();
+    }
+  }
+  endInput() {
+    if (this.processStdin) {
+      this.processStdin.end();
+    }
+  }
+  getInputStream() {
+    return this.processStdin;
+  }
+  onExit(callback) {
+    if (!this.process)
+      return () => {
+      };
+    const handler = (code3, signal) => {
+      const error7 = this.getProcessExitError(code3, signal);
+      callback(error7);
+    };
+    this.process.on("exit", handler);
+    this.exitListeners.push({ callback, handler });
+    return () => {
+      if (this.process) {
+        this.process.off("exit", handler);
+      }
+      const index2 = this.exitListeners.findIndex((l) => l.handler === handler);
+      if (index2 !== -1) {
+        this.exitListeners.splice(index2, 1);
+      }
+    };
+  }
+  async waitForExit() {
+    if (!this.process) {
+      if (this.exitError) {
+        throw this.exitError;
+      }
+      return;
+    }
+    if (this.process.exitCode !== null || this.process.killed) {
+      if (this.exitError) {
+        throw this.exitError;
+      }
+      return;
+    }
+    return new Promise((resolve3, reject) => {
+      const exitHandler = (code3, signal) => {
+        if (this.abortController.signal.aborted) {
+          reject(new AbortError("Operation aborted"));
+          return;
+        }
+        const error7 = this.getProcessExitError(code3, signal);
+        if (error7) {
+          reject(error7);
+        } else {
+          resolve3();
+        }
+      };
+      this.process.once("exit", exitHandler);
+      const errorHandler = (error7) => {
+        this.process.off("exit", exitHandler);
+        reject(error7);
+      };
+      this.process.once("error", errorHandler);
+      this.process.once("exit", () => {
+        this.process.off("error", errorHandler);
+      });
+    });
+  }
+};
+function isNativeBinary(executablePath) {
+  const jsExtensions = [".js", ".mjs", ".tsx", ".ts", ".jsx"];
+  return !jsExtensions.some((ext) => executablePath.endsWith(ext));
+}
+var Stream = class {
+  returned;
+  queue = [];
+  readResolve;
+  readReject;
+  isDone = false;
+  hasError;
+  started = false;
+  constructor(returned) {
+    this.returned = returned;
+  }
+  [Symbol.asyncIterator]() {
+    if (this.started) {
+      throw new Error("Stream can only be iterated once");
+    }
+    this.started = true;
+    return this;
+  }
+  next() {
+    if (this.queue.length > 0) {
+      return Promise.resolve({
+        done: false,
+        value: this.queue.shift()
+      });
+    }
+    if (this.isDone) {
+      return Promise.resolve({ done: true, value: void 0 });
+    }
+    if (this.hasError) {
+      return Promise.reject(this.hasError);
+    }
+    return new Promise((resolve3, reject) => {
+      this.readResolve = resolve3;
+      this.readReject = reject;
+    });
+  }
+  enqueue(value) {
+    if (this.readResolve) {
+      const resolve3 = this.readResolve;
+      this.readResolve = void 0;
+      this.readReject = void 0;
+      resolve3({ done: false, value });
+    } else {
+      this.queue.push(value);
+    }
+  }
+  done() {
+    this.isDone = true;
+    if (this.readResolve) {
+      const resolve3 = this.readResolve;
+      this.readResolve = void 0;
+      this.readReject = void 0;
+      resolve3({ done: true, value: void 0 });
+    }
+  }
+  error(error7) {
+    this.hasError = error7;
+    if (this.readReject) {
+      const reject = this.readReject;
+      this.readResolve = void 0;
+      this.readReject = void 0;
+      reject(error7);
+    }
+  }
+  return() {
+    this.isDone = true;
+    if (this.returned) {
+      this.returned();
+    }
+    return Promise.resolve({ done: true, value: void 0 });
+  }
+};
+var SdkControlServerTransport = class {
+  sendMcpMessage;
+  isClosed = false;
+  constructor(sendMcpMessage) {
+    this.sendMcpMessage = sendMcpMessage;
+  }
+  onclose;
+  onerror;
+  onmessage;
+  async start() {
+  }
+  async send(message) {
+    if (this.isClosed) {
+      throw new Error("Transport is closed");
+    }
+    this.sendMcpMessage(message);
+  }
+  async close() {
+    if (this.isClosed) {
+      return;
+    }
+    this.isClosed = true;
+    this.onclose?.();
+  }
+};
+var Query = class {
+  transport;
+  isSingleUserTurn;
+  canUseTool;
+  hooks;
+  abortController;
+  jsonSchema;
+  initConfig;
+  pendingControlResponses = /* @__PURE__ */ new Map();
+  cleanupPerformed = false;
+  sdkMessages;
+  inputStream = new Stream();
+  initialization;
+  cancelControllers = /* @__PURE__ */ new Map();
+  hookCallbacks = /* @__PURE__ */ new Map();
+  nextCallbackId = 0;
+  sdkMcpTransports = /* @__PURE__ */ new Map();
+  sdkMcpServerInstances = /* @__PURE__ */ new Map();
+  pendingMcpResponses = /* @__PURE__ */ new Map();
+  firstResultReceivedResolve;
+  firstResultReceived = false;
+  hasBidirectionalNeeds() {
+    return this.sdkMcpTransports.size > 0 || this.hooks !== void 0 && Object.keys(this.hooks).length > 0 || this.canUseTool !== void 0;
+  }
+  constructor(transport, isSingleUserTurn, canUseTool, hooks, abortController, sdkMcpServers = /* @__PURE__ */ new Map(), jsonSchema, initConfig) {
+    this.transport = transport;
+    this.isSingleUserTurn = isSingleUserTurn;
+    this.canUseTool = canUseTool;
+    this.hooks = hooks;
+    this.abortController = abortController;
+    this.jsonSchema = jsonSchema;
+    this.initConfig = initConfig;
+    for (const [name, server] of sdkMcpServers) {
+      this.connectSdkMcpServer(name, server);
+    }
+    this.sdkMessages = this.readSdkMessages();
+    this.readMessages();
+    this.initialization = this.initialize();
+    this.initialization.catch(() => {
+    });
+  }
+  setError(error7) {
+    this.inputStream.error(error7);
+  }
+  cleanup(error7) {
+    if (this.cleanupPerformed)
+      return;
+    this.cleanupPerformed = true;
+    try {
+      this.transport.close();
+      this.pendingControlResponses.clear();
+      this.pendingMcpResponses.clear();
+      this.cancelControllers.clear();
+      this.hookCallbacks.clear();
+      for (const transport of this.sdkMcpTransports.values()) {
+        try {
+          transport.close();
+        } catch {
+        }
+      }
+      this.sdkMcpTransports.clear();
+      if (error7) {
+        this.inputStream.error(error7);
+      } else {
+        this.inputStream.done();
+      }
+    } catch (_error) {
+    }
+  }
+  next(...[value]) {
+    return this.sdkMessages.next(...[value]);
+  }
+  return(value) {
+    return this.sdkMessages.return(value);
+  }
+  throw(e2) {
+    return this.sdkMessages.throw(e2);
+  }
+  [Symbol.asyncIterator]() {
+    return this.sdkMessages;
+  }
+  [Symbol.asyncDispose]() {
+    return this.sdkMessages[Symbol.asyncDispose]();
+  }
+  async readMessages() {
+    try {
+      for await (const message of this.transport.readMessages()) {
+        if (message.type === "control_response") {
+          const handler = this.pendingControlResponses.get(message.response.request_id);
+          if (handler) {
+            handler(message.response);
+          }
+          continue;
+        } else if (message.type === "control_request") {
+          this.handleControlRequest(message);
+          continue;
+        } else if (message.type === "control_cancel_request") {
+          this.handleControlCancelRequest(message);
+          continue;
+        } else if (message.type === "keep_alive") {
+          continue;
+        }
+        if (message.type === "result") {
+          this.firstResultReceived = true;
+          if (this.firstResultReceivedResolve) {
+            this.firstResultReceivedResolve();
+          }
+          if (this.isSingleUserTurn) {
+            logForDebugging(`[Query.readMessages] First result received for single-turn query, closing stdin`);
+            this.transport.endInput();
+          }
+        }
+        this.inputStream.enqueue(message);
+      }
+      if (this.firstResultReceivedResolve) {
+        this.firstResultReceivedResolve();
+      }
+      this.inputStream.done();
+      this.cleanup();
+    } catch (error7) {
+      if (this.firstResultReceivedResolve) {
+        this.firstResultReceivedResolve();
+      }
+      this.inputStream.error(error7);
+      this.cleanup(error7);
+    }
+  }
+  async handleControlRequest(request) {
+    const controller = new AbortController();
+    this.cancelControllers.set(request.request_id, controller);
+    try {
+      const response = await this.processControlRequest(request, controller.signal);
+      const controlResponse = {
+        type: "control_response",
+        response: {
+          subtype: "success",
+          request_id: request.request_id,
+          response
+        }
+      };
+      await Promise.resolve(this.transport.write(jsonStringify(controlResponse) + `
+`));
+    } catch (error7) {
+      const controlErrorResponse = {
+        type: "control_response",
+        response: {
+          subtype: "error",
+          request_id: request.request_id,
+          error: error7.message || String(error7)
+        }
+      };
+      await Promise.resolve(this.transport.write(jsonStringify(controlErrorResponse) + `
+`));
+    } finally {
+      this.cancelControllers.delete(request.request_id);
+    }
+  }
+  handleControlCancelRequest(request) {
+    const controller = this.cancelControllers.get(request.request_id);
+    if (controller) {
+      controller.abort();
+      this.cancelControllers.delete(request.request_id);
+    }
+  }
+  async processControlRequest(request, signal) {
+    if (request.request.subtype === "can_use_tool") {
+      if (!this.canUseTool) {
+        throw new Error("canUseTool callback is not provided.");
+      }
+      const result = await this.canUseTool(request.request.tool_name, request.request.input, {
+        signal,
+        suggestions: request.request.permission_suggestions,
+        blockedPath: request.request.blocked_path,
+        decisionReason: request.request.decision_reason,
+        toolUseID: request.request.tool_use_id,
+        agentID: request.request.agent_id
+      });
+      return {
+        ...result,
+        toolUseID: request.request.tool_use_id
+      };
+    } else if (request.request.subtype === "hook_callback") {
+      const result = await this.handleHookCallbacks(request.request.callback_id, request.request.input, request.request.tool_use_id, signal);
+      return result;
+    } else if (request.request.subtype === "mcp_message") {
+      const mcpRequest = request.request;
+      const transport = this.sdkMcpTransports.get(mcpRequest.server_name);
+      if (!transport) {
+        throw new Error(`SDK MCP server not found: ${mcpRequest.server_name}`);
+      }
+      if ("method" in mcpRequest.message && "id" in mcpRequest.message && mcpRequest.message.id !== null) {
+        const response = await this.handleMcpControlRequest(mcpRequest.server_name, mcpRequest, transport);
+        return { mcp_response: response };
+      } else {
+        if (transport.onmessage) {
+          transport.onmessage(mcpRequest.message);
+        }
+        return { mcp_response: { jsonrpc: "2.0", result: {}, id: 0 } };
+      }
+    }
+    throw new Error("Unsupported control request subtype: " + request.request.subtype);
+  }
+  async *readSdkMessages() {
+    for await (const message of this.inputStream) {
+      yield message;
+    }
+  }
+  async initialize() {
+    let hooks;
+    if (this.hooks) {
+      hooks = {};
+      for (const [event, matchers] of Object.entries(this.hooks)) {
+        if (matchers.length > 0) {
+          hooks[event] = matchers.map((matcher) => {
+            const callbackIds = [];
+            for (const callback of matcher.hooks) {
+              const callbackId = `hook_${this.nextCallbackId++}`;
+              this.hookCallbacks.set(callbackId, callback);
+              callbackIds.push(callbackId);
+            }
+            return {
+              matcher: matcher.matcher,
+              hookCallbackIds: callbackIds,
+              timeout: matcher.timeout
+            };
+          });
+        }
+      }
+    }
+    const sdkMcpServers = this.sdkMcpTransports.size > 0 ? Array.from(this.sdkMcpTransports.keys()) : void 0;
+    const initRequest = {
+      subtype: "initialize",
+      hooks,
+      sdkMcpServers,
+      jsonSchema: this.jsonSchema,
+      systemPrompt: this.initConfig?.systemPrompt,
+      appendSystemPrompt: this.initConfig?.appendSystemPrompt,
+      agents: this.initConfig?.agents
+    };
+    const response = await this.request(initRequest);
+    return response.response;
+  }
+  async interrupt() {
+    await this.request({
+      subtype: "interrupt"
+    });
+  }
+  async setPermissionMode(mode) {
+    await this.request({
+      subtype: "set_permission_mode",
+      mode
+    });
+  }
+  async setModel(model) {
+    await this.request({
+      subtype: "set_model",
+      model
+    });
+  }
+  async setMaxThinkingTokens(maxThinkingTokens) {
+    await this.request({
+      subtype: "set_max_thinking_tokens",
+      max_thinking_tokens: maxThinkingTokens
+    });
+  }
+  async rewindFiles(userMessageId, options) {
+    const response = await this.request({
+      subtype: "rewind_files",
+      user_message_id: userMessageId,
+      dry_run: options?.dryRun
+    });
+    return response.response;
+  }
+  async processPendingPermissionRequests(pendingPermissionRequests) {
+    for (const request of pendingPermissionRequests) {
+      if (request.request.subtype === "can_use_tool") {
+        this.handleControlRequest(request).catch(() => {
+        });
+      }
+    }
+  }
+  request(request) {
+    const requestId = Math.random().toString(36).substring(2, 15);
+    const sdkRequest = {
+      request_id: requestId,
+      type: "control_request",
+      request
+    };
+    return new Promise((resolve3, reject) => {
+      this.pendingControlResponses.set(requestId, (response) => {
+        if (response.subtype === "success") {
+          resolve3(response);
+        } else {
+          reject(new Error(response.error));
+          if (response.pending_permission_requests) {
+            this.processPendingPermissionRequests(response.pending_permission_requests);
+          }
+        }
+      });
+      Promise.resolve(this.transport.write(jsonStringify(sdkRequest) + `
+`));
+    });
+  }
+  async supportedCommands() {
+    return (await this.initialization).commands;
+  }
+  async supportedModels() {
+    return (await this.initialization).models;
+  }
+  async mcpServerStatus() {
+    const response = await this.request({
+      subtype: "mcp_status"
+    });
+    const mcpStatusResponse = response.response;
+    return mcpStatusResponse.mcpServers;
+  }
+  async setMcpServers(servers) {
+    const sdkServers = {};
+    const processServers = {};
+    for (const [name, config2] of Object.entries(servers)) {
+      if (config2.type === "sdk" && "instance" in config2) {
+        sdkServers[name] = config2.instance;
+      } else {
+        processServers[name] = config2;
+      }
+    }
+    const currentSdkNames = new Set(this.sdkMcpServerInstances.keys());
+    const newSdkNames = new Set(Object.keys(sdkServers));
+    for (const name of currentSdkNames) {
+      if (!newSdkNames.has(name)) {
+        await this.disconnectSdkMcpServer(name);
+      }
+    }
+    for (const [name, server] of Object.entries(sdkServers)) {
+      if (!currentSdkNames.has(name)) {
+        this.connectSdkMcpServer(name, server);
+      }
+    }
+    const sdkServerConfigs = {};
+    for (const name of Object.keys(sdkServers)) {
+      sdkServerConfigs[name] = { type: "sdk", name };
+    }
+    const response = await this.request({
+      subtype: "mcp_set_servers",
+      servers: { ...processServers, ...sdkServerConfigs }
+    });
+    return response.response;
+  }
+  async accountInfo() {
+    return (await this.initialization).account;
+  }
+  async streamInput(stream) {
+    logForDebugging(`[Query.streamInput] Starting to process input stream`);
+    try {
+      let messageCount = 0;
+      for await (const message of stream) {
+        messageCount++;
+        logForDebugging(`[Query.streamInput] Processing message ${messageCount}: ${message.type}`);
+        if (this.abortController?.signal.aborted)
+          break;
+        await Promise.resolve(this.transport.write(jsonStringify(message) + `
+`));
+      }
+      logForDebugging(`[Query.streamInput] Finished processing ${messageCount} messages from input stream`);
+      if (messageCount > 0 && this.hasBidirectionalNeeds()) {
+        logForDebugging(`[Query.streamInput] Has bidirectional needs, waiting for first result`);
+        await this.waitForFirstResult();
+      }
+      logForDebugging(`[Query] Calling transport.endInput() to close stdin to CLI process`);
+      this.transport.endInput();
+    } catch (error7) {
+      if (!(error7 instanceof AbortError)) {
+        throw error7;
+      }
+    }
+  }
+  waitForFirstResult() {
+    if (this.firstResultReceived) {
+      logForDebugging(`[Query.waitForFirstResult] Result already received, returning immediately`);
+      return Promise.resolve();
+    }
+    return new Promise((resolve3) => {
+      if (this.abortController?.signal.aborted) {
+        resolve3();
+        return;
+      }
+      this.abortController?.signal.addEventListener("abort", () => resolve3(), {
+        once: true
+      });
+      this.firstResultReceivedResolve = resolve3;
+    });
+  }
+  handleHookCallbacks(callbackId, input, toolUseID, abortSignal) {
+    const callback = this.hookCallbacks.get(callbackId);
+    if (!callback) {
+      throw new Error(`No hook callback found for ID: ${callbackId}`);
+    }
+    return callback(input, toolUseID, {
+      signal: abortSignal
+    });
+  }
+  connectSdkMcpServer(name, server) {
+    const sdkTransport = new SdkControlServerTransport((message) => this.sendMcpServerMessageToCli(name, message));
+    this.sdkMcpTransports.set(name, sdkTransport);
+    this.sdkMcpServerInstances.set(name, server);
+    server.connect(sdkTransport);
+  }
+  async disconnectSdkMcpServer(name) {
+    const transport = this.sdkMcpTransports.get(name);
+    if (transport) {
+      await transport.close();
+      this.sdkMcpTransports.delete(name);
+    }
+    this.sdkMcpServerInstances.delete(name);
+  }
+  sendMcpServerMessageToCli(serverName, message) {
+    if ("id" in message && message.id !== null && message.id !== void 0) {
+      const key = `${serverName}:${message.id}`;
+      const pending = this.pendingMcpResponses.get(key);
+      if (pending) {
+        pending.resolve(message);
+        this.pendingMcpResponses.delete(key);
+        return;
+      }
+    }
+    const controlRequest = {
+      type: "control_request",
+      request_id: (0, import_crypto3.randomUUID)(),
+      request: {
+        subtype: "mcp_message",
+        server_name: serverName,
+        message
+      }
+    };
+    this.transport.write(jsonStringify(controlRequest) + `
+`);
+  }
+  handleMcpControlRequest(serverName, mcpRequest, transport) {
+    const messageId = "id" in mcpRequest.message ? mcpRequest.message.id : null;
+    const key = `${serverName}:${messageId}`;
+    return new Promise((resolve3, reject) => {
+      const cleanup = () => {
+        this.pendingMcpResponses.delete(key);
+      };
+      const resolveAndCleanup = (response) => {
+        cleanup();
+        resolve3(response);
+      };
+      const rejectAndCleanup = (error7) => {
+        cleanup();
+        reject(error7);
+      };
+      this.pendingMcpResponses.set(key, {
+        resolve: resolveAndCleanup,
+        reject: rejectAndCleanup
+      });
+      if (transport.onmessage) {
+        transport.onmessage(mcpRequest.message);
+      } else {
+        cleanup();
+        reject(new Error("No message handler registered"));
+        return;
+      }
+    });
+  }
+};
 var util2;
 (function(util22) {
   util22.assertEqual = (_) => {
@@ -56009,8 +50326,8 @@ var util2;
     return util22.objectValues(filtered);
   };
   util22.objectValues = (obj) => {
-    return util22.objectKeys(obj).map(function(e) {
-      return obj[e];
+    return util22.objectKeys(obj).map(function(e2) {
+      return obj[e2];
     });
   };
   util22.objectKeys = typeof Object.keys === "function" ? (obj) => Object.keys(obj) : (object) => {
@@ -56331,8 +50648,8 @@ function getErrorMap2() {
   return overrideErrorMap2;
 }
 var makeIssue2 = (params) => {
-  const { data, path: path3, errorMaps, issueData } = params;
-  const fullPath = [...path3, ...issueData.path || []];
+  const { data, path: path4, errorMaps, issueData } = params;
+  const fullPath = [...path4, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -56439,11 +50756,11 @@ var errorUtil2;
   errorUtil22.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil2 || (errorUtil2 = {}));
 var ParseInputLazyPath2 = class {
-  constructor(parent, value, path3, key) {
+  constructor(parent, value, path4, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path3;
+    this._path = path4;
     this._key = key;
   }
   get path() {
@@ -58351,7 +52668,7 @@ var ZodObject2 = class _ZodObject extends ZodType2 {
     });
   }
   merge(merging) {
-    const merged = new _ZodObject({
+    const merged2 = new _ZodObject({
       unknownKeys: merging._def.unknownKeys,
       catchall: merging._def.catchall,
       shape: () => ({
@@ -58360,7 +52677,7 @@ var ZodObject2 = class _ZodObject extends ZodType2 {
       }),
       typeName: ZodFirstPartyTypeKind2.ZodObject
     });
-    return merged;
+    return merged2;
   }
   setKey(key, schema) {
     return this.augment({ [key]: schema });
@@ -58698,8 +53015,8 @@ var ZodIntersection2 = class extends ZodType2 {
       if (isAborted2(parsedLeft) || isAborted2(parsedRight)) {
         return INVALID2;
       }
-      const merged = mergeValues2(parsedLeft.value, parsedRight.value);
-      if (!merged.valid) {
+      const merged2 = mergeValues2(parsedLeft.value, parsedRight.value);
+      if (!merged2.valid) {
         addIssueToContext2(ctx, {
           code: ZodIssueCode2.invalid_intersection_types
         });
@@ -58708,7 +53025,7 @@ var ZodIntersection2 = class extends ZodType2 {
       if (isDirty2(parsedLeft) || isDirty2(parsedRight)) {
         status.dirty();
       }
-      return { status: status.value, value: merged.data };
+      return { status: status.value, value: merged2.data };
     };
     if (ctx.common.async) {
       return Promise.all([
@@ -59058,13 +53375,13 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
       const me = this;
       return OK2(async function(...args) {
         const error7 = new ZodError2([]);
-        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
-          error7.addIssue(makeArgsIssue(args, e));
+        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e2) => {
+          error7.addIssue(makeArgsIssue(args, e2));
           throw error7;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
-        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
-          error7.addIssue(makeReturnsIssue(result, e));
+        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e2) => {
+          error7.addIssue(makeReturnsIssue(result, e2));
           throw error7;
         });
         return parsedReturns;
@@ -59936,10 +54253,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path3) {
-  if (!path3)
+function getElementAtPath(obj, path4) {
+  if (!path4)
     return obj;
-  return path3.reduce((acc, key) => acc?.[key], obj);
+  return path4.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -60256,11 +54573,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path3, issues) {
+function prefixIssues(path4, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path3);
+    iss.path.unshift(path4);
     return iss;
   });
 }
@@ -60392,9 +54709,9 @@ var _parse = (_Err) => (schema, value, _ctx, _params) => {
     throw new $ZodAsyncError();
   }
   if (result.issues.length) {
-    const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
-    captureStackTrace(e, _params?.callee);
-    throw e;
+    const e2 = new (_params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
+    captureStackTrace(e2, _params?.callee);
+    throw e2;
   }
   return result.value;
 };
@@ -60404,9 +54721,9 @@ var _parseAsync = (_Err) => async (schema, value, _ctx, params) => {
   if (result instanceof Promise)
     result = await result;
   if (result.issues.length) {
-    const e = new (params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
-    captureStackTrace(e, params?.callee);
-    throw e;
+    const e2 = new (params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
+    captureStackTrace(e2, params?.callee);
+    throw e2;
   }
   return result.value;
 };
@@ -61788,11 +56105,11 @@ function handleIntersectionResults(result, left, right) {
   }
   if (aborted(result))
     return result;
-  const merged = mergeValues22(left.value, right.value);
-  if (!merged.valid) {
-    throw new Error(`Unmergable intersection. Error path: ${JSON.stringify(merged.mergeErrorPath)}`);
+  const merged2 = mergeValues22(left.value, right.value);
+  if (!merged2.valid) {
+    throw new Error(`Unmergable intersection. Error path: ${JSON.stringify(merged2.mergeErrorPath)}`);
   }
-  result.value = merged.data;
+  result.value = merged2.data;
   return result;
 }
 var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
@@ -64186,10 +58503,483 @@ var McpZodTypeKind;
 (function(McpZodTypeKind2) {
   McpZodTypeKind2["Completable"] = "McpCompletable";
 })(McpZodTypeKind || (McpZodTypeKind = {}));
+function query({
+  prompt,
+  options
+}) {
+  const { systemPrompt, settingSources, sandbox, ...rest } = options ?? {};
+  let customSystemPrompt;
+  let appendSystemPrompt;
+  if (systemPrompt === void 0) {
+    customSystemPrompt = "";
+  } else if (typeof systemPrompt === "string") {
+    customSystemPrompt = systemPrompt;
+  } else if (systemPrompt.type === "preset") {
+    appendSystemPrompt = systemPrompt.append;
+  }
+  let pathToClaudeCodeExecutable = rest.pathToClaudeCodeExecutable;
+  if (!pathToClaudeCodeExecutable) {
+    const filename = (0, import_url.fileURLToPath)(import_meta.url);
+    const dirname2 = (0, import_path.join)(filename, "..");
+    pathToClaudeCodeExecutable = (0, import_path.join)(dirname2, "cli.js");
+  }
+  process.env.CLAUDE_AGENT_SDK_VERSION = "0.1.77";
+  const {
+    abortController = createAbortController(),
+    additionalDirectories = [],
+    agents,
+    allowedTools = [],
+    betas,
+    canUseTool,
+    continue: continueConversation,
+    cwd: cwd2,
+    disallowedTools = [],
+    tools,
+    env,
+    executable = isRunningWithBun() ? "bun" : "node",
+    executableArgs = [],
+    extraArgs = {},
+    fallbackModel,
+    enableFileCheckpointing,
+    forkSession,
+    hooks,
+    includePartialMessages,
+    persistSession,
+    maxThinkingTokens,
+    maxTurns,
+    maxBudgetUsd,
+    mcpServers,
+    model,
+    outputFormat,
+    permissionMode = "default",
+    allowDangerouslySkipPermissions = false,
+    permissionPromptToolName,
+    plugins,
+    resume,
+    resumeSessionAt,
+    stderr,
+    strictMcpConfig
+  } = rest;
+  const jsonSchema = outputFormat?.type === "json_schema" ? outputFormat.schema : void 0;
+  let processEnv = env;
+  if (!processEnv) {
+    processEnv = { ...process.env };
+  }
+  if (!processEnv.CLAUDE_CODE_ENTRYPOINT) {
+    processEnv.CLAUDE_CODE_ENTRYPOINT = "sdk-ts";
+  }
+  if (enableFileCheckpointing) {
+    processEnv.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING = "true";
+  }
+  if (!pathToClaudeCodeExecutable) {
+    throw new Error("pathToClaudeCodeExecutable is required");
+  }
+  const allMcpServers = {};
+  const sdkMcpServers = /* @__PURE__ */ new Map();
+  if (mcpServers) {
+    for (const [name, config2] of Object.entries(mcpServers)) {
+      if (config2.type === "sdk" && "instance" in config2) {
+        sdkMcpServers.set(name, config2.instance);
+        allMcpServers[name] = {
+          type: "sdk",
+          name
+        };
+      } else {
+        allMcpServers[name] = config2;
+      }
+    }
+  }
+  const isSingleUserTurn = typeof prompt === "string";
+  const transport = new ProcessTransport({
+    abortController,
+    additionalDirectories,
+    betas,
+    cwd: cwd2,
+    executable,
+    executableArgs,
+    extraArgs,
+    pathToClaudeCodeExecutable,
+    env: processEnv,
+    forkSession,
+    stderr,
+    maxThinkingTokens,
+    maxTurns,
+    maxBudgetUsd,
+    model,
+    fallbackModel,
+    jsonSchema,
+    permissionMode,
+    allowDangerouslySkipPermissions,
+    permissionPromptToolName,
+    continueConversation,
+    resume,
+    resumeSessionAt,
+    settingSources: settingSources ?? [],
+    allowedTools,
+    disallowedTools,
+    tools,
+    mcpServers: allMcpServers,
+    strictMcpConfig,
+    canUseTool: !!canUseTool,
+    hooks: !!hooks,
+    includePartialMessages,
+    persistSession,
+    plugins,
+    sandbox,
+    spawnClaudeCodeProcess: rest.spawnClaudeCodeProcess
+  });
+  const initConfig = {
+    systemPrompt: customSystemPrompt,
+    appendSystemPrompt,
+    agents
+  };
+  const queryInstance = new Query(transport, isSingleUserTurn, canUseTool, hooks, abortController, sdkMcpServers, jsonSchema, initConfig);
+  if (typeof prompt === "string") {
+    transport.write(jsonStringify({
+      type: "user",
+      session_id: "",
+      message: {
+        role: "user",
+        content: [{ type: "text", text: prompt }]
+      },
+      parent_tool_use_id: null
+    }) + `
+`);
+  } else {
+    queryInstance.streamInput(prompt);
+  }
+  return queryInstance;
+}
+
+// packages/claude/src/executor.ts
+var colors = {
+  reset: "\x1B[0m",
+  bold: "\x1B[1m",
+  dim: "\x1B[2m",
+  // Text colors
+  red: "\x1B[31m",
+  green: "\x1B[32m",
+  yellow: "\x1B[33m",
+  blue: "\x1B[34m",
+  magenta: "\x1B[35m",
+  cyan: "\x1B[36m",
+  white: "\x1B[37m",
+  // Bright colors
+  brightRed: "\x1B[91m",
+  brightGreen: "\x1B[92m",
+  brightYellow: "\x1B[93m",
+  brightBlue: "\x1B[94m",
+  brightMagenta: "\x1B[95m",
+  brightCyan: "\x1B[96m",
+  // Background colors
+  bgRed: "\x1B[41m",
+  bgGreen: "\x1B[42m",
+  bgYellow: "\x1B[43m",
+  bgBlue: "\x1B[44m"
+};
+function formatToolInput(toolName, input) {
+  const lines = [];
+  switch (toolName) {
+    case "Bash":
+      if (input.command) {
+        lines.push(`${colors.dim}Command:${colors.reset} ${input.command}`);
+      }
+      if (input.description) {
+        lines.push(
+          `${colors.dim}Description:${colors.reset} ${input.description}`
+        );
+      }
+      break;
+    case "Read":
+      if (input.file_path) {
+        lines.push(`${colors.dim}File:${colors.reset} ${input.file_path}`);
+      }
+      if (input.offset || input.limit) {
+        lines.push(
+          `${colors.dim}Range:${colors.reset} offset=${input.offset || 0}, limit=${input.limit || "all"}`
+        );
+      }
+      break;
+    case "Edit":
+      if (input.file_path) {
+        lines.push(`${colors.dim}File:${colors.reset} ${input.file_path}`);
+      }
+      if (input.old_string) {
+        const preview = String(input.old_string).slice(0, 100);
+        lines.push(
+          `${colors.dim}Replacing:${colors.reset} ${preview}${String(input.old_string).length > 100 ? "..." : ""}`
+        );
+      }
+      break;
+    case "Write":
+      if (input.file_path) {
+        lines.push(`${colors.dim}File:${colors.reset} ${input.file_path}`);
+      }
+      if (input.content) {
+        const preview = String(input.content).slice(0, 100);
+        lines.push(
+          `${colors.dim}Content:${colors.reset} ${preview}${String(input.content).length > 100 ? "..." : ""}`
+        );
+      }
+      break;
+    case "Glob":
+      if (input.pattern) {
+        lines.push(`${colors.dim}Pattern:${colors.reset} ${input.pattern}`);
+      }
+      if (input.path) {
+        lines.push(`${colors.dim}Path:${colors.reset} ${input.path}`);
+      }
+      break;
+    case "Grep":
+      if (input.pattern) {
+        lines.push(`${colors.dim}Pattern:${colors.reset} ${input.pattern}`);
+      }
+      if (input.path) {
+        lines.push(`${colors.dim}Path:${colors.reset} ${input.path}`);
+      }
+      break;
+    case "Task":
+      if (input.description) {
+        lines.push(
+          `${colors.dim}Description:${colors.reset} ${input.description}`
+        );
+      }
+      if (input.subagent_type) {
+        lines.push(
+          `${colors.dim}Subagent:${colors.reset} ${input.subagent_type}`
+        );
+      }
+      if (input.prompt) {
+        const preview = String(input.prompt).slice(0, 200);
+        lines.push(
+          `${colors.dim}Prompt:${colors.reset} ${preview}${String(input.prompt).length > 200 ? "..." : ""}`
+        );
+      }
+      break;
+    default:
+      for (const [key, value] of Object.entries(input)) {
+        const strValue = typeof value === "string" ? value : JSON.stringify(value);
+        const preview = strValue.slice(0, 100);
+        lines.push(
+          `${colors.dim}${key}:${colors.reset} ${preview}${strValue.length > 100 ? "..." : ""}`
+        );
+      }
+  }
+  return lines.join("\n    ");
+}
+function extractTextFromMessage(msg) {
+  if (msg.type !== "assistant") return "";
+  return msg.message.content.filter(
+    (block) => block.type === "text"
+  ).map((block) => block.text).join("");
+}
+async function executeClaudeSDK(options) {
+  const {
+    prompt,
+    cwd: cwd2 = process.cwd(),
+    claudePath = process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`,
+    allowedTools,
+    outputSchema,
+    permissionMode = "acceptEdits"
+  } = options;
+  core2.info(`Running Claude SDK`);
+  core2.info(`Working directory: ${cwd2}`);
+  core2.info(`Claude Code path: ${claudePath}`);
+  core2.debug(`Prompt: ${prompt.slice(0, 200)}...`);
+  if (!fs3.existsSync(claudePath)) {
+    const errorMsg = `Claude Code not found at ${claudePath}. Ensure Claude Code is installed (curl -fsSL https://claude.ai/install.sh | bash) or set CLAUDE_CODE_PATH environment variable.`;
+    core2.error(errorMsg);
+    return {
+      success: false,
+      exitCode: 1,
+      output: "",
+      error: errorMsg
+    };
+  }
+  const sdkOptions = {
+    cwd: cwd2,
+    pathToClaudeCodeExecutable: claudePath,
+    permissionMode,
+    // Explicitly pass all env vars (including GH_TOKEN) to Claude Code process
+    env: process.env,
+    // Load CLAUDE.md and project settings
+    settingSources: ["project"],
+    // Use Claude Code's system prompt
+    systemPrompt: { type: "preset", preset: "claude_code" }
+  };
+  if (allowedTools && allowedTools.length > 0) {
+    sdkOptions.allowedTools = allowedTools;
+  }
+  if (outputSchema) {
+    sdkOptions.outputFormat = {
+      type: "json_schema",
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK expects Record<string, unknown> for JSON schema
+      schema: outputSchema
+    };
+    core2.info("Using structured output mode with JSON schema");
+  }
+  let output = "";
+  let structuredOutput;
+  let numTurns;
+  let costUsd;
+  try {
+    const q = query({ prompt, options: sdkOptions });
+    for await (const msg of q) {
+      if (msg.type === "system" && msg.subtype === "init") {
+        core2.info(
+          `${colors.cyan}${colors.bold}[SDK Init]${colors.reset} Session: ${msg.session_id}`
+        );
+        core2.info(
+          `${colors.cyan}[SDK]${colors.reset} Model: ${colors.bold}${msg.model}${colors.reset}`
+        );
+        core2.info(
+          `${colors.cyan}[SDK]${colors.reset} Permission mode: ${msg.permissionMode}`
+        );
+        if (msg.tools && msg.tools.length > 0) {
+          core2.info(
+            `${colors.cyan}[SDK]${colors.reset} Tools: ${msg.tools.join(", ")}`
+          );
+        }
+      }
+      const anyMsg = msg;
+      if (msg.type === "system" && anyMsg.subtype === "task_notification") {
+        const status = anyMsg.status;
+        const statusColor = status === "completed" ? colors.green : status === "failed" ? colors.red : colors.yellow;
+        core2.info(
+          `
+${colors.magenta}${colors.bold}[Subagent ${anyMsg.task_id}]${colors.reset} ${statusColor}${status}${colors.reset}`
+        );
+        if (anyMsg.summary) {
+          core2.info(`${colors.dim}Summary:${colors.reset} ${anyMsg.summary}`);
+        }
+      }
+      if (anyMsg.type === "tool_progress") {
+        const toolName = anyMsg.tool_name;
+        const elapsed = anyMsg.elapsed_time_seconds;
+        core2.info(
+          `${colors.dim}[${toolName}] Running... ${elapsed.toFixed(1)}s${colors.reset}`
+        );
+      }
+      if (anyMsg.type === "tool_use_summary") {
+        core2.info(
+          `${colors.dim}[Tool Summary] ${anyMsg.summary}${colors.reset}`
+        );
+      }
+      if (msg.type === "system" && anyMsg.subtype === "hook_started") {
+        core2.info(
+          `${colors.blue}[Hook]${colors.reset} ${anyMsg.hook_event}: ${anyMsg.hook_name}`
+        );
+      }
+      if (msg.type === "system" && msg.subtype === "hook_response") {
+        const outcome = anyMsg.outcome;
+        const outcomeColor = outcome === "success" ? colors.green : outcome === "error" ? colors.red : colors.yellow;
+        core2.info(
+          `${colors.blue}[Hook]${colors.reset} ${anyMsg.hook_name}: ${outcomeColor}${outcome}${colors.reset}`
+        );
+        if (anyMsg.output) {
+          core2.info(`${colors.dim}${anyMsg.output}${colors.reset}`);
+        }
+        if (anyMsg.stderr) {
+          core2.warning(`${colors.yellow}${anyMsg.stderr}${colors.reset}`);
+        }
+      }
+      if (msg.type === "assistant") {
+        const text5 = extractTextFromMessage(msg);
+        if (text5) {
+          process.stdout.write(text5);
+          output += text5;
+        }
+        for (const block of msg.message.content) {
+          if (block.type === "tool_use") {
+            const toolBlock = block;
+            const toolColor = toolBlock.name === "Bash" ? colors.brightYellow : toolBlock.name === "Task" ? colors.brightMagenta : toolBlock.name === "Read" || toolBlock.name === "Glob" || toolBlock.name === "Grep" ? colors.brightCyan : toolBlock.name === "Edit" || toolBlock.name === "Write" ? colors.brightGreen : colors.white;
+            core2.info(
+              `
+${toolColor}${colors.bold}[Tool: ${toolBlock.name}]${colors.reset}`
+            );
+            if (toolBlock.input && Object.keys(toolBlock.input).length > 0) {
+              const formatted = formatToolInput(
+                toolBlock.name,
+                toolBlock.input
+              );
+              if (formatted) {
+                core2.info(`    ${formatted}`);
+              }
+            }
+          }
+        }
+      }
+      if (msg.type === "user" && msg.tool_use_result !== void 0) {
+        const result = msg.tool_use_result;
+        if (typeof result === "object" && result !== null) {
+          const resultObj = result;
+          if (resultObj.error || resultObj.is_error) {
+            const errorMsg = resultObj.error || resultObj.message || "Unknown error";
+            core2.error(
+              `${colors.red}${colors.bold}[Tool Error]${colors.reset} ${errorMsg}`
+            );
+          }
+        }
+      }
+      if (msg.type === "result") {
+        if (msg.subtype === "success") {
+          structuredOutput = msg.structured_output;
+          numTurns = msg.num_turns;
+          costUsd = msg.total_cost_usd;
+          if (structuredOutput) {
+            core2.startGroup("Structured Output");
+            core2.info(JSON.stringify(structuredOutput, null, 2));
+            core2.endGroup();
+          }
+          core2.info(
+            `
+${colors.green}${colors.bold}[SDK]${colors.reset} Completed successfully (${numTurns} turns, $${costUsd.toFixed(4)})`
+          );
+        } else {
+          const errorSubtype = msg.subtype;
+          const errors = "errors" in msg ? (
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- SDK error result has errors field typed differently per subtype
+            msg.errors?.join("\n")
+          ) : errorSubtype;
+          core2.error(
+            `${colors.red}${colors.bold}[SDK Failed]${colors.reset} ${errors}`
+          );
+          return {
+            success: false,
+            exitCode: 1,
+            output,
+            error: errors
+          };
+        }
+      }
+    }
+    return {
+      success: true,
+      exitCode: 0,
+      output,
+      structuredOutput,
+      numTurns,
+      costUsd
+    };
+  } catch (error7) {
+    const errorMessage = error7 instanceof Error ? error7.message : String(error7);
+    core2.error(`Failed to run Claude: ${errorMessage}`);
+    return {
+      success: false,
+      exitCode: 1,
+      output,
+      error: errorMessage
+    };
+  }
+}
+
+// packages/claude/src/prompts.ts
+var fs4 = __toESM(require("fs"), 1);
+var path2 = __toESM(require("path"), 1);
 
 // node_modules/.pnpm/zod-to-json-schema@3.25.1_zod@3.25.76/node_modules/zod-to-json-schema/dist/esm/Options.js
 var ignoreOverride2 = Symbol("Let zodToJsonSchema decide on which parser to use");
-var defaultOptions2 = {
+var defaultOptions = {
   name: void 0,
   $refStrategy: "root",
   basePath: ["#"],
@@ -64214,10 +59004,10 @@ var defaultOptions2 = {
   openAiAnyTypeName: "OpenAiAnyType"
 };
 var getDefaultOptions = (options) => typeof options === "string" ? {
-  ...defaultOptions2,
+  ...defaultOptions,
   name: options
 } : {
-  ...defaultOptions2,
+  ...defaultOptions,
   ...options
 };
 
@@ -65472,14 +60262,14 @@ var zodToJsonSchema = (schema, options) => {
 };
 
 // packages/prompt-factory/src/schema.ts
-var cache2 = /* @__PURE__ */ new WeakMap();
+var cache = /* @__PURE__ */ new WeakMap();
 function toJsonSchema(schema) {
-  let result = cache2.get(schema);
+  let result = cache.get(schema);
   if (!result) {
     const raw = external_exports.record(external_exports.unknown()).parse(zodToJsonSchema(schema));
     delete raw.$schema;
     result = raw;
-    cache2.set(schema, result);
+    cache.set(schema, result);
   }
   return result;
 }
@@ -65743,6 +60533,7 @@ ${inputs.prCreateCommand}` }),
     "- Handle PR ready state transitions based on status"
   ].join("\n") })
 ] }));
+var iterate_default = Iterate;
 
 // packages/prompts/src/prompts/triage.tsx
 var Triage = promptFactory().inputs((z) => ({
@@ -65823,6 +60614,7 @@ These questions will be addressed during grooming.` }),
 
 **Note**: Sub-issues are NOT created during triage. They are created during grooming after the issue is fully refined.` })
 ] }));
+var triage_default = Triage;
 
 // packages/prompts/src/prompts/review.tsx
 var Review = promptFactory().inputs((z) => ({
@@ -65885,6 +60677,7 @@ Review the feedback history to:
 
 - **agent_notes** (optional): Key findings for future agents` })
 ] }));
+var review_default = Review;
 
 // packages/prompts/src/prompts/review-response.tsx
 var ReviewResponse = promptFactory().inputs((z) => ({
@@ -65952,6 +60745,7 @@ The executor will:
 - If had_commits=false, re-request review from the reviewer
 - If had_commits=true, CI will trigger and handle PR state` })
 ] }));
+var review_response_default = ReviewResponse;
 
 // packages/prompts/src/prompts/comment.tsx
 var Comment = promptFactory().inputs((z) => ({
@@ -66007,6 +60801,7 @@ The executor will:
 - Post the response as a comment on the issue/PR
 - Record the action type for analytics` })
 ] }));
+var comment_default = Comment;
 
 // packages/prompts/src/prompts/pivot.tsx
 var Pivot = promptFactory().inputs((z) => ({
@@ -66151,6 +60946,7 @@ Each modification has:
 - Always preserve completed work by creating new sub-issues rather than modifying it
 - The summary_for_user will be posted as a comment on the issue` })
 ] }));
+var pivot_default = Pivot;
 
 // packages/prompts/src/prompts/human-review-response.tsx
 var HumanReviewResponse = promptFactory().inputs((z) => ({
@@ -66225,6 +61021,7 @@ The executor will:
 - If had_commits=false, re-request review from the reviewer
 - If had_commits=true, CI will trigger and handle PR state` })
 ] }));
+var human_review_response_default = HumanReviewResponse;
 
 // packages/prompts/src/prompts/test-analysis.tsx
 var TestAnalysis = promptFactory().inputs((z) => ({
@@ -66273,6 +61070,7 @@ var TestAnalysis = promptFactory().inputs((z) => ({
 
 Format as GitHub-flavored markdown.` })
 ] }));
+var test_analysis_default = TestAnalysis;
 
 // packages/prompts/src/prompts/live-issue-scout.tsx
 var LiveIssueScout = promptFactory().inputs((z) => ({
@@ -66300,6 +61098,7 @@ in the "${inputs.category}" category.` }),
 Be specific about which file(s) to change and the expected outcome.
 Scope is most important, outcome is second most important.` })
 ] }));
+var live_issue_scout_default = LiveIssueScout;
 
 // packages/prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
@@ -66396,6 +61195,7 @@ Provide \`recommended_phases\` with:
 For simple issues (XS/S size), provide a single phase with all todos.` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: "Return structured JSON with your technical analysis." })
 ] }));
+var engineer_default = GroomingEngineer;
 
 // packages/prompts/src/prompts/grooming/pm.tsx
 var GroomingPM = promptFactory().inputs((z) => ({
@@ -66442,6 +61242,7 @@ var GroomingPM = promptFactory().inputs((z) => ({
 If not ready, formulate specific questions that would unblock the work.` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: "Return structured JSON with your analysis and readiness assessment." })
 ] }));
+var pm_default = GroomingPM;
 
 // packages/prompts/src/prompts/grooming/qa.tsx
 var GroomingQA = promptFactory().inputs((z) => ({
@@ -66503,6 +61304,7 @@ var GroomingQA = promptFactory().inputs((z) => ({
 If not ready, specify what information is needed to write good tests.` }),
   /* @__PURE__ */ jsx("section", { title: "Output", children: "Return structured JSON with your QA analysis." })
 ] }));
+var qa_default = GroomingQA;
 
 // packages/prompts/src/prompts/grooming/research.tsx
 var GroomingResearch = promptFactory().inputs((z) => ({
@@ -66577,6 +61379,7 @@ var GroomingResearch = promptFactory().inputs((z) => ({
 
 Set ready=true if research found no blockers or duplicates. Set ready=false with questions if critical context is missing.` })
 ] }));
+var research_default = GroomingResearch;
 
 // packages/prompts/src/prompts/grooming/summary.tsx
 var GroomingSummary = promptFactory().inputs((z) => ({
@@ -66662,6 +61465,7 @@ If decision is "needs_info", provide \`consolidated_questions\` with deduplicate
 If decision is "blocked", clearly state what's blocking and what needs to happen.
 If previous questions were provided, include \`answered_questions\` for any that are now resolved.` })
 ] }));
+var summary_default = GroomingSummary;
 
 // packages/prompts/src/prompts/grooming/reconcile-sub-issues.tsx
 var ReconcileSubIssues = promptFactory().inputs((z) => ({
@@ -66741,6 +61545,7 @@ When merging for update:
 Every expected sub-issue must appear in exactly one of \`create\` or \`update\`.
 Every existing sub-issue must appear in exactly one of \`update\` or \`delete\`.` })
 ] }));
+var reconcile_sub_issues_default = ReconcileSubIssues;
 
 // packages/prompts/src/prompts/discussion/research.tsx
 var DiscussionResearch = promptFactory().inputs((z) => ({
@@ -66804,6 +61609,7 @@ The executor will:
 - Each comment triggers a discussion-respond agent to investigate
 - Update the discussion description` })
 ] }));
+var research_default2 = DiscussionResearch;
 
 // packages/prompts/src/prompts/discussion/investigate.tsx
 var DiscussionInvestigate = promptFactory().inputs((z) => ({
@@ -66870,6 +61676,7 @@ Be thorough - this is research, not a quick answer. Explore multiple angles.` })
 
 The executor will post your findings as a reply to the research thread.` })
 ] }));
+var investigate_default = DiscussionInvestigate;
 
 // packages/prompts/src/prompts/discussion/respond.tsx
 var DiscussionRespond = promptFactory().inputs((z) => ({
@@ -66951,6 +61758,7 @@ The executor will:
 - Post the response as a comment
 - Update the discussion description` })
 ] }));
+var respond_default = DiscussionRespond;
 
 // packages/prompts/src/prompts/discussion/summarize.tsx
 var DiscussionSummarize = promptFactory().inputs((z) => ({
@@ -67020,6 +61828,7 @@ The executor will:
 - Update the discussion description
 - Post the summary comment` })
 ] }));
+var summarize_default = DiscussionSummarize;
 
 // packages/prompts/src/prompts/discussion/plan.tsx
 var DiscussionPlan = promptFactory().inputs((z) => ({
@@ -67116,37 +61925,156 @@ The executor will:
 - Update the discussion description
 - Post the summary comment` })
 ] }));
+var plan_default = DiscussionPlan;
 
-// packages/statemachine/src/runner/runner.ts
-var core20 = __toESM(require_core(), 1);
+// packages/prompts/src/registry.ts
+var PROMPTS = {
+  // Issue prompts
+  iterate: iterate_default,
+  triage: triage_default,
+  review: review_default,
+  "review-response": review_response_default,
+  comment: comment_default,
+  pivot: pivot_default,
+  "human-review-response": human_review_response_default,
+  "test-analysis": test_analysis_default,
+  "live-issue-scout": live_issue_scout_default,
+  // Grooming prompts
+  "grooming/engineer": engineer_default,
+  "grooming/pm": pm_default,
+  "grooming/qa": qa_default,
+  "grooming/research": research_default,
+  "grooming/summary": summary_default,
+  "grooming/reconcile-sub-issues": reconcile_sub_issues_default,
+  // Discussion prompts
+  "discussion/research": research_default2,
+  "discussion/investigate": investigate_default,
+  "discussion/respond": respond_default,
+  "discussion/summarize": summarize_default,
+  "discussion/plan": plan_default
+};
+function getPrompt(name) {
+  if (!hasPrompt(name)) return void 0;
+  return PROMPTS[name];
+}
+function hasPrompt(name) {
+  return name in PROMPTS;
+}
 
-// packages/statemachine/src/runner/signaler.ts
-var core2 = __toESM(require_core(), 1);
+// packages/claude/src/prompts.ts
+function substituteVars(template, vars) {
+  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+    const trimmedName = varName.trim();
+    return vars[trimmedName] ?? match;
+  });
+}
+function transformVarsToInputs(vars) {
+  const result = {};
+  for (const [key, value] of Object.entries(vars)) {
+    const camelKey = key.toLowerCase().replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    const numericFields = [
+      "issueNumber",
+      "prNumber",
+      "iteration",
+      "consecutiveFailures"
+    ];
+    if (numericFields.includes(camelKey)) {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue)) {
+        result[camelKey] = numValue;
+        continue;
+      }
+    }
+    result[camelKey] = value;
+  }
+  if (!result.agentNotes || result.agentNotes === "") {
+    result.agentNotes = "No previous agent notes.";
+  }
+  return result;
+}
+function resolvePromptDir(promptDir, basePath = process.cwd(), promptsDir = ".github/prompts") {
+  const dirPath = path2.resolve(basePath, promptsDir, promptDir);
+  const promptPath = path2.join(dirPath, "prompt.txt");
+  const schemaPath = path2.join(dirPath, "outputs.json");
+  return {
+    promptPath,
+    schemaPath: fs4.existsSync(schemaPath) ? schemaPath : void 0
+  };
+}
+function resolvePrompt(options) {
+  const {
+    prompt,
+    promptFile,
+    promptDir,
+    promptsDir = ".github/prompts",
+    basePath = process.cwd(),
+    promptVars
+  } = options;
+  if (prompt) {
+    let resolvedPrompt = prompt;
+    if (promptVars) {
+      resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
+    }
+    return { prompt: resolvedPrompt };
+  }
+  if (promptDir) {
+    const registryPrompt = getPrompt(promptDir);
+    if (registryPrompt) {
+      const inputs = promptVars ? transformVarsToInputs(promptVars) : {};
+      const result = registryPrompt(inputs);
+      return {
+        prompt: result.prompt,
+        outputSchema: result.outputs
+      };
+    }
+    const { promptPath, schemaPath } = resolvePromptDir(
+      promptDir,
+      basePath,
+      promptsDir
+    );
+    if (!fs4.existsSync(promptPath)) {
+      throw new Error(
+        `Prompt file not found: ${promptPath} (from promptDir: ${promptDir})`
+      );
+    }
+    let resolvedPrompt = fs4.readFileSync(promptPath, "utf-8");
+    if (promptVars) {
+      resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
+    }
+    let outputSchema;
+    if (schemaPath) {
+      const schemaContent = fs4.readFileSync(schemaPath, "utf-8");
+      outputSchema = JSON.parse(schemaContent);
+    }
+    return { prompt: resolvedPrompt, outputSchema };
+  }
+  if (promptFile) {
+    const promptPath = path2.resolve(basePath, promptFile);
+    if (!fs4.existsSync(promptPath)) {
+      throw new Error(`Prompt file not found: ${promptFile}`);
+    }
+    let resolvedPrompt = fs4.readFileSync(promptPath, "utf-8");
+    if (promptVars) {
+      resolvedPrompt = substituteVars(resolvedPrompt, promptVars);
+    }
+    return { prompt: resolvedPrompt };
+  }
+  throw new Error("Either prompt, promptFile, or promptDir must be provided");
+}
 
-// packages/statemachine/src/runner/action-registry.ts
-var core19 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/get-structured-output.ts
-var core3 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/project.ts
-var core4 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/github.ts
-var core5 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/git.ts
-var core6 = __toESM(require_core(), 1);
-var exec3 = __toESM(require_exec(), 1);
-
-// packages/statemachine/src/runner/executors/claude.ts
-var core7 = __toESM(require_core(), 1);
-var exec5 = __toESM(require_exec(), 1);
-
-// packages/statemachine/src/runner/executors/triage.ts
-var core8 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/output-schemas.ts
+// packages/statemachine/src/runner/helpers/output-schemas.ts
+function parseOutput(schema, data, label) {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
+    throw new Error(
+      `Invalid ${label} output:
+${issues}
+Data: ${JSON.stringify(data, null, 2).slice(0, 500)}`
+    );
+  }
+  return result.data;
+}
 var IterateOutputSchema = external_exports.object({
   status: external_exports.enum(["completed_todo", "waiting_manual", "blocked", "all_done"]),
   todos_completed: external_exports.array(external_exports.string()).optional(),
@@ -67361,41 +62289,10964 @@ var PlanOutputSchema = external_exports.object({
   summary_comment: external_exports.string()
 });
 
-// packages/statemachine/src/runner/executors/iterate.ts
+// packages/statemachine/src/parser/issue-adapter.ts
+function deriveBranchName2(parentIssueNumber2, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber2}`;
+}
+
+// packages/statemachine/src/parser/type-guards.ts
+function isList(node2) {
+  return node2.type === "list";
+}
+function isHeading(node2) {
+  return node2.type === "heading";
+}
+function childrenAsRootContent(node2) {
+  return node2.children ?? [];
+}
+
+// packages/statemachine/src/parser/extractors.ts
+function findHeadingIndex(ast, text5) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && firstChild.value === text5;
+  });
+}
+function findHeadingIndexAny(ast, texts) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && texts.includes(firstChild.value);
+  });
+}
+function getNodeText(node2) {
+  if (!node2) return "";
+  if (node2.type === "text") return node2.value;
+  if (node2.type === "inlineCode") return node2.value;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    return childrenAsRootContent(node2).map(getNodeText).join("");
+  }
+  return "";
+}
+function getLinkUrl(node2) {
+  if (!node2) return null;
+  if (node2.type === "link") return node2.url;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    for (const child of childrenAsRootContent(node2)) {
+      const url = getLinkUrl(child);
+      if (url) return url;
+    }
+  }
+  return null;
+}
+var todosExtractor = createExtractor(TodoStatsSchema, (data) => {
+  const ast = data.issue.bodyAst;
+  const todosIdx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
+  if (todosIdx === -1) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  const listNode = ast.children[todosIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        completed++;
+      } else {
+        const text5 = getNodeText(item);
+        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+        if (!isManual) {
+          uncheckedNonManual++;
+        }
+      }
+    }
+  }
+  return { total, completed, uncheckedNonManual };
+});
+function extractTodosFromAst(bodyAst) {
+  const todosIdx = findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES);
+  if (todosIdx === -1) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  const listNode = bodyAst.children[todosIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        completed++;
+      } else {
+        const text5 = getNodeText(item);
+        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+        if (!isManual) {
+          uncheckedNonManual++;
+        }
+      }
+    }
+  }
+  return { total, completed, uncheckedNonManual };
+}
+function getCellText(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return "";
+  return childrenAsRootContent(cell).map(getNodeText).join("");
+}
+function getCellLinkUrl(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return null;
+  for (const child of childrenAsRootContent(cell)) {
+    const url = getLinkUrl(child);
+    if (url) return url;
+  }
+  return null;
+}
+var historyExtractor = createExtractor(
+  external_exports.array(HistoryEntrySchema),
+  (data) => {
+    const ast = data.issue.bodyAst;
+    const historyIdx = findHeadingIndex(ast, SECTION_NAMES.ITERATION_HISTORY);
+    if (historyIdx === -1) return [];
+    const tableNode = ast.children.slice(historyIdx + 1).find((n) => n.type === "table");
+    if (!tableNode) return [];
+    return tableNode.children.slice(1).map((row) => {
+      const timestamp = getCellText(row, 0) || null;
+      const iterationStr = getCellText(row, 1) || "0";
+      const phase = getCellText(row, 2) || "";
+      const action = getCellText(row, 3) || "";
+      const sha = getCellText(row, 4) || null;
+      const runLink = getCellLinkUrl(row, 5);
+      return {
+        timestamp: timestamp === "-" ? null : timestamp,
+        iteration: parseInt(iterationStr, 10) || 0,
+        phase,
+        action,
+        sha: sha === "-" ? null : sha,
+        runLink
+      };
+    });
+  }
+);
+var QuestionStatsSchema = external_exports.object({
+  total: external_exports.number(),
+  answered: external_exports.number(),
+  unanswered: external_exports.number()
+});
+var questionsExtractor = createExtractor(
+  QuestionStatsSchema,
+  (data) => {
+    return extractQuestionsFromAst(data.issue.bodyAst);
+  }
+);
+function extractQuestionsFromAst(bodyAst) {
+  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
+  if (questionsIdx === -1) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+  const listNode = bodyAst.children[questionsIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return { total: 0, answered: 0, unanswered: 0 };
+  }
+  let total = 0;
+  let answered = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        answered++;
+      }
+    }
+  }
+  return { total, answered, unanswered: total - answered };
+}
+function parseQuestionId(item) {
+  for (const child of childrenAsRootContent(item)) {
+    if ("children" in child && Array.isArray(child.children)) {
+      for (const node2 of childrenAsRootContent(child)) {
+        if (node2.type === "inlineCode") {
+          const code3 = node2.value;
+          if (code3.startsWith("id:")) {
+            return code3.slice(3);
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+function extractQuestionItems(bodyAst) {
+  const questionsIdx = findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS);
+  if (questionsIdx === -1) {
+    return [];
+  }
+  const listNode = bodyAst.children[questionsIdx + 1];
+  if (!listNode || !isList(listNode)) {
+    return [];
+  }
+  const items = [];
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && typeof item.checked === "boolean") {
+      const id = parseQuestionId(item);
+      const text5 = getNodeText(item);
+      items.push({
+        id,
+        text: text5,
+        checked: item.checked
+      });
+    }
+  }
+  return items;
+}
+function parsePhaseNumber(title) {
+  const match = /^\[Phase\s+(\d+)\]/.exec(title);
+  return match?.[1] ? parseInt(match[1], 10) : null;
+}
+function extractSectionText(ast, sectionName) {
+  const idx = findHeadingIndex(ast, sectionName);
+  if (idx === -1) return "";
+  const parts = [];
+  for (let i = idx + 1; i < ast.children.length; i++) {
+    const node2 = ast.children[i];
+    if (!node2) break;
+    if (node2.type === "heading") break;
+    parts.push(getNodeText(node2));
+  }
+  return parts.join("\n").trim();
+}
+function extractAffectedAreas(ast) {
+  const idx = findHeadingIndex(ast, SECTION_NAMES.AFFECTED_AREAS);
+  if (idx === -1) return [];
+  const listNode = ast.children[idx + 1];
+  if (!listNode || !isList(listNode)) return [];
+  return listNode.children.map((item) => {
+    const text5 = getNodeText(item);
+    const pathMatch = /`([^`]+)`/.exec(text5);
+    const path4 = pathMatch?.[1] ?? text5;
+    const changeTypeMatch = /\(([^)]+)\)/.exec(text5);
+    const descMatch = /- (.+)$/.exec(text5);
+    return {
+      path: path4,
+      ...changeTypeMatch?.[1] ? { change_type: changeTypeMatch[1] } : {},
+      ...descMatch?.[1] ? { description: descMatch[1] } : {}
+    };
+  });
+}
+function extractTodoItems(ast) {
+  const idx = findHeadingIndexAny(ast, SECTION_NAMES.TODO_ALIASES);
+  if (idx === -1) return [];
+  const listNode = ast.children[idx + 1];
+  if (!listNode || !isList(listNode)) return [];
+  return listNode.children.filter(
+    (item) => item.type === "listItem" && item.checked !== void 0
+  ).map((item) => {
+    const text5 = getNodeText(item);
+    const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+    return { task: text5, ...isManual ? { manual: true } : {} };
+  });
+}
+function extractSubIssueSpecs(subIssues) {
+  return subIssues.filter((sub) => !sub.labels?.includes("superseded")).map((sub) => {
+    const phaseNumber = parsePhaseNumber(sub.title) ?? 0;
+    const title = sub.title.replace(/^\[Phase\s+\d+\]:\s*/, "");
+    const description = extractSectionText(
+      sub.bodyAst,
+      SECTION_NAMES.DESCRIPTION
+    );
+    const affectedAreas = extractAffectedAreas(sub.bodyAst);
+    const todos = extractTodoItems(sub.bodyAst);
+    return {
+      number: sub.number,
+      phase_number: phaseNumber,
+      title,
+      description,
+      state: sub.state,
+      merged: sub.state === "CLOSED" && sub.pr?.state === "MERGED",
+      ...affectedAreas.length > 0 ? { affected_areas: affectedAreas } : {},
+      ...todos.length > 0 ? { todos } : {}
+    };
+  });
+}
+var agentNotesExtractor = createExtractor(
+  external_exports.array(AgentNotesEntrySchema),
+  (data) => {
+    const ast = data.issue.bodyAst;
+    const notesIdx = findHeadingIndex(ast, SECTION_NAMES.AGENT_NOTES);
+    if (notesIdx === -1) return [];
+    const entries = [];
+    for (let i = notesIdx + 1; i < ast.children.length; i++) {
+      const node2 = ast.children[i];
+      if (!node2) continue;
+      if (node2.type === "heading" && node2.depth === 2) break;
+      if (node2.type === "heading" && node2.depth === 3) {
+        const linkNode = node2.children[0];
+        if (!linkNode || linkNode.type !== "link") continue;
+        const linkText = getNodeText(linkNode);
+        const runMatch = linkText.match(/Run\s+(\d+)/);
+        if (!runMatch || !runMatch[1]) continue;
+        const runId = runMatch[1];
+        const runLink = linkNode.url;
+        const headingText = getNodeText(node2);
+        const timestampMatch = headingText.match(/-\s*(.+)$/);
+        const timestamp = timestampMatch?.[1]?.trim() || "";
+        const listNode = ast.children[i + 1];
+        const notes = listNode && isList(listNode) ? listNode.children.map((item) => getNodeText(item)) : [];
+        entries.push({
+          runId,
+          runLink,
+          timestamp,
+          notes
+        });
+      }
+    }
+    return entries;
+  }
+);
+function extractHistoryFromAst(bodyAst) {
+  const historyIdx = findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY);
+  if (historyIdx === -1) return [];
+  const tableNode = bodyAst.children.slice(historyIdx + 1).find((n) => n.type === "table");
+  if (!tableNode) return [];
+  return tableNode.children.slice(1).map((row) => {
+    const timestamp = getCellText(row, 0) || null;
+    const iterationStr = getCellText(row, 1) || "0";
+    const phase = getCellText(row, 2) || "";
+    const action = getCellText(row, 3) || "";
+    const sha = getCellText(row, 4) || null;
+    const runLink = getCellLinkUrl(row, 5);
+    return {
+      timestamp: timestamp === "-" ? null : timestamp,
+      iteration: parseInt(iterationStr, 10) || 0,
+      phase,
+      action,
+      sha: sha === "-" ? null : sha,
+      runLink
+    };
+  });
+}
+function extractAgentNotesFromAst(bodyAst) {
+  const notesIdx = findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES);
+  if (notesIdx === -1) return [];
+  const entries = [];
+  for (let i = notesIdx + 1; i < bodyAst.children.length; i++) {
+    const node2 = bodyAst.children[i];
+    if (!node2) continue;
+    if (node2.type === "heading" && node2.depth === 2) break;
+    if (node2.type === "heading" && node2.depth === 3) {
+      const linkNode = node2.children[0];
+      if (!linkNode || linkNode.type !== "link") continue;
+      const linkText = getNodeText(linkNode);
+      const runMatch = linkText.match(/Run\s+(\d+)/);
+      if (!runMatch || !runMatch[1]) continue;
+      const runId = runMatch[1];
+      const runLink = linkNode.url;
+      const headingText = getNodeText(node2);
+      const timestampMatch = headingText.match(/-\s*(.+)$/);
+      const timestamp = timestampMatch?.[1]?.trim() || "";
+      const listNode = bodyAst.children[i + 1];
+      const notes = listNode && isList(listNode) ? listNode.children.map((item) => getNodeText(item)) : [];
+      entries.push({ runId, runLink, timestamp, notes });
+    }
+  }
+  return entries;
+}
+function extractSubIssueBodyStructure(bodyAst) {
+  const todoStats = extractTodosFromAst(bodyAst);
+  const questionStats = extractQuestionsFromAst(bodyAst);
+  const historyEntries = extractHistoryFromAst(bodyAst);
+  const agentNotesEntries = extractAgentNotesFromAst(bodyAst);
+  return SubIssueBodyStructureSchema.parse({
+    hasDescription: findHeadingIndex(bodyAst, SECTION_NAMES.DESCRIPTION) !== -1,
+    hasTodos: findHeadingIndexAny(bodyAst, SECTION_NAMES.TODO_ALIASES) !== -1,
+    hasHistory: findHeadingIndex(bodyAst, SECTION_NAMES.ITERATION_HISTORY) !== -1,
+    hasAgentNotes: findHeadingIndex(bodyAst, SECTION_NAMES.AGENT_NOTES) !== -1,
+    hasQuestions: findHeadingIndex(bodyAst, SECTION_NAMES.QUESTIONS) !== -1,
+    hasAffectedAreas: findHeadingIndex(bodyAst, SECTION_NAMES.AFFECTED_AREAS) !== -1,
+    todoStats: todoStats.total > 0 ? todoStats : null,
+    questionStats: questionStats.total > 0 ? questionStats : null,
+    historyEntries,
+    agentNotesEntries
+  });
+}
+function extractParentIssueBodyStructure(bodyAst) {
+  const base = extractSubIssueBodyStructure(bodyAst);
+  return ParentIssueBodyStructureSchema.parse({
+    ...base,
+    hasRequirements: findHeadingIndex(bodyAst, SECTION_NAMES.REQUIREMENTS) !== -1,
+    hasApproach: findHeadingIndex(bodyAst, SECTION_NAMES.APPROACH) !== -1,
+    hasAcceptanceCriteria: findHeadingIndex(bodyAst, SECTION_NAMES.ACCEPTANCE_CRITERIA) !== -1,
+    hasTesting: findHeadingIndex(bodyAst, SECTION_NAMES.TESTING) !== -1,
+    hasRelated: findHeadingIndex(bodyAst, SECTION_NAMES.RELATED) !== -1
+  });
+}
+var subIssueBodyStructureExtractor = createExtractor(
+  SubIssueBodyStructureSchema,
+  (data) => extractSubIssueBodyStructure(data.issue.bodyAst)
+);
+var parentIssueBodyStructureExtractor = createExtractor(
+  ParentIssueBodyStructureSchema,
+  (data) => extractParentIssueBodyStructure(data.issue.bodyAst)
+);
+
+// packages/statemachine/src/parser/mutators.ts
+function findHeadingIndex2(ast, text5) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && firstChild.value === text5;
+  });
+}
+function findHeadingIndexAny2(ast, texts) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && texts.includes(firstChild.value);
+  });
+}
+function getNodeText2(node2) {
+  if (!node2) return "";
+  if (node2.type === "text") return node2.value;
+  if (node2.type === "inlineCode") return node2.value;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    return childrenAsRootContent(node2).map(getNodeText2).join("");
+  }
+  return "";
+}
+function createTextNode(value) {
+  return { type: "text", value };
+}
+function createParagraphNode(text5) {
+  return { type: "paragraph", children: [createTextNode(text5)] };
+}
+function createHeadingNode(depth, text5) {
+  return { type: "heading", depth, children: [createTextNode(text5)] };
+}
+function createLinkNode(url, text5) {
+  return { type: "link", url, children: [createTextNode(text5)] };
+}
+function createListItemNode(text5, checked = null) {
+  return {
+    type: "listItem",
+    checked,
+    spread: false,
+    children: [createParagraphNode(text5)]
+  };
+}
+function createTableCell(content3) {
+  return { type: "tableCell", children: content3 };
+}
+function createTableRowNode(cells) {
+  return { type: "tableRow", children: cells };
+}
+function formatTimestamp(isoTimestamp) {
+  if (!isoTimestamp) return "-";
+  try {
+    const date3 = new Date(isoTimestamp);
+    if (isNaN(date3.getTime())) return "-";
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    const month = months[date3.getUTCMonth()];
+    const day = date3.getUTCDate();
+    const hours = String(date3.getUTCHours()).padStart(2, "0");
+    const minutes = String(date3.getUTCMinutes()).padStart(2, "0");
+    return `${month} ${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+}
+function extractRunIdFromUrl(url) {
+  const match = url.match(/\/actions\/runs\/(\d+)/);
+  return match?.[1] ?? null;
+}
+var checkOffTodo = createMutator(
+  external_exports.object({ todoText: external_exports.string() }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
+    if (todosIdx === -1) return data;
+    const listNode = ast.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    const newAst = structuredClone(ast);
+    const newListNode = newAst.children[todosIdx + 1];
+    if (!newListNode || !isList(newListNode)) return data;
+    const newList = newListNode;
+    for (const item of newList.children) {
+      if (item.checked === false) {
+        const text5 = getNodeText2(item);
+        if (text5.toLowerCase().includes(input.todoText.toLowerCase())) {
+          item.checked = true;
+          break;
+        }
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var uncheckTodo = createMutator(
+  external_exports.object({ todoText: external_exports.string() }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const todosIdx = findHeadingIndexAny2(ast, SECTION_NAMES.TODO_ALIASES);
+    if (todosIdx === -1) return data;
+    const listNode = ast.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    const newAst = structuredClone(ast);
+    const newListNode = newAst.children[todosIdx + 1];
+    if (!newListNode || !isList(newListNode)) return data;
+    const newList = newListNode;
+    for (const item of newList.children) {
+      if (item.checked === true) {
+        const text5 = getNodeText2(item);
+        if (text5.toLowerCase().includes(input.todoText.toLowerCase())) {
+          item.checked = false;
+          break;
+        }
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var addTodo = createMutator(
+  external_exports.object({
+    text: external_exports.string(),
+    checked: external_exports.boolean().default(false),
+    isManual: external_exports.boolean().default(false)
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
+    const todoText = input.isManual ? `[Manual] ${input.text}` : input.text;
+    const newItem = createListItemNode(todoText, input.checked);
+    if (todosIdx === -1) {
+      const heading2 = createHeadingNode(2, SECTION_NAMES.TODOS);
+      const list4 = {
+        type: "list",
+        ordered: false,
+        spread: false,
+        children: [newItem]
+      };
+      newAst.children.push(heading2, list4);
+    } else {
+      const listNode = newAst.children[todosIdx + 1];
+      if (listNode && isList(listNode)) {
+        listNode.children.push(newItem);
+      } else {
+        const list4 = {
+          type: "list",
+          ordered: false,
+          spread: false,
+          children: [newItem]
+        };
+        newAst.children.splice(todosIdx + 1, 0, list4);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+function createHistoryHeaderRow() {
+  return createTableRowNode([
+    createTableCell([createTextNode("Time")]),
+    createTableCell([createTextNode("#")]),
+    createTableCell([createTextNode("Phase")]),
+    createTableCell([createTextNode("Action")]),
+    createTableCell([createTextNode("SHA")]),
+    createTableCell([createTextNode("Run")])
+  ]);
+}
+function createHistoryDataRow(entry, repoUrl) {
+  let shaCell;
+  if (entry.sha) {
+    const shortSha = entry.sha.slice(0, 7);
+    const url = repoUrl ? `${repoUrl}/commit/${entry.sha}` : "#";
+    const code3 = { type: "inlineCode", value: shortSha };
+    const link2 = { type: "link", url, children: [code3] };
+    shaCell = [link2];
+  } else {
+    shaCell = [createTextNode("-")];
+  }
+  let runCell;
+  if (entry.runLink) {
+    const runId = extractRunIdFromUrl(entry.runLink);
+    const linkText = runId || "Run";
+    runCell = [createLinkNode(entry.runLink, linkText)];
+  } else {
+    runCell = [createTextNode("-")];
+  }
+  return createTableRowNode([
+    createTableCell([createTextNode(entry.timestamp || "-")]),
+    createTableCell([createTextNode(String(entry.iteration))]),
+    createTableCell([createTextNode(entry.phase)]),
+    createTableCell([createTextNode(entry.action)]),
+    createTableCell(shaCell),
+    createTableCell(runCell)
+  ]);
+}
+function getCellText2(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return "";
+  return childrenAsRootContent(cell).map(getNodeText2).join("");
+}
+function getCellRunId(row, index2) {
+  const cell = row.children[index2];
+  if (!cell) return null;
+  for (const child of childrenAsRootContent(cell)) {
+    if (child.type === "link") {
+      const linkText = getNodeText2(child);
+      if (/^\d+$/.test(linkText)) {
+        return linkText;
+      }
+      return extractRunIdFromUrl(child.url);
+    }
+  }
+  return null;
+}
+var addHistoryEntry2 = createMutator(
+  external_exports.object({
+    iteration: external_exports.number(),
+    phase: external_exports.string(),
+    action: external_exports.string(),
+    timestamp: external_exports.string().nullable().optional(),
+    sha: external_exports.string().nullable().optional(),
+    runLink: external_exports.string().nullable().optional(),
+    repoUrl: external_exports.string().optional()
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const historyIdx = findHeadingIndex2(
+      newAst,
+      SECTION_NAMES.ITERATION_HISTORY
+    );
+    const entry = {
+      iteration: input.iteration,
+      phase: input.phase,
+      action: input.action,
+      timestamp: input.timestamp ? formatTimestamp(input.timestamp) : formatTimestamp((/* @__PURE__ */ new Date()).toISOString()),
+      sha: input.sha ?? null,
+      runLink: input.runLink ?? null
+    };
+    const newRow = createHistoryDataRow(entry, input.repoUrl);
+    const runId = input.runLink ? extractRunIdFromUrl(input.runLink) : null;
+    if (historyIdx === -1) {
+      const heading2 = createHeadingNode(2, SECTION_NAMES.ITERATION_HISTORY);
+      const table = {
+        type: "table",
+        align: null,
+        children: [createHistoryHeaderRow(), newRow]
+      };
+      newAst.children.push(heading2, table);
+    } else {
+      let tableIdx = -1;
+      for (let i = historyIdx + 1; i < newAst.children.length; i++) {
+        if (newAst.children[i]?.type === "table") {
+          tableIdx = i;
+          break;
+        }
+        if (newAst.children[i]?.type === "heading") break;
+      }
+      if (tableIdx === -1) {
+        const table = {
+          type: "table",
+          align: null,
+          children: [createHistoryHeaderRow(), newRow]
+        };
+        newAst.children.splice(historyIdx + 1, 0, table);
+      } else {
+        const tableNode = newAst.children[tableIdx];
+        if (!tableNode || tableNode.type !== "table") return data;
+        const table = tableNode;
+        if (runId) {
+          for (let i = 1; i < table.children.length; i++) {
+            const row = table.children[i];
+            if (!row) continue;
+            const existingRunId = getCellRunId(row, 5);
+            if (existingRunId === runId) {
+              const actionCell = row.children[3];
+              if (actionCell) {
+                const existingAction = getCellText2(row, 3);
+                const newAction = existingAction === "\u23F3 running..." ? input.action : existingAction ? `${existingAction} -> ${input.action}` : input.action;
+                actionCell.children = [createTextNode(newAction)];
+              }
+              return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+            }
+          }
+        }
+        table.children.push(newRow);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var updateHistoryEntry2 = createMutator(
+  external_exports.object({
+    matchIteration: external_exports.number(),
+    matchPhase: external_exports.string(),
+    matchPattern: external_exports.string(),
+    newAction: external_exports.string(),
+    timestamp: external_exports.string().nullable().optional(),
+    sha: external_exports.string().nullable().optional(),
+    runLink: external_exports.string().nullable().optional(),
+    repoUrl: external_exports.string().optional()
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const historyIdx = findHeadingIndex2(ast, SECTION_NAMES.ITERATION_HISTORY);
+    if (historyIdx === -1) return data;
+    let tableIdx = -1;
+    for (let i = historyIdx + 1; i < ast.children.length; i++) {
+      if (ast.children[i]?.type === "table") {
+        tableIdx = i;
+        break;
+      }
+      if (ast.children[i]?.type === "heading") break;
+    }
+    if (tableIdx === -1) return data;
+    const tableNode = ast.children[tableIdx];
+    if (!tableNode || tableNode.type !== "table") return data;
+    let matchRowIdx = -1;
+    for (let i = tableNode.children.length - 1; i >= 1; i--) {
+      const row2 = tableNode.children[i];
+      if (!row2) continue;
+      const rowIteration = getCellText2(row2, 1);
+      const rowPhase = getCellText2(row2, 2);
+      const rowAction = getCellText2(row2, 3);
+      if (rowIteration === String(input.matchIteration) && rowPhase === input.matchPhase && rowAction.includes(input.matchPattern)) {
+        matchRowIdx = i;
+        break;
+      }
+    }
+    if (matchRowIdx === -1) return data;
+    const newAst = structuredClone(ast);
+    const newTableNode = newAst.children[tableIdx];
+    if (!newTableNode || newTableNode.type !== "table") return data;
+    const newTable = newTableNode;
+    const row = newTable.children[matchRowIdx];
+    if (!row) return data;
+    const actionCell = row.children[3];
+    if (actionCell) {
+      actionCell.children = [createTextNode(input.newAction)];
+    }
+    if (input.timestamp) {
+      const timeCell = row.children[0];
+      if (timeCell) {
+        timeCell.children = [createTextNode(formatTimestamp(input.timestamp))];
+      }
+    }
+    if (input.sha) {
+      const shaCell = row.children[4];
+      if (shaCell) {
+        const shortSha = input.sha.slice(0, 7);
+        const url = input.repoUrl ? `${input.repoUrl}/commit/${input.sha}` : "#";
+        const code3 = { type: "inlineCode", value: shortSha };
+        const link2 = { type: "link", url, children: [code3] };
+        shaCell.children = [link2];
+      }
+    }
+    if (input.runLink) {
+      const runCell = row.children[5];
+      if (runCell) {
+        const runId = extractRunIdFromUrl(input.runLink);
+        const linkText = runId || "Run";
+        runCell.children = [createLinkNode(input.runLink, linkText)];
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var appendAgentNotes2 = createMutator(
+  external_exports.object({
+    runId: external_exports.string(),
+    runLink: external_exports.string(),
+    timestamp: external_exports.string().optional(),
+    notes: external_exports.array(external_exports.string())
+  }),
+  (input, data) => {
+    if (input.notes.length === 0) return data;
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const notesIdx = findHeadingIndex2(newAst, SECTION_NAMES.AGENT_NOTES);
+    const formattedTimestamp = formatTimestamp(
+      input.timestamp || (/* @__PURE__ */ new Date()).toISOString()
+    );
+    const headerLink = createLinkNode(input.runLink, `Run ${input.runId}`);
+    const headerText = createTextNode(` - ${formattedTimestamp}`);
+    const entryHeader = {
+      type: "heading",
+      depth: 3,
+      children: [headerLink, headerText]
+    };
+    const noteItems = input.notes.slice(0, 10).map((note) => {
+      const truncated = note.length > 500 ? note.slice(0, 500) + "..." : note;
+      return createListItemNode(truncated, null);
+    });
+    const notesList = {
+      type: "list",
+      ordered: false,
+      spread: false,
+      children: noteItems
+    };
+    if (notesIdx === -1) {
+      const sectionHeader = createHeadingNode(2, SECTION_NAMES.AGENT_NOTES);
+      newAst.children.push(sectionHeader, entryHeader, notesList);
+    } else {
+      newAst.children.splice(notesIdx + 1, 0, entryHeader, notesList);
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var upsertSection2 = createMutator(
+  external_exports.object({
+    title: external_exports.string(),
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast
+    content: external_exports.array(external_exports.record(external_exports.unknown())),
+    sectionOrder: external_exports.array(external_exports.string()).optional()
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const sectionIdx = findHeadingIndex2(newAst, input.title);
+    const sectionOrder = input.sectionOrder || STANDARD_SECTION_ORDER2;
+    if (sectionIdx !== -1) {
+      let endIdx = sectionIdx + 1;
+      for (let i = sectionIdx + 1; i < newAst.children.length; i++) {
+        const node2 = newAst.children[i];
+        if (node2 && isHeading(node2) && node2.depth === 2) {
+          break;
+        }
+        endIdx = i + 1;
+      }
+      newAst.children.splice(
+        sectionIdx + 1,
+        endIdx - sectionIdx - 1,
+        ...input.content
+      );
+    } else {
+      const targetOrderIdx = sectionOrder.indexOf(input.title);
+      let insertIdx = newAst.children.length;
+      if (targetOrderIdx >= 0) {
+        for (let i = targetOrderIdx + 1; i < sectionOrder.length; i++) {
+          const nextSection = sectionOrder[i];
+          if (!nextSection) continue;
+          const nextIdx = findHeadingIndex2(newAst, nextSection);
+          if (nextIdx !== -1) {
+            insertIdx = nextIdx;
+            break;
+          }
+        }
+      }
+      const heading2 = createHeadingNode(2, input.title);
+      newAst.children.splice(insertIdx, 0, heading2, ...input.content);
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var applyTodoModifications = createMutator(
+  external_exports.object({
+    modifications: external_exports.array(
+      external_exports.object({
+        action: external_exports.enum(["add", "modify", "remove"]),
+        index: external_exports.number(),
+        text: external_exports.string().optional()
+      })
+    )
+  }),
+  (input, data) => {
+    const ast = data.issue.bodyAst;
+    const newAst = structuredClone(ast);
+    const todosIdx = findHeadingIndexAny2(newAst, SECTION_NAMES.TODO_ALIASES);
+    if (todosIdx === -1) return data;
+    const listNode = newAst.children[todosIdx + 1];
+    if (!listNode || !isList(listNode)) return data;
+    for (const mod of input.modifications) {
+      if (mod.action === "add") {
+        const newItem = createListItemNode(mod.text || "", false);
+        if (mod.index < 0) {
+          listNode.children.splice(0, 0, newItem);
+        } else if (mod.index >= listNode.children.length) {
+          listNode.children.push(newItem);
+        } else {
+          listNode.children.splice(mod.index + 1, 0, newItem);
+        }
+      } else if (mod.action === "modify") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        item.children = [createParagraphNode(mod.text || "")];
+      } else if (mod.action === "remove") {
+        if (mod.index < 0 || mod.index >= listNode.children.length) continue;
+        const item = listNode.children[mod.index];
+        if (!item || item.checked === true) continue;
+        listNode.children.splice(mod.index, 1);
+      }
+    }
+    return { ...data, issue: { ...data.issue, bodyAst: newAst } };
+  }
+);
+var replaceBody = createMutator(
+  external_exports.object({
+    /* eslint-disable @typescript-eslint/consistent-type-assertions -- complex recursive mdast types require double cast */
+    bodyAst: external_exports.object({
+      type: external_exports.literal("root"),
+      children: external_exports.array(external_exports.record(external_exports.unknown()))
+    }).passthrough()
+    /* eslint-enable @typescript-eslint/consistent-type-assertions */
+  }),
+  (input, data) => ({
+    ...data,
+    issue: { ...data.issue, bodyAst: input.bodyAst }
+  })
+);
+
+// packages/statemachine/src/schemas/actions/grooming.ts
+function buildPhaseIssueBody(phase) {
+  const children = [];
+  children.push(
+    ...createSection("Description", [createParagraph(phase.description)])
+  );
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    const areas = phase.affected_areas.map((area) => {
+      const changeType = area.change_type ? ` (${area.change_type})` : "";
+      const desc = area.description ? ` - ${area.description}` : "";
+      return `\`${area.path}\`${changeType}${desc}`;
+    });
+    children.push(
+      ...createSection("Affected Areas", [createBulletList(areas)])
+    );
+  }
+  if (phase.todos && phase.todos.length > 0) {
+    const todos = phase.todos.map((todo) => ({
+      text: todo.task,
+      checked: false,
+      manual: todo.manual || false
+    }));
+    children.push(...createSection("Todo", [createTodoList(todos)]));
+  }
+  return { type: "root", children };
+}
+function extractExistingTodos(bodyAst) {
+  const result = [];
+  for (const node2 of bodyAst.children) {
+    if (node2.type === "list") {
+      for (const item of node2.children) {
+        if (item.type === "listItem" && typeof item.checked === "boolean") {
+          const text5 = item.children.map((child) => {
+            if ("children" in child && Array.isArray(child.children)) {
+              return child.children.map((n) => {
+                if (n.type === "text") return n.value;
+                if (n.type === "inlineCode") return n.value;
+                return "";
+              }).join("");
+            }
+            return "";
+          }).join("");
+          result.push({ text: text5, checked: item.checked });
+        }
+      }
+    }
+  }
+  return result;
+}
+function normalizeTodoText(text5) {
+  return text5.toLowerCase().replace(/\s+/g, " ").trim();
+}
+function mergeTodos(newTodos, existingTodos) {
+  const existingByNorm = /* @__PURE__ */ new Map();
+  for (const t of existingTodos) {
+    existingByNorm.set(normalizeTodoText(t.text), t);
+  }
+  const merged2 = [];
+  const usedExisting = /* @__PURE__ */ new Set();
+  for (const newTodo of newTodos) {
+    const norm = normalizeTodoText(newTodo.task);
+    const existing = existingByNorm.get(norm);
+    if (existing) {
+      merged2.push({
+        text: newTodo.task,
+        checked: existing.checked,
+        manual: newTodo.manual || false
+      });
+      usedExisting.add(norm);
+    } else {
+      merged2.push({
+        text: newTodo.task,
+        checked: false,
+        manual: newTodo.manual || false
+      });
+    }
+  }
+  for (const existing of existingTodos) {
+    const norm = normalizeTodoText(existing.text);
+    if (!usedExisting.has(norm)) {
+      merged2.push({
+        text: existing.text,
+        checked: existing.checked,
+        manual: false
+      });
+    }
+  }
+  return merged2;
+}
+function buildFallbackSummary(groomingOutput) {
+  const consolidated = [];
+  let idx = 0;
+  for (const [agentType, output] of Object.entries(groomingOutput)) {
+    if (output.questions && output.questions.length > 0) {
+      for (const q of output.questions) {
+        consolidated.push({
+          id: `fallback-${idx++}`,
+          title: q.length > 60 ? q.slice(0, 57) + "..." : q,
+          description: q,
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- agentType is a known key
+          sources: [agentType],
+          priority: "important"
+        });
+      }
+    }
+  }
+  return {
+    summary: "Grooming summary prompt failed, showing raw agent questions.",
+    decision: "needs_info",
+    decision_rationale: "Summary prompt failed; falling back to raw questions.",
+    consolidated_questions: consolidated
+  };
+}
+function parseMarkdownLine(markdown) {
+  const ast = parseMarkdown(markdown);
+  const firstChild = ast.children[0];
+  if (firstChild && "children" in firstChild) {
+    return firstChild.children;
+  }
+  return [{ type: "text", value: markdown }];
+}
+function buildQuestionsContent(summary2, existingQuestions) {
+  const pending = summary2.consolidated_questions ?? [];
+  const answered = summary2.answered_questions ?? [];
+  if (pending.length === 0 && answered.length === 0 && existingQuestions.length === 0) {
+    return [];
+  }
+  const newIds = /* @__PURE__ */ new Set();
+  for (const q of pending) newIds.add(q.id);
+  for (const q of answered) newIds.add(q.id);
+  const existingById = /* @__PURE__ */ new Map();
+  for (const q of existingQuestions) {
+    if (q.id) existingById.set(q.id, q);
+  }
+  const hasSummaryOutput = pending.length > 0 || answered.length > 0;
+  const listItems = [];
+  if (!hasSummaryOutput) {
+    for (const q of existingQuestions) {
+      if (!q.id) {
+        listItems.push({
+          type: "listItem",
+          checked: q.checked,
+          children: [
+            { type: "paragraph", children: parseMarkdownLine(q.text) }
+          ]
+        });
+      }
+    }
+  }
+  for (const q of pending) {
+    const existing = existingById.get(q.id);
+    const checked = existing?.checked ?? false;
+    const sources = q.sources.join(", ");
+    const priority = q.priority === "critical" ? " **[critical]**" : "";
+    const text5 = `**${q.title}**${priority} - ${q.description} _(${sources})_ \`id:${q.id}\``;
+    listItems.push({
+      type: "listItem",
+      checked,
+      children: [{ type: "paragraph", children: parseMarkdownLine(text5) }]
+    });
+  }
+  for (const q of answered) {
+    const text5 = `~~${q.title}~~ - ${q.answer_summary} \`id:${q.id}\``;
+    listItems.push({
+      type: "listItem",
+      checked: true,
+      children: [{ type: "paragraph", children: parseMarkdownLine(text5) }]
+    });
+  }
+  for (const q of existingQuestions) {
+    if (q.id && !newIds.has(q.id)) {
+      listItems.push({
+        type: "listItem",
+        checked: q.checked,
+        children: [{ type: "paragraph", children: parseMarkdownLine(q.text) }]
+      });
+    }
+  }
+  const list4 = {
+    type: "list",
+    ordered: false,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- unknown[] contains valid ListItem nodes
+    children: listItems
+  };
+  return [list4];
+}
+async function runGroomingSummary(issueNumber, groomingOutput, data, previousQuestions) {
+  const resolved = resolvePrompt({
+    promptDir: "grooming/summary",
+    promptVars: {
+      ISSUE_NUMBER: String(issueNumber),
+      ISSUE_TITLE: data.issue.title,
+      ISSUE_BODY: JSON.stringify(data.issue.bodyAst),
+      ISSUE_COMMENTS: data.issue.comments.map((c) => c.body).join("\n---\n"),
+      PM_OUTPUT: JSON.stringify(groomingOutput.pm),
+      ENGINEER_OUTPUT: JSON.stringify(groomingOutput.engineer),
+      QA_OUTPUT: JSON.stringify(groomingOutput.qa),
+      RESEARCH_OUTPUT: JSON.stringify(groomingOutput.research),
+      ...previousQuestions ? { PREVIOUS_QUESTIONS: previousQuestions } : {}
+    }
+  });
+  core3.startGroup("Grooming Summary");
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: process.cwd(),
+    outputSchema: resolved.outputSchema
+  });
+  core3.endGroup();
+  if (!result.success || !result.structuredOutput) {
+    core3.warning(
+      `Grooming summary failed: ${result.error || "no structured output"}`
+    );
+    return buildFallbackSummary(groomingOutput);
+  }
+  return parseOutput(
+    GroomingSummaryOutputSchema,
+    result.structuredOutput,
+    "grooming summary"
+  );
+}
+async function createAllPhases(ctx, parentIssueNumber2, phases) {
+  let created = 0;
+  for (const phase of phases) {
+    const title = `[Phase ${phase.phase_number}]: ${phase.title}`;
+    const body = buildPhaseIssueBody(phase);
+    try {
+      const result = await addSubIssueToParent(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber2,
+        { title, body },
+        {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+          octokit: ctx.octokit
+        }
+      );
+      core3.info(`Created sub-issue #${result.issueNumber}: ${title}`);
+      created++;
+    } catch (error7) {
+      core3.error(
+        `Failed to create sub-issue for phase ${phase.phase_number}: ${error7}`
+      );
+    }
+  }
+  if (created > 0) {
+    try {
+      const { data: parentData, update: parentUpdate } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        parentIssueNumber2,
+        {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- compatible octokit type
+          octokit: ctx.octokit,
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      const parentState = appendAgentNotes2(
+        {
+          runId: `reconcile-${Date.now()}`,
+          runLink: "",
+          notes: [`Grooming complete. Created ${created} sub-issue(s).`]
+        },
+        parentData
+      );
+      if (parentState !== parentData) {
+        await parentUpdate(parentState);
+      }
+    } catch (error7) {
+      core3.warning(`Failed to update parent issue body: ${error7}`);
+    }
+  }
+  return created;
+}
+var groomingActions = {
+  /** Apply grooming output — AI-dependent, produces 3 possible outcomes */
+  applyGroomingOutput: defAction(
+    mkSchema("applyGroomingOutput", {
+      issueNumber: external_exports.number().int().positive(),
+      filePath: external_exports.string().optional()
+    }),
+    {
+      predict: () => [
+        { target: { labels: { add: ["groomed"] } } },
+        { target: { labels: { add: ["needs-info"] } } },
+        { target: { projectStatus: "Blocked" } }
+      ],
+      execute: async (action, ctx, chainCtx) => {
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        let groomingOutput;
+        if (structuredOutput) {
+          groomingOutput = parseOutput(
+            CombinedGroomingOutputSchema,
+            structuredOutput,
+            "grooming"
+          );
+          core3.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs5.existsSync(action.filePath)) {
+          const content4 = fs5.readFileSync(action.filePath, "utf-8");
+          groomingOutput = parseOutput(
+            CombinedGroomingOutputSchema,
+            JSON.parse(content4),
+            "grooming file"
+          );
+          core3.info(`Grooming output from file: ${action.filePath}`);
+        } else {
+          throw new Error(
+            `No structured output provided and file not found at: ${action.filePath}`
+          );
+        }
+        core3.info(`Applying grooming output for issue #${action.issueNumber}`);
+        core3.startGroup("Grooming Output");
+        core3.info(JSON.stringify(groomingOutput, null, 2));
+        core3.endGroup();
+        if (ctx.dryRun) {
+          core3.info(`[DRY RUN] Would apply grooming output`);
+          return { applied: true, decision: "ready" };
+        }
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          {
+            octokit: asOctokitLike(ctx),
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const allAgentsReady = groomingOutput.pm.ready && groomingOutput.engineer.ready && groomingOutput.qa.ready && groomingOutput.research.ready;
+        const questionStats = extractQuestionsFromAst(data.issue.bodyAst);
+        const decision = allAgentsReady ? "ready" : "needs_info";
+        core3.info(
+          `Grooming decision: ${decision} (agents=${allAgentsReady}, bodyQuestions=${questionStats.unanswered} unanswered)`
+        );
+        const existingQuestions = extractQuestionItems(data.issue.bodyAst);
+        const previousQuestionsText = existingQuestions.length > 0 ? existingQuestions.map((q) => `- [${q.checked ? "x" : " "}] ${q.text}`).join("\n") : void 0;
+        const summaryOutput = await runGroomingSummary(
+          action.issueNumber,
+          groomingOutput,
+          data,
+          previousQuestionsText
+        );
+        const content3 = buildQuestionsContent(summaryOutput, existingQuestions);
+        if (content3.length > 0) {
+          let updatedData = upsertSection2(
+            { title: "Questions", content: content3 },
+            data
+          );
+          const questionCount = (summaryOutput.consolidated_questions ?? []).length;
+          const answeredCount = (summaryOutput.answered_questions ?? []).length;
+          const notes = [
+            `Grooming decision: ${decision}`,
+            `Summary: ${questionCount} pending question(s), ${answeredCount} answered`,
+            summaryOutput.decision_rationale
+          ];
+          updatedData = appendAgentNotes2(
+            {
+              runId: `grooming-${Date.now()}`,
+              runLink: "",
+              notes
+            },
+            updatedData
+          );
+          await update(updatedData);
+          core3.info(
+            `Updated Questions section and agent notes in issue #${action.issueNumber} body`
+          );
+        }
+        if (decision === "ready") {
+          const { data: readyData, update: readyUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit: asOctokitLike(ctx),
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          try {
+            await readyUpdate({
+              ...readyData,
+              issue: {
+                ...readyData.issue,
+                labels: [...readyData.issue.labels, "groomed"]
+              }
+            });
+            core3.info(`Added 'groomed' label to issue #${action.issueNumber}`);
+          } catch (error7) {
+            core3.warning(`Failed to add 'groomed' label: ${error7}`);
+          }
+          const engineerOutput = parseOutput(
+            EngineerOutputSchema,
+            groomingOutput.engineer,
+            "engineer"
+          );
+          return {
+            applied: true,
+            decision,
+            recommendedPhases: engineerOutput.recommended_phases
+          };
+        }
+        return { applied: true, decision };
+      }
+    }
+  ),
+  /** Reconcile sub-issues using AI-driven semantic matching */
+  reconcileSubIssues: defAction(
+    mkSchema("reconcileSubIssues", {
+      issueNumber: external_exports.number().int().positive()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        const chainOutput = structuredOutput;
+        if (!chainOutput || chainOutput.decision !== "ready") {
+          core3.info(
+            `Skipping reconciliation: decision is "${chainOutput?.decision ?? "unknown"}", not "ready"`
+          );
+          return { reconciled: false, created: 0, updated: 0, deleted: 0 };
+        }
+        const recommendedPhases = chainOutput.recommendedPhases;
+        if (!recommendedPhases || recommendedPhases.length === 0) {
+          core3.info("Skipping reconciliation: no recommended phases");
+          return { reconciled: false, created: 0, updated: 0, deleted: 0 };
+        }
+        if (ctx.dryRun) {
+          core3.info(
+            `[DRY RUN] Would reconcile ${recommendedPhases.length} phases for issue #${action.issueNumber}`
+          );
+          return { reconciled: true, created: 0, updated: 0, deleted: 0 };
+        }
+        const { data } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          {
+            octokit: asOctokitLike(ctx),
+            fetchPRs: true,
+            fetchParent: false
+          }
+        );
+        const existingSubIssues = extractSubIssueSpecs(data.issue.subIssues);
+        if (existingSubIssues.length === 0) {
+          core3.info(
+            `No existing sub-issues, creating ${recommendedPhases.length} phases directly`
+          );
+          const created2 = await createAllPhases(
+            ctx,
+            action.issueNumber,
+            recommendedPhases
+          );
+          return { reconciled: true, created: created2, updated: 0, deleted: 0 };
+        }
+        core3.info(
+          `Reconciling ${existingSubIssues.length} existing sub-issues against ${recommendedPhases.length} expected phases`
+        );
+        const resolved = resolvePrompt({
+          promptDir: "grooming/reconcile-sub-issues",
+          promptVars: {
+            ISSUE_NUMBER: String(action.issueNumber),
+            ISSUE_TITLE: data.issue.title,
+            EXISTING_SUB_ISSUES: JSON.stringify(existingSubIssues, null, 2),
+            EXPECTED_SUB_ISSUES: JSON.stringify(recommendedPhases, null, 2)
+          }
+        });
+        core3.startGroup("Reconcile Sub-Issues");
+        const result = await executeClaudeSDK({
+          prompt: resolved.prompt,
+          cwd: process.cwd(),
+          outputSchema: resolved.outputSchema
+        });
+        core3.endGroup();
+        if (!result.success || !result.structuredOutput) {
+          core3.warning(
+            `Reconciliation prompt failed: ${result.error || "no structured output"}. Falling back to creating missing phases.`
+          );
+          const existingPhaseNumbers = new Set(
+            existingSubIssues.map((s) => s.phase_number).filter((n) => n > 0)
+          );
+          const missingPhases = recommendedPhases.filter(
+            (p) => !existingPhaseNumbers.has(p.phase_number)
+          );
+          if (missingPhases.length === 0) {
+            core3.info(
+              "All recommended phases already have existing counterparts, skipping fallback creation"
+            );
+            return { reconciled: true, created: 0, updated: 0, deleted: 0 };
+          }
+          core3.info(
+            `Creating ${missingPhases.length} missing phases (${recommendedPhases.length - missingPhases.length} already exist)`
+          );
+          const created2 = await createAllPhases(
+            ctx,
+            action.issueNumber,
+            missingPhases
+          );
+          return { reconciled: true, created: created2, updated: 0, deleted: 0 };
+        }
+        const reconcileOutput = parseOutput(
+          ReconcileSubIssuesOutputSchema,
+          result.structuredOutput,
+          "reconcile sub-issues"
+        );
+        core3.info(
+          `Reconciliation result: ${reconcileOutput.create.length} create, ${reconcileOutput.update.length} update, ${reconcileOutput.delete.length} delete`
+        );
+        core3.info(`Reasoning: ${reconcileOutput.reasoning}`);
+        let created = 0;
+        for (const spec of reconcileOutput.create) {
+          try {
+            const body = buildPhaseIssueBody(spec);
+            const title = `[Phase ${spec.phase_number}]: ${spec.title}`;
+            const createResult = await addSubIssueToParent(
+              ctx.owner,
+              ctx.repo,
+              action.issueNumber,
+              { title, body },
+              {
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+                octokit: ctx.octokit
+              }
+            );
+            core3.info(
+              `Created sub-issue #${createResult.issueNumber}: ${title}`
+            );
+            created++;
+          } catch (error7) {
+            core3.error(
+              `Failed to create sub-issue for phase ${spec.phase_number}: ${error7}`
+            );
+          }
+        }
+        let updated = 0;
+        for (const spec of reconcileOutput.update) {
+          try {
+            const existingSub = existingSubIssues.find(
+              (s) => s.number === spec.number
+            );
+            if (existingSub?.merged) {
+              core3.info(
+                `Skipping completed phase #${spec.number} (merged PR, reason: ${spec.match_reason})`
+              );
+              continue;
+            }
+            if (existingSub?.state === "CLOSED" && !existingSub.merged) {
+              core3.info(
+                `Superseding abandoned sub-issue #${spec.number}, creating fresh replacement`
+              );
+              await ctx.octokit.rest.issues.addLabels({
+                owner: ctx.owner,
+                repo: ctx.repo,
+                issue_number: spec.number,
+                labels: ["superseded"]
+              });
+              const body = buildPhaseIssueBody(spec);
+              const title2 = `[Phase ${spec.phase_number}]: ${spec.title}`;
+              const createResult = await addSubIssueToParent(
+                ctx.owner,
+                ctx.repo,
+                action.issueNumber,
+                { title: title2, body },
+                {
+                  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+                  octokit: ctx.octokit
+                }
+              );
+              core3.info(
+                `Superseded #${spec.number}, created fresh #${createResult.issueNumber}: ${title2}`
+              );
+              created++;
+              continue;
+            }
+            const { data: subData, update: subUpdate } = await parseIssue(
+              ctx.owner,
+              ctx.repo,
+              spec.number,
+              {
+                octokit: asOctokitLike(ctx),
+                fetchPRs: false,
+                fetchParent: false
+              }
+            );
+            const existingTodos = extractExistingTodos(subData.issue.bodyAst);
+            const mergedTodos = mergeTodos(spec.todos ?? [], existingTodos);
+            const newBody = buildPhaseIssueBody({
+              ...spec,
+              todos: mergedTodos.map((t) => ({
+                task: t.text,
+                manual: t.manual
+              }))
+            });
+            for (const node2 of newBody.children) {
+              if (node2.type === "list") {
+                for (let i = 0; i < node2.children.length; i++) {
+                  const item = node2.children[i];
+                  const merged2 = mergedTodos[i];
+                  if (item && merged2 && item.type === "listItem" && typeof item.checked === "boolean") {
+                    item.checked = merged2.checked;
+                  }
+                }
+              }
+            }
+            const title = `[Phase ${spec.phase_number}]: ${spec.title}`;
+            await subUpdate({
+              ...subData,
+              issue: {
+                ...subData.issue,
+                title,
+                bodyAst: newBody
+              }
+            });
+            core3.info(
+              `Updated sub-issue #${spec.number}: ${title} (reason: ${spec.match_reason})`
+            );
+            updated++;
+          } catch (error7) {
+            core3.error(`Failed to update sub-issue #${spec.number}: ${error7}`);
+          }
+        }
+        let deleted = 0;
+        for (const entry of reconcileOutput.delete) {
+          try {
+            await ctx.octokit.rest.issues.addLabels({
+              owner: ctx.owner,
+              repo: ctx.repo,
+              issue_number: entry.number,
+              labels: ["superseded"]
+            });
+            await ctx.octokit.rest.issues.createComment({
+              owner: ctx.owner,
+              repo: ctx.repo,
+              issue_number: entry.number,
+              body: `Closing: this sub-issue was superseded during grooming reconciliation.
+
+**Reason:** ${entry.reason}`
+            });
+            await ctx.octokit.rest.issues.update({
+              owner: ctx.owner,
+              repo: ctx.repo,
+              issue_number: entry.number,
+              state: "closed",
+              state_reason: "not_planned"
+            });
+            core3.info(`Closed sub-issue #${entry.number}: ${entry.reason}`);
+            deleted++;
+          } catch (error7) {
+            core3.error(`Failed to close sub-issue #${entry.number}: ${error7}`);
+          }
+        }
+        const changes = [
+          created > 0 ? `${created} created` : "",
+          updated > 0 ? `${updated} updated` : "",
+          deleted > 0 ? `${deleted} closed` : ""
+        ].filter(Boolean).join(", ");
+        if (changes) {
+          try {
+            const { data: parentData, update: parentUpdate } = await parseIssue(
+              ctx.owner,
+              ctx.repo,
+              action.issueNumber,
+              {
+                octokit: asOctokitLike(ctx),
+                fetchPRs: false,
+                fetchParent: false
+              }
+            );
+            const parentState = appendAgentNotes2(
+              {
+                runId: `reconcile-${Date.now()}`,
+                runLink: "",
+                notes: [
+                  `Sub-issue reconciliation complete. ${changes}.`,
+                  `Reasoning: ${reconcileOutput.reasoning}`
+                ]
+              },
+              parentData
+            );
+            if (parentState !== parentData) {
+              await parentUpdate(parentState);
+            }
+            core3.info(
+              `Updated parent issue #${action.issueNumber} with reconciliation notes`
+            );
+          } catch (error7) {
+            core3.warning(`Failed to update parent issue body: ${error7}`);
+          }
+        }
+        return { reconciled: true, created, updated, deleted };
+      }
+    }
+  )
+};
+
+// packages/statemachine/src/schemas/actions/control.ts
+var core4 = __toESM(require_core(), 1);
+var controlActions = {
+  /** Stop execution with a message */
+  stop: defAction(
+    mkSchema("stop", {
+      message: external_exports.string().min(1)
+    }),
+    {
+      execute: (action) => {
+        core4.info(`Stopping: ${action.message}`);
+        return Promise.resolve({ stopped: true, reason: action.message });
+      }
+    }
+  ),
+  /** Log a message (no-op, for debugging) */
+  log: defAction(
+    mkSchema("log", {
+      message: external_exports.string(),
+      level: external_exports.enum(["debug", "info", "warning", "error"]).default("info"),
+      worktree: external_exports.string().optional()
+    }),
+    {
+      execute: (action) => {
+        switch (action.level) {
+          case "debug":
+            core4.debug(action.message);
+            break;
+          case "warning":
+            core4.warning(action.message);
+            break;
+          case "error":
+            core4.error(action.message);
+            break;
+          default:
+            core4.info(action.message);
+        }
+        return Promise.resolve({ logged: true });
+      }
+    }
+  ),
+  /** No-op action (do nothing) */
+  noop: defAction(
+    mkSchema("noop", {
+      message: external_exports.string().min(1).optional()
+    }),
+    {
+      execute: (action) => {
+        core4.debug(`No-op: ${action.message || "no reason given"}`);
+        return Promise.resolve({ noop: true });
+      }
+    }
+  )
+};
+
+// packages/statemachine/src/schemas/actions/project.ts
+var core5 = __toESM(require_core(), 1);
+function parseProjectFields(projectData) {
+  const project = projectData;
+  if (!project?.projectV2?.id || !project.projectV2.fields?.nodes) {
+    return null;
+  }
+  const fields = {
+    projectId: project.projectV2.id,
+    statusFieldId: "",
+    statusOptions: {},
+    iterationFieldId: "",
+    failuresFieldId: ""
+  };
+  for (const field of project.projectV2.fields.nodes) {
+    if (!field) continue;
+    if (field.name === "Status" && field.options) {
+      fields.statusFieldId = field.id || "";
+      for (const option of field.options) {
+        fields.statusOptions[option.name] = option.id;
+      }
+    } else if (field.name === "Iteration") {
+      fields.iterationFieldId = field.id || "";
+    } else if (field.name === "Failures") {
+      fields.failuresFieldId = field.id || "";
+    }
+  }
+  return fields;
+}
+function findStatusOption(statusOptions, status) {
+  if (statusOptions[status]) {
+    return statusOptions[status];
+  }
+  const lowerStatus = status.toLowerCase();
+  for (const [name, id] of Object.entries(statusOptions)) {
+    if (name.toLowerCase() === lowerStatus) {
+      return id;
+    }
+  }
+  return void 0;
+}
+function getProjectItemId(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  return projectItem?.id || null;
+}
+function parseProjectState2(projectItems, projectNumber) {
+  const projectItem = projectItems.find(
+    (item) => item.project?.number === projectNumber
+  );
+  if (!projectItem) {
+    return { status: null, iteration: 0, failures: 0 };
+  }
+  let status = null;
+  let iteration = 0;
+  let failures = 0;
+  const fieldValues = projectItem.fieldValues?.nodes || [];
+  for (const fieldValue of fieldValues) {
+    const fieldName = fieldValue.field?.name;
+    if (fieldName === "Status" && fieldValue.name) {
+      status = fieldValue.name;
+    } else if (fieldName === "Iteration" && typeof fieldValue.number === "number") {
+      iteration = fieldValue.number;
+    } else if (fieldName === "Failures" && typeof fieldValue.number === "number") {
+      failures = fieldValue.number;
+    }
+  }
+  return { status, iteration, failures };
+}
+async function getOrAddProjectItem(octokit, ctx, issueNumber) {
+  const response = await octokit.graphql(
+    GET_PROJECT_ITEM_QUERY,
+    {
+      org: ctx.owner,
+      repo: ctx.repo,
+      issueNumber,
+      projectNumber: ctx.projectNumber
+    }
+  );
+  const issue2 = response.repository?.issue;
+  const projectData = response.organization;
+  if (!issue2 || !projectData?.projectV2) {
+    throw new Error(`Issue #${issueNumber} or project not found`);
+  }
+  const projectFields = parseProjectFields(projectData);
+  if (!projectFields) {
+    throw new Error("Failed to parse project fields");
+  }
+  const projectItems = issue2.projectItems?.nodes || [];
+  let itemId = getProjectItemId(projectItems, ctx.projectNumber);
+  const currentState = parseProjectState2(projectItems, ctx.projectNumber);
+  if (!itemId) {
+    core5.info(`Adding issue #${issueNumber} to project ${ctx.projectNumber}`);
+    const addResult = await octokit.graphql(
+      ADD_ISSUE_TO_PROJECT_MUTATION,
+      {
+        projectId: projectFields.projectId,
+        contentId: issue2.id
+      }
+    );
+    itemId = addResult.addProjectV2ItemById?.item?.id || null;
+    if (!itemId) {
+      throw new Error("Failed to add issue to project");
+    }
+  }
+  return { itemId, projectFields, currentState };
+}
+async function ensureIssueOpen(ctx, issueNumber) {
+  try {
+    const { data: issue2 } = await ctx.octokit.rest.issues.get({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber
+    });
+    if (issue2.state === "closed") {
+      await ctx.octokit.rest.issues.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: issueNumber,
+        state: "open"
+      });
+      core5.info(`Reopened closed issue #${issueNumber}`);
+    }
+  } catch (error7) {
+    core5.warning(`Failed to ensure issue #${issueNumber} is open: ${error7}`);
+  }
+}
+var projectActions = {
+  /** Update the Project Status field for an issue. Pass null to clear. */
+  updateProjectStatus: defAction(
+    mkSchema("updateProjectStatus", {
+      issueNumber: external_exports.number().int().positive(),
+      status: ProjectStatusSchema.nullable()
+    }),
+    {
+      predict: (a) => ({ target: { projectStatus: a.status } }),
+      execute: async (action, ctx) => {
+        const { itemId, projectFields, currentState } = await getOrAddProjectItem(ctx.octokit, ctx, action.issueNumber);
+        if (action.status === null) {
+          await ctx.octokit.graphql(CLEAR_PROJECT_FIELD_MUTATION, {
+            projectId: projectFields.projectId,
+            itemId,
+            fieldId: projectFields.statusFieldId
+          });
+          core5.info(`Cleared Status for issue #${action.issueNumber}`);
+          return { updated: true, previousStatus: currentState.status };
+        }
+        const optionId = findStatusOption(
+          projectFields.statusOptions,
+          action.status
+        );
+        if (!optionId) {
+          core5.warning(`Status option '${action.status}' not found in project`);
+          return { updated: false, previousStatus: currentState.status };
+        }
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.statusFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core5.info(
+          `Updated Status to ${action.status} for issue #${action.issueNumber}`
+        );
+        if (action.status !== "Done") {
+          await ensureIssueOpen(ctx, action.issueNumber);
+        }
+        return { updated: true, previousStatus: currentState.status };
+      }
+    }
+  ),
+  /** Increment the Iteration counter for an issue */
+  incrementIteration: defAction(
+    mkSchema("incrementIteration", {
+      issueNumber: external_exports.number().int().positive()
+    }),
+    {
+      predict: (_a, target) => ({
+        target: {
+          iteration: (target && "iteration" in target ? target.iteration : 0) + 1
+        }
+      }),
+      execute: async (action, ctx) => {
+        const { itemId, projectFields, currentState } = await getOrAddProjectItem(ctx.octokit, ctx, action.issueNumber);
+        const newIteration = currentState.iteration + 1;
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.iterationFieldId,
+          value: { number: newIteration }
+        });
+        core5.info(
+          `Incremented Iteration to ${newIteration} for issue #${action.issueNumber}`
+        );
+        return { newIteration };
+      }
+    }
+  ),
+  /** Record a failure (increment Failures counter) */
+  recordFailure: defAction(
+    mkSchema("recordFailure", {
+      issueNumber: external_exports.number().int().positive(),
+      failureType: external_exports.enum(["ci", "workflow", "review"]).optional()
+    }),
+    {
+      predict: (_a, target) => ({
+        target: {
+          failures: (target && "failures" in target ? target.failures : 0) + 1
+        }
+      }),
+      execute: async (action, ctx) => {
+        const { itemId, projectFields, currentState } = await getOrAddProjectItem(ctx.octokit, ctx, action.issueNumber);
+        const newFailures = currentState.failures + 1;
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.failuresFieldId,
+          value: { number: newFailures }
+        });
+        core5.info(
+          `Incremented Failures to ${newFailures} for issue #${action.issueNumber}`
+        );
+        return { newFailures };
+      }
+    }
+  ),
+  /** Clear failures (reset to 0) */
+  clearFailures: defAction(
+    mkSchema("clearFailures", {
+      issueNumber: external_exports.number().int().positive()
+    }),
+    {
+      predict: () => ({ target: { failures: 0 } }),
+      execute: async (action, ctx) => {
+        const { itemId, projectFields, currentState } = await getOrAddProjectItem(ctx.octokit, ctx, action.issueNumber);
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.failuresFieldId,
+          value: { number: 0 }
+        });
+        core5.info(`Cleared Failures for issue #${action.issueNumber}`);
+        return { previousFailures: currentState.failures };
+      }
+    }
+  ),
+  /** Remove an issue from the GitHub Project board */
+  removeFromProject: defAction(
+    mkSchema("removeFromProject", {
+      issueNumber: external_exports.number().int().positive()
+    }),
+    {
+      predict: () => ({ target: { projectStatus: null } }),
+      execute: async (action, ctx) => {
+        const response = await ctx.octokit.graphql(
+          GET_PROJECT_ITEM_QUERY,
+          {
+            org: ctx.owner,
+            repo: ctx.repo,
+            issueNumber: action.issueNumber,
+            projectNumber: ctx.projectNumber
+          }
+        );
+        const issue2 = response.repository?.issue;
+        const projectData = response.organization;
+        if (!issue2 || !projectData?.projectV2) {
+          core5.warning(
+            `Issue #${action.issueNumber} or project not found \u2014 skipping remove`
+          );
+          return { removed: false };
+        }
+        const projectItems = issue2.projectItems?.nodes || [];
+        const itemId = getProjectItemId(projectItems, ctx.projectNumber);
+        if (!itemId) {
+          core5.info(
+            `Issue #${action.issueNumber} not on project \u2014 nothing to remove`
+          );
+          return { removed: false };
+        }
+        const projectFields = parseProjectFields(projectData);
+        if (!projectFields) {
+          core5.warning("Failed to parse project fields \u2014 skipping remove");
+          return { removed: false };
+        }
+        await ctx.octokit.graphql(DELETE_PROJECT_ITEM_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId
+        });
+        core5.info(`Removed issue #${action.issueNumber} from project`);
+        return { removed: true };
+      }
+    }
+  ),
+  /** Block an issue (circuit breaker) */
+  block: defAction(
+    mkSchema("block", {
+      issueNumber: external_exports.number().int().positive(),
+      message: external_exports.string().min(1)
+    }),
+    {
+      predict: () => ({
+        target: { projectStatus: "Blocked" },
+        issue: { assignees: { remove: ["nopo-bot"] } }
+      }),
+      execute: async (action, ctx) => {
+        const { itemId, projectFields } = await getOrAddProjectItem(
+          ctx.octokit,
+          ctx,
+          action.issueNumber
+        );
+        const optionId = findStatusOption(
+          projectFields.statusOptions,
+          "Blocked"
+        );
+        if (!optionId) {
+          core5.warning("Blocked status option not found in project");
+          return { blocked: false };
+        }
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectFields.projectId,
+          itemId,
+          fieldId: projectFields.statusFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core5.info(`Blocked issue #${action.issueNumber}: ${action.message}`);
+        return { blocked: true };
+      }
+    }
+  )
+};
+
+// packages/statemachine/src/schemas/actions/github.ts
+var core6 = __toESM(require_core(), 1);
+var exec3 = __toESM(require_exec(), 1);
+var githubActions = {
+  // --------------------------------------------------------------------------
+  // Issue Actions
+  // --------------------------------------------------------------------------
+  /** Close an issue */
+  closeIssue: defAction(
+    mkSchema("closeIssue", {
+      issueNumber: external_exports.number().int().positive(),
+      reason: external_exports.enum(["completed", "not_planned"])
+    }),
+    {
+      predict: () => ({ target: { state: "CLOSED" } }),
+      execute: async (action, ctx) => {
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          {
+            octokit: asOctokitLike(ctx),
+            projectNumber: ctx.projectNumber,
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const state = {
+          ...data,
+          issue: {
+            ...data.issue,
+            state: "CLOSED",
+            stateReason: action.reason === "not_planned" ? "not_planned" : "completed"
+          }
+        };
+        await update(state);
+        core6.info(`Closed issue #${action.issueNumber}`);
+        return { closed: true };
+      }
+    }
+  ),
+  /** Reopen a closed issue */
+  reopenIssue: defAction(
+    mkSchema("reopenIssue", {
+      issueNumber: external_exports.number().int().positive()
+    }),
+    {
+      predict: () => ({ target: { state: "OPEN" } }),
+      execute: (action) => {
+        core6.info(
+          `Reopen issue #${action.issueNumber} - handled by resetIssue`
+        );
+        return Promise.resolve({ reopened: true });
+      }
+    }
+  ),
+  /** Reset an issue (and sub-issues) to initial state */
+  resetIssue: defAction(
+    mkSchema("resetIssue", {
+      issueNumber: external_exports.number().int().positive(),
+      subIssueNumbers: external_exports.array(external_exports.number().int().positive()).default([]),
+      botUsername: external_exports.string().min(1)
+    }),
+    {
+      predict: (a) => ({
+        issue: {
+          state: "OPEN",
+          projectStatus: "Backlog",
+          failures: 0,
+          iteration: 0,
+          assignees: { remove: [a.botUsername] }
+        },
+        subs: a.subIssueNumbers.map((n) => ({
+          number: n,
+          state: "OPEN",
+          projectStatus: "Ready"
+        }))
+      }),
+      execute: async (action, ctx) => {
+        let resetCount = 0;
+        const octokit = asOctokitLike(ctx);
+        try {
+          const { data, update } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          if (data.issue.state === "CLOSED") {
+            await update({
+              ...data,
+              issue: { ...data.issue, state: "OPEN" }
+            });
+            core6.info(`Reopened issue #${action.issueNumber}`);
+            resetCount++;
+          }
+        } catch (error7) {
+          core6.warning(
+            `Failed to reopen issue #${action.issueNumber}: ${error7}`
+          );
+        }
+        for (const subIssueNumber of action.subIssueNumbers) {
+          try {
+            const { data: subData, update: subUpdate } = await parseIssue(
+              ctx.owner,
+              ctx.repo,
+              subIssueNumber,
+              {
+                octokit,
+                projectNumber: ctx.projectNumber,
+                fetchPRs: false,
+                fetchParent: false
+              }
+            );
+            if (subData.issue.state === "CLOSED") {
+              await subUpdate({
+                ...subData,
+                issue: { ...subData.issue, state: "OPEN" }
+              });
+              core6.info(`Reopened sub-issue #${subIssueNumber}`);
+              resetCount++;
+            }
+          } catch (error7) {
+            core6.warning(
+              `Failed to reopen sub-issue #${subIssueNumber}: ${error7}`
+            );
+          }
+        }
+        try {
+          const { data, update } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          await update({
+            ...data,
+            issue: {
+              ...data.issue,
+              assignees: data.issue.assignees.filter(
+                (a) => a !== action.botUsername
+              )
+            }
+          });
+          core6.info(
+            `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
+          );
+        } catch (error7) {
+          core6.warning(
+            `Failed to unassign bot from issue #${action.issueNumber}: ${error7}`
+          );
+        }
+        for (const subIssueNumber of action.subIssueNumbers) {
+          try {
+            const { data: subData, update: subUpdate } = await parseIssue(
+              ctx.owner,
+              ctx.repo,
+              subIssueNumber,
+              {
+                octokit,
+                projectNumber: ctx.projectNumber,
+                fetchPRs: false,
+                fetchParent: false
+              }
+            );
+            await subUpdate({
+              ...subData,
+              issue: {
+                ...subData.issue,
+                assignees: subData.issue.assignees.filter(
+                  (a) => a !== action.botUsername
+                )
+              }
+            });
+            core6.info(
+              `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
+            );
+          } catch (error7) {
+            core6.warning(
+              `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error7}`
+            );
+          }
+        }
+        core6.info(`Reset complete: ${resetCount} issues reopened`);
+        return { resetCount };
+      }
+    }
+  ),
+  /** Append an entry to the Iteration History table */
+  appendHistory: defAction(
+    mkSchema("appendHistory", {
+      issueNumber: external_exports.number().int().positive(),
+      message: external_exports.string(),
+      iteration: external_exports.number().int().min(0).optional(),
+      phase: external_exports.string().optional(),
+      timestamp: external_exports.string().optional(),
+      commitSha: external_exports.string().optional(),
+      runLink: external_exports.string().optional(),
+      prNumber: external_exports.number().int().positive().nullable().optional()
+    }),
+    {
+      predict: (a) => ({
+        issue: {
+          body: {
+            historyEntries: {
+              add: [
+                {
+                  iteration: a.iteration ?? 0,
+                  phase: a.phase,
+                  action: a.message,
+                  timestamp: null,
+                  sha: null,
+                  runLink: null
+                }
+              ]
+            }
+          }
+        }
+      }),
+      execute: async (action, ctx) => {
+        const octokit = asOctokitLike(ctx);
+        const iteration = action.iteration ?? 0;
+        const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+        const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          {
+            octokit,
+            projectNumber: ctx.projectNumber,
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const state = addHistoryEntry2(
+          {
+            iteration,
+            phase: action.phase ?? "-",
+            action: action.message,
+            timestamp,
+            sha: action.commitSha ?? null,
+            runLink: action.runLink ?? null,
+            repoUrl
+          },
+          data
+        );
+        await update(state);
+        core6.info(`Appended history: Phase ${action.phase}, ${action.message}`);
+        if (data.issue.parentIssueNumber) {
+          const { data: parentData, update: parentUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            data.issue.parentIssueNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          const parentState = addHistoryEntry2(
+            {
+              iteration,
+              phase: action.phase ?? "-",
+              action: action.message,
+              timestamp,
+              sha: action.commitSha ?? null,
+              runLink: action.runLink ?? null,
+              repoUrl
+            },
+            parentData
+          );
+          await parentUpdate(parentState);
+          core6.info(
+            `Also appended to parent issue #${data.issue.parentIssueNumber}`
+          );
+        }
+        return { appended: true };
+      }
+    }
+  ),
+  /** Update an existing history entry */
+  updateHistory: defAction(
+    mkSchema("updateHistory", {
+      issueNumber: external_exports.number().int().positive(),
+      matchIteration: external_exports.number().int().min(0),
+      matchPhase: external_exports.string(),
+      matchPattern: external_exports.string(),
+      newMessage: external_exports.string(),
+      timestamp: external_exports.string().optional(),
+      commitSha: external_exports.string().optional(),
+      runLink: external_exports.string().optional(),
+      prNumber: external_exports.number().int().positive().nullable().optional()
+    }),
+    {
+      execute: async (action, ctx) => {
+        const octokit = asOctokitLike(ctx);
+        const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+        const timestamp = action.timestamp || (/* @__PURE__ */ new Date()).toISOString();
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          {
+            octokit,
+            projectNumber: ctx.projectNumber,
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        let state = updateHistoryEntry2(
+          {
+            matchIteration: action.matchIteration,
+            matchPhase: action.matchPhase,
+            matchPattern: action.matchPattern,
+            newAction: action.newMessage,
+            timestamp,
+            sha: action.commitSha ?? null,
+            runLink: action.runLink ?? null,
+            repoUrl
+          },
+          data
+        );
+        if (state === data) {
+          core6.info(
+            `No matching history entry found - adding new entry for Phase ${action.matchPhase}`
+          );
+          state = addHistoryEntry2(
+            {
+              iteration: action.matchIteration,
+              phase: action.matchPhase,
+              action: action.newMessage,
+              timestamp,
+              sha: action.commitSha ?? null,
+              runLink: action.runLink ?? null,
+              repoUrl
+            },
+            data
+          );
+        } else {
+          core6.info(
+            `Updated history: Phase ${action.matchPhase}, ${action.newMessage}`
+          );
+        }
+        await update(state);
+        if (data.issue.parentIssueNumber) {
+          const { data: parentData, update: parentUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            data.issue.parentIssueNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          let parentState = updateHistoryEntry2(
+            {
+              matchIteration: action.matchIteration,
+              matchPhase: action.matchPhase,
+              matchPattern: action.matchPattern,
+              newAction: action.newMessage,
+              timestamp,
+              sha: action.commitSha ?? null,
+              runLink: action.runLink ?? null,
+              repoUrl
+            },
+            parentData
+          );
+          if (parentState === parentData) {
+            parentState = addHistoryEntry2(
+              {
+                iteration: action.matchIteration,
+                phase: action.matchPhase,
+                action: action.newMessage,
+                timestamp,
+                sha: action.commitSha ?? null,
+                runLink: action.runLink ?? null,
+                repoUrl
+              },
+              parentData
+            );
+            core6.info(
+              `Added new entry to parent issue #${data.issue.parentIssueNumber}`
+            );
+          } else {
+            core6.info(
+              `Also updated parent issue #${data.issue.parentIssueNumber}`
+            );
+          }
+          await parentUpdate(parentState);
+        }
+        return { updated: true };
+      }
+    }
+  ),
+  /** Update the issue body */
+  updateIssueBody: defAction(
+    mkSchema("updateIssueBody", {
+      issueNumber: external_exports.number().int().positive(),
+      body: external_exports.string()
+    }),
+    {
+      execute: async (action, ctx) => {
+        const octokit = asOctokitLike(ctx);
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          {
+            octokit,
+            projectNumber: ctx.projectNumber,
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const newBodyAst = parseMarkdown(action.body);
+        const state = replaceBody({ bodyAst: newBodyAst }, data);
+        await update(state);
+        core6.info(`Updated body for issue #${action.issueNumber}`);
+        return { updated: true };
+      }
+    }
+  ),
+  /** Add a comment to an issue */
+  addComment: defAction(
+    mkSchema("addComment", {
+      issueNumber: external_exports.number().int().positive(),
+      body: external_exports.string()
+    }),
+    {
+      execute: async (action, ctx) => {
+        const result = await createComment(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          action.body,
+          asOctokitLike(ctx)
+        );
+        core6.info(`Added comment to issue #${action.issueNumber}`);
+        return { commentId: result.commentId };
+      }
+    }
+  ),
+  /** Unassign a user from an issue */
+  unassignUser: defAction(
+    mkSchema("unassignUser", {
+      issueNumber: external_exports.number().int().positive(),
+      username: external_exports.string().min(1)
+    }),
+    {
+      predict: (a) => ({ target: { assignees: { remove: [a.username] } } }),
+      execute: async (action, ctx) => {
+        await ctx.octokit.rest.issues.removeAssignees({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: action.issueNumber,
+          assignees: [action.username]
+        });
+        core6.info(
+          `Unassigned ${action.username} from issue #${action.issueNumber}`
+        );
+        return { unassigned: true };
+      }
+    }
+  ),
+  /** Assign a user to an issue */
+  assignUser: defAction(
+    mkSchema("assignUser", {
+      issueNumber: external_exports.number().int().positive(),
+      username: external_exports.string().min(1)
+    }),
+    {
+      predict: (a) => ({ target: { assignees: { add: [a.username] } } }),
+      execute: async (action, ctx) => {
+        await ctx.octokit.rest.issues.addAssignees({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issue_number: action.issueNumber,
+          assignees: [action.username]
+        });
+        core6.info(
+          `Assigned ${action.username} to issue #${action.issueNumber}`
+        );
+        return { assigned: true };
+      }
+    }
+  ),
+  // --------------------------------------------------------------------------
+  // Label Actions
+  // --------------------------------------------------------------------------
+  /** Add a label to an issue */
+  addLabel: defAction(
+    mkSchema("addLabel", {
+      issueNumber: external_exports.number().int().positive(),
+      label: external_exports.string().min(1)
+    }),
+    {
+      predict: (a) => ({ target: { labels: { add: [a.label] } } }),
+      execute: async (action, ctx) => {
+        try {
+          const octokit = asOctokitLike(ctx);
+          const { data, update } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          await update({
+            ...data,
+            issue: {
+              ...data.issue,
+              labels: [...data.issue.labels, action.label]
+            }
+          });
+          core6.info(
+            `Added label "${action.label}" to issue #${action.issueNumber}`
+          );
+          return { added: true };
+        } catch (error7) {
+          core6.warning(
+            `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error7}`
+          );
+          return { added: false };
+        }
+      }
+    }
+  ),
+  /** Remove a label from an issue */
+  removeLabel: defAction(
+    mkSchema("removeLabel", {
+      issueNumber: external_exports.number().int().positive(),
+      label: external_exports.string().min(1)
+    }),
+    {
+      predict: (a) => ({ target: { labels: { remove: [a.label] } } }),
+      execute: async (action, ctx) => {
+        try {
+          const octokit = asOctokitLike(ctx);
+          const { data, update } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          await update({
+            ...data,
+            issue: {
+              ...data.issue,
+              labels: data.issue.labels.filter((l) => l !== action.label)
+            }
+          });
+          core6.info(
+            `Removed label "${action.label}" from issue #${action.issueNumber}`
+          );
+          return { removed: true };
+        } catch (error7) {
+          if (error7 instanceof Error && error7.message.includes("404")) {
+            core6.info(
+              `Label "${action.label}" was not present on issue #${action.issueNumber}`
+            );
+            return { removed: false };
+          }
+          core6.warning(
+            `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error7}`
+          );
+          return { removed: false };
+        }
+      }
+    }
+  ),
+  // --------------------------------------------------------------------------
+  // Sub-Issue Actions
+  // --------------------------------------------------------------------------
+  /** Create sub-issues for phased work */
+  createSubIssues: defAction(
+    mkSchema("createSubIssues", {
+      parentIssueNumber: external_exports.number().int().positive(),
+      phases: external_exports.array(PhaseDefinitionSchema).min(1)
+    }),
+    {
+      execute: async (action, ctx) => {
+        const repoResponse = await ctx.octokit.graphql(
+          GET_REPO_ID_QUERY,
+          { owner: ctx.owner, repo: ctx.repo }
+        );
+        const repoId = repoResponse.repository?.id;
+        if (!repoId) throw new Error("Repository not found");
+        const parentQuery = `
+          query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issueNumber) { id }
+            }
+          }
+        `;
+        const parentResponse = await ctx.octokit.graphql(parentQuery, {
+          owner: ctx.owner,
+          repo: ctx.repo,
+          issueNumber: action.parentIssueNumber
+        });
+        const parentId = parentResponse.repository?.issue?.id;
+        if (!parentId) {
+          throw new Error(
+            `Parent issue #${action.parentIssueNumber} not found`
+          );
+        }
+        const subIssueNumbers = [];
+        const octokit = asOctokitLike(ctx);
+        for (let i = 0; i < action.phases.length; i++) {
+          const phase = action.phases[i];
+          if (!phase) continue;
+          const title = `[Phase ${i + 1}]: ${phase.title}`;
+          const createResponse = await ctx.octokit.graphql(
+            CREATE_ISSUE_MUTATION,
+            { repositoryId: repoId, title, body: phase.body }
+          );
+          const issueId = createResponse.createIssue?.issue?.id;
+          const issueNumber = createResponse.createIssue?.issue?.number;
+          if (!issueId || !issueNumber) {
+            throw new Error(`Failed to create sub-issue for phase ${i + 1}`);
+          }
+          await ctx.octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+            parentId,
+            childId: issueId
+          });
+          const { data: subData, update: subUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            issueNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          await subUpdate({
+            ...subData,
+            issue: {
+              ...subData.issue,
+              labels: [...subData.issue.labels, "triaged"]
+            }
+          });
+          subIssueNumbers.push(issueNumber);
+          core6.info(`Created sub-issue #${issueNumber} for phase ${i + 1}`);
+        }
+        return { subIssueNumbers };
+      }
+    }
+  ),
+  // --------------------------------------------------------------------------
+  // Git Actions
+  // --------------------------------------------------------------------------
+  /** Create a new branch */
+  createBranch: defAction(
+    mkSchema("createBranch", {
+      branchName: external_exports.string().min(1),
+      baseBranch: external_exports.string().default("main").optional(),
+      worktree: external_exports.string().optional()
+    }),
+    {
+      predict: (_a, _t, ctx) => {
+        const subNumber = ctx.machineContext.currentSubIssue?.number ?? ctx.machineContext.issue.number;
+        return { subs: [{ number: subNumber, hasBranch: true }] };
+      },
+      execute: async (action, ctx) => {
+        const result = {
+          created: false,
+          checkedOut: false,
+          rebased: false,
+          pushed: false,
+          shouldStop: false
+        };
+        core6.info(`Fetching latest from origin...`);
+        await exec3.exec("git", ["fetch", "origin"], {
+          ignoreReturnCode: true
+        });
+        const remoteBranchExists = await ctx.octokit.rest.repos.getBranch({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          branch: action.branchName
+        }).then(() => true).catch(() => false);
+        if (!remoteBranchExists) {
+          core6.info(
+            `Branch ${action.branchName} doesn't exist remotely, creating from ${action.baseBranch}`
+          );
+          const baseRef = await ctx.octokit.rest.git.getRef({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            ref: `heads/${action.baseBranch}`
+          });
+          await ctx.octokit.rest.git.createRef({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            ref: `refs/heads/${action.branchName}`,
+            sha: baseRef.data.object.sha
+          });
+          result.created = true;
+          core6.info(`Created remote branch ${action.branchName}`);
+          await exec3.exec("git", ["fetch", "origin"], {
+            ignoreReturnCode: true
+          });
+        }
+        let checkoutExitCode = await exec3.exec(
+          "git",
+          ["checkout", action.branchName],
+          { ignoreReturnCode: true }
+        );
+        if (checkoutExitCode !== 0) {
+          checkoutExitCode = await exec3.exec(
+            "git",
+            [
+              "checkout",
+              "-b",
+              action.branchName,
+              `origin/${action.branchName}`
+            ],
+            { ignoreReturnCode: true }
+          );
+          if (checkoutExitCode !== 0) {
+            checkoutExitCode = await exec3.exec(
+              "git",
+              [
+                "checkout",
+                "-b",
+                action.branchName,
+                `origin/${action.baseBranch}`
+              ],
+              { ignoreReturnCode: true }
+            );
+          }
+        }
+        if (checkoutExitCode !== 0) {
+          throw new Error(`Failed to checkout branch ${action.branchName}`);
+        }
+        result.checkedOut = true;
+        core6.info(`Checked out branch ${action.branchName}`);
+        await exec3.exec(
+          "git",
+          ["branch", "--set-upstream-to", `origin/${action.branchName}`],
+          { ignoreReturnCode: true }
+        );
+        let commitsCount = "";
+        await exec3.exec(
+          "git",
+          ["rev-list", "--count", `HEAD..origin/${action.baseBranch}`],
+          {
+            ignoreReturnCode: true,
+            listeners: {
+              stdout: (data) => {
+                commitsCount += data.toString();
+              }
+            }
+          }
+        );
+        const commitsBehind = parseInt(commitsCount.trim(), 10) || 0;
+        if (commitsBehind > 0) {
+          core6.info(
+            `Branch is ${commitsBehind} commits behind origin/${action.baseBranch}, attempting rebase...`
+          );
+          const rebaseExitCode = await exec3.exec(
+            "git",
+            ["rebase", `origin/${action.baseBranch}`],
+            { ignoreReturnCode: true }
+          );
+          if (rebaseExitCode !== 0) {
+            core6.warning(
+              `Rebase failed, aborting and continuing with current state`
+            );
+            await exec3.exec("git", ["rebase", "--abort"], {
+              ignoreReturnCode: true
+            });
+            return result;
+          }
+          result.rebased = true;
+          core6.info(`Successfully rebased on origin/${action.baseBranch}`);
+          const pushExitCode = await exec3.exec(
+            "git",
+            ["push", "origin", action.branchName, "--force-with-lease"],
+            { ignoreReturnCode: true }
+          );
+          if (pushExitCode === 0) {
+            result.pushed = true;
+            result.shouldStop = true;
+            core6.info(
+              `Pushed rebased changes. Stopping execution - CI will re-trigger with up-to-date branch.`
+            );
+          } else {
+            core6.warning(`Failed to push rebased changes, continuing anyway`);
+          }
+        } else {
+          core6.info(`Branch is up-to-date with origin/${action.baseBranch}`);
+        }
+        return result;
+      }
+    }
+  ),
+  /** Push commits to a branch */
+  gitPush: defAction(
+    mkSchema("gitPush", {
+      branchName: external_exports.string().min(1),
+      force: external_exports.boolean().default(false).optional()
+    }),
+    {
+      execute: async (action) => {
+        const args = ["push", "origin", action.branchName];
+        if (action.force) args.push("--force");
+        let stderr = "";
+        const exitCode = await exec3.exec("git", args, {
+          ignoreReturnCode: true,
+          listeners: {
+            stderr: (data) => {
+              stderr += data.toString();
+            }
+          }
+        });
+        if (exitCode !== 0) {
+          core6.warning(`Git push failed: ${stderr}`);
+          return { pushed: false };
+        }
+        core6.info(`Pushed to ${action.branchName}`);
+        return { pushed: true };
+      }
+    }
+  ),
+  // --------------------------------------------------------------------------
+  // PR Actions
+  // --------------------------------------------------------------------------
+  /** Create a pull request */
+  createPR: defAction(
+    mkSchema("createPR", {
+      title: external_exports.string().min(1),
+      body: external_exports.string(),
+      branchName: external_exports.string().min(1),
+      issueNumber: external_exports.number().int().positive(),
+      baseBranch: external_exports.string().default("main").optional(),
+      draft: external_exports.boolean().default(true).optional()
+    }),
+    {
+      predict: (a) => ({
+        target: {
+          hasPR: true,
+          pr: { isDraft: a.draft ?? true, state: "OPEN" }
+        }
+      }),
+      execute: async (action, ctx) => {
+        const existingPRs = await ctx.octokit.rest.pulls.list({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          head: `${ctx.owner}:${action.branchName}`,
+          base: action.baseBranch,
+          state: "open"
+        });
+        const existingPR = existingPRs.data[0];
+        if (existingPR) {
+          core6.info(
+            `PR #${existingPR.number} already exists for branch ${action.branchName}`
+          );
+          return { prNumber: existingPR.number };
+        }
+        const body = `${action.body}
+
+Fixes #${action.issueNumber}`;
+        const response = await ctx.octokit.rest.pulls.create({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          title: action.title,
+          body,
+          head: action.branchName,
+          base: action.baseBranch ?? "main",
+          draft: action.draft
+        });
+        core6.info(
+          `Created PR #${response.data.number} for issue #${action.issueNumber}`
+        );
+        return { prNumber: response.data.number };
+      }
+    }
+  ),
+  /** Convert PR to draft */
+  convertPRToDraft: defAction(
+    mkSchema("convertPRToDraft", {
+      prNumber: external_exports.number().int().positive()
+    }),
+    {
+      predict: (a, _t, ctx) => {
+        const sub = ctx.tree.subIssues.find(
+          (s) => s.pr !== null && s.number === a.prNumber
+        ) ?? ctx.tree.subIssues.find((s) => s.hasPR);
+        const diff = {};
+        if (sub) diff.subs = [{ number: sub.number, pr: { isDraft: true } }];
+        if (ctx.tree.issue.pr && ctx.tree.issue.number === a.prNumber) {
+          diff.issue = { pr: { isDraft: true } };
+        }
+        return diff;
+      },
+      execute: async (action, ctx) => {
+        const prResponse = await ctx.octokit.graphql(
+          GET_PR_ID_QUERY,
+          {
+            owner: ctx.owner,
+            repo: ctx.repo,
+            prNumber: action.prNumber
+          }
+        );
+        const prId = prResponse.repository?.pullRequest?.id;
+        if (!prId) throw new Error(`PR #${action.prNumber} not found`);
+        await ctx.octokit.graphql(CONVERT_PR_TO_DRAFT_MUTATION, { prId });
+        core6.info(`Converted PR #${action.prNumber} to draft`);
+        return { converted: true };
+      }
+    }
+  ),
+  /** Mark a PR as ready for review */
+  markPRReady: defAction(
+    mkSchema("markPRReady", {
+      prNumber: external_exports.number().int().positive()
+    }),
+    {
+      predict: (a, _t, ctx) => {
+        const sub = ctx.tree.subIssues.find(
+          (s) => s.pr !== null && s.number === a.prNumber
+        ) ?? ctx.tree.subIssues.find((s) => s.hasPR);
+        const diff = {};
+        if (sub) diff.subs = [{ number: sub.number, pr: { isDraft: false } }];
+        if (ctx.tree.issue.pr && ctx.tree.issue.number === a.prNumber) {
+          diff.issue = { pr: { isDraft: false } };
+        }
+        return diff;
+      },
+      execute: async (action, ctx) => {
+        const prResponse = await ctx.octokit.graphql(
+          GET_PR_ID_QUERY,
+          {
+            owner: ctx.owner,
+            repo: ctx.repo,
+            prNumber: action.prNumber
+          }
+        );
+        const prId = prResponse.repository?.pullRequest?.id;
+        if (!prId) throw new Error(`PR #${action.prNumber} not found`);
+        await ctx.octokit.graphql(MARK_PR_READY_MUTATION, { prId });
+        core6.info(`Marked PR #${action.prNumber} as ready for review`);
+        return { ready: true };
+      }
+    }
+  ),
+  /** Request a reviewer for a PR */
+  requestReview: defAction(
+    mkSchema("requestReview", {
+      prNumber: external_exports.number().int().positive(),
+      reviewer: external_exports.string().min(1)
+    }),
+    {
+      execute: async (action, ctx) => {
+        const { data: reviews } = await ctx.octokit.rest.pulls.listReviews({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          pull_number: action.prNumber
+        });
+        const existingReviews = reviews.filter(
+          (r) => r.user?.login === action.reviewer && r.state !== "DISMISSED"
+        );
+        for (const review of existingReviews) {
+          await ctx.octokit.graphql(
+            `mutation($reviewId: ID!, $message: String!) {
+              dismissPullRequestReview(input: {
+                pullRequestReviewId: $reviewId
+                message: $message
+              }) {
+                pullRequestReview { id }
+              }
+            }`,
+            {
+              reviewId: review.node_id,
+              message: "Dismissing for re-review after new iteration"
+            }
+          );
+          core6.info(
+            `Dismissed ${review.state} review ${review.id} from ${action.reviewer} on PR #${action.prNumber}`
+          );
+        }
+        try {
+          await ctx.octokit.rest.pulls.removeRequestedReviewers({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            pull_number: action.prNumber,
+            reviewers: [action.reviewer]
+          });
+          core6.info(
+            `Removed ${action.reviewer} from requested reviewers on PR #${action.prNumber}`
+          );
+        } catch {
+        }
+        await ctx.octokit.rest.pulls.requestReviewers({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          pull_number: action.prNumber,
+          reviewers: [action.reviewer]
+        });
+        core6.info(
+          `Requested review from ${action.reviewer} on PR #${action.prNumber}`
+        );
+        return { requested: true };
+      }
+    }
+  ),
+  /** Mark a PR as ready for merge (adds label + history entry) */
+  mergePR: defAction(
+    mkSchema("mergePR", {
+      prNumber: external_exports.number().int().positive(),
+      issueNumber: external_exports.number().int().positive(),
+      mergeMethod: external_exports.enum(["merge", "squash", "rebase"]).default("squash").optional()
+    }),
+    {
+      execute: async (action, ctx) => {
+        const octokit = asOctokitLike(ctx);
+        const label = "ready-to-merge";
+        try {
+          const { data: prData, update: prUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.prNumber,
+            {
+              octokit,
+              projectNumber: ctx.projectNumber,
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          await prUpdate({
+            ...prData,
+            issue: {
+              ...prData.issue,
+              labels: [...prData.issue.labels, label]
+            }
+          });
+          core6.info(`Added "${label}" label to PR #${action.prNumber}`);
+        } catch (error7) {
+          core6.warning(`Failed to add label: ${error7}`);
+        }
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          {
+            octokit,
+            projectNumber: ctx.projectNumber,
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const repoUrl = `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}`;
+        const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+        const runLink = ctx.runUrl;
+        const state = addHistoryEntry2(
+          {
+            iteration: 0,
+            phase: "-",
+            action: "\u{1F500} Ready for merge",
+            timestamp,
+            runLink: runLink ?? null,
+            repoUrl
+          },
+          data
+        );
+        await update(state);
+        core6.info(
+          `PR #${action.prNumber} marked ready for merge (human action required)`
+        );
+        return { markedReady: true };
+      }
+    }
+  ),
+  /** Submit a PR review (approve, request changes, or comment) */
+  submitReview: defAction(
+    mkSchema("submitReview", {
+      prNumber: external_exports.number().int().positive(),
+      decision: external_exports.enum(["approve", "request_changes", "comment"]),
+      body: external_exports.string()
+    }),
+    {
+      execute: async (action, ctx) => {
+        const eventMap = {
+          approve: "APPROVE",
+          request_changes: "REQUEST_CHANGES",
+          comment: "COMMENT"
+        };
+        const event = eventMap[action.decision];
+        if (!event)
+          throw new Error(`Invalid review decision: ${action.decision}`);
+        await ctx.octokit.rest.pulls.createReview({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          pull_number: action.prNumber,
+          event,
+          body: action.body
+        });
+        core6.info(
+          `Submitted ${action.decision} review on PR #${action.prNumber}`
+        );
+        return { submitted: true, decision: action.decision };
+      }
+    }
+  ),
+  /** Remove a reviewer from a PR */
+  removeReviewer: defAction(
+    mkSchema("removeReviewer", {
+      prNumber: external_exports.number().int().positive(),
+      reviewer: external_exports.string().min(1)
+    }),
+    {
+      execute: async (action, ctx) => {
+        try {
+          await ctx.octokit.rest.pulls.removeRequestedReviewers({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            pull_number: action.prNumber,
+            reviewers: [action.reviewer]
+          });
+          core6.info(
+            `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
+          );
+          return { removed: true };
+        } catch (error7) {
+          if (error7 instanceof Error && error7.message.includes("404")) {
+            core6.info(
+              `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`
+            );
+            return { removed: false };
+          }
+          throw error7;
+        }
+      }
+    }
+  )
+};
+
+// packages/statemachine/src/schemas/actions/claude.ts
+var core7 = __toESM(require_core(), 1);
+var exec5 = __toESM(require_exec(), 1);
+var fs6 = __toESM(require("fs"), 1);
+async function createMockCommit(action, _ctx) {
+  const branchName = deriveBranchName2(action.issueNumber);
+  core7.info(`[MOCK MODE] Creating placeholder commit on branch ${branchName}`);
+  try {
+    await exec5.exec("git", ["config", "user.name", "nopo-bot"]);
+    await exec5.exec("git", [
+      "config",
+      "user.email",
+      "nopo-bot@users.noreply.github.com"
+    ]);
+    const checkoutCode = await exec5.exec("git", ["checkout", branchName], {
+      ignoreReturnCode: true
+    });
+    if (checkoutCode !== 0) {
+      await exec5.exec("git", ["fetch", "origin", branchName], {
+        ignoreReturnCode: true
+      });
+      await exec5.exec(
+        "git",
+        ["checkout", "-b", branchName, `origin/${branchName}`],
+        { ignoreReturnCode: true }
+      );
+    }
+    const mockFilePath = ".mock-commit-placeholder";
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    const content3 = `# Mock Commit Placeholder
+# This file was created by the test runner in mock mode.
+# It simulates Claude's code changes without running the actual Claude CLI.
+
+Timestamp: ${timestamp}
+Issue: #${action.issueNumber}
+Prompt: ${action.promptDir || action.promptFile || "inline"}
+`;
+    fs6.writeFileSync(mockFilePath, content3);
+    await exec5.exec("git", ["add", mockFilePath]);
+    const commitMessage = `test: mock commit for issue #${action.issueNumber}
+
+This is a placeholder commit created by the test runner.
+It simulates Claude's code changes in mock mode.`;
+    const commitExitCode = await exec5.exec(
+      "git",
+      ["commit", "--no-verify", "-m", commitMessage],
+      { ignoreReturnCode: true }
+    );
+    if (commitExitCode !== 0) {
+      core7.warning(
+        `[MOCK MODE] Git commit failed with exit code ${commitExitCode}`
+      );
+      return;
+    }
+    const pushExitCode = await exec5.exec(
+      "git",
+      ["push", "origin", branchName],
+      { ignoreReturnCode: true }
+    );
+    if (pushExitCode !== 0) {
+      core7.warning(
+        `[MOCK MODE] Git push failed with exit code ${pushExitCode}`
+      );
+      return;
+    }
+    core7.info(`[MOCK MODE] Created and pushed placeholder commit`);
+  } catch (error7) {
+    core7.warning(
+      `[MOCK MODE] Failed to create mock commit: ${error7 instanceof Error ? error7.message : String(error7)}`
+    );
+  }
+}
+async function runGroomingAgent(agentName, promptVars) {
+  core7.info(`Starting grooming agent: ${agentName}`);
+  const resolved = resolvePrompt({
+    promptDir: `grooming/${agentName}`,
+    promptVars
+  });
+  core7.startGroup(`Grooming Agent: ${agentName}`);
+  const result = await executeClaudeSDK({
+    prompt: resolved.prompt,
+    cwd: process.cwd(),
+    outputSchema: resolved.outputSchema
+  });
+  core7.endGroup();
+  if (!result.success || !result.structuredOutput) {
+    core7.warning(
+      `Grooming agent ${agentName} failed: ${result.error || "no structured output"}`
+    );
+    return {
+      ready: false,
+      questions: [`Agent ${agentName} failed to complete analysis`]
+    };
+  }
+  core7.info(
+    `Grooming agent ${agentName} completed (${result.numTurns} turns, $${result.costUsd?.toFixed(4) ?? "?"})`
+  );
+  return result.structuredOutput;
+}
+var claudeActions = {
+  /**
+   * Run Claude to work on an issue.
+   * One of `prompt`, `promptFile`, or `promptDir` must be provided at runtime.
+   */
+  runClaude: defAction(
+    mkSchema("runClaude", {
+      issueNumber: external_exports.number().int().positive(),
+      prompt: external_exports.string().min(1).optional(),
+      promptFile: external_exports.string().min(1).optional(),
+      promptDir: external_exports.string().min(1).optional(),
+      promptsDir: external_exports.string().min(1).optional(),
+      promptVars: external_exports.record(external_exports.string()).optional(),
+      allowedTools: external_exports.array(external_exports.string()).optional(),
+      worktree: external_exports.string().optional()
+    }),
+    {
+      execute: async (action, ctx) => {
+        if (ctx.mockOutputs) {
+          let mockKey = action.promptDir;
+          if (!mockKey && action.promptFile) {
+            const pathParts = action.promptFile.split("/");
+            const promptTxtIndex = pathParts.findIndex(
+              (p) => p === "prompt.txt"
+            );
+            if (promptTxtIndex > 0) {
+              mockKey = pathParts[promptTxtIndex - 1];
+            }
+          }
+          if (mockKey) {
+            const mockOutput = ctx.mockOutputs[mockKey];
+            if (mockOutput) {
+              core7.info(
+                `[MOCK MODE] Using mock output for '${mockKey}' prompt`
+              );
+              core7.startGroup("Mock Output");
+              core7.info(JSON.stringify(mockOutput, null, 2));
+              core7.endGroup();
+              const promptsThatCreateCommits = ["iterate", "ci-fix"];
+              if (mockKey && promptsThatCreateCommits.includes(mockKey)) {
+                await createMockCommit(action, ctx);
+              }
+              return {
+                success: true,
+                exitCode: 0,
+                output: JSON.stringify({ structured_output: mockOutput }),
+                structuredOutput: mockOutput
+              };
+            }
+            core7.warning(
+              `[MOCK MODE] No mock output for '${mockKey}' prompt, running real Claude`
+            );
+          }
+        }
+        let augmentedPromptVars = action.promptVars;
+        if (ctx.issueContext && action.promptVars) {
+          augmentedPromptVars = {
+            ...action.promptVars,
+            ISSUE_BODY: action.promptVars.ISSUE_BODY ?? ctx.issueContext.body,
+            ISSUE_COMMENTS: action.promptVars.ISSUE_COMMENTS ?? ctx.issueContext.comments ?? "No comments yet."
+          };
+        }
+        const resolved = resolvePrompt({
+          prompt: action.prompt,
+          promptDir: action.promptDir,
+          promptFile: action.promptFile,
+          promptsDir: action.promptsDir,
+          promptVars: augmentedPromptVars
+        });
+        core7.info(`Running Claude SDK for issue #${action.issueNumber}`);
+        core7.startGroup("Claude Prompt");
+        core7.info(resolved.prompt);
+        core7.endGroup();
+        let cwd2 = process.cwd();
+        if (action.worktree && (action.worktree.startsWith("/") || action.worktree.startsWith("."))) {
+          cwd2 = action.worktree;
+        }
+        const result = await executeClaudeSDK({
+          prompt: resolved.prompt,
+          cwd: cwd2,
+          allowedTools: action.allowedTools,
+          outputSchema: resolved.outputSchema
+        });
+        core7.info(`Claude completed for issue #${action.issueNumber}`);
+        return {
+          success: result.success,
+          exitCode: result.exitCode,
+          output: result.output,
+          error: result.error,
+          structuredOutput: result.structuredOutput
+        };
+      }
+    }
+  ),
+  /** Run Claude grooming agents in parallel */
+  runClaudeGrooming: defAction(
+    mkSchema("runClaudeGrooming", {
+      issueNumber: external_exports.number().int().positive(),
+      promptVars: external_exports.record(external_exports.string()).optional()
+    }),
+    {
+      execute: async (action, ctx) => {
+        core7.info(`Running grooming agents for issue #${action.issueNumber}`);
+        if (ctx.dryRun) {
+          core7.info(`[DRY RUN] Would run 4 grooming agents in parallel`);
+          return {
+            outputs: {
+              pm: { ready: true },
+              engineer: { ready: true },
+              qa: { ready: true },
+              research: { ready: true }
+            }
+          };
+        }
+        if (ctx.mockOutputs?.grooming) {
+          core7.info("[MOCK MODE] Using mock grooming output");
+          return {
+            outputs: parseOutput(
+              CombinedGroomingOutputSchema,
+              ctx.mockOutputs.grooming,
+              "mock grooming"
+            )
+          };
+        }
+        const promptVars = action.promptVars ?? {};
+        const [pmResult, engineerResult, qaResult, researchResult] = await Promise.all([
+          runGroomingAgent("pm", promptVars),
+          runGroomingAgent("engineer", promptVars),
+          runGroomingAgent("qa", promptVars),
+          runGroomingAgent("research", promptVars)
+        ]);
+        const outputs = parseOutput(
+          CombinedGroomingOutputSchema,
+          {
+            pm: pmResult,
+            engineer: engineerResult,
+            qa: qaResult,
+            research: researchResult
+          },
+          "combined grooming"
+        );
+        core7.info("All grooming agents completed");
+        return { outputs };
+      }
+    }
+  )
+};
+
+// packages/statemachine/src/schemas/actions/apply.ts
+var core8 = __toESM(require_core(), 1);
+var fs7 = __toESM(require("node:fs"), 1);
+async function getProjectInfo(ctx) {
+  try {
+    const result = await ctx.octokit.graphql(GET_PROJECT_FIELDS_QUERY, {
+      owner: ctx.owner,
+      projectNumber: ctx.projectNumber
+    });
+    const project = result.organization.projectV2;
+    const fields = project.fields.nodes;
+    const projectInfo = {
+      projectId: project.id,
+      statusFieldId: "",
+      statusOptions: {},
+      priorityFieldId: "",
+      priorityOptions: {},
+      sizeFieldId: "",
+      sizeOptions: {},
+      estimateFieldId: ""
+    };
+    for (const field of fields) {
+      if (!field) continue;
+      if (field.name === "Status" && field.options) {
+        projectInfo.statusFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.statusOptions[option.name] = option.id;
+        }
+      } else if (field.name === "Priority" && field.options) {
+        projectInfo.priorityFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.priorityOptions[option.name.toLowerCase()] = option.id;
+        }
+      } else if (field.name === "Size" && field.options) {
+        projectInfo.sizeFieldId = field.id;
+        for (const option of field.options) {
+          projectInfo.sizeOptions[option.name.toLowerCase()] = option.id;
+        }
+      } else if (field.name === "Estimate") {
+        projectInfo.estimateFieldId = field.id;
+      }
+    }
+    return projectInfo;
+  } catch (error7) {
+    core8.warning(`Failed to get project info: ${error7}`);
+    return null;
+  }
+}
+async function applyLabels(ctx, issueNumber, classification) {
+  const newLabels = [];
+  if (classification.type && classification.type !== "null") {
+    newLabels.push(classification.type);
+    core8.info(`Adding type label: ${classification.type}`);
+  }
+  if (classification.topics) {
+    for (const topic of classification.topics) {
+      if (topic) {
+        const label = topic.startsWith("topic:") ? topic : `topic:${topic}`;
+        newLabels.push(label);
+        core8.info(`Adding topic label: ${label}`);
+      }
+    }
+  }
+  newLabels.push("triaged");
+  core8.info("Adding triaged label");
+  if (newLabels.length > 0) {
+    try {
+      const { data, update } = await parseIssue(
+        ctx.owner,
+        ctx.repo,
+        issueNumber,
+        {
+          octokit: asOctokitLike(ctx),
+          fetchPRs: false,
+          fetchParent: false
+        }
+      );
+      const existingLabels = data.issue.labels;
+      const mergedLabels = [.../* @__PURE__ */ new Set([...existingLabels, ...newLabels])];
+      const state = { ...data, issue: { ...data.issue, labels: mergedLabels } };
+      await update(state);
+      core8.info(`Applied labels: ${newLabels.join(", ")}`);
+    } catch (error7) {
+      core8.warning(`Failed to apply labels: ${error7}`);
+    }
+  }
+}
+async function applyProjectFields(ctx, issueNumber, classification) {
+  try {
+    const issueQuery = `
+      query($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            id
+            projectItems(first: 10) {
+              nodes {
+                id
+                project { number }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const issueResult = await ctx.octokit.graphql(issueQuery, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issueNumber
+    });
+    const projectItem = issueResult.repository.issue.projectItems.nodes.find(
+      (item) => item.project.number === ctx.projectNumber
+    );
+    if (!projectItem) {
+      core8.info(`Issue #${issueNumber} not in project ${ctx.projectNumber}`);
+      return;
+    }
+    const projectInfo = await getProjectInfo(ctx);
+    if (!projectInfo) {
+      core8.warning("Could not get project info");
+      return;
+    }
+    if (classification.priority && classification.priority !== "null" && classification.priority !== "none" && projectInfo.priorityFieldId) {
+      const optionId = projectInfo.priorityOptions[classification.priority.toLowerCase()];
+      if (optionId) {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectInfo.projectId,
+          itemId: projectItem.id,
+          fieldId: projectInfo.priorityFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core8.info(`Set Priority to ${classification.priority}`);
+      }
+    }
+    if (classification.size && projectInfo.sizeFieldId) {
+      const optionId = projectInfo.sizeOptions[classification.size.toLowerCase()];
+      if (optionId) {
+        await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+          projectId: projectInfo.projectId,
+          itemId: projectItem.id,
+          fieldId: projectInfo.sizeFieldId,
+          value: { singleSelectOptionId: optionId }
+        });
+        core8.info(`Set Size to ${classification.size}`);
+      }
+    }
+    if (classification.estimate && projectInfo.estimateFieldId) {
+      await ctx.octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+        projectId: projectInfo.projectId,
+        itemId: projectItem.id,
+        fieldId: projectInfo.estimateFieldId,
+        value: { number: classification.estimate }
+      });
+      core8.info(`Set Estimate to ${classification.estimate}`);
+    }
+  } catch (error7) {
+    core8.warning(`Failed to apply project fields: ${error7}`);
+  }
+}
+function extractPreservedSections(ast) {
+  const preserved = [];
+  const preservedHeadings = /* @__PURE__ */ new Set(["Iteration History", "Agent Notes"]);
+  let inPreserved = false;
+  for (const node2 of ast.children) {
+    if (node2.type === "heading" && node2.depth === 2) {
+      const firstChild = node2.children[0];
+      const text5 = firstChild?.type === "text" ? firstChild.value : "";
+      inPreserved = preservedHeadings.has(text5);
+    }
+    if (inPreserved) {
+      preserved.push(node2);
+    }
+  }
+  return preserved;
+}
+async function updateIssueStructure(ctx, issueNumber, requirements, initialApproach, initialQuestions) {
+  try {
+    const { data } = await parseIssue(ctx.owner, ctx.repo, issueNumber, {
+      octokit: asOctokitLike(ctx),
+      fetchPRs: false,
+      fetchParent: false
+    });
+    const sections = [];
+    if (requirements.length > 0) {
+      sections.push(
+        `## Requirements
+
+${requirements.map((r) => `- ${r}`).join("\n")}`
+      );
+    }
+    if (initialApproach) {
+      sections.push(`## Approach
+
+${initialApproach}`);
+    }
+    if (initialQuestions && initialQuestions.length > 0) {
+      const questionLines = initialQuestions.map((q) => `- [ ] ${q}`).join("\n");
+      sections.push(`## Questions
+
+${questionLines}`);
+    }
+    const preservedNodes = extractPreservedSections(data.issue.bodyAst);
+    let preservedMarkdown = "";
+    if (preservedNodes.length > 0) {
+      const preservedAst = { type: "root", children: preservedNodes };
+      preservedMarkdown = serializeMarkdown(preservedAst);
+    }
+    const newBody = [sections.join("\n\n"), preservedMarkdown].filter(Boolean).join("\n\n");
+    await ctx.octokit.rest.issues.update({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: issueNumber,
+      body: newBody
+    });
+    core8.info(`Updated issue #${issueNumber} with structured sections`);
+  } catch (error7) {
+    core8.warning(`Failed to update issue structure: ${error7}`);
+  }
+}
+async function updateIssueBodyLegacy(ctx, issueNumber, newBody) {
+  try {
+    const { data, update } = await parseIssue(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      {
+        octokit: asOctokitLike(ctx),
+        fetchPRs: false,
+        fetchParent: false
+      }
+    );
+    const bodyAst = parseMarkdown(newBody);
+    const state = replaceBody({ bodyAst }, data);
+    await update(state);
+    core8.info(`Updated issue body for #${issueNumber}`);
+  } catch (error7) {
+    core8.warning(`Failed to update issue body: ${error7}`);
+  }
+}
+async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
+  if (relatedIssues.length === 0) return;
+  const links = relatedIssues.map((num) => `#${num}`).join(", ");
+  const body = `**Related issues:** ${links}`;
+  try {
+    await createComment(
+      ctx.owner,
+      ctx.repo,
+      issueNumber,
+      body,
+      asOctokitLike(ctx)
+    );
+    core8.info(`Linked related issues: ${links}`);
+  } catch (error7) {
+    core8.warning(`Failed to link related issues: ${error7}`);
+  }
+}
+var applyActions = {
+  /** Apply triage output from triage-output.json */
+  applyTriageOutput: defAction(
+    mkSchema("applyTriageOutput", {
+      issueNumber: external_exports.number().int().positive(),
+      filePath: external_exports.string().optional()
+    }),
+    {
+      predict: () => [
+        { target: { labels: { add: ["triaged"] } } },
+        { target: { labels: { add: ["triaged"] } } }
+      ],
+      execute: async (action, ctx, chainCtx) => {
+        const { issueNumber, filePath } = action;
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        let rawData;
+        if (structuredOutput) {
+          rawData = structuredOutput;
+          core8.info("Using structured output from in-process chain");
+          core8.startGroup("Triage Output (Structured)");
+          core8.info(JSON.stringify(rawData, null, 2));
+          core8.endGroup();
+        } else if (filePath && fs7.existsSync(filePath)) {
+          try {
+            const content3 = fs7.readFileSync(filePath, "utf-8");
+            rawData = JSON.parse(content3);
+            core8.info(`Triage output from file: ${filePath}`);
+            core8.startGroup("Triage Output (File)");
+            core8.info(JSON.stringify(rawData, null, 2));
+            core8.endGroup();
+          } catch (error7) {
+            core8.warning(`Failed to parse triage output: ${error7}`);
+            return { applied: false };
+          }
+        } else {
+          throw new Error(
+            `No structured output provided and triage output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+          );
+        }
+        if (ctx.dryRun) {
+          core8.info(
+            `[DRY RUN] Would apply triage output to issue #${issueNumber}`
+          );
+          return { applied: true };
+        }
+        const newFormatResult = TriageOutputSchema.safeParse(rawData);
+        const isNewFormat = newFormatResult.success;
+        let classification;
+        let newFormatOutput = null;
+        let legacyOutput = null;
+        if (isNewFormat) {
+          newFormatOutput = newFormatResult.data;
+          classification = newFormatOutput.triage;
+        } else {
+          legacyOutput = parseOutput(
+            LegacyTriageOutputSchema,
+            rawData,
+            "triage (legacy)"
+          );
+          classification = {
+            type: legacyOutput.type || "enhancement",
+            priority: legacyOutput.priority,
+            size: legacyOutput.size || "m",
+            estimate: legacyOutput.estimate || 5,
+            topics: legacyOutput.topics || [],
+            needs_info: legacyOutput.needs_info || false
+          };
+        }
+        await applyLabels(ctx, issueNumber, classification);
+        await applyProjectFields(ctx, issueNumber, classification);
+        if (newFormatOutput) {
+          await updateIssueStructure(
+            ctx,
+            issueNumber,
+            newFormatOutput.requirements,
+            newFormatOutput.initial_approach,
+            newFormatOutput.initial_questions
+          );
+        } else if (legacyOutput?.issue_body) {
+          await updateIssueBodyLegacy(
+            ctx,
+            issueNumber,
+            legacyOutput.issue_body
+          );
+        }
+        const relatedIssues = newFormatOutput?.related_issues || legacyOutput?.related_issues;
+        if (relatedIssues && relatedIssues.length > 0) {
+          await linkRelatedIssues(ctx, issueNumber, relatedIssues);
+        }
+        return { applied: true };
+      }
+    }
+  ),
+  /** Apply iterate output from Claude's structured output */
+  applyIterateOutput: defAction(
+    mkSchema("applyIterateOutput", {
+      issueNumber: external_exports.number().int().positive(),
+      filePath: external_exports.string().optional(),
+      prNumber: external_exports.number().int().positive().optional(),
+      reviewer: external_exports.string().min(1).optional()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        const { issueNumber, filePath } = action;
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        let iterateOutput;
+        if (structuredOutput) {
+          iterateOutput = parseOutput(
+            IterateOutputSchema,
+            structuredOutput,
+            "iterate"
+          );
+          core8.info("Using structured output from in-process chain");
+        } else if (filePath && fs7.existsSync(filePath)) {
+          try {
+            const content3 = fs7.readFileSync(filePath, "utf-8");
+            iterateOutput = parseOutput(
+              IterateOutputSchema,
+              JSON.parse(content3),
+              "iterate file"
+            );
+            core8.info(`Iterate output from file: ${filePath}`);
+          } catch (error7) {
+            core8.warning(`Failed to parse iterate output: ${error7}`);
+            return { applied: false };
+          }
+        } else {
+          core8.warning(
+            `No structured output provided and iterate output file not found at: ${filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+          );
+          return { applied: false };
+        }
+        core8.info(`Processing iterate output for issue #${issueNumber}`);
+        core8.startGroup("Iterate Output");
+        core8.info(JSON.stringify(iterateOutput, null, 2));
+        core8.endGroup();
+        if (ctx.dryRun) {
+          core8.info(
+            `[DRY RUN] Would apply iterate output to issue #${issueNumber}`
+          );
+          return { applied: true, status: iterateOutput.status };
+        }
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          issueNumber,
+          {
+            octokit: asOctokitLike(ctx),
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        let state = data;
+        if (iterateOutput.status === "completed_todo" || iterateOutput.status === "all_done") {
+          const todosToCheck = [];
+          if (iterateOutput.todos_completed && iterateOutput.todos_completed.length > 0) {
+            todosToCheck.push(...iterateOutput.todos_completed);
+          } else if (iterateOutput.todo_completed) {
+            todosToCheck.push(iterateOutput.todo_completed);
+          }
+          for (const todoText of todosToCheck) {
+            const newState = checkOffTodo({ todoText }, state);
+            if (newState !== state) {
+              state = newState;
+              core8.info(`Completed todo: ${todoText}`);
+            } else {
+              core8.warning(
+                `Could not find unchecked todo matching: "${todoText}"`
+              );
+            }
+          }
+        }
+        if (iterateOutput.agent_notes.length > 0) {
+          const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
+          const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
+          state = appendAgentNotes2(
+            { runId, runLink, notes: iterateOutput.agent_notes },
+            state
+          );
+          core8.info("Agent notes appended to issue body:");
+          for (const note of iterateOutput.agent_notes) {
+            core8.info(`  - ${note}`);
+          }
+        }
+        if (state !== data) {
+          await update(state);
+        }
+        switch (iterateOutput.status) {
+          case "completed_todo":
+            break;
+          case "waiting_manual":
+            core8.info(`Waiting for manual todo: ${iterateOutput.manual_todo}`);
+            break;
+          case "blocked":
+            core8.warning(`Iteration blocked: ${iterateOutput.blocked_reason}`);
+            try {
+              await projectActions.block.execute(
+                {
+                  type: "block",
+                  token: "code",
+                  issueNumber,
+                  message: iterateOutput.blocked_reason || "Agent reported blocked"
+                },
+                ctx
+              );
+              await githubActions.unassignUser.execute(
+                {
+                  type: "unassignUser",
+                  token: "code",
+                  issueNumber,
+                  username: "nopo-bot"
+                },
+                ctx
+              );
+              await githubActions.appendHistory.execute(
+                {
+                  type: "appendHistory",
+                  token: "code",
+                  issueNumber,
+                  phase: "-",
+                  message: HISTORY_MESSAGES.agentBlocked(
+                    iterateOutput.blocked_reason || "Unknown reason"
+                  )
+                },
+                ctx
+              );
+              core8.info(
+                `Blocked issue #${issueNumber}: ${iterateOutput.blocked_reason}`
+              );
+            } catch (error7) {
+              core8.warning(`Failed to transition to blocked: ${error7}`);
+            }
+            break;
+          case "all_done":
+            core8.info(
+              "All todos complete \u2014 waiting for CI to pass before requesting review"
+            );
+            break;
+        }
+        return { applied: true, status: iterateOutput.status };
+      }
+    }
+  ),
+  /** Append agent notes to an issue body */
+  appendAgentNotes: defAction(
+    mkSchema("appendAgentNotes", {
+      issueNumber: external_exports.number().int().positive(),
+      runId: external_exports.string(),
+      runLink: external_exports.string(),
+      timestamp: external_exports.string().optional(),
+      notes: external_exports.array(external_exports.string())
+    }),
+    {
+      execute: async (action, ctx) => {
+        const { issueNumber, notes, runId, runLink, timestamp } = action;
+        if (notes.length === 0) {
+          core8.info("No agent notes to append, skipping");
+          return { appended: false };
+        }
+        core8.info(
+          `Appending ${notes.length} agent notes to issue #${issueNumber}`
+        );
+        if (ctx.dryRun) {
+          core8.info(
+            `[DRY RUN] Would append agent notes to issue #${issueNumber}`
+          );
+          core8.startGroup("Agent Notes (dry run)");
+          for (const note of notes) {
+            core8.info(`  - ${note}`);
+          }
+          core8.endGroup();
+          return { appended: true };
+        }
+        const { data, update } = await parseIssue(
+          ctx.owner,
+          ctx.repo,
+          issueNumber,
+          {
+            octokit: asOctokitLike(ctx),
+            fetchPRs: false,
+            fetchParent: false
+          }
+        );
+        const state = appendAgentNotes2(
+          { runId, runLink, timestamp, notes },
+          data
+        );
+        if (state !== data) {
+          await update(state);
+          core8.info(
+            `Appended ${notes.length} agent notes to issue #${issueNumber}`
+          );
+          core8.startGroup("Agent Notes");
+          for (const note of notes) {
+            core8.info(`  - ${note}`);
+          }
+          core8.endGroup();
+        } else {
+          core8.info("Issue body unchanged (notes may be empty)");
+        }
+        return { appended: true };
+      }
+    }
+  ),
+  /** Apply review output from Claude's structured output */
+  applyReviewOutput: defAction(
+    mkSchema("applyReviewOutput", {
+      prNumber: external_exports.number().int().positive(),
+      filePath: external_exports.string().optional(),
+      worktree: external_exports.string().optional()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        let reviewOutput;
+        if (structuredOutput) {
+          reviewOutput = parseOutput(
+            ReviewOutputSchema,
+            structuredOutput,
+            "review"
+          );
+          core8.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs7.existsSync(action.filePath)) {
+          try {
+            const content3 = fs7.readFileSync(action.filePath, "utf-8");
+            reviewOutput = parseOutput(
+              ReviewOutputSchema,
+              JSON.parse(content3),
+              "review file"
+            );
+            core8.info(`Review output from file: ${action.filePath}`);
+          } catch (error7) {
+            throw new Error(
+              `Failed to parse review output from file: ${error7}`
+            );
+          }
+        } else {
+          throw new Error(
+            `No structured output provided and review output file not found at: ${action.filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+          );
+        }
+        if (!reviewOutput.decision || !reviewOutput.body) {
+          throw new Error(
+            `Invalid review output: missing decision or body. Got: ${JSON.stringify(reviewOutput)}`
+          );
+        }
+        core8.info(`Applying review output: ${reviewOutput.decision}`);
+        core8.startGroup("Review Output");
+        core8.info(JSON.stringify(reviewOutput, null, 2));
+        core8.endGroup();
+        if (ctx.dryRun) {
+          core8.info(
+            `[DRY RUN] Would submit ${reviewOutput.decision} review on PR #${action.prNumber}`
+          );
+          return { submitted: true, decision: reviewOutput.decision };
+        }
+        return githubActions.submitReview.execute(
+          {
+            type: "submitReview",
+            prNumber: action.prNumber,
+            decision: reviewOutput.decision,
+            body: reviewOutput.body,
+            token: "review"
+          },
+          ctx
+        );
+      }
+    }
+  ),
+  /** Apply PR response output from Claude's structured output */
+  applyPRResponseOutput: defAction(
+    mkSchema("applyPRResponseOutput", {
+      prNumber: external_exports.number().int().positive(),
+      issueNumber: external_exports.number().int().positive(),
+      filePath: external_exports.string().optional(),
+      worktree: external_exports.string().optional(),
+      reviewer: external_exports.string().default("nopo-reviewer")
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        let responseOutput;
+        if (structuredOutput) {
+          responseOutput = parseOutput(
+            PRResponseOutputSchema,
+            structuredOutput,
+            "pr-response"
+          );
+          core8.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs7.existsSync(action.filePath)) {
+          try {
+            const content3 = fs7.readFileSync(action.filePath, "utf-8");
+            responseOutput = parseOutput(
+              PRResponseOutputSchema,
+              JSON.parse(content3),
+              "pr-response file"
+            );
+            core8.info(`PR response output from file: ${action.filePath}`);
+          } catch (error7) {
+            throw new Error(
+              `Failed to parse PR response output from file: ${error7}`
+            );
+          }
+        } else {
+          throw new Error(
+            `No structured output provided and PR response output file not found at: ${action.filePath || "undefined"}. Ensure runClaude action wrote claude-structured-output.json and artifact was downloaded.`
+          );
+        }
+        if (typeof responseOutput.had_commits !== "boolean" || !responseOutput.summary) {
+          throw new Error(
+            `Invalid PR response output: missing had_commits or summary. Got: ${JSON.stringify(responseOutput)}`
+          );
+        }
+        core8.info(
+          `Applying PR response output: had_commits=${responseOutput.had_commits}`
+        );
+        core8.startGroup("PR Response Output");
+        core8.info(JSON.stringify(responseOutput, null, 2));
+        core8.endGroup();
+        if (ctx.dryRun) {
+          core8.info(
+            `[DRY RUN] Would post comment and ${responseOutput.had_commits ? "wait for CI" : "re-request review"} on PR #${action.prNumber}`
+          );
+          return { applied: true, hadCommits: responseOutput.had_commits };
+        }
+        await createComment(
+          ctx.owner,
+          ctx.repo,
+          action.prNumber,
+          responseOutput.summary,
+          asOctokitLike(ctx)
+        );
+        core8.info(`Posted response comment on PR #${action.prNumber}`);
+        if (!responseOutput.had_commits) {
+          try {
+            await ctx.octokit.rest.pulls.requestReviewers({
+              owner: ctx.owner,
+              repo: ctx.repo,
+              pull_number: action.prNumber,
+              reviewers: [action.reviewer]
+            });
+            core8.info(
+              `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
+            );
+          } catch (error7) {
+            core8.warning(`Failed to re-request review: ${error7}`);
+          }
+        }
+        if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
+          const runId = ctx.runUrl?.split("/").pop() || `run-${Date.now()}`;
+          const runLink = ctx.runUrl || `${ctx.serverUrl}/${ctx.owner}/${ctx.repo}/actions/runs/${runId}`;
+          const { data, update } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit: asOctokitLike(ctx),
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          const state = appendAgentNotes2(
+            { runId, runLink, notes: responseOutput.agent_notes },
+            data
+          );
+          if (state !== data) {
+            await update(state);
+            core8.info(
+              `Appended ${responseOutput.agent_notes.length} agent notes to issue #${action.issueNumber}`
+            );
+          }
+        }
+        return { applied: true, hadCommits: responseOutput.had_commits };
+      }
+    }
+  ),
+  /** Apply pivot output from Claude's structured analysis */
+  applyPivotOutput: defAction(
+    mkSchema("applyPivotOutput", {
+      issueNumber: external_exports.number().int().positive(),
+      filePath: external_exports.string().optional()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        let pivotOutput;
+        if (structuredOutput) {
+          pivotOutput = parseOutput(
+            PivotOutputSchema,
+            structuredOutput,
+            "pivot"
+          );
+          core8.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs7.existsSync(action.filePath)) {
+          const content3 = fs7.readFileSync(action.filePath, "utf-8");
+          pivotOutput = parseOutput(
+            PivotOutputSchema,
+            JSON.parse(content3),
+            "pivot file"
+          );
+          core8.info(`Pivot output from file: ${action.filePath}`);
+        } else {
+          throw new Error(
+            `No structured output provided and file not found at: ${action.filePath}`
+          );
+        }
+        core8.info(`Applying pivot output for issue #${action.issueNumber}`);
+        core8.startGroup("Pivot Output");
+        core8.info(JSON.stringify(pivotOutput, null, 2));
+        core8.endGroup();
+        if (pivotOutput.outcome === "needs_clarification") {
+          core8.info("Pivot needs clarification - posting comment and exiting");
+          await createComment(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            `## Pivot Needs Clarification
+
+${pivotOutput.clarification_needed || pivotOutput.summary_for_user}
+
+*Please provide more details and try again.*`,
+            asOctokitLike(ctx)
+          );
+          return { applied: false, changesApplied: 0 };
+        }
+        if (pivotOutput.outcome === "no_changes_needed") {
+          core8.info("No changes needed");
+          await createComment(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            `## Pivot Analysis
+
+${pivotOutput.summary_for_user}
+
+*No changes were required.*`,
+            asOctokitLike(ctx)
+          );
+          return { applied: true, changesApplied: 0 };
+        }
+        let changesApplied = 0;
+        const mods = pivotOutput.modifications;
+        if (mods?.parent_issue?.update_sections) {
+          changesApplied += Object.keys(
+            mods.parent_issue.update_sections
+          ).length;
+        }
+        if (mods?.sub_issues) {
+          for (const subIssue of mods.sub_issues) {
+            if (subIssue.action === "modify" && subIssue.todo_modifications) {
+              changesApplied += subIssue.todo_modifications.length;
+            }
+            if (subIssue.update_description) {
+              changesApplied++;
+            }
+          }
+        }
+        const newSubIssueCount = mods?.new_sub_issues?.length ?? 0;
+        changesApplied += newSubIssueCount;
+        if (ctx.dryRun) {
+          core8.info(`[DRY RUN] Would apply ${changesApplied} pivot changes`);
+          return { applied: true, changesApplied };
+        }
+        if (mods?.parent_issue?.update_sections) {
+          const { data: parentData, update: parentUpdate } = await parseIssue(
+            ctx.owner,
+            ctx.repo,
+            action.issueNumber,
+            {
+              octokit: asOctokitLike(ctx),
+              fetchPRs: false,
+              fetchParent: false
+            }
+          );
+          let parentState = parentData;
+          for (const [section, content3] of Object.entries(
+            mods.parent_issue.update_sections
+          )) {
+            core8.info(`Updating parent issue section "${section}"`);
+            const sectionAst = parseMarkdown(content3);
+            const sectionContent = (
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast children are RootContent[]
+              sectionAst.children
+            );
+            parentState = upsertSection2(
+              { title: section, content: sectionContent },
+              parentState
+            );
+          }
+          await parentUpdate(parentState);
+          core8.info(`Updated parent issue body`);
+        }
+        if (mods?.sub_issues) {
+          for (const subIssue of mods.sub_issues) {
+            if (subIssue.action === "skip") continue;
+            core8.info(`Modifying sub-issue #${subIssue.issue_number}`);
+            const { data: subData, update: subUpdate } = await parseIssue(
+              ctx.owner,
+              ctx.repo,
+              subIssue.issue_number,
+              {
+                octokit: asOctokitLike(ctx),
+                fetchPRs: false,
+                fetchParent: false
+              }
+            );
+            let subState = subData;
+            if (subIssue.todo_modifications && subIssue.todo_modifications.length > 0) {
+              subState = applyTodoModifications(
+                { modifications: subIssue.todo_modifications },
+                subState
+              );
+            }
+            if (subIssue.update_description) {
+              subState = replaceBody(
+                { bodyAst: parseMarkdown(subIssue.update_description) },
+                subState
+              );
+            }
+            await subUpdate(subState);
+            core8.info(`Updated sub-issue #${subIssue.issue_number}`);
+          }
+        }
+        if (mods?.new_sub_issues && mods.new_sub_issues.length > 0) {
+          core8.info(`Creating ${mods.new_sub_issues.length} new sub-issues`);
+          for (const newSubIssue of mods.new_sub_issues) {
+            const todoList = newSubIssue.todos.map((t) => `- [ ] ${t}`).join("\n");
+            const bodyText = `${newSubIssue.description}
+
+## Todo
+
+${todoList}`;
+            const bodyAst = parseMarkdown(bodyText);
+            try {
+              const result = await addSubIssueToParent(
+                ctx.owner,
+                ctx.repo,
+                action.issueNumber,
+                { title: newSubIssue.title, body: bodyAst },
+                {
+                  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- @actions/github octokit type differs from OctokitLike but is compatible
+                  octokit: asOctokitLike(ctx)
+                }
+              );
+              core8.info(
+                `Created sub-issue #${result.issueNumber}: ${newSubIssue.title} (${newSubIssue.reason})`
+              );
+            } catch (error7) {
+              core8.warning(`Failed to create sub-issue: ${error7}`);
+            }
+          }
+        }
+        await createComment(
+          ctx.owner,
+          ctx.repo,
+          action.issueNumber,
+          `## Pivot Applied
+
+${pivotOutput.summary_for_user}
+
+*${changesApplied} changes applied. Review and use \`/lfg\` to continue.*`,
+          asOctokitLike(ctx)
+        );
+        core8.info(`Applied ${changesApplied} pivot changes`);
+        return { applied: true, changesApplied };
+      }
+    }
+  )
+};
+
+// packages/statemachine/src/schemas/actions/discussions.ts
 var core9 = __toESM(require_core(), 1);
+var fs8 = __toESM(require("node:fs"), 1);
+async function executeAddDiscussionComment(action, ctx) {
+  let response;
+  if (action.replyToNodeId) {
+    response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_REPLY_MUTATION,
+      {
+        discussionId: action.discussionNodeId,
+        replyToId: action.replyToNodeId,
+        body: action.body
+      }
+    );
+  } else {
+    response = await ctx.octokit.graphql(
+      ADD_DISCUSSION_COMMENT_MUTATION,
+      {
+        discussionId: action.discussionNodeId,
+        body: action.body
+      }
+    );
+  }
+  const commentId = response.addDiscussionComment?.comment?.id;
+  if (!commentId) {
+    throw new Error("Failed to add discussion comment");
+  }
+  core9.info(
+    `Added ${action.replyToNodeId ? "reply" : "comment"} to discussion`
+  );
+  return { commentId };
+}
+async function executeCreateIssuesFromDiscussion(action, ctx) {
+  const repoResponse = await ctx.octokit.graphql(
+    GET_REPO_ID_QUERY,
+    { owner: ctx.owner, repo: ctx.repo }
+  );
+  const repoId = repoResponse.repository?.id;
+  if (!repoId) {
+    throw new Error("Repository not found");
+  }
+  const discussionResponse = await ctx.octokit.graphql(
+    GET_DISCUSSION_ID_QUERY,
+    { owner: ctx.owner, repo: ctx.repo, number: action.discussionNumber }
+  );
+  const discussionId = discussionResponse.repository?.discussion?.id;
+  const labelsResponse = await ctx.octokit.graphql(
+    GET_LABEL_IDS_QUERY,
+    { owner: ctx.owner, repo: ctx.repo }
+  );
+  const labelMap = /* @__PURE__ */ new Map();
+  for (const label of labelsResponse.repository?.labels?.nodes || []) {
+    if (label.id && label.name) {
+      labelMap.set(label.name.toLowerCase(), label.id);
+    }
+  }
+  const issueNumbers = [];
+  for (const issueDef of action.issues) {
+    const bodyWithRef = discussionId ? `${issueDef.body}
 
-// packages/statemachine/src/runner/executors/review.ts
-var core10 = __toESM(require_core(), 1);
+---
+*Created from discussion #${action.discussionNumber}*` : issueDef.body;
+    const createResponse = await ctx.octokit.graphql(
+      CREATE_ISSUE_MUTATION,
+      { repositoryId: repoId, title: issueDef.title, body: bodyWithRef }
+    );
+    const issueId = createResponse.createIssue?.issue?.id;
+    const issueNumber = createResponse.createIssue?.issue?.number;
+    if (!issueId || !issueNumber) {
+      throw new Error(`Failed to create issue: ${issueDef.title}`);
+    }
+    if (issueDef.labels.length > 0) {
+      const labelIds = issueDef.labels.map((name) => labelMap.get(name.toLowerCase())).filter((id) => id !== void 0);
+      if (labelIds.length > 0) {
+        await ctx.octokit.graphql(ADD_LABELS_MUTATION, {
+          labelableId: issueId,
+          labelIds
+        });
+      }
+    }
+    issueNumbers.push(issueNumber);
+    core9.info(`Created issue #${issueNumber}: ${issueDef.title}`);
+  }
+  return { issueNumbers };
+}
+var discussionActions = {
+  /** Add a comment to a GitHub Discussion */
+  addDiscussionComment: defAction(
+    mkSchema("addDiscussionComment", {
+      discussionNodeId: external_exports.string().min(1),
+      replyToNodeId: external_exports.string().optional(),
+      body: external_exports.string().min(1)
+    }),
+    {
+      execute: async (action, ctx) => {
+        return executeAddDiscussionComment(action, ctx);
+      }
+    }
+  ),
+  /** Update the body of a GitHub Discussion */
+  updateDiscussionBody: defAction(
+    mkSchema("updateDiscussionBody", {
+      discussionNodeId: external_exports.string().min(1),
+      newBody: external_exports.string().min(1)
+    }),
+    {
+      execute: async (action, ctx) => {
+        const response = await ctx.octokit.graphql(
+          UPDATE_DISCUSSION_MUTATION,
+          {
+            discussionId: action.discussionNodeId,
+            body: action.newBody
+          }
+        );
+        if (!response.updateDiscussion?.discussion?.id) {
+          throw new Error("Failed to update discussion body");
+        }
+        core9.info("Updated discussion body");
+        return { updated: true };
+      }
+    }
+  ),
+  /** Add a reaction to a discussion or comment */
+  addDiscussionReaction: defAction(
+    mkSchema("addDiscussionReaction", {
+      subjectId: external_exports.string().min(1),
+      content: external_exports.enum([
+        "THUMBS_UP",
+        "THUMBS_DOWN",
+        "LAUGH",
+        "HOORAY",
+        "CONFUSED",
+        "HEART",
+        "ROCKET",
+        "EYES"
+      ])
+    }),
+    {
+      execute: async (action, ctx) => {
+        const response = await ctx.octokit.graphql(
+          ADD_REACTION_MUTATION,
+          {
+            subjectId: action.subjectId,
+            content: action.content
+          }
+        );
+        const reactionId = response.addReaction?.reaction?.id;
+        if (!reactionId) {
+          throw new Error("Failed to add reaction");
+        }
+        core9.info(`Added ${action.content} reaction`);
+        return { reactionId };
+      }
+    }
+  ),
+  /** Create issues from a discussion (for /plan command) */
+  createIssuesFromDiscussion: defAction(
+    mkSchema("createIssuesFromDiscussion", {
+      discussionNumber: external_exports.number().int().positive(),
+      issues: external_exports.array(
+        external_exports.object({
+          title: external_exports.string().min(1),
+          body: external_exports.string(),
+          labels: external_exports.array(external_exports.string()).default([])
+        })
+      )
+    }),
+    {
+      execute: async (action, ctx) => {
+        return executeCreateIssuesFromDiscussion(action, ctx);
+      }
+    }
+  ),
+  // --------------------------------------------------------------------------
+  // Discussion Apply Actions
+  // --------------------------------------------------------------------------
+  /** Apply discussion research output from Claude's structured output */
+  applyDiscussionResearchOutput: defAction(
+    mkSchema("applyDiscussionResearchOutput", {
+      discussionNumber: external_exports.number().int().positive(),
+      discussionNodeId: external_exports.string().min(1),
+      promptVars: external_exports.record(external_exports.string()).optional(),
+      filePath: external_exports.string().optional(),
+      consumesArtifact: ArtifactSchema.optional()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        let output;
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        if (structuredOutput) {
+          output = parseOutput(
+            ResearchOutputSchema,
+            structuredOutput,
+            "research"
+          );
+          core9.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs8.existsSync(action.filePath)) {
+          const content3 = fs8.readFileSync(action.filePath, "utf-8");
+          output = parseOutput(
+            ResearchOutputSchema,
+            JSON.parse(content3),
+            "research file"
+          );
+          core9.info(`Research output from file: ${action.filePath}`);
+        } else {
+          throw new Error("No structured output provided and file not found");
+        }
+        if (ctx.dryRun) {
+          core9.info(
+            `[DRY RUN] Would create ${output.research_threads.length} research threads`
+          );
+          return { applied: true, threadCount: output.research_threads.length };
+        }
+        for (const thread of output.research_threads) {
+          const body = `## \u{1F50D} ${thread.title}
 
-// packages/statemachine/src/runner/executors/pr-response.ts
+**Question:** ${thread.question}
+
+**Areas to investigate:**
+${thread.investigation_areas.map((a) => `- ${a}`).join("\n")}`;
+          await executeAddDiscussionComment(
+            {
+              discussionNodeId: action.discussionNodeId,
+              body
+            },
+            ctx
+          );
+        }
+        if (output.updated_description) {
+          await ctx.octokit.graphql(
+            UPDATE_DISCUSSION_MUTATION,
+            {
+              discussionId: action.discussionNodeId,
+              body: output.updated_description
+            }
+          );
+        }
+        core9.info(
+          `Created ${output.research_threads.length} research threads for discussion #${action.discussionNumber}`
+        );
+        return { applied: true, threadCount: output.research_threads.length };
+      }
+    }
+  ),
+  /** Apply discussion respond output from Claude's structured output */
+  applyDiscussionRespondOutput: defAction(
+    mkSchema("applyDiscussionRespondOutput", {
+      discussionNumber: external_exports.number().int().positive(),
+      discussionNodeId: external_exports.string().min(1),
+      replyToNodeId: external_exports.string().optional(),
+      filePath: external_exports.string().optional(),
+      consumesArtifact: ArtifactSchema.optional()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        let output;
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        if (structuredOutput) {
+          output = parseOutput(
+            RespondOutputSchema,
+            structuredOutput,
+            "respond"
+          );
+          core9.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs8.existsSync(action.filePath)) {
+          const content3 = fs8.readFileSync(action.filePath, "utf-8");
+          output = parseOutput(
+            RespondOutputSchema,
+            JSON.parse(content3),
+            "respond file"
+          );
+          core9.info(`Respond output from file: ${action.filePath}`);
+        } else {
+          throw new Error("No structured output provided and file not found");
+        }
+        if (ctx.dryRun) {
+          core9.info(`[DRY RUN] Would post response to discussion`);
+          return { applied: true, shouldContinue: output.should_continue };
+        }
+        await executeAddDiscussionComment(
+          {
+            discussionNodeId: action.discussionNodeId,
+            body: output.response,
+            replyToNodeId: action.replyToNodeId
+          },
+          ctx
+        );
+        core9.info(`Posted response to discussion #${action.discussionNumber}`);
+        return { applied: true, shouldContinue: output.should_continue };
+      }
+    }
+  ),
+  /** Apply discussion summarize output from Claude's structured output */
+  applyDiscussionSummarizeOutput: defAction(
+    mkSchema("applyDiscussionSummarizeOutput", {
+      discussionNumber: external_exports.number().int().positive(),
+      discussionNodeId: external_exports.string().min(1),
+      filePath: external_exports.string().optional(),
+      consumesArtifact: ArtifactSchema.optional()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        let output;
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        if (structuredOutput) {
+          output = parseOutput(
+            SummarizeOutputSchema,
+            structuredOutput,
+            "summarize"
+          );
+          core9.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs8.existsSync(action.filePath)) {
+          const content3 = fs8.readFileSync(action.filePath, "utf-8");
+          output = parseOutput(
+            SummarizeOutputSchema,
+            JSON.parse(content3),
+            "summarize file"
+          );
+          core9.info(`Summarize output from file: ${action.filePath}`);
+        } else {
+          throw new Error("No structured output provided and file not found");
+        }
+        if (ctx.dryRun) {
+          core9.info(`[DRY RUN] Would update discussion body with summary`);
+          return { applied: true };
+        }
+        await ctx.octokit.graphql(
+          UPDATE_DISCUSSION_MUTATION,
+          {
+            discussionId: action.discussionNodeId,
+            body: output.summary
+          }
+        );
+        core9.info(
+          `Updated discussion #${action.discussionNumber} with summary`
+        );
+        return { applied: true };
+      }
+    }
+  ),
+  /** Apply discussion plan output from Claude's structured output */
+  applyDiscussionPlanOutput: defAction(
+    mkSchema("applyDiscussionPlanOutput", {
+      discussionNumber: external_exports.number().int().positive(),
+      discussionNodeId: external_exports.string().min(1),
+      filePath: external_exports.string().optional(),
+      consumesArtifact: ArtifactSchema.optional()
+    }),
+    {
+      execute: async (action, ctx, chainCtx) => {
+        let output;
+        const structuredOutput = getStructuredOutput(action, chainCtx);
+        if (structuredOutput) {
+          output = parseOutput(PlanOutputSchema, structuredOutput, "plan");
+          core9.info("Using structured output from in-process chain");
+        } else if (action.filePath && fs8.existsSync(action.filePath)) {
+          const content3 = fs8.readFileSync(action.filePath, "utf-8");
+          output = parseOutput(
+            PlanOutputSchema,
+            JSON.parse(content3),
+            "plan file"
+          );
+          core9.info(`Plan output from file: ${action.filePath}`);
+        } else {
+          throw new Error("No structured output provided and file not found");
+        }
+        if (ctx.dryRun) {
+          core9.info(
+            `[DRY RUN] Would create ${output.issues.length} issues from plan`
+          );
+          return { applied: true, issueNumbers: [] };
+        }
+        const result = await executeCreateIssuesFromDiscussion(
+          {
+            discussionNumber: action.discussionNumber,
+            issues: output.issues
+          },
+          ctx
+        );
+        await executeAddDiscussionComment(
+          {
+            discussionNodeId: action.discussionNodeId,
+            body: output.summary_comment
+          },
+          ctx
+        );
+        core9.info(
+          `Created ${result.issueNumbers.length} issues from discussion #${action.discussionNumber}`
+        );
+        return { applied: true, issueNumbers: result.issueNumbers };
+      }
+    }
+  ),
+  /** Investigate research threads in parallel */
+  investigateResearchThreads: defAction(
+    mkSchema("investigateResearchThreads", {
+      discussionNumber: external_exports.number().int().positive(),
+      discussionNodeId: external_exports.string().min(1),
+      promptVars: external_exports.record(external_exports.string()).optional(),
+      threads: external_exports.array(ResearchThreadSchema)
+    }),
+    {
+      execute: async (action, ctx) => {
+        core9.info(
+          `Investigating ${action.threads.length} research threads for discussion #${action.discussionNumber}`
+        );
+        if (ctx.dryRun) {
+          core9.info(
+            `[DRY RUN] Would investigate ${action.threads.length} research threads`
+          );
+          return { investigated: action.threads.length };
+        }
+        let investigated = 0;
+        for (const thread of action.threads) {
+          try {
+            const responseBody = `## Investigation: ${thread.title}
+
+**Question:** ${thread.question}
+
+*Investigation in progress...*`;
+            await executeAddDiscussionComment(
+              {
+                discussionNodeId: action.discussionNodeId,
+                body: responseBody,
+                replyToNodeId: thread.commentNodeId
+              },
+              ctx
+            );
+            investigated++;
+            core9.info(`Investigated thread: ${thread.title}`);
+          } catch (error7) {
+            core9.warning(
+              `Failed to investigate thread "${thread.title}": ${error7}`
+            );
+          }
+        }
+        return { investigated };
+      }
+    }
+  ),
+  /** Update discussion body with current state summary */
+  updateDiscussionSummary: defAction(
+    mkSchema("updateDiscussionSummary", {
+      discussionNumber: external_exports.number().int().positive(),
+      discussionNodeId: external_exports.string().min(1),
+      promptVars: external_exports.record(external_exports.string()).optional()
+    }),
+    {
+      execute: async (action, ctx) => {
+        core9.info(
+          `Updating summary for discussion #${action.discussionNumber}`
+        );
+        if (ctx.dryRun) {
+          core9.info(`[DRY RUN] Would update discussion summary`);
+          return { updated: true };
+        }
+        core9.info(
+          `Discussion summary update for #${action.discussionNumber} (implementation pending)`
+        );
+        return { updated: true };
+      }
+    }
+  )
+};
+
+// packages/statemachine/src/schemas/actions/index.ts
+var actions = {
+  ...projectActions,
+  ...githubActions,
+  ...claudeActions,
+  ...applyActions,
+  ...groomingActions,
+  ...discussionActions,
+  ...controlActions
+};
+var allSchemas = Object.values(actions).map(
+  (def) => def.schema
+);
+var ActionSchema = external_exports.discriminatedUnion(
+  "type",
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Zod requires a non-empty tuple type for discriminatedUnion
+  allSchemas
+);
+var ACTION_TYPES = Object.keys(actions);
+var ISSUE_ACTION_TYPES = [
+  "updateProjectStatus",
+  "incrementIteration",
+  "recordFailure",
+  "clearFailures",
+  "removeFromProject",
+  "createSubIssues",
+  "closeIssue",
+  "reopenIssue",
+  "resetIssue",
+  "appendHistory",
+  "updateHistory",
+  "updateIssueBody",
+  "addComment",
+  "unassignUser",
+  "assignUser",
+  "addLabel",
+  "removeLabel",
+  "createBranch",
+  "gitPush",
+  "createPR",
+  "convertPRToDraft",
+  "markPRReady",
+  "requestReview",
+  "mergePR",
+  "submitReview",
+  "removeReviewer",
+  "runClaude",
+  "runClaudeGrooming",
+  "applyGroomingOutput",
+  "reconcileSubIssues",
+  "applyPivotOutput",
+  "applyTriageOutput",
+  "applyIterateOutput",
+  "appendAgentNotes",
+  "applyReviewOutput",
+  "applyPRResponseOutput",
+  "block"
+];
+var DISCUSSION_ACTION_TYPES = [
+  "addDiscussionComment",
+  "updateDiscussionBody",
+  "addDiscussionReaction",
+  "createIssuesFromDiscussion",
+  "applyDiscussionResearchOutput",
+  "applyDiscussionRespondOutput",
+  "applyDiscussionSummarizeOutput",
+  "applyDiscussionPlanOutput"
+];
+var SHARED_ACTION_TYPES = [
+  "stop",
+  "log",
+  "noop",
+  "runClaude"
+];
+var ISSUE_ACTION_SET = new Set(ISSUE_ACTION_TYPES);
+var DISCUSSION_ACTION_SET = new Set(DISCUSSION_ACTION_TYPES);
+var SHARED_ACTION_SET = new Set(SHARED_ACTION_TYPES);
+
+// packages/statemachine/src/schemas/issue-triggers.ts
+var IssueTriggerTypeSchema = external_exports.enum([
+  // Issue triggers
+  "issue-assigned",
+  "issue-edited",
+  "issue-closed",
+  "issue-triage",
+  "issue-groom",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-pivot",
+  "issue-reset",
+  "issue-retry",
+  // PR triggers
+  "pr-review-requested",
+  "pr-review-submitted",
+  "pr-review",
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  "pr-push",
+  // Workflow triggers
+  "workflow-run-completed",
+  // Merge queue logging triggers
+  "merge-queue-entered",
+  "merge-queue-failed",
+  "pr-merged",
+  "deployed-stage",
+  "deployed-prod",
+  "deployed-stage-failed",
+  "deployed-prod-failed"
+]);
+var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
+
+// packages/statemachine/src/schemas/discussion-triggers.ts
+var DiscussionTriggerTypeSchema = external_exports.enum([
+  "discussion-created",
+  "discussion-comment",
+  "discussion-command"
+]);
+var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
+
+// packages/statemachine/src/schemas/discussion-context.ts
+var DiscussionCommandSchema = external_exports.enum([
+  "summarize",
+  "plan",
+  "complete"
+]);
+var ResearchThreadSchema2 = external_exports.object({
+  nodeId: external_exports.string(),
+  topic: external_exports.string(),
+  replyCount: external_exports.number().int().min(0)
+});
+var DiscussionSchema = external_exports.object({
+  number: external_exports.number().int().positive(),
+  nodeId: external_exports.string(),
+  title: external_exports.string(),
+  body: external_exports.string(),
+  commentCount: external_exports.number().int().min(0).default(0),
+  researchThreads: external_exports.array(ResearchThreadSchema2).default([]),
+  command: DiscussionCommandSchema.optional(),
+  commentId: external_exports.string().optional(),
+  commentBody: external_exports.string().optional(),
+  commentAuthor: external_exports.string().optional()
+});
+var DiscussionContextSchema = external_exports.object({
+  // Trigger info
+  trigger: DiscussionTriggerTypeSchema,
+  // Repository info
+  owner: external_exports.string().min(1),
+  repo: external_exports.string().min(1),
+  // Discussion being worked on
+  discussion: DiscussionSchema,
+  // Config
+  maxRetries: external_exports.number().int().positive().default(5),
+  botUsername: external_exports.string().default("nopo-bot")
+});
+
+// packages/statemachine/src/schemas/runner-context.ts
+var TriggerTypeSchema2 = external_exports.union([
+  IssueTriggerTypeSchema,
+  DiscussionTriggerTypeSchema
+]);
+var JobTypeSchema = external_exports.enum([
+  // Issue jobs
+  "issue-triage",
+  "issue-groom",
+  "issue-iterate",
+  "issue-orchestrate",
+  "issue-comment",
+  "issue-reset",
+  "issue-pivot",
+  // PR jobs
+  "pr-push",
+  "pr-review-requested",
+  // When someone requests a review from the bot
+  "pr-review",
+  // Legacy: when bot should review (has review decision)
+  "pr-review-approved",
+  "pr-response",
+  "pr-human-response",
+  // Merge queue and deployment logging
+  "merge-queue-logging",
+  "merge-queue-failure-logging",
+  "merged-logging",
+  "deployed-stage-logging",
+  "deployed-prod-logging",
+  "deployed-stage-failure-logging",
+  "deployed-prod-failure-logging",
+  // Discussion jobs
+  "discussion-research",
+  "discussion-respond",
+  "discussion-summarize",
+  "discussion-plan",
+  "discussion-complete",
+  // Empty (skip)
+  ""
+]);
+var ResourceTypeSchema = external_exports.enum(["issue", "pr", "discussion", ""]);
+var ContextTypeSchema = external_exports.enum(["issue", "pr"]);
+var WorkflowContextSchema = external_exports.object({
+  // ========================================
+  // Routing & Control (previously separate outputs)
+  // ========================================
+  /** Job type to run (e.g., "issue-iterate", "pr-review", "discussion-research") */
+  job: JobTypeSchema,
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema2,
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: external_exports.string(),
+  /** Parent issue number for sub-issues (or "0" if not a sub-issue) */
+  parent_issue: external_exports.string().default("0"),
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: external_exports.string().default(""),
+  /** Concurrency group name */
+  concurrency_group: external_exports.string(),
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: external_exports.boolean().default(false),
+  /** Whether to skip processing */
+  skip: external_exports.boolean().default(false),
+  /** Reason for skipping (if skip is true) */
+  skip_reason: external_exports.string().default(""),
+  // ========================================
+  // Issue-specific fields
+  // ========================================
+  /** Issue number */
+  issue_number: external_exports.string().optional(),
+  /** Issue title */
+  issue_title: external_exports.string().optional(),
+  /** Issue body */
+  issue_body: external_exports.string().optional(),
+  /** Branch name for the work */
+  branch_name: external_exports.string().optional(),
+  /** Whether the branch already exists */
+  existing_branch: external_exports.string().optional(),
+  /** Phase number for sub-issues */
+  phase_number: external_exports.string().optional(),
+  /** Comma-separated list of sub-issue numbers */
+  sub_issues: external_exports.string().optional(),
+  /** Project status from GitHub Project field */
+  project_status: external_exports.string().optional(),
+  /** Project iteration from GitHub Project field */
+  project_iteration: external_exports.string().optional(),
+  /** Project failures from GitHub Project field */
+  project_failures: external_exports.string().optional(),
+  /** Closed sub-issue number (for sub_issue_closed trigger) */
+  closed_sub_issue: external_exports.string().optional(),
+  // ========================================
+  // CI-specific fields (workflow_run_completed)
+  // ========================================
+  /** CI result (success, failure, cancelled, skipped) */
+  ci_result: CIResultSchema.optional(),
+  /** CI run URL */
+  ci_run_url: external_exports.string().optional(),
+  /** CI commit SHA */
+  ci_commit_sha: external_exports.string().optional(),
+  // ========================================
+  // Review-specific fields (pr_review_submitted)
+  // ========================================
+  /** Review decision */
+  review_decision: ReviewDecisionSchema2.optional(),
+  /** Review state (lowercase version: approved, changes_requested, commented) */
+  review_state: external_exports.string().optional(),
+  /** Review body */
+  review_body: external_exports.string().optional(),
+  /** Review ID */
+  review_id: external_exports.string().optional(),
+  /** Reviewer username */
+  reviewer: external_exports.string().optional(),
+  /** Reviewer login (alias for reviewer) */
+  reviewer_login: external_exports.string().optional(),
+  // ========================================
+  // PR-specific fields
+  // ========================================
+  /** PR number */
+  pr_number: external_exports.string().optional(),
+  /** Whether PR is a draft */
+  is_draft: external_exports.boolean().optional(),
+  /** Issue section content (for pr-review job) */
+  issue_section: external_exports.string().optional(),
+  /** Merge queue head ref */
+  head_ref: external_exports.string().optional(),
+  /** Merge queue head SHA */
+  head_sha: external_exports.string().optional(),
+  // ========================================
+  // Comment-specific fields (issue_comment)
+  // ========================================
+  /** Context type for comment (Issue or PR) */
+  context_type: ContextTypeSchema.optional(),
+  /** Context description for comment */
+  context_description: external_exports.string().optional(),
+  // ========================================
+  // Discussion-specific fields
+  // ========================================
+  /** Discussion number */
+  discussion_number: external_exports.string().optional(),
+  /** Discussion title */
+  discussion_title: external_exports.string().optional(),
+  /** Discussion body */
+  discussion_body: external_exports.string().optional(),
+  /** Comment body (for discussion comments) */
+  comment_body: external_exports.string().optional(),
+  /** Comment author username */
+  comment_author: external_exports.string().optional(),
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+  /** Whether this is a test automation run */
+  is_test_automation: external_exports.boolean().optional(),
+  // ========================================
+  // Internal trigger type tracking
+  // ========================================
+  /**
+   * Internal trigger type (may differ from the job name)
+   * Used when the state machine needs a different trigger than the job implies
+   */
+  trigger_type: external_exports.string().optional()
+});
+var MinimalTriggerContextSchema = external_exports.object({
+  // ========================================
+  // Routing & Control (required)
+  // ========================================
+  /** Job type to run */
+  job: JobTypeSchema,
+  /** Trigger type for the state machine */
+  trigger: TriggerTypeSchema2,
+  /** Type of resource being processed */
+  resource_type: ResourceTypeSchema,
+  /** Resource number (issue, PR, or discussion number) */
+  resource_number: external_exports.string(),
+  /** Concurrency group name */
+  concurrency_group: external_exports.string(),
+  /** Whether to cancel in-progress runs in the same group */
+  cancel_in_progress: external_exports.boolean().default(false),
+  /** Whether to skip processing */
+  skip: external_exports.boolean().default(false),
+  /** Reason for skipping (if skip is true) */
+  skip_reason: external_exports.string().default(""),
+  /** Comment ID that triggered this run (for reactions) */
+  comment_id: external_exports.string().default(""),
+  // ========================================
+  // CI Event Data (workflow_run_completed only)
+  // ========================================
+  /** CI result (point-in-time from workflow_run event) */
+  ci_result: CIResultSchema.optional(),
+  /** CI run URL (point-in-time from workflow_run event) */
+  ci_run_url: external_exports.string().optional(),
+  /** CI commit SHA (point-in-time from workflow_run event) */
+  ci_commit_sha: external_exports.string().optional(),
+  // ========================================
+  // Review Event Data (pr_review_submitted only)
+  // ========================================
+  /** Review decision (point-in-time from review event) */
+  review_decision: ReviewDecisionSchema2.optional(),
+  /** Review state (lowercase: approved, changes_requested, commented) */
+  review_state: external_exports.string().optional(),
+  /** Review body (point-in-time from review event) */
+  review_body: external_exports.string().optional(),
+  /** Review ID (point-in-time from review event) */
+  review_id: external_exports.string().optional(),
+  /** Reviewer username (point-in-time from review event) */
+  reviewer: external_exports.string().optional(),
+  // ========================================
+  // Comment Event Data (issue_comment only)
+  // ========================================
+  /** Context type for @claude mentions (issue or pr) */
+  context_type: ContextTypeSchema.optional(),
+  /** Context description for @claude mentions */
+  context_description: external_exports.string().optional(),
+  /** Pivot description (for /pivot command) */
+  pivot_description: external_exports.string().optional(),
+  // ========================================
+  // Discussion Event Data
+  // ========================================
+  /** Discussion number (for discussion triggers) */
+  discussion_number: external_exports.string().optional(),
+  /** Discussion command (/summarize, /plan, /complete) */
+  command: DiscussionCommandSchema.optional(),
+  /** Comment body (for discussion comments) */
+  comment_body: external_exports.string().optional(),
+  /** Comment author username */
+  comment_author: external_exports.string().optional(),
+  /** Whether this is a test automation run */
+  is_test_automation: external_exports.boolean().optional(),
+  // ========================================
+  // Merge Queue Event Data
+  // ========================================
+  /** Merge queue head ref */
+  head_ref: external_exports.string().optional(),
+  /** Merge queue head SHA */
+  head_sha: external_exports.string().optional()
+});
+
+// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
+function getGlobal() {
+  if (typeof globalThis !== "undefined") {
+    return globalThis;
+  }
+  if (typeof self !== "undefined") {
+    return self;
+  }
+  if (typeof window !== "undefined") {
+    return window;
+  }
+  if (typeof global !== "undefined") {
+    return global;
+  }
+}
+function getDevTools() {
+  const w = getGlobal();
+  if (w.__xstate__) {
+    return w.__xstate__;
+  }
+  return void 0;
+}
+var devToolsAdapter = (service) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const devTools = getDevTools();
+  if (devTools) {
+    devTools.register(service);
+  }
+};
+
+// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/raise-f11495d1.esm.js
+var Mailbox = class {
+  constructor(_process) {
+    this._process = _process;
+    this._active = false;
+    this._current = null;
+    this._last = null;
+  }
+  start() {
+    this._active = true;
+    this.flush();
+  }
+  clear() {
+    if (this._current) {
+      this._current.next = null;
+      this._last = this._current;
+    }
+  }
+  enqueue(event) {
+    const enqueued = {
+      value: event,
+      next: null
+    };
+    if (this._current) {
+      this._last.next = enqueued;
+      this._last = enqueued;
+      return;
+    }
+    this._current = enqueued;
+    this._last = enqueued;
+    if (this._active) {
+      this.flush();
+    }
+  }
+  flush() {
+    while (this._current) {
+      const consumed = this._current;
+      this._process(consumed.value);
+      this._current = consumed.next;
+    }
+    this._last = null;
+  }
+};
+var STATE_DELIMITER = ".";
+var TARGETLESS_KEY = "";
+var NULL_EVENT = "";
+var STATE_IDENTIFIER = "#";
+var WILDCARD = "*";
+var XSTATE_INIT = "xstate.init";
+var XSTATE_ERROR = "xstate.error";
+var XSTATE_STOP = "xstate.stop";
+function createAfterEvent(delayRef, id) {
+  return {
+    type: `xstate.after.${delayRef}.${id}`
+  };
+}
+function createDoneStateEvent(id, output) {
+  return {
+    type: `xstate.done.state.${id}`,
+    output
+  };
+}
+function createDoneActorEvent(invokeId, output) {
+  return {
+    type: `xstate.done.actor.${invokeId}`,
+    output,
+    actorId: invokeId
+  };
+}
+function createErrorActorEvent(id, error7) {
+  return {
+    type: `xstate.error.actor.${id}`,
+    error: error7,
+    actorId: id
+  };
+}
+function createInitEvent(input) {
+  return {
+    type: XSTATE_INIT,
+    input
+  };
+}
+function reportUnhandledError(err) {
+  setTimeout(() => {
+    throw err;
+  });
+}
+var symbolObservable = (() => typeof Symbol === "function" && Symbol.observable || "@@observable")();
+function matchesState(parentStateId, childStateId) {
+  const parentStateValue = toStateValue(parentStateId);
+  const childStateValue = toStateValue(childStateId);
+  if (typeof childStateValue === "string") {
+    if (typeof parentStateValue === "string") {
+      return childStateValue === parentStateValue;
+    }
+    return false;
+  }
+  if (typeof parentStateValue === "string") {
+    return parentStateValue in childStateValue;
+  }
+  return Object.keys(parentStateValue).every((key) => {
+    if (!(key in childStateValue)) {
+      return false;
+    }
+    return matchesState(parentStateValue[key], childStateValue[key]);
+  });
+}
+function toStatePath(stateId) {
+  if (isArray(stateId)) {
+    return stateId;
+  }
+  const result = [];
+  let segment = "";
+  for (let i = 0; i < stateId.length; i++) {
+    const char = stateId.charCodeAt(i);
+    switch (char) {
+      // \
+      case 92:
+        segment += stateId[i + 1];
+        i++;
+        continue;
+      // .
+      case 46:
+        result.push(segment);
+        segment = "";
+        continue;
+    }
+    segment += stateId[i];
+  }
+  result.push(segment);
+  return result;
+}
+function toStateValue(stateValue) {
+  if (isMachineSnapshot(stateValue)) {
+    return stateValue.value;
+  }
+  if (typeof stateValue !== "string") {
+    return stateValue;
+  }
+  const statePath = toStatePath(stateValue);
+  return pathToStateValue(statePath);
+}
+function pathToStateValue(statePath) {
+  if (statePath.length === 1) {
+    return statePath[0];
+  }
+  const value = {};
+  let marker = value;
+  for (let i = 0; i < statePath.length - 1; i++) {
+    if (i === statePath.length - 2) {
+      marker[statePath[i]] = statePath[i + 1];
+    } else {
+      const previous3 = marker;
+      marker = {};
+      previous3[statePath[i]] = marker;
+    }
+  }
+  return value;
+}
+function mapValues(collection, iteratee) {
+  const result = {};
+  const collectionKeys = Object.keys(collection);
+  for (let i = 0; i < collectionKeys.length; i++) {
+    const key = collectionKeys[i];
+    result[key] = iteratee(collection[key], key, collection, i);
+  }
+  return result;
+}
+function toArrayStrict(value) {
+  if (isArray(value)) {
+    return value;
+  }
+  return [value];
+}
+function toArray(value) {
+  if (value === void 0) {
+    return [];
+  }
+  return toArrayStrict(value);
+}
+function resolveOutput(mapper, context2, event, self2) {
+  if (typeof mapper === "function") {
+    return mapper({
+      context: context2,
+      event,
+      self: self2
+    });
+  }
+  return mapper;
+}
+function isArray(value) {
+  return Array.isArray(value);
+}
+function isErrorActorEvent(event) {
+  return event.type.startsWith("xstate.error.actor");
+}
+function toTransitionConfigArray(configLike) {
+  return toArrayStrict(configLike).map((transitionLike) => {
+    if (typeof transitionLike === "undefined" || typeof transitionLike === "string") {
+      return {
+        target: transitionLike
+      };
+    }
+    return transitionLike;
+  });
+}
+function normalizeTarget(target) {
+  if (target === void 0 || target === TARGETLESS_KEY) {
+    return void 0;
+  }
+  return toArray(target);
+}
+function toObserver(nextHandler, errorHandler, completionHandler) {
+  const isObserver = typeof nextHandler === "object";
+  const self2 = isObserver ? nextHandler : void 0;
+  return {
+    next: (isObserver ? nextHandler.next : nextHandler)?.bind(self2),
+    error: (isObserver ? nextHandler.error : errorHandler)?.bind(self2),
+    complete: (isObserver ? nextHandler.complete : completionHandler)?.bind(self2)
+  };
+}
+function createInvokeId(stateNodeId, index2) {
+  return `${index2}.${stateNodeId}`;
+}
+function resolveReferencedActor(machine, src) {
+  const match = src.match(/^xstate\.invoke\.(\d+)\.(.*)/);
+  if (!match) {
+    return machine.implementations.actors[src];
+  }
+  const [, indexStr, nodeId] = match;
+  const node2 = machine.getStateNodeById(nodeId);
+  const invokeConfig = node2.config.invoke;
+  return (Array.isArray(invokeConfig) ? invokeConfig[indexStr] : invokeConfig).src;
+}
+function matchesEventDescriptor(eventType, descriptor) {
+  if (descriptor === eventType) {
+    return true;
+  }
+  if (descriptor === WILDCARD) {
+    return true;
+  }
+  if (!descriptor.endsWith(".*")) {
+    return false;
+  }
+  const partialEventTokens = descriptor.split(".");
+  const eventTokens = eventType.split(".");
+  for (let tokenIndex = 0; tokenIndex < partialEventTokens.length; tokenIndex++) {
+    const partialEventToken = partialEventTokens[tokenIndex];
+    const eventToken = eventTokens[tokenIndex];
+    if (partialEventToken === "*") {
+      const isLastToken = tokenIndex === partialEventTokens.length - 1;
+      return isLastToken;
+    }
+    if (partialEventToken !== eventToken) {
+      return false;
+    }
+  }
+  return true;
+}
+function createScheduledEventId(actorRef, id) {
+  return `${actorRef.sessionId}.${id}`;
+}
+var idCounter = 0;
+function createSystem(rootActor, options) {
+  const children = /* @__PURE__ */ new Map();
+  const keyedActors = /* @__PURE__ */ new Map();
+  const reverseKeyedActors = /* @__PURE__ */ new WeakMap();
+  const inspectionObservers = /* @__PURE__ */ new Set();
+  const timerMap = {};
+  const {
+    clock,
+    logger
+  } = options;
+  const scheduler = {
+    schedule: (source, target, event, delay, id = Math.random().toString(36).slice(2)) => {
+      const scheduledEvent = {
+        source,
+        target,
+        event,
+        delay,
+        id,
+        startedAt: Date.now()
+      };
+      const scheduledEventId = createScheduledEventId(source, id);
+      system._snapshot._scheduledEvents[scheduledEventId] = scheduledEvent;
+      const timeout = clock.setTimeout(() => {
+        delete timerMap[scheduledEventId];
+        delete system._snapshot._scheduledEvents[scheduledEventId];
+        system._relay(source, target, event);
+      }, delay);
+      timerMap[scheduledEventId] = timeout;
+    },
+    cancel: (source, id) => {
+      const scheduledEventId = createScheduledEventId(source, id);
+      const timeout = timerMap[scheduledEventId];
+      delete timerMap[scheduledEventId];
+      delete system._snapshot._scheduledEvents[scheduledEventId];
+      if (timeout !== void 0) {
+        clock.clearTimeout(timeout);
+      }
+    },
+    cancelAll: (actorRef) => {
+      for (const scheduledEventId in system._snapshot._scheduledEvents) {
+        const scheduledEvent = system._snapshot._scheduledEvents[scheduledEventId];
+        if (scheduledEvent.source === actorRef) {
+          scheduler.cancel(actorRef, scheduledEvent.id);
+        }
+      }
+    }
+  };
+  const sendInspectionEvent = (event) => {
+    if (!inspectionObservers.size) {
+      return;
+    }
+    const resolvedInspectionEvent = {
+      ...event,
+      rootId: rootActor.sessionId
+    };
+    inspectionObservers.forEach((observer) => observer.next?.(resolvedInspectionEvent));
+  };
+  const system = {
+    _snapshot: {
+      _scheduledEvents: (options?.snapshot && options.snapshot.scheduler) ?? {}
+    },
+    _bookId: () => `x:${idCounter++}`,
+    _register: (sessionId, actorRef) => {
+      children.set(sessionId, actorRef);
+      return sessionId;
+    },
+    _unregister: (actorRef) => {
+      children.delete(actorRef.sessionId);
+      const systemId = reverseKeyedActors.get(actorRef);
+      if (systemId !== void 0) {
+        keyedActors.delete(systemId);
+        reverseKeyedActors.delete(actorRef);
+      }
+    },
+    get: (systemId) => {
+      return keyedActors.get(systemId);
+    },
+    getAll: () => {
+      return Object.fromEntries(keyedActors.entries());
+    },
+    _set: (systemId, actorRef) => {
+      const existing = keyedActors.get(systemId);
+      if (existing && existing !== actorRef) {
+        throw new Error(`Actor with system ID '${systemId}' already exists.`);
+      }
+      keyedActors.set(systemId, actorRef);
+      reverseKeyedActors.set(actorRef, systemId);
+    },
+    inspect: (observerOrFn) => {
+      const observer = toObserver(observerOrFn);
+      inspectionObservers.add(observer);
+      return {
+        unsubscribe() {
+          inspectionObservers.delete(observer);
+        }
+      };
+    },
+    _sendInspectionEvent: sendInspectionEvent,
+    _relay: (source, target, event) => {
+      system._sendInspectionEvent({
+        type: "@xstate.event",
+        sourceRef: source,
+        actorRef: target,
+        event
+      });
+      target._send(event);
+    },
+    scheduler,
+    getSnapshot: () => {
+      return {
+        _scheduledEvents: {
+          ...system._snapshot._scheduledEvents
+        }
+      };
+    },
+    start: () => {
+      const scheduledEvents = system._snapshot._scheduledEvents;
+      system._snapshot._scheduledEvents = {};
+      for (const scheduledId in scheduledEvents) {
+        const {
+          source,
+          target,
+          event,
+          delay,
+          id
+        } = scheduledEvents[scheduledId];
+        scheduler.schedule(source, target, event, delay, id);
+      }
+    },
+    _clock: clock,
+    _logger: logger
+  };
+  return system;
+}
+var executingCustomAction = false;
+var $$ACTOR_TYPE = 1;
+var ProcessingStatus = /* @__PURE__ */ function(ProcessingStatus2) {
+  ProcessingStatus2[ProcessingStatus2["NotStarted"] = 0] = "NotStarted";
+  ProcessingStatus2[ProcessingStatus2["Running"] = 1] = "Running";
+  ProcessingStatus2[ProcessingStatus2["Stopped"] = 2] = "Stopped";
+  return ProcessingStatus2;
+}({});
+var defaultOptions2 = {
+  clock: {
+    setTimeout: (fn, ms) => {
+      return setTimeout(fn, ms);
+    },
+    clearTimeout: (id) => {
+      return clearTimeout(id);
+    }
+  },
+  logger: console.log.bind(console),
+  devTools: false
+};
+var Actor = class {
+  /**
+   * Creates a new actor instance for the given logic with the provided options,
+   * if any.
+   *
+   * @param logic The logic to create an actor from
+   * @param options Actor options
+   */
+  constructor(logic, options) {
+    this.logic = logic;
+    this._snapshot = void 0;
+    this.clock = void 0;
+    this.options = void 0;
+    this.id = void 0;
+    this.mailbox = new Mailbox(this._process.bind(this));
+    this.observers = /* @__PURE__ */ new Set();
+    this.eventListeners = /* @__PURE__ */ new Map();
+    this.logger = void 0;
+    this._processingStatus = ProcessingStatus.NotStarted;
+    this._parent = void 0;
+    this._syncSnapshot = void 0;
+    this.ref = void 0;
+    this._actorScope = void 0;
+    this.systemId = void 0;
+    this.sessionId = void 0;
+    this.system = void 0;
+    this._doneEvent = void 0;
+    this.src = void 0;
+    this._deferred = [];
+    const resolvedOptions = {
+      ...defaultOptions2,
+      ...options
+    };
+    const {
+      clock,
+      logger,
+      parent,
+      syncSnapshot,
+      id,
+      systemId,
+      inspect
+    } = resolvedOptions;
+    this.system = parent ? parent.system : createSystem(this, {
+      clock,
+      logger
+    });
+    if (inspect && !parent) {
+      this.system.inspect(toObserver(inspect));
+    }
+    this.sessionId = this.system._bookId();
+    this.id = id ?? this.sessionId;
+    this.logger = options?.logger ?? this.system._logger;
+    this.clock = options?.clock ?? this.system._clock;
+    this._parent = parent;
+    this._syncSnapshot = syncSnapshot;
+    this.options = resolvedOptions;
+    this.src = resolvedOptions.src ?? logic;
+    this.ref = this;
+    this._actorScope = {
+      self: this,
+      id: this.id,
+      sessionId: this.sessionId,
+      logger: this.logger,
+      defer: (fn) => {
+        this._deferred.push(fn);
+      },
+      system: this.system,
+      stopChild: (child) => {
+        if (child._parent !== this) {
+          throw new Error(`Cannot stop child actor ${child.id} of ${this.id} because it is not a child`);
+        }
+        child._stop();
+      },
+      emit: (emittedEvent) => {
+        const listeners = this.eventListeners.get(emittedEvent.type);
+        const wildcardListener = this.eventListeners.get("*");
+        if (!listeners && !wildcardListener) {
+          return;
+        }
+        const allListeners = [...listeners ? listeners.values() : [], ...wildcardListener ? wildcardListener.values() : []];
+        for (const handler of allListeners) {
+          try {
+            handler(emittedEvent);
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+        }
+      },
+      actionExecutor: (action) => {
+        const exec13 = () => {
+          this._actorScope.system._sendInspectionEvent({
+            type: "@xstate.action",
+            actorRef: this,
+            action: {
+              type: action.type,
+              params: action.params
+            }
+          });
+          if (!action.exec) {
+            return;
+          }
+          const saveExecutingCustomAction = executingCustomAction;
+          try {
+            executingCustomAction = true;
+            action.exec(action.info, action.params);
+          } finally {
+            executingCustomAction = saveExecutingCustomAction;
+          }
+        };
+        if (this._processingStatus === ProcessingStatus.Running) {
+          exec13();
+        } else {
+          this._deferred.push(exec13);
+        }
+      }
+    };
+    this.send = this.send.bind(this);
+    this.system._sendInspectionEvent({
+      type: "@xstate.actor",
+      actorRef: this
+    });
+    if (systemId) {
+      this.systemId = systemId;
+      this.system._set(systemId, this);
+    }
+    this._initState(options?.snapshot ?? options?.state);
+    if (systemId && this._snapshot.status !== "active") {
+      this.system._unregister(this);
+    }
+  }
+  _initState(persistedState) {
+    try {
+      this._snapshot = persistedState ? this.logic.restoreSnapshot ? this.logic.restoreSnapshot(persistedState, this._actorScope) : persistedState : this.logic.getInitialSnapshot(this._actorScope, this.options?.input);
+    } catch (err) {
+      this._snapshot = {
+        status: "error",
+        output: void 0,
+        error: err
+      };
+    }
+  }
+  update(snapshot, event) {
+    this._snapshot = snapshot;
+    let deferredFn;
+    while (deferredFn = this._deferred.shift()) {
+      try {
+        deferredFn();
+      } catch (err) {
+        this._deferred.length = 0;
+        this._snapshot = {
+          ...snapshot,
+          status: "error",
+          error: err
+        };
+      }
+    }
+    switch (this._snapshot.status) {
+      case "active":
+        for (const observer of this.observers) {
+          try {
+            observer.next?.(snapshot);
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+        }
+        break;
+      case "done":
+        for (const observer of this.observers) {
+          try {
+            observer.next?.(snapshot);
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+        }
+        this._stopProcedure();
+        this._complete();
+        this._doneEvent = createDoneActorEvent(this.id, this._snapshot.output);
+        if (this._parent) {
+          this.system._relay(this, this._parent, this._doneEvent);
+        }
+        break;
+      case "error":
+        this._error(this._snapshot.error);
+        break;
+    }
+    this.system._sendInspectionEvent({
+      type: "@xstate.snapshot",
+      actorRef: this,
+      event,
+      snapshot
+    });
+  }
+  /**
+   * Subscribe an observer to an actor’s snapshot values.
+   *
+   * @remarks
+   * The observer will receive the actor’s snapshot value when it is emitted.
+   * The observer can be:
+   *
+   * - A plain function that receives the latest snapshot, or
+   * - An observer object whose `.next(snapshot)` method receives the latest
+   *   snapshot
+   *
+   * @example
+   *
+   * ```ts
+   * // Observer as a plain function
+   * const subscription = actor.subscribe((snapshot) => {
+   *   console.log(snapshot);
+   * });
+   * ```
+   *
+   * @example
+   *
+   * ```ts
+   * // Observer as an object
+   * const subscription = actor.subscribe({
+   *   next(snapshot) {
+   *     console.log(snapshot);
+   *   },
+   *   error(err) {
+   *     // ...
+   *   },
+   *   complete() {
+   *     // ...
+   *   }
+   * });
+   * ```
+   *
+   * The return value of `actor.subscribe(observer)` is a subscription object
+   * that has an `.unsubscribe()` method. You can call
+   * `subscription.unsubscribe()` to unsubscribe the observer:
+   *
+   * @example
+   *
+   * ```ts
+   * const subscription = actor.subscribe((snapshot) => {
+   *   // ...
+   * });
+   *
+   * // Unsubscribe the observer
+   * subscription.unsubscribe();
+   * ```
+   *
+   * When the actor is stopped, all of its observers will automatically be
+   * unsubscribed.
+   *
+   * @param observer - Either a plain function that receives the latest
+   *   snapshot, or an observer object whose `.next(snapshot)` method receives
+   *   the latest snapshot
+   */
+  subscribe(nextListenerOrObserver, errorListener, completeListener) {
+    const observer = toObserver(nextListenerOrObserver, errorListener, completeListener);
+    if (this._processingStatus !== ProcessingStatus.Stopped) {
+      this.observers.add(observer);
+    } else {
+      switch (this._snapshot.status) {
+        case "done":
+          try {
+            observer.complete?.();
+          } catch (err) {
+            reportUnhandledError(err);
+          }
+          break;
+        case "error": {
+          const err = this._snapshot.error;
+          if (!observer.error) {
+            reportUnhandledError(err);
+          } else {
+            try {
+              observer.error(err);
+            } catch (err2) {
+              reportUnhandledError(err2);
+            }
+          }
+          break;
+        }
+      }
+    }
+    return {
+      unsubscribe: () => {
+        this.observers.delete(observer);
+      }
+    };
+  }
+  on(type, handler) {
+    let listeners = this.eventListeners.get(type);
+    if (!listeners) {
+      listeners = /* @__PURE__ */ new Set();
+      this.eventListeners.set(type, listeners);
+    }
+    const wrappedHandler = handler.bind(void 0);
+    listeners.add(wrappedHandler);
+    return {
+      unsubscribe: () => {
+        listeners.delete(wrappedHandler);
+      }
+    };
+  }
+  /** Starts the Actor from the initial state */
+  start() {
+    if (this._processingStatus === ProcessingStatus.Running) {
+      return this;
+    }
+    if (this._syncSnapshot) {
+      this.subscribe({
+        next: (snapshot) => {
+          if (snapshot.status === "active") {
+            this.system._relay(this, this._parent, {
+              type: `xstate.snapshot.${this.id}`,
+              snapshot
+            });
+          }
+        },
+        error: () => {
+        }
+      });
+    }
+    this.system._register(this.sessionId, this);
+    if (this.systemId) {
+      this.system._set(this.systemId, this);
+    }
+    this._processingStatus = ProcessingStatus.Running;
+    const initEvent = createInitEvent(this.options.input);
+    this.system._sendInspectionEvent({
+      type: "@xstate.event",
+      sourceRef: this._parent,
+      actorRef: this,
+      event: initEvent
+    });
+    const status = this._snapshot.status;
+    switch (status) {
+      case "done":
+        this.update(this._snapshot, initEvent);
+        return this;
+      case "error":
+        this._error(this._snapshot.error);
+        return this;
+    }
+    if (!this._parent) {
+      this.system.start();
+    }
+    if (this.logic.start) {
+      try {
+        this.logic.start(this._snapshot, this._actorScope);
+      } catch (err) {
+        this._snapshot = {
+          ...this._snapshot,
+          status: "error",
+          error: err
+        };
+        this._error(err);
+        return this;
+      }
+    }
+    this.update(this._snapshot, initEvent);
+    if (this.options.devTools) {
+      this.attachDevTools();
+    }
+    this.mailbox.start();
+    return this;
+  }
+  _process(event) {
+    let nextState;
+    let caughtError;
+    try {
+      nextState = this.logic.transition(this._snapshot, event, this._actorScope);
+    } catch (err) {
+      caughtError = {
+        err
+      };
+    }
+    if (caughtError) {
+      const {
+        err
+      } = caughtError;
+      this._snapshot = {
+        ...this._snapshot,
+        status: "error",
+        error: err
+      };
+      this._error(err);
+      return;
+    }
+    this.update(nextState, event);
+    if (event.type === XSTATE_STOP) {
+      this._stopProcedure();
+      this._complete();
+    }
+  }
+  _stop() {
+    if (this._processingStatus === ProcessingStatus.Stopped) {
+      return this;
+    }
+    this.mailbox.clear();
+    if (this._processingStatus === ProcessingStatus.NotStarted) {
+      this._processingStatus = ProcessingStatus.Stopped;
+      return this;
+    }
+    this.mailbox.enqueue({
+      type: XSTATE_STOP
+    });
+    return this;
+  }
+  /** Stops the Actor and unsubscribe all listeners. */
+  stop() {
+    if (this._parent) {
+      throw new Error("A non-root actor cannot be stopped directly.");
+    }
+    return this._stop();
+  }
+  _complete() {
+    for (const observer of this.observers) {
+      try {
+        observer.complete?.();
+      } catch (err) {
+        reportUnhandledError(err);
+      }
+    }
+    this.observers.clear();
+    this.eventListeners.clear();
+  }
+  _reportError(err) {
+    if (!this.observers.size) {
+      if (!this._parent) {
+        reportUnhandledError(err);
+      }
+      this.eventListeners.clear();
+      return;
+    }
+    let reportError = false;
+    for (const observer of this.observers) {
+      const errorListener = observer.error;
+      reportError ||= !errorListener;
+      try {
+        errorListener?.(err);
+      } catch (err2) {
+        reportUnhandledError(err2);
+      }
+    }
+    this.observers.clear();
+    this.eventListeners.clear();
+    if (reportError) {
+      reportUnhandledError(err);
+    }
+  }
+  _error(err) {
+    this._stopProcedure();
+    this._reportError(err);
+    if (this._parent) {
+      this.system._relay(this, this._parent, createErrorActorEvent(this.id, err));
+    }
+  }
+  // TODO: atm children don't belong entirely to the actor so
+  // in a way - it's not even super aware of them
+  // so we can't stop them from here but we really should!
+  // right now, they are being stopped within the machine's transition
+  // but that could throw and leave us with "orphaned" active actors
+  _stopProcedure() {
+    if (this._processingStatus !== ProcessingStatus.Running) {
+      return this;
+    }
+    this.system.scheduler.cancelAll(this);
+    this.mailbox.clear();
+    this.mailbox = new Mailbox(this._process.bind(this));
+    this._processingStatus = ProcessingStatus.Stopped;
+    this.system._unregister(this);
+    return this;
+  }
+  /** @internal */
+  _send(event) {
+    if (this._processingStatus === ProcessingStatus.Stopped) {
+      return;
+    }
+    this.mailbox.enqueue(event);
+  }
+  /**
+   * Sends an event to the running Actor to trigger a transition.
+   *
+   * @param event The event to send
+   */
+  send(event) {
+    this.system._relay(void 0, this, event);
+  }
+  attachDevTools() {
+    const {
+      devTools
+    } = this.options;
+    if (devTools) {
+      const resolvedDevToolsAdapter = typeof devTools === "function" ? devTools : devToolsAdapter;
+      resolvedDevToolsAdapter(this);
+    }
+  }
+  toJSON() {
+    return {
+      xstate$$type: $$ACTOR_TYPE,
+      id: this.id
+    };
+  }
+  /**
+   * Obtain the internal state of the actor, which can be persisted.
+   *
+   * @remarks
+   * The internal state can be persisted from any actor, not only machines.
+   *
+   * Note that the persisted state is not the same as the snapshot from
+   * {@link Actor.getSnapshot}. Persisted state represents the internal state of
+   * the actor, while snapshots represent the actor's last emitted value.
+   *
+   * Can be restored with {@link ActorOptions.state}
+   * @see https://stately.ai/docs/persistence
+   */
+  getPersistedSnapshot(options) {
+    return this.logic.getPersistedSnapshot(this._snapshot, options);
+  }
+  [symbolObservable]() {
+    return this;
+  }
+  /**
+   * Read an actor’s snapshot synchronously.
+   *
+   * @remarks
+   * The snapshot represent an actor's last emitted value.
+   *
+   * When an actor receives an event, its internal state may change. An actor
+   * may emit a snapshot when a state transition occurs.
+   *
+   * Note that some actors, such as callback actors generated with
+   * `fromCallback`, will not emit snapshots.
+   * @see {@link Actor.subscribe} to subscribe to an actor’s snapshot values.
+   * @see {@link Actor.getPersistedSnapshot} to persist the internal state of an actor (which is more than just a snapshot).
+   */
+  getSnapshot() {
+    return this._snapshot;
+  }
+};
+function createActor(logic, ...[options]) {
+  return new Actor(logic, options);
+}
+function resolveCancel(_, snapshot, actionArgs, actionParams, {
+  sendId
+}) {
+  const resolvedSendId = typeof sendId === "function" ? sendId(actionArgs, actionParams) : sendId;
+  return [snapshot, {
+    sendId: resolvedSendId
+  }, void 0];
+}
+function executeCancel(actorScope, params) {
+  actorScope.defer(() => {
+    actorScope.system.scheduler.cancel(actorScope.self, params.sendId);
+  });
+}
+function cancel(sendId) {
+  function cancel2(_args, _params) {
+  }
+  cancel2.type = "xstate.cancel";
+  cancel2.sendId = sendId;
+  cancel2.resolve = resolveCancel;
+  cancel2.execute = executeCancel;
+  return cancel2;
+}
+function resolveSpawn(actorScope, snapshot, actionArgs, _actionParams, {
+  id,
+  systemId,
+  src,
+  input,
+  syncSnapshot
+}) {
+  const logic = typeof src === "string" ? resolveReferencedActor(snapshot.machine, src) : src;
+  const resolvedId = typeof id === "function" ? id(actionArgs) : id;
+  let actorRef;
+  let resolvedInput = void 0;
+  if (logic) {
+    resolvedInput = typeof input === "function" ? input({
+      context: snapshot.context,
+      event: actionArgs.event,
+      self: actorScope.self
+    }) : input;
+    actorRef = createActor(logic, {
+      id: resolvedId,
+      src,
+      parent: actorScope.self,
+      syncSnapshot,
+      systemId,
+      input: resolvedInput
+    });
+  }
+  return [cloneMachineSnapshot(snapshot, {
+    children: {
+      ...snapshot.children,
+      [resolvedId]: actorRef
+    }
+  }), {
+    id,
+    systemId,
+    actorRef,
+    src,
+    input: resolvedInput
+  }, void 0];
+}
+function executeSpawn(actorScope, {
+  actorRef
+}) {
+  if (!actorRef) {
+    return;
+  }
+  actorScope.defer(() => {
+    if (actorRef._processingStatus === ProcessingStatus.Stopped) {
+      return;
+    }
+    actorRef.start();
+  });
+}
+function spawnChild(...[src, {
+  id,
+  systemId,
+  input,
+  syncSnapshot = false
+} = {}]) {
+  function spawnChild2(_args, _params) {
+  }
+  spawnChild2.type = "xstate.spawnChild";
+  spawnChild2.id = id;
+  spawnChild2.systemId = systemId;
+  spawnChild2.src = src;
+  spawnChild2.input = input;
+  spawnChild2.syncSnapshot = syncSnapshot;
+  spawnChild2.resolve = resolveSpawn;
+  spawnChild2.execute = executeSpawn;
+  return spawnChild2;
+}
+function resolveStop(_, snapshot, args, actionParams, {
+  actorRef
+}) {
+  const actorRefOrString = typeof actorRef === "function" ? actorRef(args, actionParams) : actorRef;
+  const resolvedActorRef = typeof actorRefOrString === "string" ? snapshot.children[actorRefOrString] : actorRefOrString;
+  let children = snapshot.children;
+  if (resolvedActorRef) {
+    children = {
+      ...children
+    };
+    delete children[resolvedActorRef.id];
+  }
+  return [cloneMachineSnapshot(snapshot, {
+    children
+  }), resolvedActorRef, void 0];
+}
+function unregisterRecursively(actorScope, actorRef) {
+  const snapshot = actorRef.getSnapshot();
+  if (snapshot && "children" in snapshot) {
+    for (const child of Object.values(snapshot.children)) {
+      unregisterRecursively(actorScope, child);
+    }
+  }
+  actorScope.system._unregister(actorRef);
+}
+function executeStop(actorScope, actorRef) {
+  if (!actorRef) {
+    return;
+  }
+  unregisterRecursively(actorScope, actorRef);
+  if (actorRef._processingStatus !== ProcessingStatus.Running) {
+    actorScope.stopChild(actorRef);
+    return;
+  }
+  actorScope.defer(() => {
+    actorScope.stopChild(actorRef);
+  });
+}
+function stopChild(actorRef) {
+  function stop2(_args, _params) {
+  }
+  stop2.type = "xstate.stopChild";
+  stop2.actorRef = actorRef;
+  stop2.resolve = resolveStop;
+  stop2.execute = executeStop;
+  return stop2;
+}
+function checkNot(snapshot, {
+  context: context2,
+  event
+}, {
+  guards: guards2
+}) {
+  return !evaluateGuard(guards2[0], context2, event, snapshot);
+}
+function not(guard) {
+  function not2(_args, _params) {
+    return false;
+  }
+  not2.check = checkNot;
+  not2.guards = [guard];
+  return not2;
+}
+function checkAnd(snapshot, {
+  context: context2,
+  event
+}, {
+  guards: guards2
+}) {
+  return guards2.every((guard) => evaluateGuard(guard, context2, event, snapshot));
+}
+function and(guards2) {
+  function and2(_args, _params) {
+    return false;
+  }
+  and2.check = checkAnd;
+  and2.guards = guards2;
+  return and2;
+}
+function evaluateGuard(guard, context2, event, snapshot) {
+  const {
+    machine
+  } = snapshot;
+  const isInline = typeof guard === "function";
+  const resolved = isInline ? guard : machine.implementations.guards[typeof guard === "string" ? guard : guard.type];
+  if (!isInline && !resolved) {
+    throw new Error(`Guard '${typeof guard === "string" ? guard : guard.type}' is not implemented.'.`);
+  }
+  if (typeof resolved !== "function") {
+    return evaluateGuard(resolved, context2, event, snapshot);
+  }
+  const guardArgs = {
+    context: context2,
+    event
+  };
+  const guardParams = isInline || typeof guard === "string" ? void 0 : "params" in guard ? typeof guard.params === "function" ? guard.params({
+    context: context2,
+    event
+  }) : guard.params : void 0;
+  if (!("check" in resolved)) {
+    return resolved(guardArgs, guardParams);
+  }
+  const builtinGuard = resolved;
+  return builtinGuard.check(
+    snapshot,
+    guardArgs,
+    resolved
+    // this holds all params
+  );
+}
+function isAtomicStateNode(stateNode) {
+  return stateNode.type === "atomic" || stateNode.type === "final";
+}
+function getChildren(stateNode) {
+  return Object.values(stateNode.states).filter((sn) => sn.type !== "history");
+}
+function getProperAncestors(stateNode, toStateNode) {
+  const ancestors = [];
+  if (toStateNode === stateNode) {
+    return ancestors;
+  }
+  let m = stateNode.parent;
+  while (m && m !== toStateNode) {
+    ancestors.push(m);
+    m = m.parent;
+  }
+  return ancestors;
+}
+function getAllStateNodes(stateNodes) {
+  const nodeSet = new Set(stateNodes);
+  const adjList = getAdjList(nodeSet);
+  for (const s of nodeSet) {
+    if (s.type === "compound" && (!adjList.get(s) || !adjList.get(s).length)) {
+      getInitialStateNodesWithTheirAncestors(s).forEach((sn) => nodeSet.add(sn));
+    } else {
+      if (s.type === "parallel") {
+        for (const child of getChildren(s)) {
+          if (child.type === "history") {
+            continue;
+          }
+          if (!nodeSet.has(child)) {
+            const initialStates = getInitialStateNodesWithTheirAncestors(child);
+            for (const initialStateNode of initialStates) {
+              nodeSet.add(initialStateNode);
+            }
+          }
+        }
+      }
+    }
+  }
+  for (const s of nodeSet) {
+    let m = s.parent;
+    while (m) {
+      nodeSet.add(m);
+      m = m.parent;
+    }
+  }
+  return nodeSet;
+}
+function getValueFromAdj(baseNode, adjList) {
+  const childStateNodes = adjList.get(baseNode);
+  if (!childStateNodes) {
+    return {};
+  }
+  if (baseNode.type === "compound") {
+    const childStateNode = childStateNodes[0];
+    if (childStateNode) {
+      if (isAtomicStateNode(childStateNode)) {
+        return childStateNode.key;
+      }
+    } else {
+      return {};
+    }
+  }
+  const stateValue = {};
+  for (const childStateNode of childStateNodes) {
+    stateValue[childStateNode.key] = getValueFromAdj(childStateNode, adjList);
+  }
+  return stateValue;
+}
+function getAdjList(stateNodes) {
+  const adjList = /* @__PURE__ */ new Map();
+  for (const s of stateNodes) {
+    if (!adjList.has(s)) {
+      adjList.set(s, []);
+    }
+    if (s.parent) {
+      if (!adjList.has(s.parent)) {
+        adjList.set(s.parent, []);
+      }
+      adjList.get(s.parent).push(s);
+    }
+  }
+  return adjList;
+}
+function getStateValue(rootNode, stateNodes) {
+  const config2 = getAllStateNodes(stateNodes);
+  return getValueFromAdj(rootNode, getAdjList(config2));
+}
+function isInFinalState(stateNodeSet, stateNode) {
+  if (stateNode.type === "compound") {
+    return getChildren(stateNode).some((s) => s.type === "final" && stateNodeSet.has(s));
+  }
+  if (stateNode.type === "parallel") {
+    return getChildren(stateNode).every((sn) => isInFinalState(stateNodeSet, sn));
+  }
+  return stateNode.type === "final";
+}
+var isStateId = (str) => str[0] === STATE_IDENTIFIER;
+function getCandidates(stateNode, receivedEventType) {
+  const candidates = stateNode.transitions.get(receivedEventType) || [...stateNode.transitions.keys()].filter((eventDescriptor) => matchesEventDescriptor(receivedEventType, eventDescriptor)).sort((a, b) => b.length - a.length).flatMap((key) => stateNode.transitions.get(key));
+  return candidates;
+}
+function getDelayedTransitions(stateNode) {
+  const afterConfig = stateNode.config.after;
+  if (!afterConfig) {
+    return [];
+  }
+  const mutateEntryExit = (delay) => {
+    const afterEvent = createAfterEvent(delay, stateNode.id);
+    const eventType = afterEvent.type;
+    stateNode.entry.push(raise(afterEvent, {
+      id: eventType,
+      delay
+    }));
+    stateNode.exit.push(cancel(eventType));
+    return eventType;
+  };
+  const delayedTransitions = Object.keys(afterConfig).flatMap((delay) => {
+    const configTransition = afterConfig[delay];
+    const resolvedTransition = typeof configTransition === "string" ? {
+      target: configTransition
+    } : configTransition;
+    const resolvedDelay = Number.isNaN(+delay) ? delay : +delay;
+    const eventType = mutateEntryExit(resolvedDelay);
+    return toArray(resolvedTransition).map((transition) => ({
+      ...transition,
+      event: eventType,
+      delay: resolvedDelay
+    }));
+  });
+  return delayedTransitions.map((delayedTransition) => {
+    const {
+      delay
+    } = delayedTransition;
+    return {
+      ...formatTransition(stateNode, delayedTransition.event, delayedTransition),
+      delay
+    };
+  });
+}
+function formatTransition(stateNode, descriptor, transitionConfig) {
+  const normalizedTarget = normalizeTarget(transitionConfig.target);
+  const reenter = transitionConfig.reenter ?? false;
+  const target = resolveTarget(stateNode, normalizedTarget);
+  const transition = {
+    ...transitionConfig,
+    actions: toArray(transitionConfig.actions),
+    guard: transitionConfig.guard,
+    target,
+    source: stateNode,
+    reenter,
+    eventType: descriptor,
+    toJSON: () => ({
+      ...transition,
+      source: `#${stateNode.id}`,
+      target: target ? target.map((t) => `#${t.id}`) : void 0
+    })
+  };
+  return transition;
+}
+function formatTransitions(stateNode) {
+  const transitions = /* @__PURE__ */ new Map();
+  if (stateNode.config.on) {
+    for (const descriptor of Object.keys(stateNode.config.on)) {
+      if (descriptor === NULL_EVENT) {
+        throw new Error('Null events ("") cannot be specified as a transition key. Use `always: { ... }` instead.');
+      }
+      const transitionsConfig = stateNode.config.on[descriptor];
+      transitions.set(descriptor, toTransitionConfigArray(transitionsConfig).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+  }
+  if (stateNode.config.onDone) {
+    const descriptor = `xstate.done.state.${stateNode.id}`;
+    transitions.set(descriptor, toTransitionConfigArray(stateNode.config.onDone).map((t) => formatTransition(stateNode, descriptor, t)));
+  }
+  for (const invokeDef of stateNode.invoke) {
+    if (invokeDef.onDone) {
+      const descriptor = `xstate.done.actor.${invokeDef.id}`;
+      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onDone).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+    if (invokeDef.onError) {
+      const descriptor = `xstate.error.actor.${invokeDef.id}`;
+      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onError).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+    if (invokeDef.onSnapshot) {
+      const descriptor = `xstate.snapshot.${invokeDef.id}`;
+      transitions.set(descriptor, toTransitionConfigArray(invokeDef.onSnapshot).map((t) => formatTransition(stateNode, descriptor, t)));
+    }
+  }
+  for (const delayedTransition of stateNode.after) {
+    let existing = transitions.get(delayedTransition.eventType);
+    if (!existing) {
+      existing = [];
+      transitions.set(delayedTransition.eventType, existing);
+    }
+    existing.push(delayedTransition);
+  }
+  return transitions;
+}
+function formatInitialTransition(stateNode, _target) {
+  const resolvedTarget = typeof _target === "string" ? stateNode.states[_target] : _target ? stateNode.states[_target.target] : void 0;
+  if (!resolvedTarget && _target) {
+    throw new Error(
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-base-to-string
+      `Initial state node "${_target}" not found on parent state node #${stateNode.id}`
+    );
+  }
+  const transition = {
+    source: stateNode,
+    actions: !_target || typeof _target === "string" ? [] : toArray(_target.actions),
+    eventType: null,
+    reenter: false,
+    target: resolvedTarget ? [resolvedTarget] : [],
+    toJSON: () => ({
+      ...transition,
+      source: `#${stateNode.id}`,
+      target: resolvedTarget ? [`#${resolvedTarget.id}`] : []
+    })
+  };
+  return transition;
+}
+function resolveTarget(stateNode, targets) {
+  if (targets === void 0) {
+    return void 0;
+  }
+  return targets.map((target) => {
+    if (typeof target !== "string") {
+      return target;
+    }
+    if (isStateId(target)) {
+      return stateNode.machine.getStateNodeById(target);
+    }
+    const isInternalTarget = target[0] === STATE_DELIMITER;
+    if (isInternalTarget && !stateNode.parent) {
+      return getStateNodeByPath(stateNode, target.slice(1));
+    }
+    const resolvedTarget = isInternalTarget ? stateNode.key + target : target;
+    if (stateNode.parent) {
+      try {
+        const targetStateNode = getStateNodeByPath(stateNode.parent, resolvedTarget);
+        return targetStateNode;
+      } catch (err) {
+        throw new Error(`Invalid transition definition for state node '${stateNode.id}':
+${err.message}`);
+      }
+    } else {
+      throw new Error(`Invalid target: "${target}" is not a valid target from the root node. Did you mean ".${target}"?`);
+    }
+  });
+}
+function resolveHistoryDefaultTransition(stateNode) {
+  const normalizedTarget = normalizeTarget(stateNode.config.target);
+  if (!normalizedTarget) {
+    return stateNode.parent.initial;
+  }
+  return {
+    target: normalizedTarget.map((t) => typeof t === "string" ? getStateNodeByPath(stateNode.parent, t) : t)
+  };
+}
+function isHistoryNode(stateNode) {
+  return stateNode.type === "history";
+}
+function getInitialStateNodesWithTheirAncestors(stateNode) {
+  const states = getInitialStateNodes(stateNode);
+  for (const initialState of states) {
+    for (const ancestor of getProperAncestors(initialState, stateNode)) {
+      states.add(ancestor);
+    }
+  }
+  return states;
+}
+function getInitialStateNodes(stateNode) {
+  const set = /* @__PURE__ */ new Set();
+  function iter(descStateNode) {
+    if (set.has(descStateNode)) {
+      return;
+    }
+    set.add(descStateNode);
+    if (descStateNode.type === "compound") {
+      iter(descStateNode.initial.target[0]);
+    } else if (descStateNode.type === "parallel") {
+      for (const child of getChildren(descStateNode)) {
+        iter(child);
+      }
+    }
+  }
+  iter(stateNode);
+  return set;
+}
+function getStateNode(stateNode, stateKey) {
+  if (isStateId(stateKey)) {
+    return stateNode.machine.getStateNodeById(stateKey);
+  }
+  if (!stateNode.states) {
+    throw new Error(`Unable to retrieve child state '${stateKey}' from '${stateNode.id}'; no child states exist.`);
+  }
+  const result = stateNode.states[stateKey];
+  if (!result) {
+    throw new Error(`Child state '${stateKey}' does not exist on '${stateNode.id}'`);
+  }
+  return result;
+}
+function getStateNodeByPath(stateNode, statePath) {
+  if (typeof statePath === "string" && isStateId(statePath)) {
+    try {
+      return stateNode.machine.getStateNodeById(statePath);
+    } catch {
+    }
+  }
+  const arrayStatePath = toStatePath(statePath).slice();
+  let currentStateNode = stateNode;
+  while (arrayStatePath.length) {
+    const key = arrayStatePath.shift();
+    if (!key.length) {
+      break;
+    }
+    currentStateNode = getStateNode(currentStateNode, key);
+  }
+  return currentStateNode;
+}
+function getStateNodes(stateNode, stateValue) {
+  if (typeof stateValue === "string") {
+    const childStateNode = stateNode.states[stateValue];
+    if (!childStateNode) {
+      throw new Error(`State '${stateValue}' does not exist on '${stateNode.id}'`);
+    }
+    return [stateNode, childStateNode];
+  }
+  const childStateKeys = Object.keys(stateValue);
+  const childStateNodes = childStateKeys.map((subStateKey) => getStateNode(stateNode, subStateKey)).filter(Boolean);
+  return [stateNode.machine.root, stateNode].concat(childStateNodes, childStateKeys.reduce((allSubStateNodes, subStateKey) => {
+    const subStateNode = getStateNode(stateNode, subStateKey);
+    if (!subStateNode) {
+      return allSubStateNodes;
+    }
+    const subStateNodes = getStateNodes(subStateNode, stateValue[subStateKey]);
+    return allSubStateNodes.concat(subStateNodes);
+  }, []));
+}
+function transitionAtomicNode(stateNode, stateValue, snapshot, event) {
+  const childStateNode = getStateNode(stateNode, stateValue);
+  const next = childStateNode.next(snapshot, event);
+  if (!next || !next.length) {
+    return stateNode.next(snapshot, event);
+  }
+  return next;
+}
+function transitionCompoundNode(stateNode, stateValue, snapshot, event) {
+  const subStateKeys = Object.keys(stateValue);
+  const childStateNode = getStateNode(stateNode, subStateKeys[0]);
+  const next = transitionNode(childStateNode, stateValue[subStateKeys[0]], snapshot, event);
+  if (!next || !next.length) {
+    return stateNode.next(snapshot, event);
+  }
+  return next;
+}
+function transitionParallelNode(stateNode, stateValue, snapshot, event) {
+  const allInnerTransitions = [];
+  for (const subStateKey of Object.keys(stateValue)) {
+    const subStateValue = stateValue[subStateKey];
+    if (!subStateValue) {
+      continue;
+    }
+    const subStateNode = getStateNode(stateNode, subStateKey);
+    const innerTransitions = transitionNode(subStateNode, subStateValue, snapshot, event);
+    if (innerTransitions) {
+      allInnerTransitions.push(...innerTransitions);
+    }
+  }
+  if (!allInnerTransitions.length) {
+    return stateNode.next(snapshot, event);
+  }
+  return allInnerTransitions;
+}
+function transitionNode(stateNode, stateValue, snapshot, event) {
+  if (typeof stateValue === "string") {
+    return transitionAtomicNode(stateNode, stateValue, snapshot, event);
+  }
+  if (Object.keys(stateValue).length === 1) {
+    return transitionCompoundNode(stateNode, stateValue, snapshot, event);
+  }
+  return transitionParallelNode(stateNode, stateValue, snapshot, event);
+}
+function getHistoryNodes(stateNode) {
+  return Object.keys(stateNode.states).map((key) => stateNode.states[key]).filter((sn) => sn.type === "history");
+}
+function isDescendant(childStateNode, parentStateNode) {
+  let marker = childStateNode;
+  while (marker.parent && marker.parent !== parentStateNode) {
+    marker = marker.parent;
+  }
+  return marker.parent === parentStateNode;
+}
+function hasIntersection(s1, s2) {
+  const set1 = new Set(s1);
+  const set2 = new Set(s2);
+  for (const item of set1) {
+    if (set2.has(item)) {
+      return true;
+    }
+  }
+  for (const item of set2) {
+    if (set1.has(item)) {
+      return true;
+    }
+  }
+  return false;
+}
+function removeConflictingTransitions(enabledTransitions, stateNodeSet, historyValue) {
+  const filteredTransitions = /* @__PURE__ */ new Set();
+  for (const t1 of enabledTransitions) {
+    let t1Preempted = false;
+    const transitionsToRemove = /* @__PURE__ */ new Set();
+    for (const t2 of filteredTransitions) {
+      if (hasIntersection(computeExitSet([t1], stateNodeSet, historyValue), computeExitSet([t2], stateNodeSet, historyValue))) {
+        if (isDescendant(t1.source, t2.source)) {
+          transitionsToRemove.add(t2);
+        } else {
+          t1Preempted = true;
+          break;
+        }
+      }
+    }
+    if (!t1Preempted) {
+      for (const t3 of transitionsToRemove) {
+        filteredTransitions.delete(t3);
+      }
+      filteredTransitions.add(t1);
+    }
+  }
+  return Array.from(filteredTransitions);
+}
+function findLeastCommonAncestor(stateNodes) {
+  const [head, ...tail] = stateNodes;
+  for (const ancestor of getProperAncestors(head, void 0)) {
+    if (tail.every((sn) => isDescendant(sn, ancestor))) {
+      return ancestor;
+    }
+  }
+}
+function getEffectiveTargetStates(transition, historyValue) {
+  if (!transition.target) {
+    return [];
+  }
+  const targets = /* @__PURE__ */ new Set();
+  for (const targetNode of transition.target) {
+    if (isHistoryNode(targetNode)) {
+      if (historyValue[targetNode.id]) {
+        for (const node2 of historyValue[targetNode.id]) {
+          targets.add(node2);
+        }
+      } else {
+        for (const node2 of getEffectiveTargetStates(resolveHistoryDefaultTransition(targetNode), historyValue)) {
+          targets.add(node2);
+        }
+      }
+    } else {
+      targets.add(targetNode);
+    }
+  }
+  return [...targets];
+}
+function getTransitionDomain(transition, historyValue) {
+  const targetStates = getEffectiveTargetStates(transition, historyValue);
+  if (!targetStates) {
+    return;
+  }
+  if (!transition.reenter && targetStates.every((target) => target === transition.source || isDescendant(target, transition.source))) {
+    return transition.source;
+  }
+  const lca = findLeastCommonAncestor(targetStates.concat(transition.source));
+  if (lca) {
+    return lca;
+  }
+  if (transition.reenter) {
+    return;
+  }
+  return transition.source.machine.root;
+}
+function computeExitSet(transitions, stateNodeSet, historyValue) {
+  const statesToExit = /* @__PURE__ */ new Set();
+  for (const t of transitions) {
+    if (t.target?.length) {
+      const domain2 = getTransitionDomain(t, historyValue);
+      if (t.reenter && t.source === domain2) {
+        statesToExit.add(domain2);
+      }
+      for (const stateNode of stateNodeSet) {
+        if (isDescendant(stateNode, domain2)) {
+          statesToExit.add(stateNode);
+        }
+      }
+    }
+  }
+  return [...statesToExit];
+}
+function areStateNodeCollectionsEqual(prevStateNodes, nextStateNodeSet) {
+  if (prevStateNodes.length !== nextStateNodeSet.size) {
+    return false;
+  }
+  for (const node2 of prevStateNodes) {
+    if (!nextStateNodeSet.has(node2)) {
+      return false;
+    }
+  }
+  return true;
+}
+function microstep(transitions, currentSnapshot, actorScope, event, isInitial, internalQueue) {
+  if (!transitions.length) {
+    return currentSnapshot;
+  }
+  const mutStateNodeSet = new Set(currentSnapshot._nodes);
+  let historyValue = currentSnapshot.historyValue;
+  const filteredTransitions = removeConflictingTransitions(transitions, mutStateNodeSet, historyValue);
+  let nextState = currentSnapshot;
+  if (!isInitial) {
+    [nextState, historyValue] = exitStates(nextState, event, actorScope, filteredTransitions, mutStateNodeSet, historyValue, internalQueue, actorScope.actionExecutor);
+  }
+  nextState = resolveActionsAndContext(nextState, event, actorScope, filteredTransitions.flatMap((t) => t.actions), internalQueue, void 0);
+  nextState = enterStates(nextState, event, actorScope, filteredTransitions, mutStateNodeSet, internalQueue, historyValue, isInitial);
+  const nextStateNodes = [...mutStateNodeSet];
+  if (nextState.status === "done") {
+    nextState = resolveActionsAndContext(nextState, event, actorScope, nextStateNodes.sort((a, b) => b.order - a.order).flatMap((state) => state.exit), internalQueue, void 0);
+  }
+  try {
+    if (historyValue === currentSnapshot.historyValue && areStateNodeCollectionsEqual(currentSnapshot._nodes, mutStateNodeSet)) {
+      return nextState;
+    }
+    return cloneMachineSnapshot(nextState, {
+      _nodes: nextStateNodes,
+      historyValue
+    });
+  } catch (e2) {
+    throw e2;
+  }
+}
+function getMachineOutput(snapshot, event, actorScope, rootNode, rootCompletionNode) {
+  if (rootNode.output === void 0) {
+    return;
+  }
+  const doneStateEvent = createDoneStateEvent(rootCompletionNode.id, rootCompletionNode.output !== void 0 && rootCompletionNode.parent ? resolveOutput(rootCompletionNode.output, snapshot.context, event, actorScope.self) : void 0);
+  return resolveOutput(rootNode.output, snapshot.context, doneStateEvent, actorScope.self);
+}
+function enterStates(currentSnapshot, event, actorScope, filteredTransitions, mutStateNodeSet, internalQueue, historyValue, isInitial) {
+  let nextSnapshot = currentSnapshot;
+  const statesToEnter = /* @__PURE__ */ new Set();
+  const statesForDefaultEntry = /* @__PURE__ */ new Set();
+  computeEntrySet(filteredTransitions, historyValue, statesForDefaultEntry, statesToEnter);
+  if (isInitial) {
+    statesForDefaultEntry.add(currentSnapshot.machine.root);
+  }
+  const completedNodes = /* @__PURE__ */ new Set();
+  for (const stateNodeToEnter of [...statesToEnter].sort((a, b) => a.order - b.order)) {
+    mutStateNodeSet.add(stateNodeToEnter);
+    const actions2 = [];
+    actions2.push(...stateNodeToEnter.entry);
+    for (const invokeDef of stateNodeToEnter.invoke) {
+      actions2.push(spawnChild(invokeDef.src, {
+        ...invokeDef,
+        syncSnapshot: !!invokeDef.onSnapshot
+      }));
+    }
+    if (statesForDefaultEntry.has(stateNodeToEnter)) {
+      const initialActions = stateNodeToEnter.initial.actions;
+      actions2.push(...initialActions);
+    }
+    nextSnapshot = resolveActionsAndContext(nextSnapshot, event, actorScope, actions2, internalQueue, stateNodeToEnter.invoke.map((invokeDef) => invokeDef.id));
+    if (stateNodeToEnter.type === "final") {
+      const parent = stateNodeToEnter.parent;
+      let ancestorMarker = parent?.type === "parallel" ? parent : parent?.parent;
+      let rootCompletionNode = ancestorMarker || stateNodeToEnter;
+      if (parent?.type === "compound") {
+        internalQueue.push(createDoneStateEvent(parent.id, stateNodeToEnter.output !== void 0 ? resolveOutput(stateNodeToEnter.output, nextSnapshot.context, event, actorScope.self) : void 0));
+      }
+      while (ancestorMarker?.type === "parallel" && !completedNodes.has(ancestorMarker) && isInFinalState(mutStateNodeSet, ancestorMarker)) {
+        completedNodes.add(ancestorMarker);
+        internalQueue.push(createDoneStateEvent(ancestorMarker.id));
+        rootCompletionNode = ancestorMarker;
+        ancestorMarker = ancestorMarker.parent;
+      }
+      if (ancestorMarker) {
+        continue;
+      }
+      nextSnapshot = cloneMachineSnapshot(nextSnapshot, {
+        status: "done",
+        output: getMachineOutput(nextSnapshot, event, actorScope, nextSnapshot.machine.root, rootCompletionNode)
+      });
+    }
+  }
+  return nextSnapshot;
+}
+function computeEntrySet(transitions, historyValue, statesForDefaultEntry, statesToEnter) {
+  for (const t of transitions) {
+    const domain2 = getTransitionDomain(t, historyValue);
+    for (const s of t.target || []) {
+      if (!isHistoryNode(s) && // if the target is different than the source then it will *definitely* be entered
+      (t.source !== s || // we know that the domain can't lie within the source
+      // if it's different than the source then it's outside of it and it means that the target has to be entered as well
+      t.source !== domain2 || // reentering transitions always enter the target, even if it's the source itself
+      t.reenter)) {
+        statesToEnter.add(s);
+        statesForDefaultEntry.add(s);
+      }
+      addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
+    }
+    const targetStates = getEffectiveTargetStates(t, historyValue);
+    for (const s of targetStates) {
+      const ancestors = getProperAncestors(s, domain2);
+      if (domain2?.type === "parallel") {
+        ancestors.push(domain2);
+      }
+      addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, ancestors, !t.source.parent && t.reenter ? void 0 : domain2);
+    }
+  }
+}
+function addDescendantStatesToEnter(stateNode, historyValue, statesForDefaultEntry, statesToEnter) {
+  if (isHistoryNode(stateNode)) {
+    if (historyValue[stateNode.id]) {
+      const historyStateNodes = historyValue[stateNode.id];
+      for (const s of historyStateNodes) {
+        statesToEnter.add(s);
+        addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
+      }
+      for (const s of historyStateNodes) {
+        addProperAncestorStatesToEnter(s, stateNode.parent, statesToEnter, historyValue, statesForDefaultEntry);
+      }
+    } else {
+      const historyDefaultTransition = resolveHistoryDefaultTransition(stateNode);
+      for (const s of historyDefaultTransition.target) {
+        statesToEnter.add(s);
+        if (historyDefaultTransition === stateNode.parent?.initial) {
+          statesForDefaultEntry.add(stateNode.parent);
+        }
+        addDescendantStatesToEnter(s, historyValue, statesForDefaultEntry, statesToEnter);
+      }
+      for (const s of historyDefaultTransition.target) {
+        addProperAncestorStatesToEnter(s, stateNode.parent, statesToEnter, historyValue, statesForDefaultEntry);
+      }
+    }
+  } else {
+    if (stateNode.type === "compound") {
+      const [initialState] = stateNode.initial.target;
+      if (!isHistoryNode(initialState)) {
+        statesToEnter.add(initialState);
+        statesForDefaultEntry.add(initialState);
+      }
+      addDescendantStatesToEnter(initialState, historyValue, statesForDefaultEntry, statesToEnter);
+      addProperAncestorStatesToEnter(initialState, stateNode, statesToEnter, historyValue, statesForDefaultEntry);
+    } else {
+      if (stateNode.type === "parallel") {
+        for (const child of getChildren(stateNode).filter((sn) => !isHistoryNode(sn))) {
+          if (![...statesToEnter].some((s) => isDescendant(s, child))) {
+            if (!isHistoryNode(child)) {
+              statesToEnter.add(child);
+              statesForDefaultEntry.add(child);
+            }
+            addDescendantStatesToEnter(child, historyValue, statesForDefaultEntry, statesToEnter);
+          }
+        }
+      }
+    }
+  }
+}
+function addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, ancestors, reentrancyDomain) {
+  for (const anc of ancestors) {
+    if (!reentrancyDomain || isDescendant(anc, reentrancyDomain)) {
+      statesToEnter.add(anc);
+    }
+    if (anc.type === "parallel") {
+      for (const child of getChildren(anc).filter((sn) => !isHistoryNode(sn))) {
+        if (![...statesToEnter].some((s) => isDescendant(s, child))) {
+          statesToEnter.add(child);
+          addDescendantStatesToEnter(child, historyValue, statesForDefaultEntry, statesToEnter);
+        }
+      }
+    }
+  }
+}
+function addProperAncestorStatesToEnter(stateNode, toStateNode, statesToEnter, historyValue, statesForDefaultEntry) {
+  addAncestorStatesToEnter(statesToEnter, historyValue, statesForDefaultEntry, getProperAncestors(stateNode, toStateNode));
+}
+function exitStates(currentSnapshot, event, actorScope, transitions, mutStateNodeSet, historyValue, internalQueue, _actionExecutor) {
+  let nextSnapshot = currentSnapshot;
+  const statesToExit = computeExitSet(transitions, mutStateNodeSet, historyValue);
+  statesToExit.sort((a, b) => b.order - a.order);
+  let changedHistory;
+  for (const exitStateNode of statesToExit) {
+    for (const historyNode of getHistoryNodes(exitStateNode)) {
+      let predicate;
+      if (historyNode.history === "deep") {
+        predicate = (sn) => isAtomicStateNode(sn) && isDescendant(sn, exitStateNode);
+      } else {
+        predicate = (sn) => {
+          return sn.parent === exitStateNode;
+        };
+      }
+      changedHistory ??= {
+        ...historyValue
+      };
+      changedHistory[historyNode.id] = Array.from(mutStateNodeSet).filter(predicate);
+    }
+  }
+  for (const s of statesToExit) {
+    nextSnapshot = resolveActionsAndContext(nextSnapshot, event, actorScope, [...s.exit, ...s.invoke.map((def) => stopChild(def.id))], internalQueue, void 0);
+    mutStateNodeSet.delete(s);
+  }
+  return [nextSnapshot, changedHistory || historyValue];
+}
+function getAction(machine, actionType) {
+  return machine.implementations.actions[actionType];
+}
+function resolveAndExecuteActionsWithContext(currentSnapshot, event, actorScope, actions2, extra, retries) {
+  const {
+    machine
+  } = currentSnapshot;
+  let intermediateSnapshot = currentSnapshot;
+  for (const action of actions2) {
+    const isInline = typeof action === "function";
+    const resolvedAction = isInline ? action : (
+      // the existing type of `.actions` assumes non-nullable `TExpressionAction`
+      // it's fine to cast this here to get a common type and lack of errors in the rest of the code
+      // our logic below makes sure that we call those 2 "variants" correctly
+      getAction(machine, typeof action === "string" ? action : action.type)
+    );
+    const actionArgs = {
+      context: intermediateSnapshot.context,
+      event,
+      self: actorScope.self,
+      system: actorScope.system
+    };
+    const actionParams = isInline || typeof action === "string" ? void 0 : "params" in action ? typeof action.params === "function" ? action.params({
+      context: intermediateSnapshot.context,
+      event
+    }) : action.params : void 0;
+    if (!resolvedAction || !("resolve" in resolvedAction)) {
+      actorScope.actionExecutor({
+        type: typeof action === "string" ? action : typeof action === "object" ? action.type : action.name || "(anonymous)",
+        info: actionArgs,
+        params: actionParams,
+        exec: resolvedAction
+      });
+      continue;
+    }
+    const builtinAction = resolvedAction;
+    const [nextState, params, actions3] = builtinAction.resolve(
+      actorScope,
+      intermediateSnapshot,
+      actionArgs,
+      actionParams,
+      resolvedAction,
+      // this holds all params
+      extra
+    );
+    intermediateSnapshot = nextState;
+    if ("retryResolve" in builtinAction) {
+      retries?.push([builtinAction, params]);
+    }
+    if ("execute" in builtinAction) {
+      actorScope.actionExecutor({
+        type: builtinAction.type,
+        info: actionArgs,
+        params,
+        exec: builtinAction.execute.bind(null, actorScope, params)
+      });
+    }
+    if (actions3) {
+      intermediateSnapshot = resolveAndExecuteActionsWithContext(intermediateSnapshot, event, actorScope, actions3, extra, retries);
+    }
+  }
+  return intermediateSnapshot;
+}
+function resolveActionsAndContext(currentSnapshot, event, actorScope, actions2, internalQueue, deferredActorIds) {
+  const retries = deferredActorIds ? [] : void 0;
+  const nextState = resolveAndExecuteActionsWithContext(currentSnapshot, event, actorScope, actions2, {
+    internalQueue,
+    deferredActorIds
+  }, retries);
+  retries?.forEach(([builtinAction, params]) => {
+    builtinAction.retryResolve(actorScope, nextState, params);
+  });
+  return nextState;
+}
+function macrostep(snapshot, event, actorScope, internalQueue) {
+  let nextSnapshot = snapshot;
+  const microstates = [];
+  function addMicrostate(microstate, event2, transitions) {
+    actorScope.system._sendInspectionEvent({
+      type: "@xstate.microstep",
+      actorRef: actorScope.self,
+      event: event2,
+      snapshot: microstate,
+      _transitions: transitions
+    });
+    microstates.push(microstate);
+  }
+  if (event.type === XSTATE_STOP) {
+    nextSnapshot = cloneMachineSnapshot(stopChildren(nextSnapshot, event, actorScope), {
+      status: "stopped"
+    });
+    addMicrostate(nextSnapshot, event, []);
+    return {
+      snapshot: nextSnapshot,
+      microstates
+    };
+  }
+  let nextEvent = event;
+  if (nextEvent.type !== XSTATE_INIT) {
+    const currentEvent = nextEvent;
+    const isErr = isErrorActorEvent(currentEvent);
+    const transitions = selectTransitions(currentEvent, nextSnapshot);
+    if (isErr && !transitions.length) {
+      nextSnapshot = cloneMachineSnapshot(snapshot, {
+        status: "error",
+        error: currentEvent.error
+      });
+      addMicrostate(nextSnapshot, currentEvent, []);
+      return {
+        snapshot: nextSnapshot,
+        microstates
+      };
+    }
+    nextSnapshot = microstep(
+      transitions,
+      snapshot,
+      actorScope,
+      nextEvent,
+      false,
+      // isInitial
+      internalQueue
+    );
+    addMicrostate(nextSnapshot, currentEvent, transitions);
+  }
+  let shouldSelectEventlessTransitions = true;
+  while (nextSnapshot.status === "active") {
+    let enabledTransitions = shouldSelectEventlessTransitions ? selectEventlessTransitions(nextSnapshot, nextEvent) : [];
+    const previousState = enabledTransitions.length ? nextSnapshot : void 0;
+    if (!enabledTransitions.length) {
+      if (!internalQueue.length) {
+        break;
+      }
+      nextEvent = internalQueue.shift();
+      enabledTransitions = selectTransitions(nextEvent, nextSnapshot);
+    }
+    nextSnapshot = microstep(enabledTransitions, nextSnapshot, actorScope, nextEvent, false, internalQueue);
+    shouldSelectEventlessTransitions = nextSnapshot !== previousState;
+    addMicrostate(nextSnapshot, nextEvent, enabledTransitions);
+  }
+  if (nextSnapshot.status !== "active") {
+    stopChildren(nextSnapshot, nextEvent, actorScope);
+  }
+  return {
+    snapshot: nextSnapshot,
+    microstates
+  };
+}
+function stopChildren(nextState, event, actorScope) {
+  return resolveActionsAndContext(nextState, event, actorScope, Object.values(nextState.children).map((child) => stopChild(child)), [], void 0);
+}
+function selectTransitions(event, nextState) {
+  return nextState.machine.getTransitionData(nextState, event);
+}
+function selectEventlessTransitions(nextState, event) {
+  const enabledTransitionSet = /* @__PURE__ */ new Set();
+  const atomicStates = nextState._nodes.filter(isAtomicStateNode);
+  for (const stateNode of atomicStates) {
+    loop: for (const s of [stateNode].concat(getProperAncestors(stateNode, void 0))) {
+      if (!s.always) {
+        continue;
+      }
+      for (const transition of s.always) {
+        if (transition.guard === void 0 || evaluateGuard(transition.guard, nextState.context, event, nextState)) {
+          enabledTransitionSet.add(transition);
+          break loop;
+        }
+      }
+    }
+  }
+  return removeConflictingTransitions(Array.from(enabledTransitionSet), new Set(nextState._nodes), nextState.historyValue);
+}
+function resolveStateValue(rootNode, stateValue) {
+  const allStateNodes = getAllStateNodes(getStateNodes(rootNode, stateValue));
+  return getStateValue(rootNode, [...allStateNodes]);
+}
+function isMachineSnapshot(value) {
+  return !!value && typeof value === "object" && "machine" in value && "value" in value;
+}
+var machineSnapshotMatches = function matches(testValue) {
+  return matchesState(testValue, this.value);
+};
+var machineSnapshotHasTag = function hasTag(tag) {
+  return this.tags.has(tag);
+};
+var machineSnapshotCan = function can(event) {
+  const transitionData = this.machine.getTransitionData(this, event);
+  return !!transitionData?.length && // Check that at least one transition is not forbidden
+  transitionData.some((t) => t.target !== void 0 || t.actions.length);
+};
+var machineSnapshotToJSON = function toJSON() {
+  const {
+    _nodes: nodes,
+    tags,
+    machine,
+    getMeta: getMeta2,
+    toJSON: toJSON2,
+    can: can2,
+    hasTag: hasTag2,
+    matches: matches2,
+    ...jsonValues
+  } = this;
+  return {
+    ...jsonValues,
+    tags: Array.from(tags)
+  };
+};
+var machineSnapshotGetMeta = function getMeta() {
+  return this._nodes.reduce((acc, stateNode) => {
+    if (stateNode.meta !== void 0) {
+      acc[stateNode.id] = stateNode.meta;
+    }
+    return acc;
+  }, {});
+};
+function createMachineSnapshot(config2, machine) {
+  return {
+    status: config2.status,
+    output: config2.output,
+    error: config2.error,
+    machine,
+    context: config2.context,
+    _nodes: config2._nodes,
+    value: getStateValue(machine.root, config2._nodes),
+    tags: new Set(config2._nodes.flatMap((sn) => sn.tags)),
+    children: config2.children,
+    historyValue: config2.historyValue || {},
+    matches: machineSnapshotMatches,
+    hasTag: machineSnapshotHasTag,
+    can: machineSnapshotCan,
+    getMeta: machineSnapshotGetMeta,
+    toJSON: machineSnapshotToJSON
+  };
+}
+function cloneMachineSnapshot(snapshot, config2 = {}) {
+  return createMachineSnapshot({
+    ...snapshot,
+    ...config2
+  }, snapshot.machine);
+}
+function serializeHistoryValue(historyValue) {
+  if (typeof historyValue !== "object" || historyValue === null) {
+    return {};
+  }
+  const result = {};
+  for (const key in historyValue) {
+    const value = historyValue[key];
+    if (Array.isArray(value)) {
+      result[key] = value.map((item) => ({
+        id: item.id
+      }));
+    }
+  }
+  return result;
+}
+function getPersistedSnapshot(snapshot, options) {
+  const {
+    _nodes: nodes,
+    tags,
+    machine,
+    children,
+    context: context2,
+    can: can2,
+    hasTag: hasTag2,
+    matches: matches2,
+    getMeta: getMeta2,
+    toJSON: toJSON2,
+    ...jsonValues
+  } = snapshot;
+  const childrenJson = {};
+  for (const id in children) {
+    const child = children[id];
+    childrenJson[id] = {
+      snapshot: child.getPersistedSnapshot(options),
+      src: child.src,
+      systemId: child.systemId,
+      syncSnapshot: child._syncSnapshot
+    };
+  }
+  const persisted = {
+    ...jsonValues,
+    context: persistContext(context2),
+    children: childrenJson,
+    historyValue: serializeHistoryValue(jsonValues.historyValue)
+  };
+  return persisted;
+}
+function persistContext(contextPart) {
+  let copy;
+  for (const key in contextPart) {
+    const value = contextPart[key];
+    if (value && typeof value === "object") {
+      if ("sessionId" in value && "send" in value && "ref" in value) {
+        copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
+          ...contextPart
+        };
+        copy[key] = {
+          xstate$$type: $$ACTOR_TYPE,
+          id: value.id
+        };
+      } else {
+        const result = persistContext(value);
+        if (result !== value) {
+          copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
+            ...contextPart
+          };
+          copy[key] = result;
+        }
+      }
+    }
+  }
+  return copy ?? contextPart;
+}
+function resolveRaise(_, snapshot, args, actionParams, {
+  event: eventOrExpr,
+  id,
+  delay
+}, {
+  internalQueue
+}) {
+  const delaysMap = snapshot.machine.implementations.delays;
+  if (typeof eventOrExpr === "string") {
+    throw new Error(
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `Only event objects may be used with raise; use raise({ type: "${eventOrExpr}" }) instead`
+    );
+  }
+  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
+  let resolvedDelay;
+  if (typeof delay === "string") {
+    const configDelay = delaysMap && delaysMap[delay];
+    resolvedDelay = typeof configDelay === "function" ? configDelay(args, actionParams) : configDelay;
+  } else {
+    resolvedDelay = typeof delay === "function" ? delay(args, actionParams) : delay;
+  }
+  if (typeof resolvedDelay !== "number") {
+    internalQueue.push(resolvedEvent);
+  }
+  return [snapshot, {
+    event: resolvedEvent,
+    id,
+    delay: resolvedDelay
+  }, void 0];
+}
+function executeRaise(actorScope, params) {
+  const {
+    event,
+    delay,
+    id
+  } = params;
+  if (typeof delay === "number") {
+    actorScope.defer(() => {
+      const self2 = actorScope.self;
+      actorScope.system.scheduler.schedule(self2, self2, event, delay, id);
+    });
+    return;
+  }
+}
+function raise(eventOrExpr, options) {
+  function raise2(_args, _params) {
+  }
+  raise2.type = "xstate.raise";
+  raise2.event = eventOrExpr;
+  raise2.id = options?.id;
+  raise2.delay = options?.delay;
+  raise2.resolve = resolveRaise;
+  raise2.execute = executeRaise;
+  return raise2;
+}
+
+// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/actors/dist/xstate-actors.esm.js
+function fromTransition(transition, initialContext) {
+  return {
+    config: transition,
+    transition: (snapshot, event, actorScope) => {
+      return {
+        ...snapshot,
+        context: transition(snapshot.context, event, actorScope)
+      };
+    },
+    getInitialSnapshot: (_, input) => {
+      return {
+        status: "active",
+        output: void 0,
+        error: void 0,
+        context: typeof initialContext === "function" ? initialContext({
+          input
+        }) : initialContext
+      };
+    },
+    getPersistedSnapshot: (snapshot) => snapshot,
+    restoreSnapshot: (snapshot) => snapshot
+  };
+}
+var emptyLogic = fromTransition((_) => void 0, void 0);
+
+// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/assign-5d7df46f.esm.js
+function createSpawner(actorScope, {
+  machine,
+  context: context2
+}, event, spawnedChildren) {
+  const spawn2 = (src, options) => {
+    if (typeof src === "string") {
+      const logic = resolveReferencedActor(machine, src);
+      if (!logic) {
+        throw new Error(`Actor logic '${src}' not implemented in machine '${machine.id}'`);
+      }
+      const actorRef = createActor(logic, {
+        id: options?.id,
+        parent: actorScope.self,
+        syncSnapshot: options?.syncSnapshot,
+        input: typeof options?.input === "function" ? options.input({
+          context: context2,
+          event,
+          self: actorScope.self
+        }) : options?.input,
+        src,
+        systemId: options?.systemId
+      });
+      spawnedChildren[actorRef.id] = actorRef;
+      return actorRef;
+    } else {
+      const actorRef = createActor(src, {
+        id: options?.id,
+        parent: actorScope.self,
+        syncSnapshot: options?.syncSnapshot,
+        input: options?.input,
+        src,
+        systemId: options?.systemId
+      });
+      return actorRef;
+    }
+  };
+  return (src, options) => {
+    const actorRef = spawn2(src, options);
+    spawnedChildren[actorRef.id] = actorRef;
+    actorScope.defer(() => {
+      if (actorRef._processingStatus === ProcessingStatus.Stopped) {
+        return;
+      }
+      actorRef.start();
+    });
+    return actorRef;
+  };
+}
+function resolveAssign(actorScope, snapshot, actionArgs, actionParams, {
+  assignment
+}) {
+  if (!snapshot.context) {
+    throw new Error("Cannot assign to undefined `context`. Ensure that `context` is defined in the machine config.");
+  }
+  const spawnedChildren = {};
+  const assignArgs = {
+    context: snapshot.context,
+    event: actionArgs.event,
+    spawn: createSpawner(actorScope, snapshot, actionArgs.event, spawnedChildren),
+    self: actorScope.self,
+    system: actorScope.system
+  };
+  let partialUpdate = {};
+  if (typeof assignment === "function") {
+    partialUpdate = assignment(assignArgs, actionParams);
+  } else {
+    for (const key of Object.keys(assignment)) {
+      const propAssignment = assignment[key];
+      partialUpdate[key] = typeof propAssignment === "function" ? propAssignment(assignArgs, actionParams) : propAssignment;
+    }
+  }
+  const updatedContext = Object.assign({}, snapshot.context, partialUpdate);
+  return [cloneMachineSnapshot(snapshot, {
+    context: updatedContext,
+    children: Object.keys(spawnedChildren).length ? {
+      ...snapshot.children,
+      ...spawnedChildren
+    } : snapshot.children
+  }), void 0, void 0];
+}
+function assign(assignment) {
+  function assign2(_args, _params) {
+  }
+  assign2.type = "xstate.assign";
+  assign2.assignment = assignment;
+  assign2.resolve = resolveAssign;
+  return assign2;
+}
+
+// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/StateMachine-d08f7a0b.esm.js
+var cache2 = /* @__PURE__ */ new WeakMap();
+function memo(object, key, fn) {
+  let memoizedData = cache2.get(object);
+  if (!memoizedData) {
+    memoizedData = {
+      [key]: fn()
+    };
+    cache2.set(object, memoizedData);
+  } else if (!(key in memoizedData)) {
+    memoizedData[key] = fn();
+  }
+  return memoizedData[key];
+}
+var EMPTY_OBJECT = {};
+var toSerializableAction = (action) => {
+  if (typeof action === "string") {
+    return {
+      type: action
+    };
+  }
+  if (typeof action === "function") {
+    if ("resolve" in action) {
+      return {
+        type: action.type
+      };
+    }
+    return {
+      type: action.name
+    };
+  }
+  return action;
+};
+var StateNode = class _StateNode {
+  constructor(config2, options) {
+    this.config = config2;
+    this.key = void 0;
+    this.id = void 0;
+    this.type = void 0;
+    this.path = void 0;
+    this.states = void 0;
+    this.history = void 0;
+    this.entry = void 0;
+    this.exit = void 0;
+    this.parent = void 0;
+    this.machine = void 0;
+    this.meta = void 0;
+    this.output = void 0;
+    this.order = -1;
+    this.description = void 0;
+    this.tags = [];
+    this.transitions = void 0;
+    this.always = void 0;
+    this.parent = options._parent;
+    this.key = options._key;
+    this.machine = options._machine;
+    this.path = this.parent ? this.parent.path.concat(this.key) : [];
+    this.id = this.config.id || [this.machine.id, ...this.path].join(STATE_DELIMITER);
+    this.type = this.config.type || (this.config.states && Object.keys(this.config.states).length ? "compound" : this.config.history ? "history" : "atomic");
+    this.description = this.config.description;
+    this.order = this.machine.idMap.size;
+    this.machine.idMap.set(this.id, this);
+    this.states = this.config.states ? mapValues(this.config.states, (stateConfig, key) => {
+      const stateNode = new _StateNode(stateConfig, {
+        _parent: this,
+        _key: key,
+        _machine: this.machine
+      });
+      return stateNode;
+    }) : EMPTY_OBJECT;
+    if (this.type === "compound" && !this.config.initial) {
+      throw new Error(`No initial state specified for compound state node "#${this.id}". Try adding { initial: "${Object.keys(this.states)[0]}" } to the state config.`);
+    }
+    this.history = this.config.history === true ? "shallow" : this.config.history || false;
+    this.entry = toArray(this.config.entry).slice();
+    this.exit = toArray(this.config.exit).slice();
+    this.meta = this.config.meta;
+    this.output = this.type === "final" || !this.parent ? this.config.output : void 0;
+    this.tags = toArray(config2.tags).slice();
+  }
+  /** @internal */
+  _initialize() {
+    this.transitions = formatTransitions(this);
+    if (this.config.always) {
+      this.always = toTransitionConfigArray(this.config.always).map((t) => formatTransition(this, NULL_EVENT, t));
+    }
+    Object.keys(this.states).forEach((key) => {
+      this.states[key]._initialize();
+    });
+  }
+  /** The well-structured state node definition. */
+  get definition() {
+    return {
+      id: this.id,
+      key: this.key,
+      version: this.machine.version,
+      type: this.type,
+      initial: this.initial ? {
+        target: this.initial.target,
+        source: this,
+        actions: this.initial.actions.map(toSerializableAction),
+        eventType: null,
+        reenter: false,
+        toJSON: () => ({
+          target: this.initial.target.map((t) => `#${t.id}`),
+          source: `#${this.id}`,
+          actions: this.initial.actions.map(toSerializableAction),
+          eventType: null
+        })
+      } : void 0,
+      history: this.history,
+      states: mapValues(this.states, (state) => {
+        return state.definition;
+      }),
+      on: this.on,
+      transitions: [...this.transitions.values()].flat().map((t) => ({
+        ...t,
+        actions: t.actions.map(toSerializableAction)
+      })),
+      entry: this.entry.map(toSerializableAction),
+      exit: this.exit.map(toSerializableAction),
+      meta: this.meta,
+      order: this.order || -1,
+      output: this.output,
+      invoke: this.invoke,
+      description: this.description,
+      tags: this.tags
+    };
+  }
+  /** @internal */
+  toJSON() {
+    return this.definition;
+  }
+  /** The logic invoked as actors by this state node. */
+  get invoke() {
+    return memo(this, "invoke", () => toArray(this.config.invoke).map((invokeConfig, i) => {
+      const {
+        src,
+        systemId
+      } = invokeConfig;
+      const resolvedId = invokeConfig.id ?? createInvokeId(this.id, i);
+      const sourceName = typeof src === "string" ? src : `xstate.invoke.${createInvokeId(this.id, i)}`;
+      return {
+        ...invokeConfig,
+        src: sourceName,
+        id: resolvedId,
+        systemId,
+        toJSON() {
+          const {
+            onDone,
+            onError,
+            ...invokeDefValues
+          } = invokeConfig;
+          return {
+            ...invokeDefValues,
+            type: "xstate.invoke",
+            src: sourceName,
+            id: resolvedId
+          };
+        }
+      };
+    }));
+  }
+  /** The mapping of events to transitions. */
+  get on() {
+    return memo(this, "on", () => {
+      const transitions = this.transitions;
+      return [...transitions].flatMap(([descriptor, t]) => t.map((t2) => [descriptor, t2])).reduce((map4, [descriptor, transition]) => {
+        map4[descriptor] = map4[descriptor] || [];
+        map4[descriptor].push(transition);
+        return map4;
+      }, {});
+    });
+  }
+  get after() {
+    return memo(this, "delayedTransitions", () => getDelayedTransitions(this));
+  }
+  get initial() {
+    return memo(this, "initial", () => formatInitialTransition(this, this.config.initial));
+  }
+  /** @internal */
+  next(snapshot, event) {
+    const eventType = event.type;
+    const actions2 = [];
+    let selectedTransition;
+    const candidates = memo(this, `candidates-${eventType}`, () => getCandidates(this, eventType));
+    for (const candidate of candidates) {
+      const {
+        guard
+      } = candidate;
+      const resolvedContext = snapshot.context;
+      let guardPassed = false;
+      try {
+        guardPassed = !guard || evaluateGuard(guard, resolvedContext, event, snapshot);
+      } catch (err) {
+        const guardType = typeof guard === "string" ? guard : typeof guard === "object" ? guard.type : void 0;
+        throw new Error(`Unable to evaluate guard ${guardType ? `'${guardType}' ` : ""}in transition for event '${eventType}' in state node '${this.id}':
+${err.message}`);
+      }
+      if (guardPassed) {
+        actions2.push(...candidate.actions);
+        selectedTransition = candidate;
+        break;
+      }
+    }
+    return selectedTransition ? [selectedTransition] : void 0;
+  }
+  /** All the event types accepted by this state node and its descendants. */
+  get events() {
+    return memo(this, "events", () => {
+      const {
+        states
+      } = this;
+      const events = new Set(this.ownEvents);
+      if (states) {
+        for (const stateId of Object.keys(states)) {
+          const state = states[stateId];
+          if (state.states) {
+            for (const event of state.events) {
+              events.add(`${event}`);
+            }
+          }
+        }
+      }
+      return Array.from(events);
+    });
+  }
+  /**
+   * All the events that have transitions directly from this state node.
+   *
+   * Excludes any inert events.
+   */
+  get ownEvents() {
+    const keys = Object.keys(Object.fromEntries(this.transitions));
+    const events = new Set(keys.filter((descriptor) => {
+      return this.transitions.get(descriptor).some((transition) => !(!transition.target && !transition.actions.length && !transition.reenter));
+    }));
+    return Array.from(events);
+  }
+};
+var STATE_IDENTIFIER2 = "#";
+var StateMachine = class _StateMachine {
+  constructor(config2, implementations) {
+    this.config = config2;
+    this.version = void 0;
+    this.schemas = void 0;
+    this.implementations = void 0;
+    this.__xstatenode = true;
+    this.idMap = /* @__PURE__ */ new Map();
+    this.root = void 0;
+    this.id = void 0;
+    this.states = void 0;
+    this.events = void 0;
+    this.id = config2.id || "(machine)";
+    this.implementations = {
+      actors: implementations?.actors ?? {},
+      actions: implementations?.actions ?? {},
+      delays: implementations?.delays ?? {},
+      guards: implementations?.guards ?? {}
+    };
+    this.version = this.config.version;
+    this.schemas = this.config.schemas;
+    this.transition = this.transition.bind(this);
+    this.getInitialSnapshot = this.getInitialSnapshot.bind(this);
+    this.getPersistedSnapshot = this.getPersistedSnapshot.bind(this);
+    this.restoreSnapshot = this.restoreSnapshot.bind(this);
+    this.start = this.start.bind(this);
+    this.root = new StateNode(config2, {
+      _key: this.id,
+      _machine: this
+    });
+    this.root._initialize();
+    this.states = this.root.states;
+    this.events = this.root.events;
+  }
+  /**
+   * Clones this state machine with the provided implementations.
+   *
+   * @param implementations Options (`actions`, `guards`, `actors`, `delays`) to
+   *   recursively merge with the existing options.
+   * @returns A new `StateMachine` instance with the provided implementations.
+   */
+  provide(implementations) {
+    const {
+      actions: actions2,
+      guards: guards2,
+      actors,
+      delays
+    } = this.implementations;
+    return new _StateMachine(this.config, {
+      actions: {
+        ...actions2,
+        ...implementations.actions
+      },
+      guards: {
+        ...guards2,
+        ...implementations.guards
+      },
+      actors: {
+        ...actors,
+        ...implementations.actors
+      },
+      delays: {
+        ...delays,
+        ...implementations.delays
+      }
+    });
+  }
+  resolveState(config2) {
+    const resolvedStateValue = resolveStateValue(this.root, config2.value);
+    const nodeSet = getAllStateNodes(getStateNodes(this.root, resolvedStateValue));
+    return createMachineSnapshot({
+      _nodes: [...nodeSet],
+      context: config2.context || {},
+      children: {},
+      status: isInFinalState(nodeSet, this.root) ? "done" : config2.status || "active",
+      output: config2.output,
+      error: config2.error,
+      historyValue: config2.historyValue
+    }, this);
+  }
+  /**
+   * Determines the next snapshot given the current `snapshot` and received
+   * `event`. Calculates a full macrostep from all microsteps.
+   *
+   * @param snapshot The current snapshot
+   * @param event The received event
+   */
+  transition(snapshot, event, actorScope) {
+    return macrostep(snapshot, event, actorScope, []).snapshot;
+  }
+  /**
+   * Determines the next state given the current `state` and `event`. Calculates
+   * a microstep.
+   *
+   * @param state The current state
+   * @param event The received event
+   */
+  microstep(snapshot, event, actorScope) {
+    return macrostep(snapshot, event, actorScope, []).microstates;
+  }
+  getTransitionData(snapshot, event) {
+    return transitionNode(this.root, snapshot.value, snapshot, event) || [];
+  }
+  /**
+   * The initial state _before_ evaluating any microsteps. This "pre-initial"
+   * state is provided to initial actions executed in the initial state.
+   */
+  getPreInitialState(actorScope, initEvent, internalQueue) {
+    const {
+      context: context2
+    } = this.config;
+    const preInitial = createMachineSnapshot({
+      context: typeof context2 !== "function" && context2 ? context2 : {},
+      _nodes: [this.root],
+      children: {},
+      status: "active"
+    }, this);
+    if (typeof context2 === "function") {
+      const assignment = ({
+        spawn: spawn2,
+        event,
+        self: self2
+      }) => context2({
+        spawn: spawn2,
+        input: event.input,
+        self: self2
+      });
+      return resolveActionsAndContext(preInitial, initEvent, actorScope, [assign(assignment)], internalQueue, void 0);
+    }
+    return preInitial;
+  }
+  /**
+   * Returns the initial `State` instance, with reference to `self` as an
+   * `ActorRef`.
+   */
+  getInitialSnapshot(actorScope, input) {
+    const initEvent = createInitEvent(input);
+    const internalQueue = [];
+    const preInitialState = this.getPreInitialState(actorScope, initEvent, internalQueue);
+    const nextState = microstep([{
+      target: [...getInitialStateNodes(this.root)],
+      source: this.root,
+      reenter: true,
+      actions: [],
+      eventType: null,
+      toJSON: null
+      // TODO: fix
+    }], preInitialState, actorScope, initEvent, true, internalQueue);
+    const {
+      snapshot: macroState
+    } = macrostep(nextState, initEvent, actorScope, internalQueue);
+    return macroState;
+  }
+  start(snapshot) {
+    Object.values(snapshot.children).forEach((child) => {
+      if (child.getSnapshot().status === "active") {
+        child.start();
+      }
+    });
+  }
+  getStateNodeById(stateId) {
+    const fullPath = toStatePath(stateId);
+    const relativePath = fullPath.slice(1);
+    const resolvedStateId = isStateId(fullPath[0]) ? fullPath[0].slice(STATE_IDENTIFIER2.length) : fullPath[0];
+    const stateNode = this.idMap.get(resolvedStateId);
+    if (!stateNode) {
+      throw new Error(`Child state node '#${resolvedStateId}' does not exist on machine '${this.id}'`);
+    }
+    return getStateNodeByPath(stateNode, relativePath);
+  }
+  get definition() {
+    return this.root.definition;
+  }
+  toJSON() {
+    return this.definition;
+  }
+  getPersistedSnapshot(snapshot, options) {
+    return getPersistedSnapshot(snapshot, options);
+  }
+  restoreSnapshot(snapshot, _actorScope) {
+    const children = {};
+    const snapshotChildren = snapshot.children;
+    Object.keys(snapshotChildren).forEach((actorId) => {
+      const actorData = snapshotChildren[actorId];
+      const childState = actorData.snapshot;
+      const src = actorData.src;
+      const logic = typeof src === "string" ? resolveReferencedActor(this, src) : src;
+      if (!logic) {
+        return;
+      }
+      const actorRef = createActor(logic, {
+        id: actorId,
+        parent: _actorScope.self,
+        syncSnapshot: actorData.syncSnapshot,
+        snapshot: childState,
+        src,
+        systemId: actorData.systemId
+      });
+      children[actorId] = actorRef;
+    });
+    function resolveHistoryReferencedState(root3, referenced) {
+      if (referenced instanceof StateNode) {
+        return referenced;
+      }
+      try {
+        return root3.machine.getStateNodeById(referenced.id);
+      } catch {
+      }
+    }
+    function reviveHistoryValue(root3, historyValue) {
+      if (!historyValue || typeof historyValue !== "object") {
+        return {};
+      }
+      const revived = {};
+      for (const key in historyValue) {
+        const arr = historyValue[key];
+        for (const item of arr) {
+          const resolved = resolveHistoryReferencedState(root3, item);
+          if (!resolved) {
+            continue;
+          }
+          revived[key] ??= [];
+          revived[key].push(resolved);
+        }
+      }
+      return revived;
+    }
+    const revivedHistoryValue = reviveHistoryValue(this.root, snapshot.historyValue);
+    const restoredSnapshot = createMachineSnapshot({
+      ...snapshot,
+      children,
+      _nodes: Array.from(getAllStateNodes(getStateNodes(this.root, snapshot.value))),
+      historyValue: revivedHistoryValue
+    }, this);
+    const seen = /* @__PURE__ */ new Set();
+    function reviveContext(contextPart, children2) {
+      if (seen.has(contextPart)) {
+        return;
+      }
+      seen.add(contextPart);
+      for (const key in contextPart) {
+        const value = contextPart[key];
+        if (value && typeof value === "object") {
+          if ("xstate$$type" in value && value.xstate$$type === $$ACTOR_TYPE) {
+            contextPart[key] = children2[value.id];
+            continue;
+          }
+          reviveContext(value, children2);
+        }
+      }
+    }
+    reviveContext(restoredSnapshot.context, children);
+    return restoredSnapshot;
+  }
+};
+
+// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/log-46a8697a.esm.js
+function resolveEmit(_, snapshot, args, actionParams, {
+  event: eventOrExpr
+}) {
+  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
+  return [snapshot, {
+    event: resolvedEvent
+  }, void 0];
+}
+function executeEmit(actorScope, {
+  event
+}) {
+  actorScope.defer(() => actorScope.emit(event));
+}
+function emit(eventOrExpr) {
+  function emit3(_args, _params) {
+  }
+  emit3.type = "xstate.emit";
+  emit3.event = eventOrExpr;
+  emit3.resolve = resolveEmit;
+  emit3.execute = executeEmit;
+  return emit3;
+}
+var SpecialTargets = /* @__PURE__ */ function(SpecialTargets2) {
+  SpecialTargets2["Parent"] = "#_parent";
+  SpecialTargets2["Internal"] = "#_internal";
+  return SpecialTargets2;
+}({});
+function resolveSendTo(actorScope, snapshot, args, actionParams, {
+  to,
+  event: eventOrExpr,
+  id,
+  delay
+}, extra) {
+  const delaysMap = snapshot.machine.implementations.delays;
+  if (typeof eventOrExpr === "string") {
+    throw new Error(
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `Only event objects may be used with sendTo; use sendTo({ type: "${eventOrExpr}" }) instead`
+    );
+  }
+  const resolvedEvent = typeof eventOrExpr === "function" ? eventOrExpr(args, actionParams) : eventOrExpr;
+  let resolvedDelay;
+  if (typeof delay === "string") {
+    const configDelay = delaysMap && delaysMap[delay];
+    resolvedDelay = typeof configDelay === "function" ? configDelay(args, actionParams) : configDelay;
+  } else {
+    resolvedDelay = typeof delay === "function" ? delay(args, actionParams) : delay;
+  }
+  const resolvedTarget = typeof to === "function" ? to(args, actionParams) : to;
+  let targetActorRef;
+  if (typeof resolvedTarget === "string") {
+    if (resolvedTarget === SpecialTargets.Parent) {
+      targetActorRef = actorScope.self._parent;
+    } else if (resolvedTarget === SpecialTargets.Internal) {
+      targetActorRef = actorScope.self;
+    } else if (resolvedTarget.startsWith("#_")) {
+      targetActorRef = snapshot.children[resolvedTarget.slice(2)];
+    } else {
+      targetActorRef = extra.deferredActorIds?.includes(resolvedTarget) ? resolvedTarget : snapshot.children[resolvedTarget];
+    }
+    if (!targetActorRef) {
+      throw new Error(`Unable to send event to actor '${resolvedTarget}' from machine '${snapshot.machine.id}'.`);
+    }
+  } else {
+    targetActorRef = resolvedTarget || actorScope.self;
+  }
+  return [snapshot, {
+    to: targetActorRef,
+    targetId: typeof resolvedTarget === "string" ? resolvedTarget : void 0,
+    event: resolvedEvent,
+    id,
+    delay: resolvedDelay
+  }, void 0];
+}
+function retryResolveSendTo(_, snapshot, params) {
+  if (typeof params.to === "string") {
+    params.to = snapshot.children[params.to];
+  }
+}
+function executeSendTo(actorScope, params) {
+  actorScope.defer(() => {
+    const {
+      to,
+      event,
+      delay,
+      id
+    } = params;
+    if (typeof delay === "number") {
+      actorScope.system.scheduler.schedule(actorScope.self, to, event, delay, id);
+      return;
+    }
+    actorScope.system._relay(
+      actorScope.self,
+      // at this point, in a deferred task, it should already be mutated by retryResolveSendTo
+      // if it initially started as a string
+      to,
+      event.type === XSTATE_ERROR ? createErrorActorEvent(actorScope.self.id, event.data) : event
+    );
+  });
+}
+function sendTo(to, eventOrExpr, options) {
+  function sendTo2(_args, _params) {
+  }
+  sendTo2.type = "xstate.sendTo";
+  sendTo2.to = to;
+  sendTo2.event = eventOrExpr;
+  sendTo2.id = options?.id;
+  sendTo2.delay = options?.delay;
+  sendTo2.resolve = resolveSendTo;
+  sendTo2.retryResolve = retryResolveSendTo;
+  sendTo2.execute = executeSendTo;
+  return sendTo2;
+}
+function sendParent(event, options) {
+  return sendTo(SpecialTargets.Parent, event, options);
+}
+function resolveEnqueueActions(actorScope, snapshot, args, actionParams, {
+  collect
+}) {
+  const actions2 = [];
+  const enqueue = function enqueue2(action) {
+    actions2.push(action);
+  };
+  enqueue.assign = (...args2) => {
+    actions2.push(assign(...args2));
+  };
+  enqueue.cancel = (...args2) => {
+    actions2.push(cancel(...args2));
+  };
+  enqueue.raise = (...args2) => {
+    actions2.push(raise(...args2));
+  };
+  enqueue.sendTo = (...args2) => {
+    actions2.push(sendTo(...args2));
+  };
+  enqueue.sendParent = (...args2) => {
+    actions2.push(sendParent(...args2));
+  };
+  enqueue.spawnChild = (...args2) => {
+    actions2.push(spawnChild(...args2));
+  };
+  enqueue.stopChild = (...args2) => {
+    actions2.push(stopChild(...args2));
+  };
+  enqueue.emit = (...args2) => {
+    actions2.push(emit(...args2));
+  };
+  collect({
+    context: args.context,
+    event: args.event,
+    enqueue,
+    check: (guard) => evaluateGuard(guard, snapshot.context, args.event, snapshot),
+    self: actorScope.self,
+    system: actorScope.system
+  }, actionParams);
+  return [snapshot, void 0, actions2];
+}
+function enqueueActions(collect) {
+  function enqueueActions2(_args, _params) {
+  }
+  enqueueActions2.type = "xstate.enqueueActions";
+  enqueueActions2.collect = collect;
+  enqueueActions2.resolve = resolveEnqueueActions;
+  return enqueueActions2;
+}
+function resolveLog(_, snapshot, actionArgs, actionParams, {
+  value,
+  label
+}) {
+  return [snapshot, {
+    value: typeof value === "function" ? value(actionArgs, actionParams) : value,
+    label
+  }, void 0];
+}
+function executeLog({
+  logger
+}, {
+  value,
+  label
+}) {
+  if (label) {
+    logger(label, value);
+  } else {
+    logger(value);
+  }
+}
+function log(value = ({
+  context: context2,
+  event
+}) => ({
+  context: context2,
+  event
+}), label) {
+  function log2(_args, _params) {
+  }
+  log2.type = "xstate.log";
+  log2.value = value;
+  log2.label = label;
+  log2.resolve = resolveLog;
+  log2.execute = executeLog;
+  return log2;
+}
+
+// node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dist/xstate.esm.js
+function createMachine(config2, implementations) {
+  return new StateMachine(config2, implementations);
+}
+function setup({
+  schemas,
+  actors,
+  actions: actions2,
+  guards: guards2,
+  delays
+}) {
+  return {
+    assign,
+    sendTo,
+    raise,
+    log,
+    cancel,
+    stopChild,
+    enqueueActions,
+    emit,
+    spawnChild,
+    createStateConfig: (config2) => config2,
+    createAction: (fn) => fn,
+    createMachine: (config2) => createMachine({
+      ...config2,
+      schemas
+    }, {
+      actors,
+      actions: actions2,
+      guards: guards2,
+      delays
+    }),
+    extend: (extended) => setup({
+      schemas,
+      actors,
+      actions: {
+        ...actions2,
+        ...extended.actions
+      },
+      guards: {
+        ...guards2,
+        ...extended.guards
+      },
+      delays: {
+        ...delays,
+        ...extended.delays
+      }
+    })
+  };
+}
+
+// packages/statemachine/src/core/constants.ts
+var HISTORY_ICONS2 = {
+  ITERATING: "\u23F3",
+  CI_PASSED: "\u2705",
+  CI_FAILED: "\u274C",
+  BLOCKED: "\u{1F6AB}",
+  REVIEW_REQUESTED: "\u{1F440}",
+  MERGED: "\u{1F6A2}",
+  INITIALIZED: "\u{1F680}",
+  PHASE_ADVANCED: "\u23ED\uFE0F",
+  CODE_PUSHED: "\u{1F4DD}",
+  WARNING: "\u26A0\uFE0F"
+};
+var HISTORY_MESSAGES2 = {
+  // Iteration
+  ITERATING: `${HISTORY_ICONS2.ITERATING} Iterating...`,
+  CI_PASSED: `${HISTORY_ICONS2.CI_PASSED} CI Passed`,
+  CI_FAILED: `${HISTORY_ICONS2.CI_FAILED} CI Failed`,
+  REVIEW_REQUESTED: `${HISTORY_ICONS2.REVIEW_REQUESTED} Review requested`,
+  // Orchestration
+  ALL_PHASES_COMPLETE: `${HISTORY_ICONS2.CI_PASSED} All phases complete`,
+  MERGED: `${HISTORY_ICONS2.MERGED} Merged`,
+  // Merge queue
+  ENTERED_QUEUE: `${HISTORY_ICONS2.INITIALIZED} Entered queue`,
+  REMOVED_FROM_QUEUE: `${HISTORY_ICONS2.CI_FAILED} Removed from queue`,
+  // Deployment
+  DEPLOYED_STAGE: `${HISTORY_ICONS2.CI_PASSED} Deployed to stage`,
+  RELEASED_PROD: `${HISTORY_ICONS2.CI_PASSED} Released to production`,
+  STAGE_DEPLOY_FAILED: `${HISTORY_ICONS2.CI_FAILED} Stage deploy failed`,
+  PROD_DEPLOY_FAILED: `${HISTORY_ICONS2.CI_FAILED} Prod deploy failed`,
+  // Push to draft
+  CODE_PUSHED: `${HISTORY_ICONS2.CODE_PUSHED} Code pushed - converting to draft`,
+  // Grooming
+  GROOMING: `${HISTORY_ICONS2.ITERATING} grooming...`,
+  ANALYZING_PIVOT: `${HISTORY_ICONS2.ITERATING} Analyzing pivot request...`,
+  // Invalid iteration
+  INVALID_ITERATION: `${HISTORY_ICONS2.CI_FAILED} FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.`,
+  // Verification (for future sm-verify)
+  VERIFICATION_FAILED: `${HISTORY_ICONS2.CI_FAILED} Verification failed`,
+  // Dynamic builders
+  initialized: (phaseCount) => `${HISTORY_ICONS2.INITIALIZED} Initialized with ${phaseCount} phase(s)`,
+  phaseStarted: (phase) => `${HISTORY_ICONS2.PHASE_ADVANCED} Phase ${phase} started`,
+  blocked: (failures) => `${HISTORY_ICONS2.BLOCKED} Blocked: Max failures reached (${failures})`,
+  agentBlocked: (reason) => `${HISTORY_ICONS2.BLOCKED} Blocked: Agent reported blocked - ${reason}`,
+  RETRY: `${HISTORY_ICONS2.INITIALIZED} Retried: Failures cleared, resuming work`
+};
+var TODO_ALIASES2 = ["Todo", "Todos"];
+var SECTION_NAMES2 = {
+  DESCRIPTION: "Description",
+  REQUIREMENTS: "Requirements",
+  APPROACH: "Approach",
+  ACCEPTANCE_CRITERIA: "Acceptance Criteria",
+  TESTING: "Testing",
+  RELATED: "Related",
+  QUESTIONS: "Questions",
+  TODOS: "Todos",
+  AGENT_NOTES: "Agent Notes",
+  ITERATION_HISTORY: "Iteration History",
+  AFFECTED_AREAS: "Affected Areas",
+  TODO_ALIASES: TODO_ALIASES2
+};
+
+// packages/statemachine/src/core/parser.ts
+function findHeadingIndexAny3(ast, texts) {
+  return ast.children.findIndex((node2) => {
+    if (node2.type !== "heading") return false;
+    const firstChild = node2.children[0];
+    return firstChild?.type === "text" && texts.includes(firstChild.value);
+  });
+}
+function getNodeText3(node2) {
+  if (!node2) return "";
+  if (node2.type === "text") return node2.value;
+  if (node2.type === "inlineCode") return node2.value;
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    return node2.children.map(getNodeText3).join("");
+  }
+  return "";
+}
+function isList2(node2) {
+  return node2.type === "list";
+}
+function extractTodosFromAst2(bodyAst) {
+  const todosIdx = findHeadingIndexAny3(bodyAst, SECTION_NAMES2.TODO_ALIASES);
+  if (todosIdx === -1) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  const listNode = bodyAst.children[todosIdx + 1];
+  if (!listNode || !isList2(listNode)) {
+    return { total: 0, completed: 0, uncheckedNonManual: 0 };
+  }
+  let total = 0;
+  let completed = 0;
+  let uncheckedNonManual = 0;
+  for (const item of listNode.children) {
+    if (item.type === "listItem" && item.checked !== void 0) {
+      total++;
+      if (item.checked) {
+        completed++;
+      } else {
+        const text5 = getNodeText3(item);
+        const isManual = /\[Manual\]|\*\(manual\)\*/i.test(text5);
+        if (!isManual) {
+          uncheckedNonManual++;
+        }
+      }
+    }
+  }
+  return { total, completed, uncheckedNonManual };
+}
+function deriveBranchName3(parentIssueNumber2, phaseNumber) {
+  if (phaseNumber !== void 0 && phaseNumber > 0) {
+    return `claude/issue/${parentIssueNumber2}/phase-${phaseNumber}`;
+  }
+  return `claude/issue/${parentIssueNumber2}`;
+}
+
+// packages/statemachine/src/core/emit-helper.ts
+function accumulateFromEmitter(existingActions, context2, emitter) {
+  return [...existingActions, ...emitter({ context: context2 })];
+}
+function emit2(emitter) {
+  return assign({
+    pendingActions: ({ context: context2 }) => accumulateFromEmitter(context2.pendingActions, context2, emitter)
+  });
+}
+function createEmitter() {
+  return (emitter) => emit2(emitter);
+}
+
+// packages/statemachine/src/core/action-helpers.ts
+function emitLog(_ctx, message, level = "info") {
+  return [actions.log.create({ level, message, worktree: "main" })];
+}
+
+// packages/statemachine/src/machines/issues/guards.ts
+function isAlreadyDone({ context: context2 }) {
+  if (context2.issue.projectStatus === "Done" && context2.pr?.state === "MERGED") {
+    return true;
+  }
+  return false;
+}
+function isBlocked({ context: context2 }) {
+  return context2.issue.projectStatus === "Blocked";
+}
+function isError({ context: context2 }) {
+  return context2.issue.projectStatus === "Error";
+}
+function isTerminal({ context: context2 }) {
+  const status = context2.issue.projectStatus;
+  return status !== null && isTerminalStatus(status);
+}
+function hasSubIssues({ context: context2 }) {
+  return context2.issue.hasSubIssues;
+}
+function isSubIssue({ context: context2 }) {
+  return context2.parentIssue !== null;
+}
+function subIssueCanIterate({ context: context2 }) {
+  if (context2.parentIssue === null) return false;
+  if (!context2.parentIssue.assignees.includes(context2.botUsername))
+    return false;
+  return context2.issue.assignees.includes(context2.botUsername);
+}
+function needsSubIssues(_guardContext) {
+  return false;
+}
+function allPhasesDone({ context: context2 }) {
+  const hasGroomedLabel = context2.issue.labels.some(
+    (l) => l.toLowerCase() === "groomed"
+  );
+  if (!hasGroomedLabel) {
+    return false;
+  }
+  if (context2.issue.subIssues.length === 0) {
+    return false;
+  }
+  return context2.issue.subIssues.every(
+    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
+  );
+}
+function needsParentInit({ context: context2 }) {
+  return context2.issue.hasSubIssues && (context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog");
+}
+function currentPhaseComplete({ context: context2 }) {
+  if (!context2.currentSubIssue) {
+    return false;
+  }
+  const todos = extractTodosFromAst2(context2.currentSubIssue.bodyAst);
+  return todos.uncheckedNonManual === 0;
+}
+function hasNextPhase({ context: context2 }) {
+  if (!context2.issue.hasSubIssues || context2.currentPhase === null) {
+    return false;
+  }
+  return context2.currentPhase < context2.totalPhases;
+}
+function subIssueNeedsAssignment({ context: context2 }) {
+  return context2.currentSubIssue !== null;
+}
+function isInReview({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    return context2.currentSubIssue.projectStatus === "In review";
+  }
+  return context2.issue.projectStatus === "In review";
+}
+function currentPhaseNeedsWork({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    const status = context2.currentSubIssue.projectStatus;
+    return status === "In progress" || status === null;
+  }
+  return context2.issue.projectStatus === "In progress";
+}
+function currentPhaseInReview({ context: context2 }) {
+  return isInReview({ context: context2 });
+}
+function todosDone({ context: context2 }) {
+  if (context2.currentSubIssue) {
+    const todos2 = extractTodosFromAst2(context2.currentSubIssue.bodyAst);
+    return todos2.uncheckedNonManual === 0;
+  }
+  const todos = extractTodosFromAst2(context2.issue.bodyAst);
+  return todos.uncheckedNonManual === 0;
+}
+function hasPendingTodos({ context: context2 }) {
+  return !todosDone({ context: context2 });
+}
+function ciPassed({ context: context2 }) {
+  return context2.ciResult === "success";
+}
+function ciFailed({ context: context2 }) {
+  return context2.ciResult === "failure";
+}
+function ciCancelled({ context: context2 }) {
+  return context2.ciResult === "cancelled";
+}
+function maxFailuresReached({ context: context2 }) {
+  return context2.issue.failures >= context2.maxRetries;
+}
+function hasFailures({ context: context2 }) {
+  return context2.issue.failures > 0;
+}
+function reviewApproved({ context: context2 }) {
+  return context2.reviewDecision === "APPROVED";
+}
+function reviewRequestedChanges({ context: context2 }) {
+  return context2.reviewDecision === "CHANGES_REQUESTED";
+}
+function reviewCommented({ context: context2 }) {
+  return context2.reviewDecision === "COMMENTED";
+}
+function hasPR({ context: context2 }) {
+  return context2.hasPR && context2.pr !== null;
+}
+function prIsDraft({ context: context2 }) {
+  return context2.pr?.isDraft === true;
+}
+function prIsReady({ context: context2 }) {
+  return context2.pr !== null && !context2.pr.isDraft;
+}
+function prIsMerged({ context: context2 }) {
+  return context2.pr?.state === "MERGED";
+}
+function hasBranch({ context: context2 }) {
+  return context2.hasBranch;
+}
+function needsBranch({ context: context2 }) {
+  return !context2.hasBranch && context2.branch !== null;
+}
+function botIsAssigned({ context: context2 }) {
+  return context2.issue.assignees.includes(context2.botUsername);
+}
+function isFirstIteration({ context: context2 }) {
+  return context2.issue.iteration === 0;
+}
+function triggeredByAssignment({ context: context2 }) {
+  return context2.trigger === "issue-assigned";
+}
+function triggeredByEdit({ context: context2 }) {
+  return context2.trigger === "issue-edited";
+}
+function triggeredByCI({ context: context2 }) {
+  return context2.trigger === "workflow-run-completed";
+}
+function triggeredByReview({ context: context2 }) {
+  return context2.trigger === "pr-review-submitted";
+}
+function triggeredByReviewRequest({ context: context2 }) {
+  return context2.trigger === "pr-review-requested";
+}
+function triggeredByTriage({ context: context2 }) {
+  return context2.trigger === "issue-triage";
+}
+function triggeredByComment({ context: context2 }) {
+  return context2.trigger === "issue-comment";
+}
+function triggeredByOrchestrate({ context: context2 }) {
+  return context2.trigger === "issue-orchestrate";
+}
+function triggeredByPRReview({ context: context2 }) {
+  return context2.trigger === "pr-review-requested" || context2.trigger === "pr-review";
+}
+function triggeredByPRResponse({ context: context2 }) {
+  return context2.trigger === "pr-response";
+}
+function triggeredByPRHumanResponse({ context: context2 }) {
+  return context2.trigger === "pr-human-response";
+}
+function triggeredByPRReviewApproved({
+  context: context2
+}) {
+  return context2.trigger === "pr-review-approved";
+}
+function triggeredByPRPush({ context: context2 }) {
+  return context2.trigger === "pr-push";
+}
+function triggeredByReset({ context: context2 }) {
+  return context2.trigger === "issue-reset";
+}
+function triggeredByPivot({ context: context2 }) {
+  return context2.trigger === "issue-pivot";
+}
+function triggeredByRetry({ context: context2 }) {
+  return context2.trigger === "issue-retry";
+}
+function triggeredByMergeQueueEntry({ context: context2 }) {
+  return context2.trigger === "merge-queue-entered";
+}
+function triggeredByMergeQueueFailure({
+  context: context2
+}) {
+  return context2.trigger === "merge-queue-failed";
+}
+function triggeredByPRMerged({ context: context2 }) {
+  return context2.trigger === "pr-merged";
+}
+function triggeredByDeployedStage({ context: context2 }) {
+  return context2.trigger === "deployed-stage";
+}
+function triggeredByDeployedProd({ context: context2 }) {
+  return context2.trigger === "deployed-prod";
+}
+function triggeredByDeployedStageFailure({
+  context: context2
+}) {
+  return context2.trigger === "deployed-stage-failed";
+}
+function triggeredByDeployedProdFailure({
+  context: context2
+}) {
+  return context2.trigger === "deployed-prod-failed";
+}
+function needsTriage({ context: context2 }) {
+  if (context2.parentIssue !== null) return false;
+  return !context2.issue.labels.includes("triaged");
+}
+function isTriaged({ context: context2 }) {
+  return context2.issue.labels.includes("triaged");
+}
+function triggeredByGroom({ context: context2 }) {
+  return context2.trigger === "issue-groom";
+}
+function triggeredByGroomSummary({ context: context2 }) {
+  return context2.trigger === "issue-groom-summary";
+}
+function needsGrooming({ context: context2 }) {
+  const labels = context2.issue.labels;
+  const hasTriaged = labels.includes("triaged");
+  const hasGroomed = labels.includes("groomed");
+  return hasTriaged && !hasGroomed;
+}
+function isGroomed({ context: context2 }) {
+  return context2.issue.labels.includes("groomed");
+}
+function needsInfo({ context: context2 }) {
+  return context2.issue.labels.includes("needs-info");
+}
+function readyForReview({ context: context2 }) {
+  return ciPassed({ context: context2 }) && todosDone({ context: context2 });
+}
+function shouldContinueIterating({ context: context2 }) {
+  return ciFailed({ context: context2 }) && !maxFailuresReached({ context: context2 });
+}
+function shouldBlock({ context: context2 }) {
+  return ciFailed({ context: context2 }) && maxFailuresReached({ context: context2 });
+}
+var guards = {
+  // Terminal state guards
+  isAlreadyDone,
+  isBlocked,
+  isError,
+  isTerminal,
+  // Sub-issue guards
+  hasSubIssues,
+  isSubIssue,
+  subIssueCanIterate,
+  needsSubIssues,
+  allPhasesDone,
+  // Orchestration guards
+  needsParentInit,
+  currentPhaseComplete,
+  hasNextPhase,
+  subIssueNeedsAssignment,
+  // Phase state guards
+  isInReview,
+  currentPhaseNeedsWork,
+  currentPhaseInReview,
+  // Todo guards
+  todosDone,
+  hasPendingTodos,
+  // CI guards
+  ciPassed,
+  ciFailed,
+  ciCancelled,
+  // Failure guards
+  maxFailuresReached,
+  hasFailures,
+  // Review guards
+  reviewApproved,
+  reviewRequestedChanges,
+  reviewCommented,
+  // PR guards
+  hasPR,
+  prIsDraft,
+  prIsReady,
+  prIsMerged,
+  // Branch guards
+  hasBranch,
+  needsBranch,
+  // Assignment guards
+  botIsAssigned,
+  isFirstIteration,
+  // Trigger guards
+  triggeredByAssignment,
+  triggeredByEdit,
+  triggeredByCI,
+  triggeredByReview,
+  triggeredByReviewRequest,
+  triggeredByTriage,
+  triggeredByComment,
+  triggeredByOrchestrate,
+  triggeredByPRReview,
+  triggeredByPRResponse,
+  triggeredByPRHumanResponse,
+  triggeredByPRReviewApproved,
+  triggeredByPRPush,
+  triggeredByReset,
+  triggeredByRetry,
+  triggeredByPivot,
+  // Merge queue logging guards
+  triggeredByMergeQueueEntry,
+  triggeredByMergeQueueFailure,
+  triggeredByPRMerged,
+  triggeredByDeployedStage,
+  triggeredByDeployedProd,
+  triggeredByDeployedStageFailure,
+  triggeredByDeployedProdFailure,
+  // Triage guards
+  needsTriage,
+  isTriaged,
+  // Grooming guards
+  triggeredByGroom,
+  triggeredByGroomSummary,
+  needsGrooming,
+  isGroomed,
+  needsInfo,
+  // Composite guards
+  readyForReview,
+  shouldContinueIterating,
+  shouldBlock
+};
+
+// packages/statemachine/src/machines/issues/states.ts
+var STATES = {
+  // Initial detection
+  detecting: "detecting",
+  // Triage flow
+  triaging: "triaging",
+  // Grooming flow
+  grooming: "grooming",
+  // Pivot flow
+  pivoting: "pivoting",
+  // Reset flow
+  resetting: "resetting",
+  // Retry flow
+  retrying: "retrying",
+  // Comment flow
+  commenting: "commenting",
+  // PR review flows
+  prReviewing: "prReviewing",
+  prResponding: "prResponding",
+  prRespondingHuman: "prRespondingHuman",
+  prReviewSkipped: "prReviewSkipped",
+  prReviewAssigned: "prReviewAssigned",
+  prPush: "prPush",
+  // Orchestration flows
+  initializing: "initializing",
+  orchestrating: "orchestrating",
+  orchestrationRunning: "orchestrationRunning",
+  orchestrationWaiting: "orchestrationWaiting",
+  orchestrationComplete: "orchestrationComplete",
+  // CI/merge/review processing
+  processingCI: "processingCI",
+  processingMerge: "processingMerge",
+  processingReview: "processingReview",
+  // Iteration flows
+  iterating: "iterating",
+  iteratingFix: "iteratingFix",
+  // Review/transition flows
+  reviewing: "reviewing",
+  transitioningToReview: "transitioningToReview",
+  awaitingMerge: "awaitingMerge",
+  // Terminal states
+  blocked: "blocked",
+  alreadyBlocked: "alreadyBlocked",
+  error: "error",
+  done: "done",
+  // Sub-issue idle (bot not assigned)
+  subIssueIdle: "subIssueIdle",
+  // Invalid iteration (parent without sub-issues)
+  invalidIteration: "invalidIteration",
+  // Merge queue logging states
+  mergeQueueLogging: "mergeQueueLogging",
+  mergeQueueFailureLogging: "mergeQueueFailureLogging",
+  mergedLogging: "mergedLogging",
+  deployedStageLogging: "deployedStageLogging",
+  deployedProdLogging: "deployedProdLogging",
+  deployedStageFailureLogging: "deployedStageFailureLogging",
+  deployedProdFailureLogging: "deployedProdFailureLogging"
+};
+
+// packages/statemachine/src/core/utils.ts
+function formatCommentsForPrompt(comments) {
+  if (comments.length === 0) {
+    return "No comments yet.";
+  }
+  return comments.map((c) => `### ${c.author} (${c.createdAt})
+${c.body}`).join("\n\n---\n\n");
+}
+
+// packages/statemachine/src/machines/issues/actions.ts
+function emitStatus({ context: context2 }, status, issueNumber) {
+  return [
+    actions.updateProjectStatus.create({
+      issueNumber: issueNumber ?? context2.currentSubIssue?.number ?? context2.issue.number,
+      status
+    })
+  ];
+}
+function emitUpdateHistory({ context: context2 }, matchPattern, newMessage) {
+  return [
+    actions.updateHistory.create({
+      issueNumber: context2.issue.number,
+      matchIteration: context2.issue.iteration,
+      matchPhase: String(context2.currentPhase ?? "-"),
+      matchPattern,
+      newMessage,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function emitAppendHistory({ context: context2 }, message, phase) {
+  const phaseStr = phase ?? context2.currentPhase ?? "-";
+  return [
+    actions.appendHistory.create({
+      issueNumber: context2.issue.number,
+      iteration: context2.issue.iteration,
+      phase: String(phaseStr),
+      message,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function transitionToReview({ context: context2 }) {
+  const result = [];
+  if (context2.issue.failures > 0) {
+    result.push(
+      actions.clearFailures.create({
+        issueNumber: context2.issue.number
+      })
+    );
+  }
+  if (context2.pr?.isDraft) {
+    result.push(...emitMarkReady({ context: context2 }));
+  }
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  result.push(
+    actions.updateProjectStatus.create({
+      issueNumber,
+      status: "In review"
+    })
+  );
+  result.push(...emitRequestReview({ context: context2 }));
+  return result;
+}
+function handleCIFailure({ context: context2 }) {
+  return [
+    actions.recordFailure.create({
+      issueNumber: context2.issue.number,
+      failureType: "ci"
+    }),
+    actions.updateHistory.create({
+      issueNumber: context2.issue.number,
+      matchIteration: context2.issue.iteration,
+      matchPhase: String(context2.currentPhase ?? "-"),
+      matchPattern: HISTORY_ICONS2.ITERATING,
+      newMessage: HISTORY_MESSAGES2.CI_FAILED,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function blockIssue({ context: context2 }) {
+  return [
+    actions.updateProjectStatus.create({
+      issueNumber: context2.issue.number,
+      status: "Blocked"
+    }),
+    actions.unassignUser.create({
+      issueNumber: context2.issue.number,
+      username: context2.botUsername
+    }),
+    ...emitAppendHistory(
+      { context: context2 },
+      HISTORY_MESSAGES2.blocked(context2.issue.failures)
+    ),
+    actions.block.create({
+      issueNumber: context2.issue.number,
+      message: `Max failures (${context2.maxRetries}) reached`
+    })
+  ];
+}
+function buildIteratePromptVars(context2, ciResultOverride) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const issueTitle = context2.currentSubIssue?.title ?? context2.issue.title;
+  const branchName = context2.branch ?? deriveBranchName3(context2.issue.number, context2.currentPhase ?? void 0);
+  const iteration = context2.issue.iteration;
+  const failures = context2.issue.failures;
+  const ciResult = ciResultOverride ?? context2.ciResult ?? "first";
+  const isSubIssue2 = context2.parentIssue !== null && context2.currentPhase !== null;
+  const parentIssueNumber2 = context2.parentIssue?.number;
+  const phaseNumber = context2.currentPhase;
+  const parentContext = isSubIssue2 ? `- **Parent Issue**: #${parentIssueNumber2}
+- **Phase**: ${phaseNumber}
+
+> This is a sub-issue. Focus only on todos here. PR must reference both this issue and parent.` : "";
+  const prCreateCommand = isSubIssue2 ? `\`\`\`bash
+gh pr create --draft --reviewer nopo-bot \\
+  --title "${issueTitle}" \\
+  --body "Fixes #${issueNumber}
+Related to #${parentIssueNumber2}
+
+Phase ${phaseNumber} of parent issue."
+\`\`\`` : `\`\`\`bash
+gh pr create --draft --reviewer nopo-bot \\
+  --title "${issueTitle}" \\
+  --body "Fixes #${issueNumber}"
+\`\`\``;
+  const issueBodyAst = context2.currentSubIssue?.bodyAst ?? context2.issue.bodyAst;
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+  return {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: issueTitle,
+    ISSUE_BODY: serializeMarkdown(issueBodyAst),
+    ISSUE_COMMENTS: issueComments,
+    ITERATION: String(iteration),
+    LAST_CI_RESULT: ciResult,
+    CONSECUTIVE_FAILURES: String(failures),
+    BRANCH_NAME: branchName,
+    PARENT_CONTEXT: parentContext,
+    PR_CREATE_COMMAND: prCreateCommand,
+    EXISTING_BRANCH_SECTION: "",
+    AGENT_NOTES: ""
+    // Injected by workflow from previous runs
+  };
+}
+function runClaude({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const promptVars = buildIteratePromptVars(context2);
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    actions.runClaude.create({
+      promptDir: "iterate",
+      promptVars,
+      issueNumber,
+      producesArtifact: iterateArtifact
+    }),
+    actions.applyIterateOutput.create({
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact,
+      prNumber: context2.pr?.number,
+      reviewer: "nopo-reviewer"
+    })
+  ];
+}
+function runClaudeFixCI({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const promptVars = buildIteratePromptVars(context2, "failure");
+  promptVars.EXISTING_BRANCH_SECTION = `## CI Failure Context
+CI Run: ${context2.ciRunUrl ?? "N/A"}
+Commit: ${context2.ciCommitSha ?? "N/A"}
+
+Review the CI logs at the link above and fix the failing tests or build errors.`;
+  const iterateArtifact = {
+    name: "claude-iterate-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    actions.runClaude.create({
+      promptDir: "iterate",
+      promptVars,
+      issueNumber,
+      producesArtifact: iterateArtifact
+    }),
+    actions.applyIterateOutput.create({
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: iterateArtifact,
+      prNumber: context2.pr?.number,
+      reviewer: "nopo-reviewer"
+    })
+  ];
+}
+function runClaudeTriage({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+  const promptVars = {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_COMMENTS: issueComments,
+    AGENT_NOTES: ""
+  };
+  const triageArtifact = {
+    name: "claude-triage-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    actions.runClaude.create({
+      promptDir: "triage",
+      promptVars,
+      issueNumber,
+      producesArtifact: triageArtifact
+    }),
+    actions.applyTriageOutput.create({
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: triageArtifact
+    })
+  ];
+}
+function runClaudeComment({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const promptVars = {
+    ISSUE_NUMBER: String(issueNumber),
+    CONTEXT_TYPE: context2.commentContextType ?? "issue",
+    CONTEXT_DESCRIPTION: context2.commentContextDescription ?? `This is issue #${issueNumber}.`
+  };
+  return [
+    actions.runClaude.create({
+      promptDir: "comment",
+      promptVars,
+      issueNumber
+    })
+  ];
+}
+function runClaudePRReview({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const prNumber = context2.pr?.number;
+  if (!prNumber) {
+    return [
+      actions.log.create({
+        level: "warning",
+        message: "No PR found for review",
+        worktree: "main"
+      })
+    ];
+  }
+  const promptVars = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    PR_TITLE: context2.pr?.title ?? "",
+    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
+    BASE_REF: context2.pr?.baseRef ?? "main",
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo
+  };
+  const reviewArtifact = {
+    name: "claude-review-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    actions.runClaude.create({
+      promptDir: "review",
+      promptVars,
+      issueNumber,
+      producesArtifact: reviewArtifact
+    }),
+    actions.applyReviewOutput.create({
+      token: "review",
+      prNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: reviewArtifact,
+      worktree: "main"
+    })
+  ];
+}
+function runClaudePRResponse({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const prNumber = context2.pr?.number;
+  if (!prNumber) {
+    return [
+      actions.log.create({
+        level: "warning",
+        message: "No PR found for response",
+        worktree: "main"
+      })
+    ];
+  }
+  const promptVars = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
+    BASE_REF: context2.pr?.baseRef ?? "main",
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo,
+    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
+    REVIEWER: context2.reviewerId ?? "N/A",
+    AGENT_NOTES: ""
+  };
+  const responseArtifact = {
+    name: "claude-pr-response-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    actions.runClaude.create({
+      promptDir: "review-response",
+      promptVars,
+      issueNumber,
+      producesArtifact: responseArtifact
+    }),
+    actions.applyPRResponseOutput.create({
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: "nopo-reviewer",
+      worktree: "main"
+    })
+  ];
+}
+function runClaudePRHumanResponse({
+  context: context2
+}) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const prNumber = context2.pr?.number;
+  if (!prNumber) {
+    return [
+      actions.log.create({
+        level: "warning",
+        message: "No PR found for human response",
+        worktree: "main"
+      })
+    ];
+  }
+  const promptVars = {
+    PR_NUMBER: String(prNumber),
+    ISSUE_NUMBER: String(issueNumber),
+    HEAD_REF: context2.pr?.headRef ?? context2.branch ?? "",
+    BASE_REF: context2.pr?.baseRef ?? "main",
+    REPO_OWNER: context2.owner,
+    REPO_NAME: context2.repo,
+    REVIEW_DECISION: context2.reviewDecision ?? "N/A",
+    REVIEWER: context2.reviewerId ?? "N/A",
+    AGENT_NOTES: ""
+  };
+  const responseArtifact = {
+    name: "claude-pr-human-response-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    actions.runClaude.create({
+      promptDir: "human-review-response",
+      promptVars,
+      issueNumber,
+      producesArtifact: responseArtifact
+    }),
+    actions.applyPRResponseOutput.create({
+      prNumber,
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: responseArtifact,
+      reviewer: context2.reviewerId ?? "nopo-reviewer",
+      worktree: "main"
+    })
+  ];
+}
+function orchestrate({ context: context2 }) {
+  const result = [];
+  result.push(
+    actions.log.create({
+      level: "info",
+      message: `Orchestrating issue #${context2.issue.number} with ${context2.issue.subIssues.length} phases`,
+      worktree: "main"
+    })
+  );
+  const needsInit = context2.issue.projectStatus === null || context2.issue.projectStatus === "Backlog";
+  if (needsInit) {
+    result.push(
+      actions.appendHistory.create({
+        issueNumber: context2.issue.number,
+        iteration: context2.issue.iteration,
+        phase: "1",
+        message: HISTORY_MESSAGES2.initialized(context2.issue.subIssues.length),
+        timestamp: context2.workflowStartedAt ?? void 0
+      })
+    );
+  }
+  const phaseComplete = context2.currentSubIssue && context2.currentSubIssue.state === "CLOSED";
+  if (phaseComplete && context2.currentPhase !== null) {
+    const hasNext = context2.currentPhase < context2.totalPhases;
+    if (hasNext) {
+      result.push(...emitAdvancePhase({ context: context2 }));
+    }
+  }
+  let subIssueToAssign = context2.currentSubIssue;
+  if (phaseComplete && context2.currentPhase !== null) {
+    const nextPhase = context2.currentPhase + 1;
+    if (nextPhase <= context2.totalPhases) {
+      subIssueToAssign = context2.issue.subIssues[nextPhase - 1] ?? null;
+    } else {
+      subIssueToAssign = null;
+    }
+  }
+  if (!context2.issue.assignees.includes(context2.botUsername)) {
+    result.push(
+      actions.assignUser.create({
+        issueNumber: context2.issue.number,
+        username: context2.botUsername
+      })
+    );
+  }
+  if (subIssueToAssign && !subIssueToAssign.assignees.includes(context2.botUsername)) {
+    result.push(
+      actions.assignUser.create({
+        issueNumber: subIssueToAssign.number,
+        username: context2.botUsername
+      })
+    );
+  }
+  return result;
+}
+function allPhasesDone2({ context: context2 }) {
+  return [
+    actions.log.create({
+      level: "info",
+      message: `All phases complete for issue #${context2.issue.number}`,
+      worktree: "main"
+    }),
+    actions.updateProjectStatus.create({
+      issueNumber: context2.issue.number,
+      status: "Done"
+    }),
+    actions.closeIssue.create({
+      issueNumber: context2.issue.number,
+      reason: "completed"
+    }),
+    actions.appendHistory.create({
+      issueNumber: context2.issue.number,
+      iteration: context2.issue.iteration,
+      phase: "-",
+      message: HISTORY_MESSAGES2.ALL_PHASES_COMPLETE,
+      timestamp: context2.workflowStartedAt ?? void 0
+    })
+  ];
+}
+function resetIssue({ context: context2 }) {
+  const result = [
+    actions.resetIssue.create({
+      issueNumber: context2.issue.number,
+      subIssueNumbers: context2.issue.subIssues.map((s) => s.number),
+      botUsername: context2.botUsername
+    }),
+    actions.updateProjectStatus.create({
+      issueNumber: context2.issue.number,
+      status: "Backlog"
+    }),
+    actions.clearFailures.create({
+      issueNumber: context2.issue.number
+    })
+  ];
+  for (const subIssue of context2.issue.subIssues) {
+    result.push(
+      actions.removeFromProject.create({
+        issueNumber: subIssue.number
+      })
+    );
+    result.push(
+      actions.clearFailures.create({
+        issueNumber: subIssue.number
+      })
+    );
+  }
+  return result;
+}
+function retryIssue({ context: context2 }) {
+  const result = [];
+  result.push(
+    actions.clearFailures.create({
+      issueNumber: context2.issue.number
+    })
+  );
+  if (context2.currentSubIssue) {
+    result.push(
+      actions.clearFailures.create({
+        issueNumber: context2.currentSubIssue.number
+      })
+    );
+    result.push(
+      actions.updateProjectStatus.create({
+        issueNumber: context2.currentSubIssue.number,
+        status: null
+      })
+    );
+  }
+  result.push(
+    actions.updateProjectStatus.create({
+      issueNumber: context2.issue.number,
+      status: "In progress"
+    })
+  );
+  if (!context2.issue.assignees.includes(context2.botUsername)) {
+    result.push(
+      actions.assignUser.create({
+        issueNumber: context2.issue.number,
+        username: context2.botUsername
+      })
+    );
+  }
+  return result;
+}
+function pushToDraft({ context: context2 }) {
+  const result = [];
+  if (context2.pr) {
+    result.push(
+      actions.convertPRToDraft.create({
+        prNumber: context2.pr.number
+      })
+    );
+    result.push(
+      actions.removeReviewer.create({
+        prNumber: context2.pr.number,
+        reviewer: "nopo-bot"
+      })
+    );
+  }
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  result.push(
+    actions.appendHistory.create({
+      issueNumber,
+      iteration: 0,
+      phase,
+      message: HISTORY_MESSAGES2.CODE_PUSHED,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  );
+  return result;
+}
+function runClaudeGrooming({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+  const promptVars = {
+    ISSUE_NUMBER: String(context2.issue.number),
+    ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_COMMENTS: issueComments,
+    ISSUE_LABELS: context2.issue.labels.join(", ")
+  };
+  const groomingArtifact = {
+    name: "claude-grooming-output",
+    path: "grooming-output.json"
+  };
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration: 0,
+      phase: "groom",
+      message: HISTORY_MESSAGES2.GROOMING,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
+    }),
+    actions.runClaudeGrooming.create({
+      issueNumber,
+      promptVars,
+      producesArtifact: groomingArtifact
+    }),
+    actions.applyGroomingOutput.create({
+      issueNumber,
+      filePath: "grooming-output.json",
+      consumesArtifact: groomingArtifact
+    }),
+    actions.reconcileSubIssues.create({
+      issueNumber
+    })
+  ];
+}
+function runClaudePivot({ context: context2 }) {
+  const issueNumber = context2.issue.number;
+  const subIssuesInfo = context2.issue.subIssues.map((s) => ({
+    number: s.number,
+    title: s.title,
+    state: s.state,
+    body: serializeMarkdown(s.bodyAst),
+    projectStatus: s.projectStatus,
+    todos: extractTodosFromAst2(s.bodyAst)
+  }));
+  const issueComments = formatCommentsForPrompt(context2.issue.comments ?? []);
+  const promptVars = {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: context2.issue.title,
+    ISSUE_BODY: serializeMarkdown(context2.issue.bodyAst),
+    ISSUE_COMMENTS: issueComments,
+    PIVOT_DESCRIPTION: context2.pivotDescription ?? "(No pivot description provided)",
+    SUB_ISSUES_JSON: JSON.stringify(subIssuesInfo, null, 2)
+  };
+  const pivotArtifact = {
+    name: "claude-pivot-output",
+    path: "claude-structured-output.json"
+  };
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration: context2.issue.iteration,
+      phase: "pivot",
+      message: HISTORY_MESSAGES2.ANALYZING_PIVOT,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.workflowRunUrl ?? context2.ciRunUrl ?? void 0
+    }),
+    actions.runClaude.create({
+      promptDir: "pivot",
+      promptVars,
+      issueNumber,
+      producesArtifact: pivotArtifact
+    }),
+    actions.applyPivotOutput.create({
+      issueNumber,
+      filePath: "claude-structured-output.json",
+      consumesArtifact: pivotArtifact
+    })
+  ];
+}
+function logInvalidIteration({ context: context2 }) {
+  const message = HISTORY_MESSAGES2.INVALID_ITERATION;
+  return [
+    actions.appendHistory.create({
+      issueNumber: context2.issue.number,
+      iteration: context2.issue.iteration,
+      phase: String(context2.currentPhase ?? "-"),
+      message,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    }),
+    actions.addComment.create({
+      issueNumber: context2.issue.number,
+      body: `## \u274C Invalid Iteration Attempt
+
+This issue cannot be iterated on directly because it has no parent issue.
+
+**Only sub-issues can be iterated on.** Parent issues must go through orchestration which manages their sub-issues.
+
+### To Fix
+
+1. Run grooming on this issue to create sub-issues
+2. Then trigger orchestration on the parent issue
+
+Issue #${context2.issue.number} has been set to Error status.`
+    })
+  ];
+}
+function mergeQueueEntry({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration,
+      phase,
+      message: HISTORY_MESSAGES2.ENTERED_QUEUE,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function mergeQueueFailure({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration,
+      phase,
+      message: HISTORY_MESSAGES2.REMOVED_FROM_QUEUE,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function merged({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration,
+      phase,
+      message: HISTORY_MESSAGES2.MERGED,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function deployedStage({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration,
+      phase,
+      message: HISTORY_MESSAGES2.DEPLOYED_STAGE,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function deployedProd({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  const iteration = context2.issue.iteration ?? 0;
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration,
+      phase,
+      message: HISTORY_MESSAGES2.RELEASED_PROD,
+      timestamp: context2.workflowStartedAt ?? void 0,
+      commitSha: context2.ciCommitSha ?? void 0,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function deployedStageFailure({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration: context2.issue.iteration ?? 0,
+      phase,
+      message: HISTORY_MESSAGES2.STAGE_DEPLOY_FAILED,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function deployedProdFailure({ context: context2 }) {
+  const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+  const phase = String(context2.currentPhase ?? "-");
+  return [
+    actions.appendHistory.create({
+      issueNumber,
+      iteration: context2.issue.iteration ?? 0,
+      phase,
+      message: HISTORY_MESSAGES2.PROD_DEPLOY_FAILED,
+      runLink: context2.ciRunUrl ?? void 0
+    })
+  ];
+}
+function emitMarkReady({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    actions.markPRReady.create({
+      prNumber: context2.pr.number
+    })
+  ];
+}
+function emitRequestReview({ context: context2 }) {
+  if (!context2.pr) {
+    return [];
+  }
+  return [
+    actions.requestReview.create({
+      prNumber: context2.pr.number,
+      reviewer: "nopo-reviewer"
+    })
+  ];
+}
+function emitAdvancePhase({ context: context2 }) {
+  const result = [];
+  if (!context2.currentSubIssue || context2.currentPhase === null) {
+    return result;
+  }
+  result.push(
+    actions.updateProjectStatus.create({
+      issueNumber: context2.currentSubIssue.number,
+      status: "Done"
+    })
+  );
+  result.push(
+    actions.closeIssue.create({
+      issueNumber: context2.currentSubIssue.number,
+      reason: "completed"
+    })
+  );
+  const nextPhase = context2.currentPhase + 1;
+  const nextSubIssue = context2.issue.subIssues[nextPhase - 1];
+  if (nextSubIssue) {
+    result.push(
+      actions.appendHistory.create({
+        issueNumber: context2.issue.number,
+        iteration: context2.issue.iteration,
+        phase: String(nextPhase),
+        message: HISTORY_MESSAGES2.phaseStarted(nextPhase),
+        timestamp: context2.workflowStartedAt ?? void 0
+      })
+    );
+  }
+  return result;
+}
+
+// packages/statemachine/src/machines/issues/machine.ts
+var e = createEmitter();
+var issueMachine = setup({
+  types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
+    context: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
+    events: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
+    input: {}
+  },
+  guards,
+  actions: {
+    // =========================================================================
+    // Simple inline actions
+    // =========================================================================
+    // Log actions
+    logDetecting: e((ctx) => emitLog(ctx, "Detecting initial state")),
+    logIterating: e(
+      (ctx) => emitLog(ctx, `Starting iteration ${ctx.context.issue.iteration + 1}`)
+    ),
+    logFixingCI: e(
+      (ctx) => emitLog(ctx, `Fixing CI (iteration ${ctx.context.issue.iteration + 1})`)
+    ),
+    logReviewing: e((ctx) => emitLog(ctx, "PR is under review")),
+    logTriaging: e(
+      (ctx) => emitLog(ctx, `Triaging issue #${ctx.context.issue.number}`)
+    ),
+    logCommenting: e(
+      (ctx) => emitLog(ctx, `Responding to comment on #${ctx.context.issue.number}`)
+    ),
+    logWaitingForReview: e(
+      (ctx) => emitLog(ctx, "Waiting for review on current phase")
+    ),
+    logAwaitingMerge: e(
+      (ctx) => emitLog(
+        ctx,
+        `PR #${ctx.context.pr?.number} marked ready for merge - awaiting human action`
+      )
+    ),
+    logOrchestrating: e(
+      (ctx) => emitLog(
+        ctx,
+        `Orchestrating issue #${ctx.context.issue.number} (phase ${ctx.context.currentPhase}/${ctx.context.totalPhases})`
+      )
+    ),
+    logPRReviewing: e(
+      (ctx) => emitLog(ctx, `Reviewing PR #${ctx.context.pr?.number ?? "unknown"}`)
+    ),
+    logPRResponding: e(
+      (ctx) => emitLog(
+        ctx,
+        `Responding to review on PR #${ctx.context.pr?.number ?? "unknown"}`
+      )
+    ),
+    logResetting: e(
+      (ctx) => emitLog(
+        ctx,
+        `Resetting issue #${ctx.context.issue.number} to initial state`
+      )
+    ),
+    logRetrying: e(
+      (ctx) => emitLog(
+        ctx,
+        `Retrying issue #${ctx.context.issue.number} (clearing failures)`
+      )
+    ),
+    logGrooming: e(
+      (ctx) => emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`)
+    ),
+    logPivoting: e(
+      (ctx) => emitLog(ctx, `Pivoting issue #${ctx.context.issue.number}`)
+    ),
+    // Iteration history logging (writes to issue body)
+    historyIterationStarted: e(
+      (ctx) => emitAppendHistory(ctx, HISTORY_MESSAGES2.ITERATING)
+    ),
+    historyCISuccess: e(
+      (ctx) => emitUpdateHistory(
+        ctx,
+        HISTORY_ICONS2.ITERATING,
+        HISTORY_MESSAGES2.CI_PASSED
+      )
+    ),
+    historyReviewRequested: e(
+      (ctx) => emitAppendHistory(ctx, HISTORY_MESSAGES2.REVIEW_REQUESTED)
+    ),
+    // Status actions
+    setWorking: e((ctx) => emitStatus(ctx, "In progress")),
+    setReview: e((ctx) => emitStatus(ctx, "In review")),
+    setInProgress: e(({ context: context2 }) => [
+      actions.updateProjectStatus.create({
+        issueNumber: context2.issue.number,
+        status: "In progress"
+      })
+    ]),
+    setDone: e(({ context: context2 }) => [
+      actions.updateProjectStatus.create({
+        issueNumber: context2.issue.number,
+        status: "Done"
+      })
+    ]),
+    setError: e(({ context: context2 }) => [
+      actions.updateProjectStatus.create({
+        issueNumber: context2.issue.number,
+        status: "Error"
+      })
+    ]),
+    // Iteration actions
+    incrementIteration: e(({ context: context2 }) => [
+      actions.incrementIteration.create({
+        issueNumber: context2.issue.number
+      })
+    ]),
+    clearFailures: e(({ context: context2 }) => [
+      actions.clearFailures.create({
+        issueNumber: context2.issue.number
+      })
+    ]),
+    // Issue actions
+    closeIssue: e(({ context: context2 }) => [
+      actions.closeIssue.create({
+        issueNumber: context2.issue.number,
+        reason: "completed"
+      })
+    ]),
+    // Git actions
+    createBranch: e(({ context: context2 }) => [
+      actions.createBranch.create({
+        branchName: context2.branch ?? deriveBranchName3(
+          context2.issue.number,
+          context2.currentPhase ?? void 0
+        ),
+        baseBranch: "main",
+        worktree: "main"
+      })
+    ]),
+    // PR actions
+    createPR: e(({ context: context2 }) => {
+      if (context2.pr) return [];
+      const branchName = context2.branch ?? deriveBranchName3(
+        context2.issue.number,
+        context2.currentPhase ?? void 0
+      );
+      const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+      return [
+        actions.createPR.create({
+          title: context2.currentSubIssue?.title ?? context2.issue.title,
+          body: `Fixes #${issueNumber}`,
+          branchName,
+          baseBranch: "main",
+          draft: true,
+          issueNumber
+        })
+      ];
+    }),
+    convertToDraft: e(({ context: context2 }) => {
+      if (!context2.pr) return [];
+      return [actions.convertPRToDraft.create({ prNumber: context2.pr.number })];
+    }),
+    mergePR: e(({ context: context2 }) => {
+      if (!context2.pr) return [];
+      const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+      return [
+        actions.mergePR.create({
+          prNumber: context2.pr.number,
+          issueNumber,
+          mergeMethod: "squash"
+        })
+      ];
+    }),
+    // =========================================================================
+    // Compound/complex actions (from ./actions.ts)
+    // =========================================================================
+    transitionToReview: e(transitionToReview),
+    handleCIFailure: e(handleCIFailure),
+    blockIssue: e(blockIssue),
+    orchestrate: e(orchestrate),
+    allPhasesDone: e(allPhasesDone2),
+    resetIssue: e(resetIssue),
+    retryIssue: e(retryIssue),
+    pushToDraft: e(pushToDraft),
+    logInvalidIteration: e(logInvalidIteration),
+    // Claude actions
+    runClaude: e(runClaude),
+    runClaudeFixCI: e(runClaudeFixCI),
+    runClaudeTriage: e(runClaudeTriage),
+    runClaudeComment: e(runClaudeComment),
+    runClaudePRReview: e(runClaudePRReview),
+    runClaudePRResponse: e(runClaudePRResponse),
+    runClaudePRHumanResponse: e(runClaudePRHumanResponse),
+    runClaudeGrooming: e(runClaudeGrooming),
+    runClaudePivot: e(runClaudePivot),
+    // Merge queue logging actions
+    logMergeQueueEntry: e(mergeQueueEntry),
+    logMergeQueueFailure: e(mergeQueueFailure),
+    logMerged: e(merged),
+    logDeployedStage: e(deployedStage),
+    logDeployedProd: e(deployedProd),
+    logDeployedStageFailure: e(deployedStageFailure),
+    logDeployedProdFailure: e(deployedProdFailure),
+    // Stop action (needs event.reason for the message - inline assign)
+    stopWithReason: assign({
+      pendingActions: ({ context: context2, event }) => {
+        const reason = "reason" in event && typeof event.reason === "string" ? event.reason : "unknown";
+        return accumulateFromEmitter(context2.pendingActions, context2, () => [
+          actions.stop.create({ message: reason })
+        ]);
+      }
+    })
+  }
+}).createMachine({
+  id: "issue-automation",
+  initial: STATES.detecting,
+  context: ({ input }) => ({
+    ...input,
+    pendingActions: []
+  }),
+  states: {
+    /**
+     * Initial state - determine what to do based on context
+     */
+    [STATES.detecting]: {
+      entry: "logDetecting",
+      on: {
+        DETECT: [
+          // Reset takes priority - can reset even Done/Blocked issues
+          { target: STATES.resetting, guard: "triggeredByReset" },
+          // Retry takes priority - can retry even Blocked issues (circuit breaker recovery)
+          { target: STATES.retrying, guard: "triggeredByRetry" },
+          // Pivot takes priority - can pivot even Done/Blocked issues
+          { target: STATES.pivoting, guard: "triggeredByPivot" },
+          // All phases complete takes priority
+          { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
+          // Check terminal states
+          { target: STATES.done, guard: "isAlreadyDone" },
+          { target: STATES.alreadyBlocked, guard: "isBlocked" },
+          { target: STATES.error, guard: "isError" },
+          // Merge queue logging events (handle early, they're log-only)
+          {
+            target: STATES.mergeQueueLogging,
+            guard: "triggeredByMergeQueueEntry"
+          },
+          {
+            target: STATES.mergeQueueFailureLogging,
+            guard: "triggeredByMergeQueueFailure"
+          },
+          // PR merged -> process merge (close sub-issue, then orchestrate)
+          { target: STATES.processingMerge, guard: "triggeredByPRMerged" },
+          {
+            target: STATES.deployedStageLogging,
+            guard: "triggeredByDeployedStage"
+          },
+          {
+            target: STATES.deployedProdLogging,
+            guard: "triggeredByDeployedProd"
+          },
+          {
+            target: STATES.deployedStageFailureLogging,
+            guard: "triggeredByDeployedStageFailure"
+          },
+          {
+            target: STATES.deployedProdFailureLogging,
+            guard: "triggeredByDeployedProdFailure"
+          },
+          // Check if this is a triage request
+          { target: STATES.triaging, guard: "triggeredByTriage" },
+          // Check if this is a comment (@claude mention)
+          { target: STATES.commenting, guard: "triggeredByComment" },
+          // Check if this is an orchestration request
+          { target: STATES.orchestrating, guard: "triggeredByOrchestrate" },
+          // Check if this is a PR review request (bot should review)
+          {
+            target: STATES.prReviewing,
+            guard: and(["triggeredByPRReview", "ciPassed"])
+          },
+          // Ack review request when CI status is unknown
+          {
+            target: STATES.prReviewAssigned,
+            guard: and(["triggeredByPRReview", not("ciFailed")])
+          },
+          // Skip review when CI explicitly failed
+          { target: STATES.prReviewSkipped, guard: "triggeredByPRReview" },
+          // Check if this is a PR response (bot responds to bot's review)
+          { target: STATES.prResponding, guard: "triggeredByPRResponse" },
+          // Check if this is a PR human response
+          {
+            target: STATES.prRespondingHuman,
+            guard: "triggeredByPRHumanResponse"
+          },
+          // Check if this is a PR review approval
+          {
+            target: STATES.processingReview,
+            guard: "triggeredByPRReviewApproved"
+          },
+          // Check if this is a push to a PR branch
+          { target: STATES.prPush, guard: "triggeredByPRPush" },
+          // Check if this is a CI completion event
+          { target: STATES.processingCI, guard: "triggeredByCI" },
+          // Check if this is a review submission event (for orchestration)
+          { target: STATES.processingReview, guard: "triggeredByReview" },
+          // Check if issue needs triage
+          { target: STATES.triaging, guard: "needsTriage" },
+          // Sub-issues with bot assigned iterate
+          { target: STATES.iterating, guard: "subIssueCanIterate" },
+          // Sub-issues without bot assignment: no-op
+          { target: STATES.subIssueIdle, guard: "isSubIssue" },
+          // Check if this is a grooming trigger
+          { target: STATES.grooming, guard: "triggeredByGroom" },
+          // Check if issue needs grooming
+          { target: STATES.grooming, guard: "needsGrooming" },
+          // Check for multi-phase work
+          { target: STATES.initializing, guard: "needsSubIssues" },
+          { target: STATES.orchestrating, guard: "hasSubIssues" },
+          // Check current state
+          { target: STATES.reviewing, guard: "isInReview" },
+          // Check if ready for review
+          { target: STATES.transitioningToReview, guard: "readyForReview" },
+          // FATAL: Parent issue without sub-issues cannot iterate
+          { target: STATES.invalidIteration }
+        ]
+      }
+    },
+    [STATES.triaging]: {
+      entry: ["logTriaging", "runClaudeTriage"],
+      type: "final"
+    },
+    [STATES.grooming]: {
+      entry: ["logGrooming", "runClaudeGrooming"],
+      type: "final"
+    },
+    [STATES.pivoting]: {
+      entry: ["logPivoting", "runClaudePivot"],
+      type: "final"
+    },
+    [STATES.resetting]: {
+      entry: ["logResetting", "resetIssue"],
+      type: "final"
+    },
+    [STATES.retrying]: {
+      entry: ["logRetrying", "retryIssue"],
+      always: [
+        { target: STATES.orchestrationRunning, guard: "hasSubIssues" },
+        { target: STATES.iterating }
+      ]
+    },
+    [STATES.commenting]: {
+      entry: ["logCommenting", "runClaudeComment"],
+      type: "final"
+    },
+    [STATES.prReviewing]: {
+      entry: ["logPRReviewing", "runClaudePRReview"],
+      type: "final"
+    },
+    [STATES.prResponding]: {
+      entry: ["logPRResponding", "runClaudePRResponse"],
+      type: "final"
+    },
+    [STATES.prRespondingHuman]: {
+      entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final"
+    },
+    [STATES.prReviewSkipped]: {
+      type: "final"
+    },
+    [STATES.prReviewAssigned]: {
+      type: "final"
+    },
+    [STATES.prPush]: {
+      entry: ["pushToDraft", "setInProgress"],
+      type: "final"
+    },
+    [STATES.initializing]: {
+      entry: ["setInProgress"],
+      always: STATES.orchestrating
+    },
+    [STATES.orchestrating]: {
+      entry: ["logOrchestrating"],
+      always: [
+        { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
+        { target: STATES.orchestrationWaiting, guard: "currentPhaseInReview" },
+        { target: STATES.orchestrationRunning }
+      ]
+    },
+    [STATES.orchestrationRunning]: {
+      entry: ["orchestrate"],
+      type: "final"
+    },
+    [STATES.orchestrationWaiting]: {
+      entry: ["logWaitingForReview"],
+      type: "final"
+    },
+    [STATES.orchestrationComplete]: {
+      entry: ["allPhasesDone"],
+      type: "final"
+    },
+    [STATES.processingCI]: {
+      always: [
+        {
+          target: STATES.transitioningToReview,
+          guard: "readyForReview",
+          actions: ["historyCISuccess"]
+        },
+        {
+          target: STATES.iterating,
+          guard: "ciPassed",
+          actions: ["clearFailures", "historyCISuccess"]
+        },
+        {
+          target: STATES.blocked,
+          guard: "shouldBlock",
+          actions: ["blockIssue"]
+        },
+        {
+          target: STATES.iteratingFix,
+          guard: "ciFailed",
+          actions: ["handleCIFailure"]
+        },
+        { target: STATES.iterating }
+      ]
+    },
+    [STATES.processingReview]: {
+      always: [
+        {
+          target: STATES.awaitingMerge,
+          guard: "reviewApproved",
+          actions: ["mergePR"]
+        },
+        {
+          target: STATES.iterating,
+          guard: "reviewRequestedChanges",
+          actions: ["convertToDraft"]
+        },
+        { target: STATES.reviewing }
+      ]
+    },
+    [STATES.awaitingMerge]: {
+      entry: ["logAwaitingMerge", "setReview"],
+      type: "final"
+    },
+    [STATES.processingMerge]: {
+      entry: ["logMerged", "setDone", "closeIssue"],
+      always: STATES.orchestrating
+    },
+    [STATES.transitioningToReview]: {
+      entry: ["transitionToReview", "historyReviewRequested"],
+      always: STATES.reviewing
+    },
+    [STATES.iterating]: {
+      entry: [
+        "createBranch",
+        "setWorking",
+        "incrementIteration",
+        "historyIterationStarted",
+        "logIterating",
+        "runClaude",
+        "createPR"
+      ],
+      on: {
+        CI_SUCCESS: [
+          {
+            target: STATES.transitioningToReview,
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
+          },
+          {
+            target: STATES.iterating,
+            actions: ["clearFailures", "historyCISuccess"]
+          }
+        ],
+        CI_FAILURE: [
+          {
+            target: STATES.blocked,
+            guard: "maxFailuresReached",
+            actions: ["blockIssue"]
+          },
+          {
+            target: STATES.iteratingFix,
+            actions: ["handleCIFailure"]
+          }
+        ]
+      },
+      type: "final"
+    },
+    [STATES.iteratingFix]: {
+      entry: [
+        "createBranch",
+        "incrementIteration",
+        "historyIterationStarted",
+        "logFixingCI",
+        "runClaudeFixCI",
+        "createPR"
+      ],
+      on: {
+        CI_SUCCESS: [
+          {
+            target: STATES.transitioningToReview,
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
+          },
+          {
+            target: STATES.iterating,
+            actions: ["clearFailures", "historyCISuccess"]
+          }
+        ],
+        CI_FAILURE: [
+          {
+            target: STATES.blocked,
+            guard: "maxFailuresReached",
+            actions: ["blockIssue"]
+          },
+          {
+            target: STATES.iteratingFix,
+            actions: ["handleCIFailure"]
+          }
+        ]
+      },
+      type: "final"
+    },
+    [STATES.reviewing]: {
+      entry: ["logReviewing", "setReview"],
+      on: {
+        REVIEW_APPROVED: STATES.orchestrating,
+        REVIEW_CHANGES_REQUESTED: {
+          target: STATES.iterating,
+          actions: ["convertToDraft"]
+        },
+        REVIEW_COMMENTED: STATES.reviewing
+      },
+      type: "final"
+    },
+    [STATES.blocked]: {
+      type: "final"
+    },
+    [STATES.alreadyBlocked]: {
+      type: "final"
+    },
+    [STATES.error]: {
+      type: "final"
+    },
+    [STATES.subIssueIdle]: {
+      entry: [
+        e(
+          (ctx) => emitLog(
+            ctx,
+            `Sub-issue #${ctx.context.issue.number} edited but not assigned \u2014 skipping`
+          )
+        )
+      ],
+      type: "final"
+    },
+    [STATES.invalidIteration]: {
+      entry: ["logInvalidIteration", "setError"],
+      type: "final"
+    },
+    // Merge Queue Logging States
+    [STATES.mergeQueueLogging]: {
+      entry: ["logMergeQueueEntry"],
+      type: "final"
+    },
+    [STATES.mergeQueueFailureLogging]: {
+      entry: ["logMergeQueueFailure"],
+      type: "final"
+    },
+    [STATES.mergedLogging]: {
+      entry: ["logMerged"],
+      type: "final"
+    },
+    [STATES.deployedStageLogging]: {
+      entry: ["logDeployedStage"],
+      type: "final"
+    },
+    [STATES.deployedProdLogging]: {
+      entry: ["logDeployedProd"],
+      type: "final"
+    },
+    [STATES.deployedStageFailureLogging]: {
+      entry: ["logDeployedStageFailure"],
+      type: "final"
+    },
+    [STATES.deployedProdFailureLogging]: {
+      entry: ["logDeployedProdFailure"],
+      type: "final"
+    },
+    [STATES.done]: {
+      entry: ["setDone", "closeIssue"],
+      type: "final"
+    }
+  }
+});
+
+// packages/statemachine/src/machines/issue-next-invoke/services.ts
+function buildActionsForService(serviceName, context2, reason) {
+  const ctx = { context: context2 };
+  switch (serviceName) {
+    // Log services
+    case "logDetecting":
+      return emitLog(ctx, "Detecting initial state");
+    case "logIterating":
+      return emitLog(ctx, `Starting iteration ${context2.issue.iteration + 1}`);
+    case "logFixingCI":
+      return emitLog(
+        ctx,
+        `Fixing CI (iteration ${context2.issue.iteration + 1})`
+      );
+    case "logReviewing":
+      return emitLog(ctx, "PR is under review");
+    case "logTriaging":
+      return emitLog(ctx, `Triaging issue #${context2.issue.number}`);
+    case "logCommenting":
+      return emitLog(ctx, `Responding to comment on #${context2.issue.number}`);
+    case "logWaitingForReview":
+      return emitLog(ctx, "Waiting for review on current phase");
+    case "logAwaitingMerge":
+      return emitLog(
+        ctx,
+        `PR #${context2.pr?.number} marked ready for merge - awaiting human action`
+      );
+    case "logOrchestrating":
+      return emitLog(
+        ctx,
+        `Orchestrating issue #${context2.issue.number} (phase ${context2.currentPhase}/${context2.totalPhases})`
+      );
+    case "logPRReviewing":
+      return emitLog(ctx, `Reviewing PR #${context2.pr?.number ?? "unknown"}`);
+    case "logPRResponding":
+      return emitLog(
+        ctx,
+        `Responding to review on PR #${context2.pr?.number ?? "unknown"}`
+      );
+    case "logResetting":
+      return emitLog(
+        ctx,
+        `Resetting issue #${context2.issue.number} to initial state`
+      );
+    case "logRetrying":
+      return emitLog(
+        ctx,
+        `Retrying issue #${context2.issue.number} (clearing failures)`
+      );
+    case "logGrooming":
+      return emitLog(ctx, `Grooming issue #${context2.issue.number}`);
+    case "logPivoting":
+      return emitLog(ctx, `Pivoting issue #${context2.issue.number}`);
+    case "logSubIssueIdle":
+      return emitLog(
+        ctx,
+        `Sub-issue #${context2.issue.number} edited but not assigned \u2014 skipping`
+      );
+    // History services
+    case "historyIterationStarted":
+      return emitAppendHistory(ctx, HISTORY_MESSAGES2.ITERATING);
+    case "historyCISuccess":
+      return emitUpdateHistory(
+        ctx,
+        HISTORY_ICONS2.ITERATING,
+        HISTORY_MESSAGES2.CI_PASSED
+      );
+    case "historyReviewRequested":
+      return emitAppendHistory(ctx, HISTORY_MESSAGES2.REVIEW_REQUESTED);
+    // Status services
+    case "setWorking":
+      return emitStatus(ctx, "In progress");
+    case "setReview":
+      return emitStatus(ctx, "In review");
+    case "setInProgress":
+      return [
+        actions.updateProjectStatus.create({
+          issueNumber: context2.issue.number,
+          status: "In progress"
+        })
+      ];
+    case "setDone":
+      return [
+        actions.updateProjectStatus.create({
+          issueNumber: context2.issue.number,
+          status: "Done"
+        })
+      ];
+    case "setError":
+      return [
+        actions.updateProjectStatus.create({
+          issueNumber: context2.issue.number,
+          status: "Error"
+        })
+      ];
+    // Iteration services
+    case "incrementIteration":
+      return [
+        actions.incrementIteration.create({
+          issueNumber: context2.issue.number
+        })
+      ];
+    case "clearFailures":
+      return [
+        actions.clearFailures.create({
+          issueNumber: context2.issue.number
+        })
+      ];
+    // Issue services
+    case "closeIssue":
+      return [
+        actions.closeIssue.create({
+          issueNumber: context2.issue.number,
+          reason: "completed"
+        })
+      ];
+    // Git services
+    case "createBranch":
+      return [
+        actions.createBranch.create({
+          branchName: context2.branch ?? deriveBranchName3(
+            context2.issue.number,
+            context2.currentPhase ?? void 0
+          ),
+          baseBranch: "main",
+          worktree: "main"
+        })
+      ];
+    // PR services
+    case "createPR": {
+      if (context2.pr) return [];
+      const branchName = context2.branch ?? deriveBranchName3(
+        context2.issue.number,
+        context2.currentPhase ?? void 0
+      );
+      const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+      return [
+        actions.createPR.create({
+          title: context2.currentSubIssue?.title ?? context2.issue.title,
+          body: `Fixes #${issueNumber}`,
+          branchName,
+          baseBranch: "main",
+          draft: true,
+          issueNumber
+        })
+      ];
+    }
+    case "convertToDraft": {
+      if (!context2.pr) return [];
+      return [actions.convertPRToDraft.create({ prNumber: context2.pr.number })];
+    }
+    case "mergePR": {
+      if (!context2.pr) return [];
+      const issueNumber = context2.currentSubIssue?.number ?? context2.issue.number;
+      return [
+        actions.mergePR.create({
+          prNumber: context2.pr.number,
+          issueNumber,
+          mergeMethod: "squash"
+        })
+      ];
+    }
+    // Compound services
+    case "transitionToReview":
+      return transitionToReview(ctx);
+    case "handleCIFailure":
+      return handleCIFailure(ctx);
+    case "blockIssue":
+      return blockIssue(ctx);
+    case "orchestrate":
+      return orchestrate(ctx);
+    case "allPhasesDone":
+      return allPhasesDone2(ctx);
+    case "resetIssue":
+      return resetIssue(ctx);
+    case "retryIssue":
+      return retryIssue(ctx);
+    case "pushToDraft":
+      return pushToDraft(ctx);
+    case "logInvalidIteration":
+      return logInvalidIteration(ctx);
+    // Claude services
+    case "runClaude":
+      return runClaude(ctx);
+    case "runClaudeFixCI":
+      return runClaudeFixCI(ctx);
+    case "runClaudeTriage":
+      return runClaudeTriage(ctx);
+    case "runClaudeComment":
+      return runClaudeComment(ctx);
+    case "runClaudePRReview":
+      return runClaudePRReview(ctx);
+    case "runClaudePRResponse":
+      return runClaudePRResponse(ctx);
+    case "runClaudePRHumanResponse":
+      return runClaudePRHumanResponse(ctx);
+    case "runClaudeGrooming":
+      return runClaudeGrooming(ctx);
+    case "runClaudePivot":
+      return runClaudePivot(ctx);
+    // Merge queue / deployment logging
+    case "logMergeQueueEntry":
+      return mergeQueueEntry(ctx);
+    case "logMergeQueueFailure":
+      return mergeQueueFailure(ctx);
+    case "logMerged":
+      return merged(ctx);
+    case "logDeployedStage":
+      return deployedStage(ctx);
+    case "logDeployedProd":
+      return deployedProd(ctx);
+    case "logDeployedStageFailure":
+      return deployedStageFailure(ctx);
+    case "logDeployedProdFailure":
+      return deployedProdFailure(ctx);
+    // Stop
+    case "stopWithReason":
+      return [actions.stop.create({ message: reason ?? "unknown" })];
+    default:
+      return [];
+  }
+}
+
+// packages/statemachine/src/machines/issue-next-invoke/machine.ts
+function syncAction(...serviceNames) {
+  return assign({
+    pendingActions: ({ context: context2 }) => {
+      const newActions = [];
+      for (const name of serviceNames) {
+        newActions.push(...buildActionsForService(name, context2));
+      }
+      return [...context2.pendingActions, ...newActions];
+    }
+  });
+}
+var issueInvokeMachine = setup({
+  types: {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions
+    context: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions
+    events: {},
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions
+    input: {}
+  },
+  guards,
+  actions: {
+    // Log actions
+    logDetecting: syncAction("logDetecting"),
+    logIterating: syncAction("logIterating"),
+    logFixingCI: syncAction("logFixingCI"),
+    logReviewing: syncAction("logReviewing"),
+    logTriaging: syncAction("logTriaging"),
+    logCommenting: syncAction("logCommenting"),
+    logWaitingForReview: syncAction("logWaitingForReview"),
+    logAwaitingMerge: syncAction("logAwaitingMerge"),
+    logOrchestrating: syncAction("logOrchestrating"),
+    logPRReviewing: syncAction("logPRReviewing"),
+    logPRResponding: syncAction("logPRResponding"),
+    logResetting: syncAction("logResetting"),
+    logRetrying: syncAction("logRetrying"),
+    logGrooming: syncAction("logGrooming"),
+    logPivoting: syncAction("logPivoting"),
+    // History actions
+    historyIterationStarted: syncAction("historyIterationStarted"),
+    historyCISuccess: syncAction("historyCISuccess"),
+    historyReviewRequested: syncAction("historyReviewRequested"),
+    // Status actions
+    setWorking: syncAction("setWorking"),
+    setReview: syncAction("setReview"),
+    setInProgress: syncAction("setInProgress"),
+    setDone: syncAction("setDone"),
+    setError: syncAction("setError"),
+    // Iteration actions
+    incrementIteration: syncAction("incrementIteration"),
+    clearFailures: syncAction("clearFailures"),
+    // Issue actions
+    closeIssue: syncAction("closeIssue"),
+    // Git actions
+    createBranch: syncAction("createBranch"),
+    // PR actions
+    createPR: syncAction("createPR"),
+    convertToDraft: syncAction("convertToDraft"),
+    mergePR: syncAction("mergePR"),
+    // Compound actions
+    transitionToReview: syncAction("transitionToReview"),
+    handleCIFailure: syncAction("handleCIFailure"),
+    blockIssue: syncAction("blockIssue"),
+    orchestrate: syncAction("orchestrate"),
+    allPhasesDone: syncAction("allPhasesDone"),
+    resetIssue: syncAction("resetIssue"),
+    retryIssue: syncAction("retryIssue"),
+    pushToDraft: syncAction("pushToDraft"),
+    logInvalidIteration: syncAction("logInvalidIteration"),
+    // Claude actions
+    runClaude: syncAction("runClaude"),
+    runClaudeFixCI: syncAction("runClaudeFixCI"),
+    runClaudeTriage: syncAction("runClaudeTriage"),
+    runClaudeComment: syncAction("runClaudeComment"),
+    runClaudePRReview: syncAction("runClaudePRReview"),
+    runClaudePRResponse: syncAction("runClaudePRResponse"),
+    runClaudePRHumanResponse: syncAction("runClaudePRHumanResponse"),
+    runClaudeGrooming: syncAction("runClaudeGrooming"),
+    runClaudePivot: syncAction("runClaudePivot"),
+    // Merge queue / deployment logging
+    logMergeQueueEntry: syncAction("logMergeQueueEntry"),
+    logMergeQueueFailure: syncAction("logMergeQueueFailure"),
+    logMerged: syncAction("logMerged"),
+    logDeployedStage: syncAction("logDeployedStage"),
+    logDeployedProd: syncAction("logDeployedProd"),
+    logDeployedStageFailure: syncAction("logDeployedStageFailure"),
+    logDeployedProdFailure: syncAction("logDeployedProdFailure"),
+    // Stop (needs event.reason)
+    stopWithReason: assign({
+      pendingActions: ({ context: context2, event }) => {
+        const reason = "reason" in event && typeof event.reason === "string" ? event.reason : "unknown";
+        return [
+          ...context2.pendingActions,
+          ...buildActionsForService("stopWithReason", context2, reason)
+        ];
+      }
+    }),
+    // subIssueIdle inline log
+    logSubIssueIdle: syncAction("logSubIssueIdle")
+  }
+}).createMachine({
+  id: "issue-invoke",
+  initial: STATES.detecting,
+  context: ({ input }) => ({
+    ...input,
+    pendingActions: []
+  }),
+  states: {
+    [STATES.detecting]: {
+      entry: "logDetecting",
+      on: {
+        DETECT: [
+          { target: STATES.resetting, guard: "triggeredByReset" },
+          { target: STATES.retrying, guard: "triggeredByRetry" },
+          { target: STATES.pivoting, guard: "triggeredByPivot" },
+          { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
+          { target: STATES.done, guard: "isAlreadyDone" },
+          { target: STATES.alreadyBlocked, guard: "isBlocked" },
+          { target: STATES.error, guard: "isError" },
+          {
+            target: STATES.mergeQueueLogging,
+            guard: "triggeredByMergeQueueEntry"
+          },
+          {
+            target: STATES.mergeQueueFailureLogging,
+            guard: "triggeredByMergeQueueFailure"
+          },
+          { target: STATES.processingMerge, guard: "triggeredByPRMerged" },
+          {
+            target: STATES.deployedStageLogging,
+            guard: "triggeredByDeployedStage"
+          },
+          {
+            target: STATES.deployedProdLogging,
+            guard: "triggeredByDeployedProd"
+          },
+          {
+            target: STATES.deployedStageFailureLogging,
+            guard: "triggeredByDeployedStageFailure"
+          },
+          {
+            target: STATES.deployedProdFailureLogging,
+            guard: "triggeredByDeployedProdFailure"
+          },
+          { target: STATES.triaging, guard: "triggeredByTriage" },
+          { target: STATES.commenting, guard: "triggeredByComment" },
+          { target: STATES.orchestrating, guard: "triggeredByOrchestrate" },
+          {
+            target: STATES.prReviewing,
+            guard: and(["triggeredByPRReview", "ciPassed"])
+          },
+          {
+            target: STATES.prReviewAssigned,
+            guard: and(["triggeredByPRReview", not("ciFailed")])
+          },
+          { target: STATES.prReviewSkipped, guard: "triggeredByPRReview" },
+          { target: STATES.prResponding, guard: "triggeredByPRResponse" },
+          {
+            target: STATES.prRespondingHuman,
+            guard: "triggeredByPRHumanResponse"
+          },
+          {
+            target: STATES.processingReview,
+            guard: "triggeredByPRReviewApproved"
+          },
+          { target: STATES.prPush, guard: "triggeredByPRPush" },
+          { target: STATES.processingCI, guard: "triggeredByCI" },
+          { target: STATES.processingReview, guard: "triggeredByReview" },
+          { target: STATES.triaging, guard: "needsTriage" },
+          { target: STATES.iterating, guard: "subIssueCanIterate" },
+          { target: STATES.subIssueIdle, guard: "isSubIssue" },
+          { target: STATES.grooming, guard: "triggeredByGroom" },
+          { target: STATES.grooming, guard: "needsGrooming" },
+          { target: STATES.initializing, guard: "needsSubIssues" },
+          { target: STATES.orchestrating, guard: "hasSubIssues" },
+          { target: STATES.reviewing, guard: "isInReview" },
+          { target: STATES.transitioningToReview, guard: "readyForReview" },
+          { target: STATES.invalidIteration }
+        ]
+      }
+    },
+    [STATES.triaging]: {
+      entry: ["logTriaging", "runClaudeTriage"],
+      type: "final"
+    },
+    [STATES.grooming]: {
+      entry: ["logGrooming", "runClaudeGrooming"],
+      type: "final"
+    },
+    [STATES.pivoting]: {
+      entry: ["logPivoting", "runClaudePivot"],
+      type: "final"
+    },
+    [STATES.resetting]: {
+      entry: ["logResetting", "resetIssue"],
+      type: "final"
+    },
+    [STATES.retrying]: {
+      entry: ["logRetrying", "retryIssue"],
+      always: [
+        { target: STATES.orchestrationRunning, guard: "hasSubIssues" },
+        { target: STATES.iterating }
+      ]
+    },
+    [STATES.commenting]: {
+      entry: ["logCommenting", "runClaudeComment"],
+      type: "final"
+    },
+    [STATES.prReviewing]: {
+      entry: ["logPRReviewing", "runClaudePRReview"],
+      type: "final"
+    },
+    [STATES.prResponding]: {
+      entry: ["logPRResponding", "runClaudePRResponse"],
+      type: "final"
+    },
+    [STATES.prRespondingHuman]: {
+      entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      type: "final"
+    },
+    [STATES.prReviewSkipped]: {
+      type: "final"
+    },
+    [STATES.prReviewAssigned]: {
+      type: "final"
+    },
+    [STATES.prPush]: {
+      entry: ["pushToDraft", "setInProgress"],
+      type: "final"
+    },
+    [STATES.initializing]: {
+      entry: ["setInProgress"],
+      always: STATES.orchestrating
+    },
+    [STATES.orchestrating]: {
+      entry: ["logOrchestrating"],
+      always: [
+        { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
+        { target: STATES.orchestrationWaiting, guard: "currentPhaseInReview" },
+        { target: STATES.orchestrationRunning }
+      ]
+    },
+    [STATES.orchestrationRunning]: {
+      entry: ["orchestrate"],
+      type: "final"
+    },
+    [STATES.orchestrationWaiting]: {
+      entry: ["logWaitingForReview"],
+      type: "final"
+    },
+    [STATES.orchestrationComplete]: {
+      entry: ["allPhasesDone"],
+      type: "final"
+    },
+    [STATES.processingCI]: {
+      always: [
+        {
+          target: STATES.transitioningToReview,
+          guard: "readyForReview",
+          actions: ["historyCISuccess"]
+        },
+        {
+          target: STATES.iterating,
+          guard: "ciPassed",
+          actions: ["clearFailures", "historyCISuccess"]
+        },
+        {
+          target: STATES.blocked,
+          guard: "shouldBlock",
+          actions: ["blockIssue"]
+        },
+        {
+          target: STATES.iteratingFix,
+          guard: "ciFailed",
+          actions: ["handleCIFailure"]
+        },
+        { target: STATES.iterating }
+      ]
+    },
+    [STATES.processingReview]: {
+      always: [
+        {
+          target: STATES.awaitingMerge,
+          guard: "reviewApproved",
+          actions: ["mergePR"]
+        },
+        {
+          target: STATES.iterating,
+          guard: "reviewRequestedChanges",
+          actions: ["convertToDraft"]
+        },
+        { target: STATES.reviewing }
+      ]
+    },
+    [STATES.awaitingMerge]: {
+      entry: ["logAwaitingMerge", "setReview"],
+      type: "final"
+    },
+    [STATES.processingMerge]: {
+      entry: ["logMerged", "setDone", "closeIssue"],
+      always: STATES.orchestrating
+    },
+    [STATES.transitioningToReview]: {
+      entry: ["transitionToReview", "historyReviewRequested"],
+      always: STATES.reviewing
+    },
+    [STATES.iterating]: {
+      entry: [
+        "createBranch",
+        "setWorking",
+        "incrementIteration",
+        "historyIterationStarted",
+        "logIterating",
+        "runClaude",
+        "createPR"
+      ],
+      on: {
+        CI_SUCCESS: [
+          {
+            target: STATES.transitioningToReview,
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
+          },
+          {
+            target: STATES.iterating,
+            actions: ["clearFailures", "historyCISuccess"]
+          }
+        ],
+        CI_FAILURE: [
+          {
+            target: STATES.blocked,
+            guard: "maxFailuresReached",
+            actions: ["blockIssue"]
+          },
+          {
+            target: STATES.iteratingFix,
+            actions: ["handleCIFailure"]
+          }
+        ]
+      },
+      type: "final"
+    },
+    [STATES.iteratingFix]: {
+      entry: [
+        "createBranch",
+        "incrementIteration",
+        "historyIterationStarted",
+        "logFixingCI",
+        "runClaudeFixCI",
+        "createPR"
+      ],
+      on: {
+        CI_SUCCESS: [
+          {
+            target: STATES.transitioningToReview,
+            guard: "todosDone",
+            actions: ["historyCISuccess"]
+          },
+          {
+            target: STATES.iterating,
+            actions: ["clearFailures", "historyCISuccess"]
+          }
+        ],
+        CI_FAILURE: [
+          {
+            target: STATES.blocked,
+            guard: "maxFailuresReached",
+            actions: ["blockIssue"]
+          },
+          {
+            target: STATES.iteratingFix,
+            actions: ["handleCIFailure"]
+          }
+        ]
+      },
+      type: "final"
+    },
+    [STATES.reviewing]: {
+      entry: ["logReviewing", "setReview"],
+      on: {
+        REVIEW_APPROVED: STATES.orchestrating,
+        REVIEW_CHANGES_REQUESTED: {
+          target: STATES.iterating,
+          actions: ["convertToDraft"]
+        },
+        REVIEW_COMMENTED: STATES.reviewing
+      },
+      type: "final"
+    },
+    [STATES.blocked]: {
+      type: "final"
+    },
+    [STATES.alreadyBlocked]: {
+      type: "final"
+    },
+    [STATES.error]: {
+      type: "final"
+    },
+    [STATES.subIssueIdle]: {
+      entry: ["logSubIssueIdle"],
+      type: "final"
+    },
+    [STATES.invalidIteration]: {
+      entry: ["logInvalidIteration", "setError"],
+      type: "final"
+    },
+    [STATES.mergeQueueLogging]: {
+      entry: ["logMergeQueueEntry"],
+      type: "final"
+    },
+    [STATES.mergeQueueFailureLogging]: {
+      entry: ["logMergeQueueFailure"],
+      type: "final"
+    },
+    [STATES.mergedLogging]: {
+      entry: ["logMerged"],
+      type: "final"
+    },
+    [STATES.deployedStageLogging]: {
+      entry: ["logDeployedStage"],
+      type: "final"
+    },
+    [STATES.deployedProdLogging]: {
+      entry: ["logDeployedProd"],
+      type: "final"
+    },
+    [STATES.deployedStageFailureLogging]: {
+      entry: ["logDeployedStageFailure"],
+      type: "final"
+    },
+    [STATES.deployedProdFailureLogging]: {
+      entry: ["logDeployedProdFailure"],
+      type: "final"
+    },
+    [STATES.done]: {
+      entry: ["setDone", "closeIssue"],
+      type: "final"
+    }
+  }
+});
+
+// packages/statemachine/src/runner/runner.ts
 var core11 = __toESM(require_core(), 1);
 
-// packages/statemachine/src/runner/executors/agent-notes.ts
-var core12 = __toESM(require_core(), 1);
+// packages/statemachine/src/runner/signaler.ts
+var core10 = __toESM(require_core(), 1);
 
-// packages/statemachine/src/runner/executors/discussions.ts
-var core13 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/discussion-apply.ts
+// packages/statemachine/src/machines/issue-next-invoke/context-loader.ts
 var core14 = __toESM(require_core(), 1);
 
-// packages/statemachine/src/runner/executors/discussion-research.ts
-var core15 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/grooming.ts
-var core16 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/sub-issue-reconcile.ts
-var core17 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/executors/pivot.ts
-var core18 = __toESM(require_core(), 1);
-
 // packages/statemachine/src/runner/derive.ts
-var core22 = __toESM(require_core(), 1);
+var core13 = __toESM(require_core(), 1);
 
 // packages/statemachine/src/discussion/context-builder.ts
-var core21 = __toESM(require_core(), 1);
+var core12 = __toESM(require_core(), 1);
 
 // packages/statemachine/src/discussion/guards.ts
 function triggeredByDiscussionCreated({ context: context2 }) {
@@ -67579,16 +73430,16 @@ function emitRunClaudePlan({ context: context2 }) {
   ];
 }
 function emitComplete({ context: context2 }) {
-  const actions = [];
+  const actions2 = [];
   if (context2.discussion.commentId) {
-    actions.push({
+    actions2.push({
       type: "addDiscussionReaction",
       token: "code",
       subjectId: context2.discussion.commentId,
       content: "ROCKET"
     });
   }
-  actions.push({
+  actions2.push({
     type: "addDiscussionComment",
     token: "code",
     discussionNodeId: context2.discussion.nodeId,
@@ -67596,7 +73447,7 @@ function emitComplete({ context: context2 }) {
 
 If you have additional questions, feel free to post a new comment!`
   });
-  return actions;
+  return actions2;
 }
 function emitLogResearching({ context: context2 }) {
   return [
@@ -67916,7 +73767,7 @@ var ExpectedStateSchema = external_exports.object({
   parentIssueNumber: external_exports.number().int().positive().nullable()
 });
 
-// packages/statemachine/src/verify/mutators/helpers.ts
+// packages/statemachine/src/schemas/prediction-helpers.ts
 function cloneTree(tree) {
   const clone2 = structuredClone(tree);
   clone2.issue.body.historyEntries = [];
@@ -67935,6 +73786,10 @@ function addHistoryEntry3(issue2, entry) {
     runLink: null
   });
 }
+
+// packages/statemachine/src/runner/helpers/git.ts
+var core15 = __toESM(require_core(), 1);
+var exec7 = __toESM(require_exec(), 1);
 
 // packages/statemachine/src/verify/mutators/logging.ts
 function makeLoggingMutator(message) {
@@ -67970,8 +73825,8 @@ var deployedProdFailureLoggingMutator = makeLoggingMutator(
 );
 
 // packages/statemachine/src/test-runner/poller.ts
-var core23 = __toESM(require_core(), 1);
-var exec7 = __toESM(require_exec(), 1);
+var core16 = __toESM(require_core(), 1);
+var exec9 = __toESM(require_exec(), 1);
 
 // packages/statemachine/src/test-runner/configurable/types.ts
 var StateNameSchema = external_exports.enum([
@@ -68152,7 +74007,7 @@ var ConfigurableTestResultSchema = external_exports.object({
 });
 
 // packages/statemachine/src/test-runner/configurable/loader.ts
-var core24 = __toESM(require_core(), 1);
+var core17 = __toESM(require_core(), 1);
 
 // packages/statemachine/src/discussion/actions.ts
 var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
@@ -68164,18 +74019,18 @@ var ArtifactSchema2 = external_exports.object({
   name: external_exports.string(),
   path: external_exports.string()
 });
-var AddDiscussionCommentActionSchema2 = BaseActionSchema2.extend({
+var AddDiscussionCommentActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("addDiscussionComment"),
   discussionNodeId: external_exports.string(),
   body: external_exports.string(),
   replyToNodeId: external_exports.string().optional()
 });
-var UpdateDiscussionBodyActionSchema2 = BaseActionSchema2.extend({
+var UpdateDiscussionBodyActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("updateDiscussionBody"),
   discussionNodeId: external_exports.string(),
   newBody: external_exports.string()
 });
-var AddDiscussionReactionActionSchema2 = BaseActionSchema2.extend({
+var AddDiscussionReactionActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("addDiscussionReaction"),
   subjectId: external_exports.string(),
   content: external_exports.enum([
@@ -68189,7 +74044,7 @@ var AddDiscussionReactionActionSchema2 = BaseActionSchema2.extend({
     "EYES"
   ])
 });
-var CreateIssuesFromDiscussionActionSchema2 = BaseActionSchema2.extend({
+var CreateIssuesFromDiscussionActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("createIssuesFromDiscussion"),
   discussionNumber: external_exports.number().int().positive(),
   issues: external_exports.array(
@@ -68200,7 +74055,7 @@ var CreateIssuesFromDiscussionActionSchema2 = BaseActionSchema2.extend({
     })
   )
 });
-var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
+var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionResearchOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string(),
@@ -68208,7 +74063,7 @@ var ApplyDiscussionResearchOutputActionSchema2 = BaseActionSchema2.extend({
   filePath: external_exports.string().optional(),
   consumesArtifact: ArtifactSchema2.optional()
 });
-var ApplyDiscussionRespondOutputActionSchema2 = BaseActionSchema2.extend({
+var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionRespondOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string(),
@@ -68216,21 +74071,21 @@ var ApplyDiscussionRespondOutputActionSchema2 = BaseActionSchema2.extend({
   filePath: external_exports.string().optional(),
   consumesArtifact: ArtifactSchema2.optional()
 });
-var ApplyDiscussionSummarizeOutputActionSchema2 = BaseActionSchema2.extend({
+var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionSummarizeOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string(),
   filePath: external_exports.string().optional(),
   consumesArtifact: ArtifactSchema2.optional()
 });
-var ApplyDiscussionPlanOutputActionSchema2 = BaseActionSchema2.extend({
+var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("applyDiscussionPlanOutput"),
   discussionNumber: external_exports.number().int().positive(),
   discussionNodeId: external_exports.string(),
   filePath: external_exports.string().optional(),
   consumesArtifact: ArtifactSchema2.optional()
 });
-var RunClaudeActionSchema2 = BaseActionSchema2.extend({
+var RunClaudeActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("runClaude"),
   promptDir: external_exports.string(),
   promptsBase: external_exports.string().optional(),
@@ -68238,44 +74093,44 @@ var RunClaudeActionSchema2 = BaseActionSchema2.extend({
   issueNumber: external_exports.number().int().positive().optional(),
   producesArtifact: ArtifactSchema2.optional()
 });
-var LogActionSchema2 = BaseActionSchema2.extend({
+var LogActionSchema = BaseActionSchema2.extend({
   type: external_exports.literal("log"),
   level: external_exports.enum(["debug", "info", "warning", "error"]),
   message: external_exports.string()
 });
 var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
-  AddDiscussionCommentActionSchema2,
-  UpdateDiscussionBodyActionSchema2,
-  AddDiscussionReactionActionSchema2,
-  CreateIssuesFromDiscussionActionSchema2,
-  ApplyDiscussionResearchOutputActionSchema2,
-  ApplyDiscussionRespondOutputActionSchema2,
-  ApplyDiscussionSummarizeOutputActionSchema2,
-  ApplyDiscussionPlanOutputActionSchema2,
-  RunClaudeActionSchema2,
-  LogActionSchema2
+  AddDiscussionCommentActionSchema,
+  UpdateDiscussionBodyActionSchema,
+  AddDiscussionReactionActionSchema,
+  CreateIssuesFromDiscussionActionSchema,
+  ApplyDiscussionResearchOutputActionSchema,
+  ApplyDiscussionRespondOutputActionSchema,
+  ApplyDiscussionSummarizeOutputActionSchema,
+  ApplyDiscussionPlanOutputActionSchema,
+  RunClaudeActionSchema,
+  LogActionSchema
 ]);
 
 // packages/statemachine/src/action-utils.ts
-var core25 = __toESM(require_core(), 1);
-var exec9 = __toESM(require_exec(), 1);
+var core18 = __toESM(require_core(), 1);
+var exec11 = __toESM(require_exec(), 1);
 function getOptionalInput(name) {
-  const value = core25.getInput(name);
+  const value = core18.getInput(name);
   return value === "" ? void 0 : value;
 }
 function getRequiredInput(name) {
-  return core25.getInput(name, { required: true });
+  return core18.getInput(name, { required: true });
 }
 function setOutputs(outputs) {
   for (const [key, value] of Object.entries(outputs)) {
     if (value !== void 0) {
-      core25.setOutput(key, value);
+      core18.setOutput(key, value);
     }
   }
 }
 
 // packages/statemachine/actions/sm-test-helper/index.ts
-function asOctokitLike(octokit) {
+function asOctokitLike2(octokit) {
   return octokit;
 }
 var GET_PROJECT_ITEM_QUERY2 = `
@@ -68493,7 +74348,7 @@ mutation AddLabelsToLabelable($labelableId: ID!, $labelIds: [ID!]!) {
   }
 }
 `;
-function parseProjectFields(projectData) {
+function parseProjectFields2(projectData) {
   const project = projectData;
   if (!project?.id || !project?.fields?.nodes) {
     return null;
@@ -68534,18 +74389,18 @@ async function addLabelsToDiscussion(octokit, owner, repo, discussionId, labelNa
     if (label) {
       labelIds.push(label.id);
     } else {
-      core26.warning(`Label "${labelName}" not found in repository`);
+      core19.warning(`Label "${labelName}" not found in repository`);
     }
   }
   if (labelIds.length === 0) {
-    core26.warning("No valid labels found to add to discussion");
+    core19.warning("No valid labels found to add to discussion");
     return;
   }
   await octokit.graphql(ADD_LABELS_TO_LABELABLE_MUTATION, {
     labelableId: discussionId,
     labelIds
   });
-  core26.info(`Added ${labelIds.length} labels to discussion`);
+  core19.info(`Added ${labelIds.length} labels to discussion`);
 }
 async function createFixture(octokit, owner, repo, fixture, projectNumber, reviewOctokit) {
   const result = {
@@ -68553,9 +74408,9 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     sub_issue_numbers: []
   };
   if (!fixture.parent_issue) {
-    core26.info("No parent_issue in fixture - creating discussion-only fixture");
+    core19.info("No parent_issue in fixture - creating discussion-only fixture");
     if (fixture.discussion) {
-      core26.info(`Creating discussion: ${fixture.discussion.title}`);
+      core19.info(`Creating discussion: ${fixture.discussion.title}`);
       const categoriesResponse = await octokit.graphql(
         GET_DISCUSSION_CATEGORIES_QUERY2,
         { owner, repo }
@@ -68567,7 +74422,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
       );
       if (!repoId || !category) {
-        core26.warning(
+        core19.warning(
           `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
         );
       } else {
@@ -68583,7 +74438,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         const discussion = discussionResponse.createDiscussion?.discussion;
         if (discussion) {
           result.discussion_number = discussion.number;
-          core26.info(
+          core19.info(
             `Created discussion #${discussion.number}: ${discussion.url}`
           );
           if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
@@ -68600,7 +74455,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               discussionId: discussion.id,
               body: fixture.comment.body
             });
-            core26.info("Added comment to discussion");
+            core19.info("Added comment to discussion");
           }
         }
       }
@@ -68612,7 +74467,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
     "test:automation",
     ...fixture.parent_issue.labels || []
   ];
-  core26.info(`Creating parent issue: ${parentTitle}`);
+  core19.info(`Creating parent issue: ${parentTitle}`);
   const createResult = await createIssue(
     owner,
     repo,
@@ -68621,12 +74476,12 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       body: fixture.parent_issue.body,
       labels: parentLabels
     },
-    { octokit: asOctokitLike(octokit) }
+    { octokit: asOctokitLike2(octokit) }
   );
   result.issue_number = createResult.issueNumber;
   const issueNodeId = createResult.issueId;
-  core26.info(`Created parent issue #${createResult.issueNumber}`);
-  core26.info(`Issue node_id: ${issueNodeId}`);
+  core19.info(`Created parent issue #${createResult.issueNumber}`);
+  core19.info(`Issue node_id: ${issueNodeId}`);
   let projectFields = null;
   try {
     const projectResponse = await octokit.graphql(
@@ -68660,21 +74515,21 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       }
     );
     const projectData = projectResponse.organization?.projectV2;
-    core26.info(
+    core19.info(
       `Project query result - org: ${owner}, projectNumber: ${projectNumber}`
     );
-    core26.info(`Project data: ${JSON.stringify(projectData)}`);
-    projectFields = parseProjectFields(projectData);
+    core19.info(`Project data: ${JSON.stringify(projectData)}`);
+    projectFields = parseProjectFields2(projectData);
     if (projectFields) {
-      core26.info(
+      core19.info(
         `Parsed project fields - projectId: ${projectFields.projectId}`
       );
     }
   } catch (error7) {
-    core26.warning(
+    core19.warning(
       `Could not access project #${projectNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
-    core26.warning("Continuing without project field setup");
+    core19.warning("Continuing without project field setup");
   }
   if (projectFields && fixture.parent_issue.project_fields) {
     try {
@@ -68699,7 +74554,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.statusFieldId,
               value: { singleSelectOptionId: optionId }
             });
-            core26.info(`Set parent Status to ${statusValue}`);
+            core19.info(`Set parent Status to ${statusValue}`);
           }
         }
         if (fixture.parent_issue.project_fields.Iteration !== void 0 && projectFields.iterationFieldId) {
@@ -68709,11 +74564,11 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             fieldId: projectFields.iterationFieldId,
             value: { number: fixture.parent_issue.project_fields.Iteration }
           });
-          core26.info(
+          core19.info(
             `Set parent Iteration to ${fixture.parent_issue.project_fields.Iteration}`
           );
         } else if (fixture.parent_issue.project_fields.Iteration !== void 0) {
-          core26.warning(
+          core19.warning(
             "Iteration field not found in project - skipping Iteration update"
           );
         }
@@ -68724,17 +74579,17 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             fieldId: projectFields.failuresFieldId,
             value: { number: fixture.parent_issue.project_fields.Failures }
           });
-          core26.info(
+          core19.info(
             `Set parent Failures to ${fixture.parent_issue.project_fields.Failures}`
           );
         } else if (fixture.parent_issue.project_fields.Failures !== void 0) {
-          core26.warning(
+          core19.warning(
             "Failures field not found in project - skipping Failures update"
           );
         }
       }
     } catch (error7) {
-      core26.warning(
+      core19.warning(
         `Failed to set project fields for parent issue: ${error7 instanceof Error ? error7.message : String(error7)}`
       );
     }
@@ -68744,7 +74599,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       const subConfig = fixture.sub_issues[i];
       if (!subConfig) continue;
       const subTitle = `[Phase ${i + 1}] ${subConfig.title}`;
-      core26.info(`Creating sub-issue: ${subTitle}`);
+      core19.info(`Creating sub-issue: ${subTitle}`);
       const bodyWithParent = subConfig.body.replace(
         /\{PARENT_NUMBER\}/g,
         String(createResult.issueNumber)
@@ -68757,7 +74612,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           body: bodyWithParent,
           labels: ["test:automation", "triaged"]
         },
-        { octokit: asOctokitLike(octokit) }
+        { octokit: asOctokitLike2(octokit) }
       );
       const finalBody = bodyWithParent.replace(
         /\{ISSUE_NUMBER\}/g,
@@ -68769,7 +74624,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           repo,
           subCreateResult.issueNumber,
           {
-            octokit: asOctokitLike(octokit),
+            octokit: asOctokitLike2(octokit),
             fetchPRs: false,
             fetchParent: false
           }
@@ -68781,17 +74636,17 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         await updateSub(updatedSubState);
       }
       result.sub_issue_numbers.push(subCreateResult.issueNumber);
-      core26.info(`Created sub-issue #${subCreateResult.issueNumber}`);
+      core19.info(`Created sub-issue #${subCreateResult.issueNumber}`);
       try {
         await octokit.graphql(ADD_SUB_ISSUE_MUTATION2, {
           parentId: issueNodeId,
           subIssueId: subCreateResult.issueId
         });
-        core26.info(
+        core19.info(
           `Linked sub-issue #${subCreateResult.issueNumber} to parent #${createResult.issueNumber}`
         );
       } catch (error7) {
-        core26.warning(`Failed to link sub-issue: ${error7}`);
+        core19.warning(`Failed to link sub-issue: ${error7}`);
       }
       if (subConfig.project_fields && projectFields) {
         const addResult = await octokit.graphql(
@@ -68815,7 +74670,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
                 fieldId: projectFields.statusFieldId,
                 value: { singleSelectOptionId: optionId }
               });
-              core26.info(
+              core19.info(
                 `Set sub-issue #${subCreateResult.issueNumber} Status to ${subStatus}`
               );
             }
@@ -68827,7 +74682,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.iterationFieldId,
               value: { number: subConfig.project_fields.Iteration }
             });
-            core26.info(
+            core19.info(
               `Set sub-issue #${subCreateResult.issueNumber} Iteration to ${subConfig.project_fields.Iteration}`
             );
           }
@@ -68838,7 +74693,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               fieldId: projectFields.failuresFieldId,
               value: { number: subConfig.project_fields.Failures }
             });
-            core26.info(
+            core19.info(
               `Set sub-issue #${subCreateResult.issueNumber} Failures to ${subConfig.project_fields.Failures}`
             );
           }
@@ -68849,7 +74704,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
   if (fixture.branch) {
     const branchName = `test/${fixture.branch.name}`;
     result.branch_name = branchName;
-    core26.info(`Creating branch: ${branchName}`);
+    core19.info(`Creating branch: ${branchName}`);
     const { data: baseBranch } = await octokit.rest.repos.getBranch({
       owner,
       repo,
@@ -68861,7 +74716,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       ref: `refs/heads/${branchName}`,
       sha: baseBranch.commit.sha
     });
-    core26.info(`Created branch ${branchName} from ${fixture.branch.from}`);
+    core19.info(`Created branch ${branchName} from ${fixture.branch.from}`);
     if (fixture.branch.commits && fixture.branch.commits.length > 0) {
       for (const commit2 of fixture.branch.commits) {
         const { data: currentRef } = await octokit.rest.git.getRef({
@@ -68877,10 +74732,10 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         const treeItems = [];
         const firstSubIssueNumber = result.sub_issue_numbers[0];
         for (const [rawPath, rawContent] of Object.entries(commit2.files)) {
-          let path3 = rawPath;
+          let path4 = rawPath;
           let content3 = rawContent;
           if (firstSubIssueNumber) {
-            path3 = path3.replace(
+            path4 = path4.replace(
               /\{SUB_ISSUE_NUMBER\}/g,
               String(firstSubIssueNumber)
             );
@@ -68889,7 +74744,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
               String(firstSubIssueNumber)
             );
           }
-          path3 = path3.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
+          path4 = path4.replace(/\{ISSUE_NUMBER\}/g, String(result.issue_number));
           content3 = content3.replace(
             /\{ISSUE_NUMBER\}/g,
             String(result.issue_number)
@@ -68901,7 +74756,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             encoding: "base64"
           });
           treeItems.push({
-            path: path3,
+            path: path4,
             mode: "100644",
             type: "blob",
             sha: blob.sha
@@ -68926,12 +74781,12 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           ref: `heads/${branchName}`,
           sha: newCommit.sha
         });
-        core26.info(`Added commit: ${commit2.message}`);
+        core19.info(`Added commit: ${commit2.message}`);
       }
     }
   }
   if (fixture.pr && result.branch_name) {
-    core26.info(`Creating PR: ${fixture.pr.title}`);
+    core19.info(`Creating PR: ${fixture.pr.title}`);
     const firstSubIssueNumber = result.sub_issue_numbers[0];
     let prBody = fixture.pr.body;
     if (firstSubIssueNumber) {
@@ -68952,13 +74807,13 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       // Default to draft
     });
     result.pr_number = pr.number;
-    core26.info(`Created PR #${pr.number}`);
+    core19.info(`Created PR #${pr.number}`);
     await setLabels(
       owner,
       repo,
       pr.number,
       ["test:automation"],
-      asOctokitLike(octokit)
+      asOctokitLike2(octokit)
     );
     if (fixture.pr.request_review) {
       try {
@@ -68968,23 +74823,23 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
           pull_number: pr.number,
           reviewers: ["nopo-bot"]
         });
-        core26.info("Requested nopo-bot as reviewer");
+        core19.info("Requested nopo-bot as reviewer");
       } catch (error7) {
-        core26.warning(`Failed to request reviewer: ${error7}`);
+        core19.warning(`Failed to request reviewer: ${error7}`);
       }
     }
   }
   if (fixture.comment && result.issue_number) {
-    core26.info("Adding comment to issue");
+    core19.info("Adding comment to issue");
     const { commentId } = await createComment(
       owner,
       repo,
       result.issue_number,
       fixture.comment.body,
-      asOctokitLike(octokit)
+      asOctokitLike2(octokit)
     );
     result.comment_id = String(commentId);
-    core26.info(`Created comment ${commentId}`);
+    core19.info(`Created comment ${commentId}`);
   }
   if (fixture.review && result.pr_number) {
     if (!reviewOctokit) {
@@ -68992,7 +74847,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
         "Test fixture requires review but no github_review_token provided. Set CLAUDE_REVIEWER_PAT secret or remove 'review' from fixture."
       );
     }
-    core26.info(`Submitting review with state: ${fixture.review.state}`);
+    core19.info(`Submitting review with state: ${fixture.review.state}`);
     const eventMap = {
       approve: "APPROVE",
       request_changes: "REQUEST_CHANGES",
@@ -69005,10 +74860,10 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       body: fixture.review.body,
       event: eventMap[fixture.review.state]
     });
-    core26.info("Review submitted");
+    core19.info("Review submitted");
   }
   if (fixture.discussion) {
-    core26.info(`Creating discussion: ${fixture.discussion.title}`);
+    core19.info(`Creating discussion: ${fixture.discussion.title}`);
     const categoriesResponse = await octokit.graphql(
       GET_DISCUSSION_CATEGORIES_QUERY2,
       { owner, repo }
@@ -69020,7 +74875,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       (c) => c.slug === targetCategory || c.name.toLowerCase() === targetCategory.toLowerCase()
     );
     if (!repoId || !category) {
-      core26.warning(
+      core19.warning(
         `Could not find category "${targetCategory}" for discussion. Available: ${categories.map((c) => c.slug).join(", ")}`
       );
     } else {
@@ -69036,7 +74891,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
       const discussion = discussionResponse.createDiscussion?.discussion;
       if (discussion) {
         result.discussion_number = discussion.number;
-        core26.info(
+        core19.info(
           `Created discussion #${discussion.number}: ${discussion.url}`
         );
         if (fixture.discussion.labels && fixture.discussion.labels.length > 0) {
@@ -69053,7 +74908,7 @@ async function createFixture(octokit, owner, repo, fixture, projectNumber, revie
             discussionId: discussion.id,
             body: fixture.comment.body
           });
-          core26.info("Added comment to discussion");
+          core19.info("Added comment to discussion");
         }
       }
     }
@@ -69246,7 +75101,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
   }
   if (fixture.expected.labels && fixture.expected.labels.length > 0) {
     const { data: labelData } = await parseIssue(owner, repo, issueNumber, {
-      octokit: asOctokitLike(octokit),
+      octokit: asOctokitLike2(octokit),
       fetchPRs: false,
       fetchParent: false
     });
@@ -69267,7 +75122,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
         owner,
         repo,
         issueNumber,
-        asOctokitLike(octokit),
+        asOctokitLike2(octokit),
         { perPage: 100 }
       );
       if (issueComments.length < fixture.expected.min_comments) {
@@ -69279,7 +75134,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
       }
     }
     if (fixture.discussion) {
-      core26.info(
+      core19.info(
         "Discussion verification not yet implemented - skipping discussion checks"
       );
     }
@@ -69336,7 +75191,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
           repo,
           subIssue.number,
           {
-            octokit: asOctokitLike(octokit),
+            octokit: asOctokitLike2(octokit),
             fetchPRs: false,
             fetchParent: false
           }
@@ -69369,7 +75224,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
           repo,
           subIssue.number,
           {
-            octokit: asOctokitLike(octokit),
+            octokit: asOctokitLike2(octokit),
             fetchPRs: false,
             fetchParent: false
           }
@@ -69387,7 +75242,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
   }
   if (fixture.expected.history_contains) {
     const { data: historyData } = await parseIssue(owner, repo, issueNumber, {
-      octokit: asOctokitLike(octokit),
+      octokit: asOctokitLike2(octokit),
       fetchPRs: false,
       fetchParent: false
     });
@@ -69440,7 +75295,7 @@ async function verifyFixture(octokit, owner, repo, issueNumber, fixture, project
   };
 }
 async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
-  core26.info(`Checking for running workflows related to issue #${issueNumber}`);
+  core19.info(`Checking for running workflows related to issue #${issueNumber}`);
   try {
     const { data: runs } = await octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
@@ -69458,7 +75313,7 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
     const currentRunId = github.context.runId;
     for (const run2 of allRuns) {
       if (run2.id === currentRunId) {
-        core26.debug(`Skipping current run ${run2.id}`);
+        core19.debug(`Skipping current run ${run2.id}`);
         continue;
       }
       const runName = run2.name || "";
@@ -69468,7 +75323,7 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
       displayTitle.includes(`[TEST]`) || // Check head_branch for claude/issue/{N} pattern
       run2.head_branch?.includes(`issue/${issueNumber}`) || run2.head_branch?.includes(`issue-${issueNumber}`);
       if (isRelated) {
-        core26.info(
+        core19.info(
           `Force cancelling workflow run ${run2.id}: ${run2.name} - ${run2.display_title}`
         );
         try {
@@ -69480,14 +75335,14 @@ async function forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber) {
               run_id: run2.id
             }
           );
-          core26.info(`\u2705 Force cancelled run ${run2.id}`);
+          core19.info(`\u2705 Force cancelled run ${run2.id}`);
         } catch (cancelError) {
-          core26.debug(`Could not force cancel run ${run2.id}: ${cancelError}`);
+          core19.debug(`Could not force cancel run ${run2.id}: ${cancelError}`);
         }
       }
     }
   } catch (error7) {
-    core26.warning(`Failed to check/cancel related workflows: ${error7}`);
+    core19.warning(`Failed to check/cancel related workflows: ${error7}`);
   }
 }
 async function deleteBranch(octokit, owner, repo, branch) {
@@ -69497,10 +75352,10 @@ async function deleteBranch(octokit, owner, repo, branch) {
       repo,
       ref: `heads/${branch}`
     });
-    core26.info(`Deleted branch: ${branch}`);
+    core19.info(`Deleted branch: ${branch}`);
   } catch (error7) {
     if (error7 && typeof error7 === "object" && "status" in error7 && error7.status === 404) {
-      core26.info(`Branch already deleted: ${branch}`);
+      core19.info(`Branch already deleted: ${branch}`);
       return;
     }
     throw error7;
@@ -69512,7 +75367,7 @@ async function closeIssue(octokit, owner, repo, issueNumber) {
       owner,
       repo,
       issueNumber,
-      { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false }
+      { octokit: asOctokitLike2(octokit), fetchPRs: false, fetchParent: false }
     );
     if (closeData.issue.state === "OPEN") {
       const closedState = {
@@ -69524,13 +75379,13 @@ async function closeIssue(octokit, owner, repo, issueNumber) {
         }
       };
       await closeUpdate(closedState);
-      core26.info(`Closed issue #${issueNumber}`);
+      core19.info(`Closed issue #${issueNumber}`);
     } else {
-      core26.info(`Issue #${issueNumber} already closed`);
+      core19.info(`Issue #${issueNumber} already closed`);
     }
   } catch (error7) {
     if (error7 && typeof error7 === "object" && "status" in error7 && (error7.status === 404 || error7.status === 410)) {
-      core26.info(`Issue #${issueNumber} already gone`);
+      core19.info(`Issue #${issueNumber} already gone`);
       return;
     }
     throw error7;
@@ -69544,11 +75399,11 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     skipped: 0,
     errors: []
   };
-  core26.info(
+  core19.info(
     `Cleaning up test resources for issue #${issueNumber} via parseIssue`
   );
   const { data } = await parseIssue(owner, repo, issueNumber, {
-    octokit: asOctokitLike(octokit),
+    octokit: asOctokitLike2(octokit),
     projectNumber,
     fetchPRs: true,
     fetchParent: false
@@ -69559,7 +75414,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
       `SAFETY: Issue #${issueNumber} title "${data.issue.title}" doesn't start with [TEST]. Only test issues can be cleaned up to prevent accidentally deleting real issues.`
     );
   }
-  core26.info(
+  core19.info(
     `Safety check passed: Issue #${issueNumber} title starts with [TEST]`
   );
   const summaryLines = [
@@ -69580,7 +75435,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     }
     summaryLines.push("");
   }
-  await core26.summary.addRaw(summaryLines.join("\n")).write();
+  await core19.summary.addRaw(summaryLines.join("\n")).write();
   await forceCancelRelatedWorkflows(octokit, owner, repo, issueNumber);
   for (const sub of data.issue.subIssues) {
     try {
@@ -69591,7 +75446,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
           pull_number: sub.pr.number,
           state: "closed"
         });
-        core26.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
+        core19.info(`Closed PR #${sub.pr.number} for sub-issue #${sub.number}`);
         result.cleaned++;
       }
       if (sub.branch) {
@@ -69602,7 +75457,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
       result.cleaned++;
     } catch (error7) {
       const msg = error7 instanceof Error ? error7.message : String(error7);
-      core26.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
+      core19.warning(`Failed to clean sub-issue #${sub.number}: ${msg}`);
       result.failed++;
       result.errors.push(`Sub-issue #${sub.number}: ${msg}`);
       result.success = false;
@@ -69616,7 +75471,7 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
         pull_number: data.issue.pr.number,
         state: "closed"
       });
-      core26.info(`Closed parent PR #${data.issue.pr.number}`);
+      core19.info(`Closed parent PR #${data.issue.pr.number}`);
       result.cleaned++;
     }
     if (data.issue.branch) {
@@ -69627,12 +75482,12 @@ async function cleanupFromParseIssue(octokit, owner, repo, issueNumber, projectN
     result.cleaned++;
   } catch (error7) {
     const msg = error7 instanceof Error ? error7.message : String(error7);
-    core26.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
+    core19.warning(`Failed to clean parent issue #${issueNumber}: ${msg}`);
     result.failed++;
     result.errors.push(`Parent issue #${issueNumber}: ${msg}`);
     result.success = false;
   }
-  core26.info(
+  core19.info(
     `Cleanup result: cleaned=${result.cleaned}, failed=${result.failed}`
   );
   return result;
@@ -69647,13 +75502,13 @@ async function cleanupFixture(octokit, owner, repo, issueNumber, projectNumber, 
   );
   if (!result.success) {
     const errorMsg = `Cleanup had failures: cleaned=${result.cleaned}, failed=${result.failed}. Errors: ${result.errors.join("; ")}`;
-    await core26.summary.addRaw("\n\n## Cleanup Warnings\n\n").addRaw(`${errorMsg}
+    await core19.summary.addRaw("\n\n## Cleanup Warnings\n\n").addRaw(`${errorMsg}
 `).write();
-    core26.warning(errorMsg);
+    core19.warning(errorMsg);
   }
 }
-async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
-  core26.info(`Resetting issue #${issueNumber} to initial state`);
+async function resetIssue2(octokit, owner, repo, issueNumber, projectNumber) {
+  core19.info(`Resetting issue #${issueNumber} to initial state`);
   let resetCount = 0;
   let projectFields = null;
   try {
@@ -69688,9 +75543,9 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
       }
     );
     const projectData = projectResponse.organization?.projectV2;
-    projectFields = parseProjectFields(projectData);
+    projectFields = parseProjectFields2(projectData);
   } catch (error7) {
-    core26.warning(
+    core19.warning(
       `Could not access project #${projectNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
   }
@@ -69698,10 +75553,10 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
     owner,
     repo,
     issueNumber,
-    { octokit: asOctokitLike(octokit), fetchPRs: false, fetchParent: false }
+    { octokit: asOctokitLike2(octokit), fetchPRs: false, fetchParent: false }
   );
   if (resetData.issue.state === "CLOSED") {
-    core26.info(`Re-opening parent issue #${issueNumber}`);
+    core19.info(`Re-opening parent issue #${issueNumber}`);
     const reopenedState = {
       ...resetData,
       issue: { ...resetData.issue, state: "OPEN" }
@@ -69718,7 +75573,7 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
       "Backlog",
       projectFields
     );
-    core26.info(`Set parent issue #${issueNumber} status to Backlog`);
+    core19.info(`Set parent issue #${issueNumber} status to Backlog`);
   }
   const subResponse = await octokit.graphql(
     GET_SUB_ISSUES_QUERY2,
@@ -69736,13 +75591,13 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
         repo,
         subIssue.number,
         {
-          octokit: asOctokitLike(octokit),
+          octokit: asOctokitLike2(octokit),
           fetchPRs: false,
           fetchParent: false
         }
       );
       if (subResetData.issue.state === "CLOSED") {
-        core26.info(`Re-opening sub-issue #${subIssue.number}`);
+        core19.info(`Re-opening sub-issue #${subIssue.number}`);
         const subReopenedState = {
           ...subResetData,
           issue: { ...subResetData.issue, state: "OPEN" }
@@ -69759,18 +75614,18 @@ async function resetIssue(octokit, owner, repo, issueNumber, projectNumber) {
           "Ready",
           projectFields
         );
-        core26.info(`Set sub-issue #${subIssue.number} status to Ready`);
+        core19.info(`Set sub-issue #${subIssue.number} status to Ready`);
       }
     }
   }
-  core26.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
+  core19.info(`Reset complete: ${resetCount} issues re-opened, statuses updated`);
   return { reset_count: resetCount };
 }
 async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
-  core26.info(`Deleting issue #${issueNumber} and all sub-issues`);
+  core19.info(`Deleting issue #${issueNumber} and all sub-issues`);
   let deleteCount = 0;
   const { data: deleteCheckData } = await parseIssue(owner, repo, issueNumber, {
-    octokit: asOctokitLike(octokit),
+    octokit: asOctokitLike2(octokit),
     fetchPRs: false,
     fetchParent: false
   });
@@ -69816,7 +75671,7 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
   const subIssues = subResponse.repository?.issue?.subIssues?.nodes || [];
   for (const subIssue of subIssues) {
     if (subIssue.node_id) {
-      core26.info(`Deleting sub-issue #${subIssue.number}`);
+      core19.info(`Deleting sub-issue #${subIssue.number}`);
       try {
         await octokit.graphql(
           `mutation DeleteIssue($issueId: ID!) {
@@ -69828,13 +75683,13 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
         );
         deleteCount++;
       } catch (error7) {
-        core26.warning(
+        core19.warning(
           `Failed to delete sub-issue #${subIssue.number}: ${error7 instanceof Error ? error7.message : String(error7)}`
         );
       }
     }
   }
-  core26.info(`Deleting parent issue #${issueNumber}`);
+  core19.info(`Deleting parent issue #${issueNumber}`);
   try {
     await octokit.graphql(
       `mutation DeleteIssue($issueId: ID!) {
@@ -69846,7 +75701,7 @@ async function deleteIssueAndSubIssues(octokit, owner, repo, issueNumber) {
     );
     deleteCount++;
   } catch (error7) {
-    core26.warning(
+    core19.warning(
       `Failed to delete parent issue #${issueNumber}: ${error7 instanceof Error ? error7.message : String(error7)}`
     );
     throw error7;
@@ -69866,7 +75721,7 @@ async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, 
   );
   const issueNodeId = issueIdResponse.repository?.issue?.id;
   if (!issueNodeId) {
-    core26.warning(`Could not get node ID for issue #${issueNumber}`);
+    core19.warning(`Could not get node ID for issue #${issueNumber}`);
     return;
   }
   const projectItemsResponse = await octokit.graphql(
@@ -69899,7 +75754,7 @@ async function setIssueProjectStatus(octokit, owner, repo, issueNumber, status, 
     projectItemId = addResult.addProjectV2ItemById?.item?.id;
   }
   if (!projectItemId) {
-    core26.warning(`Could not get project item ID for issue #${issueNumber}`);
+    core19.warning(`Could not get project item ID for issue #${issueNumber}`);
     return;
   }
   const optionId = projectFields.statusOptions[status] || Object.entries(projectFields.statusOptions).find(
@@ -69983,7 +75838,7 @@ async function commitE2EConfigFile(octokit, owner, repo, branchName, filePath, c
     ref: `heads/${branchName}`,
     sha: newCommit.sha
   });
-  core26.info(
+  core19.info(
     `Committed ${existingFileSha ? "updated" : "new"} e2e config to ${branchName}: ${newCommit.sha}`
   );
 }
@@ -70003,25 +75858,25 @@ async function run() {
     if (action === "create" || action === "verify") {
       try {
         const { data: codeUser } = await octokit.rest.users.getAuthenticated();
-        core26.info(`Code token authenticated as: ${codeUser.login}`);
+        core19.info(`Code token authenticated as: ${codeUser.login}`);
         if (reviewOctokit) {
           const { data: reviewUser } = await reviewOctokit.rest.users.getAuthenticated();
-          core26.info(`Review token authenticated as: ${reviewUser.login}`);
+          core19.info(`Review token authenticated as: ${reviewUser.login}`);
           if (codeUser.login === reviewUser.login) {
-            core26.warning(
+            core19.warning(
               `Code and review tokens belong to same user (${codeUser.login}) - PR reviews will fail`
             );
           }
         }
       } catch (authError) {
-        core26.debug(`Could not verify token identity: ${authError}`);
+        core19.debug(`Could not verify token identity: ${authError}`);
       }
     }
     if (action === "create") {
       const fixtureJson = getRequiredInput("fixture_json");
       const fixture = JSON.parse(fixtureJson);
-      core26.info(`Creating test fixture: ${fixture.name}`);
-      core26.info(`Description: ${fixture.description}`);
+      core19.info(`Creating test fixture: ${fixture.name}`);
+      core19.info(`Description: ${fixture.description}`);
       const result = await createFixture(
         octokit,
         owner,
@@ -70038,14 +75893,14 @@ async function run() {
         discussion_number: result.discussion_number ? String(result.discussion_number) : "",
         comment_id: result.comment_id || ""
       });
-      core26.info("Fixture creation complete");
+      core19.info("Fixture creation complete");
       return;
     }
     if (action === "verify") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
       const fixtureJson = getRequiredInput("fixture_json");
       const fixture = JSON.parse(fixtureJson);
-      core26.info(`Verifying fixture for issue #${issueNumber}`);
+      core19.info(`Verifying fixture for issue #${issueNumber}`);
       const result = await verifyFixture(
         octokit,
         owner,
@@ -70055,13 +75910,13 @@ async function run() {
         projectNumber
       );
       if (result.passed) {
-        core26.info("All verifications passed!");
+        core19.info("All verifications passed!");
       } else {
-        core26.warning(
+        core19.warning(
           `Verification failed with ${result.errors.length} errors:`
         );
         for (const error7 of result.errors) {
-          core26.warning(
+          core19.warning(
             `  ${error7.field}: expected ${error7.expected}, got ${error7.actual}`
           );
         }
@@ -70071,7 +75926,7 @@ async function run() {
         verification_errors: JSON.stringify(result.errors)
       });
       if (!result.passed) {
-        core26.setFailed(
+        core19.setFailed(
           `Verification failed with ${result.errors.length} errors`
         );
       }
@@ -70095,7 +75950,7 @@ async function run() {
     }
     if (action === "reset") {
       const issueNumber = parseInt(getRequiredInput("issue_number"), 10);
-      const result = await resetIssue(
+      const result = await resetIssue2(
         octokit,
         owner,
         repo,
@@ -70145,10 +76000,10 @@ async function run() {
       if (!outcomes.review || outcomes.review.length === 0) {
         outcomes.review = ["approved"];
       }
-      core26.info(
+      core19.info(
         `${action === "create_e2e_config" ? "Creating" : "Updating"} e2e config with run_id=${e2eRunId}, iteration=${iteration}`
       );
-      core26.info(`Outcomes: ${JSON.stringify(outcomes)}`);
+      core19.info(`Outcomes: ${JSON.stringify(outcomes)}`);
       const configContent = createE2EConfigContent(
         e2eRunId,
         outcomes,
@@ -70171,32 +76026,32 @@ async function run() {
       return;
     }
     if (action === "sweep") {
-      const manifestDir = path2.resolve(getRequiredInput("manifest_dir"));
-      core26.info(`Sweeping test resources from manifests in ${manifestDir}`);
+      const manifestDir = path3.resolve(getRequiredInput("manifest_dir"));
+      core19.info(`Sweeping test resources from manifests in ${manifestDir}`);
       const parentIssues = /* @__PURE__ */ new Set();
-      if (fs2.existsSync(manifestDir)) {
-        const files = fs2.readdirSync(manifestDir);
+      if (fs9.existsSync(manifestDir)) {
+        const files = fs9.readdirSync(manifestDir);
         for (const file of files) {
           if (!file.endsWith(".json")) continue;
           try {
-            const content3 = fs2.readFileSync(
-              path2.join(manifestDir, file),
+            const content3 = fs9.readFileSync(
+              path3.join(manifestDir, file),
               "utf-8"
             );
             const parsed = JSON.parse(content3);
             if (typeof parsed.parentIssue === "number" && parsed.parentIssue > 0) {
               parentIssues.add(parsed.parentIssue);
             } else {
-              core26.warning(
+              core19.warning(
                 `Invalid manifest in ${file}: missing or invalid parentIssue`
               );
             }
           } catch (err) {
-            core26.warning(`Failed to read manifest ${file}: ${err}`);
+            core19.warning(`Failed to read manifest ${file}: ${err}`);
           }
         }
       }
-      core26.info(
+      core19.info(
         `Found ${parentIssues.size} unique parent issues to sweep: ${[...parentIssues].join(", ")}`
       );
       let totalCleaned = 0;
@@ -70216,12 +76071,12 @@ async function run() {
           sweepErrors.push(...result.errors);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          core26.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
+          core19.warning(`Sweep failed for issue #${issueNum}: ${msg}`);
           sweepErrors.push(`Issue #${issueNum}: ${msg}`);
           totalFailed++;
         }
       }
-      await core26.summary.addRaw(
+      await core19.summary.addRaw(
         `## Sweep Summary
 
 Issues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Failed: ${totalFailed}
@@ -70232,18 +76087,18 @@ Issues processed: ${parentIssues.size} | Resources cleaned: ${totalCleaned} | Fa
         delete_count: String(totalCleaned)
       });
       if (totalFailed > 0) {
-        core26.warning(
+        core19.warning(
           `Sweep completed with ${totalFailed} failures: ${sweepErrors.join("; ")}`
         );
       }
       return;
     }
-    core26.setFailed(`Unknown action: ${action}`);
+    core19.setFailed(`Unknown action: ${action}`);
   } catch (error7) {
     if (error7 instanceof Error) {
-      core26.setFailed(error7.message);
+      core19.setFailed(error7.message);
     } else {
-      core26.setFailed("An unexpected error occurred");
+      core19.setFailed("An unexpected error occurred");
     }
   }
 }

@@ -5,12 +5,13 @@
  */
 
 import * as core from "@actions/core";
-import type { Action } from "../schemas/actions.js";
+import type { Action } from "../schemas/actions/index.js";
 import {
+  actions as actionDefs,
   ActionSchema,
   isTerminalAction,
   shouldStopOnError,
-} from "../schemas/actions.js";
+} from "../schemas/actions/index.js";
 import type {
   RunnerContext,
   RunnerResult,
@@ -25,8 +26,6 @@ import type {
 } from "./types.js";
 import { getOctokitForAction } from "./types.js";
 import { signalStart, signalEnd } from "./signaler.js";
-import { ACTION_REGISTRY } from "./action-registry.js";
-import { dispatchAction } from "./create-action.js";
 
 // Re-export types
 export type {
@@ -48,7 +47,7 @@ export type { ResourceType, MockOutputs } from "./types.js";
 // ============================================================================
 
 /**
- * Execute a single action via registry lookup
+ * Execute a single action via the unified actions object
  */
 async function executeAction(
   action: Action,
@@ -60,7 +59,9 @@ async function executeAction(
     octokit: getOctokitForAction(action, ctx),
   };
 
-  return dispatchAction(ACTION_REGISTRY, action, actionCtx, chainCtx);
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Action.type is a string union; narrowing to keyof is safe at runtime
+  const def = actionDefs[action.type as keyof typeof actionDefs];
+  return def.execute(action, actionCtx, chainCtx);
 }
 
 // ============================================================================
@@ -202,7 +203,7 @@ export async function executeActions(
         stoppedEarly = true;
         stopReason =
           validatedAction.type === "stop"
-            ? validatedAction.reason
+            ? validatedAction.message
             : `${validatedAction.type} action`;
         break;
       }

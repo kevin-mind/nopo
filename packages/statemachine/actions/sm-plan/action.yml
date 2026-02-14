@@ -19,6 +19,10 @@ inputs:
     description: Override trigger (e.g. deployed-stage, deployed-prod, pr-merged) when dispatching from release.yml
     required: false
     default: ''
+  use_new_machine:
+    description: Use the new invoke-based state machine (true/false)
+    required: false
+    default: 'false'
 
 outputs:
   context_json:
@@ -33,6 +37,8 @@ outputs:
     description: Whether to cancel in-progress runs (true/false string)
   expected_state_json:
     description: Predicted post-run state as JSON (pass to sm-verify)
+  derive_result_json:
+    description: Pre-computed DeriveResult as JSON (pass to sm-run to skip re-derivation)
 
 runs:
   using: node20

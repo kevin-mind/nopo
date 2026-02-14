@@ -1,13 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { createActor } from "xstate";
 import { parseMarkdown } from "@more/issue-state";
-import {
-  createMachineContext,
-  claudeMachine,
-  emitSetWorking,
-  emitLog,
-} from "../src/index.js";
-import { emit, accumulateFromEmitter } from "../src/machine/emit-helper.js";
+import { createMachineContext, claudeMachine } from "../src/index.js";
+import { emitLog } from "../src/core/action-helpers.js";
+import { emit, accumulateFromEmitter } from "../src/core/emit-helper.js";
+import { emitStatus } from "../src/machines/issues/actions.js";
+import type { BaseMachineContext } from "../src/core/types.js";
 import type { MachineContext, Action } from "../src/schemas/index.js";
 import { ParentIssueSchema } from "../src/schemas/index.js";
 
@@ -51,7 +49,11 @@ function createTriageContext(
 
 describe("emit helper", () => {
   it("accumulateFromEmitter appends emitter output to existing actions", () => {
-    const context = createTriageContext();
+    const baseContext = createTriageContext();
+    const context: MachineContext & BaseMachineContext = {
+      ...baseContext,
+      pendingActions: [],
+    };
     const existing: Action[] = [
       {
         type: "log",
@@ -62,7 +64,9 @@ describe("emit helper", () => {
       },
     ];
 
-    const result = accumulateFromEmitter(existing, context, emitSetWorking);
+    const result = accumulateFromEmitter(existing, context, (ctx) =>
+      emitStatus(ctx, "In progress"),
+    );
 
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({ type: "log", message: "first" });
@@ -74,7 +78,7 @@ describe("emit helper", () => {
   });
 
   it("emit returns assign action (callable with emitter)", () => {
-    const actionConfig = emit(emitSetWorking);
+    const actionConfig = emit((ctx) => emitStatus(ctx, "In progress"));
     expect(actionConfig).toBeDefined();
     expect(
       typeof actionConfig === "function" || typeof actionConfig === "object",

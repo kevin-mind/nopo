@@ -8,17 +8,15 @@ import {
   ReconcileSubIssuesOutputSchema,
   type GroomingSummaryOutput,
   type CombinedGroomingOutput,
-} from "../src/runner/executors/output-schemas.js";
+} from "../src/runner/helpers/output-schemas.js";
 import {
   buildFallbackSummary,
   buildQuestionsContent,
-} from "../src/runner/executors/grooming.js";
-import {
   buildPhaseIssueBody,
   mergeTodos,
   normalizeTodoText,
   extractExistingTodos,
-} from "../src/runner/executors/sub-issue-reconcile.js";
+} from "../src/schemas/actions/index.js";
 import {
   extractQuestionsFromAst,
   extractQuestionItems,

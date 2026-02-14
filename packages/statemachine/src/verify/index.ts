@@ -23,6 +23,9 @@ export {
 // Mutators
 export { getMutator, hasMutator, type StateMutator } from "./mutators/index.js";
 
+// Action-based prediction
+export { predictFromActions } from "./predict.js";
+
 // Comparison engine
 export {
   compareStateTree,

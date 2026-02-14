@@ -45,6 +45,14 @@ inputs:
     description: Simulated review outcome for E2E testing (approved/changes_requested/comment)
     required: false
     default: "approved"
+  derive_result_json:
+    description: Pre-computed DeriveResult JSON from sm-plan (skips re-derivation when provided)
+    required: false
+    default: ""
+  use_new_machine:
+    description: Use the new invoke-based state machine (true/false)
+    required: false
+    default: "false"
 
 outputs:
   final_state:

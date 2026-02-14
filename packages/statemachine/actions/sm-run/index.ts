@@ -2,15 +2,11 @@
  * Unified State Machine Runner Action
  *
  * Single action that performs the complete run cycle:
- * 1. Build machine context and derive actions (state machine transition)
+ * 1. Load pre-computed derive result from sm-plan (or derive fresh for discussions/fallback)
  * 2. Save state for post-cancellation cleanup (run start logged by sm-plan)
  * 3. Execute all derived actions sequentially
  * 4. Log run end (update history with outcome)
  * 5. Determine retrigger decision
- *
- * Replaces the previous multi-job pipeline in sm-runner.yml:
- * derive-context → log-run-start → derive-actions → exec-state-actions →
- * log-run-end → check-retrigger
  */
 
 import * as core from "@actions/core";
@@ -38,6 +34,7 @@ import {
   // Derive functions
   deriveIssueActions,
   deriveDiscussionActions,
+  IssueNextInvoke,
   type DeriveResult,
   // MDAST mutators
   updateHistoryEntry,
@@ -498,6 +495,7 @@ async function run(): Promise<void> {
     const e2eReviewOutcome =
       getOptionalInput("e2e_review_outcome") || "approved";
     const botUsername = "nopo-bot";
+    const useNewMachine = getOptionalInput("use_new_machine") === "true";
 
     // Parse workflow context
     const ctx = parseWorkflowContext(contextJsonInput);
@@ -512,6 +510,9 @@ async function run(): Promise<void> {
     core.info(`Resource: ${ctx.resource_type} #${ctx.resource_number}`);
     core.info(`Dry run: ${dryRun}`);
     core.info(`E2E mode: ${e2eMode}`);
+    core.info(
+      `Machine: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`,
+    );
 
     // Create octokits
     const codeOctokit = github.getOctokit(codeToken);
@@ -521,13 +522,24 @@ async function run(): Promise<void> {
     const { owner, repo } = github.context.repo;
 
     // ====================================================================
-    // STEP 1: Derive Actions (run state machine)
+    // STEP 1: Load or Derive Actions
     // ====================================================================
-    core.startGroup("Step 1: Derive Actions");
+    core.startGroup("Step 1: Load or Derive Actions");
 
     let deriveResult: DeriveResult | null;
 
-    if (isDiscussion) {
+    const deriveResultInput = getOptionalInput("derive_result_json") || "";
+
+    if (deriveResultInput) {
+      // Fast path: use pre-computed result from sm-plan (avoids re-fetching
+      // the issue and re-running the state machine).
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- JSON round-trip preserves DeriveResult shape
+      deriveResult = JSON.parse(deriveResultInput) as DeriveResult;
+      core.info(
+        `Loaded pre-computed derive result: state=${deriveResult.finalState}, actions=${deriveResult.pendingActions.length}`,
+      );
+    } else if (isDiscussion) {
+      // Discussions are not pre-computed by sm-plan — derive fresh
       deriveResult = await deriveDiscussionActions({
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- checkDiscussionTrigger guard confirms type
         trigger: trigger as DiscussionTriggerType,
@@ -539,7 +551,17 @@ async function run(): Promise<void> {
         botUsername,
       });
     } else {
-      deriveResult = await deriveIssueActions({
+      // Fallback: derive fresh (backwards-compatible path)
+      core.warning(
+        "No pre-computed derive result — falling back to fresh derivation",
+      );
+      core.info("=".repeat(60));
+      core.info(
+        `MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`,
+      );
+      core.info("=".repeat(60));
+
+      const deriveOptions = {
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- non-discussion trigger is TriggerType
         trigger: trigger as TriggerType,
         ctx,
@@ -549,7 +571,11 @@ async function run(): Promise<void> {
         projectNumber,
         maxRetries,
         botUsername,
-      });
+      };
+
+      deriveResult = useNewMachine
+        ? await IssueNextInvoke.deriveFromWorkflow(deriveOptions)
+        : await deriveIssueActions(deriveOptions);
     }
 
     if (!deriveResult) {
