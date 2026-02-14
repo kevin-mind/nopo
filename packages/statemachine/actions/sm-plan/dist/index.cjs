@@ -75058,9 +75058,9 @@ function predictFromActions(pendingActions, currentTree, machineContext, options
       const ctx = { tree: cloned, machineContext };
       const result = def.predict(action, target, ctx);
       const diffs = Array.isArray(result) ? result : [result];
-      return diffs.map((diff, i) => {
-        const t = i === 0 ? cloned : cloneTree(cloned);
-        const tgt = i === 0 ? target : issueNumber ? resolveTarget2(t, issueNumber) : void 0;
+      return diffs.map((diff) => {
+        const t = diffs.length === 1 ? cloned : cloneTree(cloned);
+        const tgt = diffs.length === 1 ? target : issueNumber ? resolveTarget2(t, issueNumber) : void 0;
         applyDiff(t, tgt, diff);
         return t;
       });

@@ -73,10 +73,10 @@ export function predictFromActions(
       const result = def.predict!(action, target, ctx);
       const diffs = Array.isArray(result) ? result : [result];
 
-      return diffs.map((diff, i) => {
-        const t = i === 0 ? cloned : cloneTree(cloned);
+      return diffs.map((diff) => {
+        const t = diffs.length === 1 ? cloned : cloneTree(cloned);
         const tgt =
-          i === 0
+          diffs.length === 1
             ? target
             : issueNumber
               ? resolveTarget(t, issueNumber)

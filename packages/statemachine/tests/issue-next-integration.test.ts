@@ -1246,12 +1246,9 @@ describe("scenario: verification predictions", () => {
 
     // Extract current tree and run predictions
     const currentTree = extractPredictableTree(context);
-    const outcomes = predictFromActions(
-      result.actions,
-      currentTree,
-      context,
-      { finalState: result.state },
-    );
+    const outcomes = predictFromActions(result.actions, currentTree, context, {
+      finalState: result.state,
+    });
 
     expect(outcomes.length).toBeGreaterThan(0);
 
@@ -1333,12 +1330,9 @@ describe("scenario: verification predictions", () => {
     expect(result.state).toBe("grooming");
 
     const currentTree = extractPredictableTree(context);
-    const outcomes = predictFromActions(
-      result.actions,
-      currentTree,
-      context,
-      { finalState: result.state },
-    );
+    const outcomes = predictFromActions(result.actions, currentTree, context, {
+      finalState: result.state,
+    });
 
     expect(outcomes.length).toBeGreaterThan(0);
 
@@ -1354,6 +1348,42 @@ describe("scenario: verification predictions", () => {
       const hasSuccess = historyActions.some((a) => a.startsWith("\u2705"));
       expect(hasSuccess).toBe(true);
     }
+  });
+
+  it("prediction forks are independent (no cross-contamination)", () => {
+    // Grooming produces 3 forks: ready (+groomed), needs_info (+needs-info), blocked
+    // Fork 0 (ready) should NOT contaminate fork 1 (needs-info) with "groomed"
+    const context = createContext({
+      trigger: "issue-groom",
+      issue: createIssue({
+        labels: ["triaged", "enhancement", "P1"],
+        projectStatus: "Backlog",
+      }),
+    });
+
+    const machine = new IssueMachine(context, { logger: createMockLogger() });
+    const result = machine.predict();
+    expect(result.state).toBe("grooming");
+
+    const currentTree = extractPredictableTree(context);
+    const outcomes = predictFromActions(result.actions, currentTree, context, {
+      finalState: result.state,
+    });
+
+    // The "needs-info" outcome should NOT have "groomed" label
+    const needsInfoOutcome = outcomes.find((o) =>
+      o.issue.labels.includes("needs-info"),
+    );
+    expect(needsInfoOutcome).toBeDefined();
+    expect(needsInfoOutcome!.issue.labels).not.toContain("groomed");
+
+    // The "ready" outcome should have "groomed" but NOT "needs-info"
+    const readyOutcome = outcomes.find(
+      (o) =>
+        o.issue.labels.includes("groomed") &&
+        !o.issue.labels.includes("needs-info"),
+    );
+    expect(readyOutcome).toBeDefined();
   });
 
   it("triage prediction on issue without Description section", () => {
@@ -1373,12 +1403,9 @@ describe("scenario: verification predictions", () => {
     expect(result.state).toBe("triaging");
 
     const currentTree = extractPredictableTree(context);
-    const outcomes = predictFromActions(
-      result.actions,
-      currentTree,
-      context,
-      { finalState: result.state },
-    );
+    const outcomes = predictFromActions(result.actions, currentTree, context, {
+      finalState: result.state,
+    });
 
     // After triage, body should have Requirements/Approach regardless of input
     for (const outcome of outcomes) {
