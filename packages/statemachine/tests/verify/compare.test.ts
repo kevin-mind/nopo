@@ -336,4 +336,415 @@ describe("compareStateTree", () => {
     const result = compareStateTree([expected], actual);
     expect(result.pass).toBe(false);
   });
+
+  describe("todoStats null handling", () => {
+    it("passes when expected has todoStats but actual is null (no enforcement)", () => {
+      const context = makeContext({
+        issue: {
+          number: 100,
+          title: "Test",
+          state: "OPEN" as const,
+          bodyAst: parseMarkdown("## Description\n\nTest."),
+          projectStatus: "In progress" as const,
+          iteration: 1,
+          failures: 0,
+          assignees: [],
+          labels: [],
+          subIssues: [],
+          hasSubIssues: false,
+          comments: [],
+          branch: null,
+          pr: null,
+          parentIssueNumber: null,
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      // Set expected to have todoStats, actual remains null
+      expected.issue.body.todoStats = {
+        total: 3,
+        completed: 1,
+        uncheckedNonManual: 2,
+      };
+
+      const result = compareStateTree([expected], actual);
+      // Should pass because comparison only runs when BOTH are non-null
+      expect(result.pass).toBe(true);
+    });
+
+    it("passes when expected is null but actual has todoStats (no enforcement)", () => {
+      const context = makeContext({
+        issue: {
+          number: 100,
+          title: "Test",
+          state: "OPEN" as const,
+          bodyAst: parseMarkdown(
+            [
+              "## Description",
+              "",
+              "Test.",
+              "",
+              "## Todo",
+              "",
+              "- [ ] Task 1",
+              "- [ ] Task 2",
+              "- [x] Task 3",
+            ].join("\n"),
+          ),
+          projectStatus: "In progress" as const,
+          iteration: 1,
+          failures: 0,
+          assignees: [],
+          labels: [],
+          subIssues: [],
+          hasSubIssues: false,
+          comments: [],
+          branch: null,
+          pr: null,
+          parentIssueNumber: null,
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      // Set expected todoStats to null, actual has stats from parsed body
+      expected.issue.body.todoStats = null;
+
+      const result = compareStateTree([expected], actual);
+      // Should pass because comparison only runs when BOTH are non-null
+      expect(result.pass).toBe(true);
+    });
+  });
+
+  describe("questionStats null handling", () => {
+    it("passes when expected has questionStats but actual is null (no enforcement)", () => {
+      const context = makeContext({
+        issue: {
+          number: 100,
+          title: "Test",
+          state: "OPEN" as const,
+          bodyAst: parseMarkdown("## Description\n\nTest."),
+          projectStatus: "In progress" as const,
+          iteration: 1,
+          failures: 0,
+          assignees: [],
+          labels: [],
+          subIssues: [],
+          hasSubIssues: false,
+          comments: [],
+          branch: null,
+          pr: null,
+          parentIssueNumber: null,
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      // Set expected to have questionStats, actual remains null
+      expected.issue.body.questionStats = {
+        total: 2,
+        answered: 1,
+      };
+
+      const result = compareStateTree([expected], actual);
+      // Should pass because comparison only runs when BOTH are non-null
+      expect(result.pass).toBe(true);
+    });
+
+    it("passes when expected is null but actual has questionStats (no enforcement)", () => {
+      const context = makeContext({
+        issue: {
+          number: 100,
+          title: "Test",
+          state: "OPEN" as const,
+          bodyAst: parseMarkdown(
+            [
+              "## Description",
+              "",
+              "Test.",
+              "",
+              "## Questions",
+              "",
+              "- [ ] Q: What is X?",
+              "- [x] Q: What is Y?",
+            ].join("\n"),
+          ),
+          projectStatus: "In progress" as const,
+          iteration: 1,
+          failures: 0,
+          assignees: [],
+          labels: [],
+          subIssues: [],
+          hasSubIssues: false,
+          comments: [],
+          branch: null,
+          pr: null,
+          parentIssueNumber: null,
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      // Set expected questionStats to null, actual has stats from parsed body
+      expected.issue.body.questionStats = null;
+
+      const result = compareStateTree([expected], actual);
+      // Should pass because comparison only runs when BOTH are non-null
+      expect(result.pass).toBe(true);
+    });
+  });
+
+  describe("parent-only boolean flags", () => {
+    it("fails when hasRequirements expected=true but actual=false", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasRequirements = true;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(false);
+      const diff = result.bestMatch.diffs.find(
+        (d) => d.path === "issue.body.hasRequirements",
+      );
+      expect(diff).toBeDefined();
+      expect(diff?.expected).toBe(true);
+      expect(diff?.actual).toBe(false);
+    });
+
+    it("passes when hasRequirements expected=false (no enforcement)", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasRequirements = false;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(true);
+    });
+
+    it("fails when hasApproach expected=true but actual=false", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasApproach = true;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(false);
+      const diff = result.bestMatch.diffs.find(
+        (d) => d.path === "issue.body.hasApproach",
+      );
+      expect(diff).toBeDefined();
+      expect(diff?.expected).toBe(true);
+      expect(diff?.actual).toBe(false);
+    });
+
+    it("passes when hasApproach expected=false (no enforcement)", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasApproach = false;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(true);
+    });
+
+    it("fails when hasAcceptanceCriteria expected=true but actual=false", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasAcceptanceCriteria = true;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(false);
+      const diff = result.bestMatch.diffs.find(
+        (d) => d.path === "issue.body.hasAcceptanceCriteria",
+      );
+      expect(diff).toBeDefined();
+      expect(diff?.expected).toBe(true);
+      expect(diff?.actual).toBe(false);
+    });
+
+    it("passes when hasAcceptanceCriteria expected=false (no enforcement)", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasAcceptanceCriteria = false;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(true);
+    });
+
+    it("fails when hasTesting expected=true but actual=false", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasTesting = true;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(false);
+      const diff = result.bestMatch.diffs.find(
+        (d) => d.path === "issue.body.hasTesting",
+      );
+      expect(diff).toBeDefined();
+      expect(diff?.expected).toBe(true);
+      expect(diff?.actual).toBe(false);
+    });
+
+    it("passes when hasTesting expected=false (no enforcement)", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasTesting = false;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(true);
+    });
+
+    it("fails when hasRelated expected=true but actual=false", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasRelated = true;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(false);
+      const diff = result.bestMatch.diffs.find(
+        (d) => d.path === "issue.body.hasRelated",
+      );
+      expect(diff).toBeDefined();
+      expect(diff?.expected).toBe(true);
+      expect(diff?.actual).toBe(false);
+    });
+
+    it("passes when hasRelated expected=false (no enforcement)", () => {
+      const context = makeContext();
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.body.hasRelated = false;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(true);
+    });
+  });
+
+  describe("failures edge cases", () => {
+    it("passes when both expected.failures=0 and actual.failures=0", () => {
+      const context = makeContext({
+        issue: {
+          number: 100,
+          title: "Test",
+          state: "OPEN" as const,
+          bodyAst: parseMarkdown("## Description\n\nTest."),
+          projectStatus: "In progress" as const,
+          iteration: 1,
+          failures: 0,
+          assignees: [],
+          labels: [],
+          subIssues: [],
+          hasSubIssues: false,
+          comments: [],
+          branch: null,
+          pr: null,
+          parentIssueNumber: null,
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.failures = 0;
+
+      const result = compareStateTree([expected], actual);
+      expect(result.pass).toBe(true);
+    });
+
+    it("passes when expected.failures=1 but actual.failures=0 (reset case)", () => {
+      const context = makeContext({
+        issue: {
+          number: 100,
+          title: "Test",
+          state: "OPEN" as const,
+          bodyAst: parseMarkdown("## Description\n\nTest."),
+          projectStatus: "In progress" as const,
+          iteration: 1,
+          failures: 0,
+          assignees: [],
+          labels: [],
+          subIssues: [],
+          hasSubIssues: false,
+          comments: [],
+          branch: null,
+          pr: null,
+          parentIssueNumber: null,
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      expected.issue.failures = 1;
+
+      const result = compareStateTree([expected], actual);
+      // Should pass because actual.failures=0 allows reset
+      expect(result.pass).toBe(true);
+    });
+  });
+
+  describe("PR null mismatches", () => {
+    it("passes when expected.pr exists but actual.pr is null (no enforcement)", () => {
+      const context = makeContext({
+        issue: {
+          number: 100,
+          title: "Test",
+          state: "OPEN" as const,
+          bodyAst: parseMarkdown("## Description\n\nTest."),
+          projectStatus: "In progress" as const,
+          iteration: 1,
+          failures: 0,
+          assignees: [],
+          labels: [],
+          subIssues: [],
+          hasSubIssues: false,
+          comments: [],
+          branch: null,
+          pr: null,
+          parentIssueNumber: null,
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      // Set expected to have a PR, actual remains null
+      expected.issue.pr = {
+        isDraft: true,
+        state: "OPEN",
+      };
+
+      const result = compareStateTree([expected], actual);
+      // Should pass because PR comparison only runs when BOTH are non-null
+      expect(result.pass).toBe(true);
+    });
+
+    it("passes when expected.pr is null but actual.pr exists (no enforcement)", () => {
+      const context = makeContext({
+        pr: {
+          number: 200,
+          title: "Test PR",
+          state: "OPEN" as const,
+          isDraft: true,
+          reviewDecision: null,
+          headRefName: "test-branch",
+          commits: [],
+          reviewers: [],
+        },
+      });
+
+      const actual = extractPredictableTree(context);
+      const expected = structuredClone(actual);
+      // Set expected PR to null, actual has PR from context
+      expected.issue.pr = null;
+
+      const result = compareStateTree([expected], actual);
+      // Should pass because PR comparison only runs when BOTH are non-null
+      expect(result.pass).toBe(true);
+    });
+  });
 });
