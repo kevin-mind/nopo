@@ -66127,7 +66127,8 @@ var applyActions = {
       issueNumber: external_exports.number().int().positive(),
       filePath: external_exports.string().optional(),
       prNumber: external_exports.number().int().positive().optional(),
-      reviewer: external_exports.string().min(1).optional()
+      reviewer: external_exports.string().min(1).optional(),
+      lastCIResult: external_exports.string().optional()
     }),
     {
       execute: async (action, ctx, chainCtx) => {
@@ -66262,9 +66263,50 @@ var applyActions = {
             }
             break;
           case "all_done":
-            core8.info(
-              "All todos complete \u2014 waiting for CI to pass before requesting review"
-            );
+            if (action.lastCIResult === "success" && action.prNumber && action.reviewer) {
+              core8.info(
+                "All todos complete and CI already passed \u2014 transitioning to review"
+              );
+              try {
+                await githubActions.markPRReady.execute(
+                  {
+                    type: "markPRReady",
+                    token: "code",
+                    prNumber: action.prNumber
+                  },
+                  ctx
+                );
+                core8.info(`Marked PR #${action.prNumber} as ready for review`);
+                await githubActions.requestReview.execute(
+                  {
+                    type: "requestReview",
+                    token: "review",
+                    prNumber: action.prNumber,
+                    reviewer: action.reviewer
+                  },
+                  ctx
+                );
+                core8.info(
+                  `Requested review from ${action.reviewer} on PR #${action.prNumber}`
+                );
+                await projectActions.updateProjectStatus.execute(
+                  {
+                    type: "updateProjectStatus",
+                    token: "code",
+                    issueNumber,
+                    status: "In review"
+                  },
+                  ctx
+                );
+                core8.info(`Set issue #${issueNumber} status to "In review"`);
+              } catch (error11) {
+                core8.warning(`Failed to transition to review: ${error11}`);
+              }
+            } else {
+              core8.info(
+                "All todos complete \u2014 waiting for CI to pass before requesting review"
+              );
+            }
             break;
         }
         return { applied: true, status: iterateOutput.status };
@@ -71404,7 +71446,8 @@ function runClaude({ context: context2 }) {
       filePath: "claude-structured-output.json",
       consumesArtifact: iterateArtifact,
       prNumber: context2.pr?.number,
-      reviewer: "nopo-reviewer"
+      reviewer: "nopo-reviewer",
+      lastCIResult: context2.ciResult ?? void 0
     })
   ];
 }
@@ -71432,7 +71475,8 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
       filePath: "claude-structured-output.json",
       consumesArtifact: iterateArtifact,
       prNumber: context2.pr?.number,
-      reviewer: "nopo-reviewer"
+      reviewer: "nopo-reviewer",
+      lastCIResult: context2.ciResult ?? void 0
     })
   ];
 }

@@ -275,6 +275,7 @@ export function runClaude({ context }: ActionContext): ActionResult {
       consumesArtifact: iterateArtifact,
       prNumber: context.pr?.number,
       reviewer: "nopo-reviewer",
+      lastCIResult: context.ciResult ?? undefined,
     }),
   ];
 }
@@ -310,6 +311,7 @@ Review the CI logs at the link above and fix the failing tests or build errors.`
       consumesArtifact: iterateArtifact,
       prNumber: context.pr?.number,
       reviewer: "nopo-reviewer",
+      lastCIResult: context.ciResult ?? undefined,
     }),
   ];
 }

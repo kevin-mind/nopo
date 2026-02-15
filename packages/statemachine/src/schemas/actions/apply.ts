@@ -541,6 +541,7 @@ export const applyActions = {
       filePath: z.string().optional(),
       prNumber: z.number().int().positive().optional(),
       reviewer: z.string().min(1).optional(),
+      lastCIResult: z.string().optional(),
     }),
     {
       execute: async (action, ctx, chainCtx) => {
@@ -701,9 +702,56 @@ export const applyActions = {
             }
             break;
           case "all_done":
-            core.info(
-              "All todos complete — waiting for CI to pass before requesting review",
-            );
+            if (
+              action.lastCIResult === "success" &&
+              action.prNumber &&
+              action.reviewer
+            ) {
+              core.info(
+                "All todos complete and CI already passed — transitioning to review",
+              );
+              try {
+                await githubActions.markPRReady.execute(
+                  {
+                    type: "markPRReady",
+                    token: "code",
+                    prNumber: action.prNumber,
+                  },
+                  ctx,
+                );
+                core.info(`Marked PR #${action.prNumber} as ready for review`);
+
+                await githubActions.requestReview.execute(
+                  {
+                    type: "requestReview",
+                    token: "review",
+                    prNumber: action.prNumber,
+                    reviewer: action.reviewer,
+                  },
+                  ctx,
+                );
+                core.info(
+                  `Requested review from ${action.reviewer} on PR #${action.prNumber}`,
+                );
+
+                await projectActions.updateProjectStatus.execute(
+                  {
+                    type: "updateProjectStatus",
+                    token: "code",
+                    issueNumber,
+                    status: "In review",
+                  },
+                  ctx,
+                );
+                core.info(`Set issue #${issueNumber} status to "In review"`);
+              } catch (error) {
+                core.warning(`Failed to transition to review: ${error}`);
+              }
+            } else {
+              core.info(
+                "All todos complete — waiting for CI to pass before requesting review",
+              );
+            }
             break;
         }
 
