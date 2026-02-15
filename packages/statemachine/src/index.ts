@@ -34,3 +34,6 @@ export {
 
 // Action utilities for GitHub Actions entry points
 export * from "./action-utils.js";
+
+// Utility functions
+export { truncate } from "./utils/truncate.js";
