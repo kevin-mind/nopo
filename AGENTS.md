@@ -360,6 +360,77 @@ These commands work on both parent issues (triggers orchestration) and sub-issue
 3. All todos addressed
 4. Approved by Claude
 
+### Self-Repair Workflow (sm-doctor)
+
+Automated verification failure detection and fix workflow. When sm-verify detects a state mismatch between predicted and actual state machine outcomes, it triggers sm-doctor to analyze the failure and create a fix PR.
+
+**Trigger Flow:**
+
+```
+sm-verify fails → upload diagnosis artifact → trigger sm-doctor.yml → analyze → fix → create PR
+```
+
+1. **sm-verify** detects mismatch (expected vs actual state tree)
+2. Uploads diagnosis artifact `sm-diagnosis-{run_id}` with structured failure data
+3. Blocks issue, unassigns nopo-bot, logs history entry
+4. Triggers `sm-doctor.yml` via `workflow_dispatch` with `failed_run_id`
+
+**Diagnosis Artifact Structure:**
+
+```json
+{
+  "expectedState": { /* ExpectedState from sm-plan */ },
+  "actualTree": { /* PredictableStateTree from actual issue */ },
+  "diffJson": { /* bestMatch with outcomeIndex + diffs array */ },
+  "summaryMarkdown": "<!-- comparison table markdown -->",
+  "retriggerMismatch": false,
+  "workflowRunUrl": "https://github.com/owner/repo/actions/runs/{run_id}"
+}
+```
+
+**Doctor Workflow Execution:**
+
+1. Checkout `main`, configure git with `NOPO_BOT_PAT`
+2. Download diagnosis artifact from failed run
+3. Install Claude Code CLI
+4. Create fix branch: `claude/fix/{run_id}`
+5. Run Claude with structured prompt:
+   - Read diagnosis.json
+   - Analyze state machine source (mutators, predictors, compare logic)
+   - Determine classification
+   - Fix code and add test case
+   - Run tests to verify
+6. Extract structured output (JSON)
+7. Create PR if changes were made
+
+**Classification Types:**
+
+- `false_negative` — prediction logic is wrong (predictor bug)
+- `true_bug` — execution logic is wrong (mutator bug)
+- `race_condition` — timing/async issue
+- `unknown` — unable to determine root cause
+
+**Structured Output Format:**
+
+Claude must return JSON with these fields:
+
+```json
+{
+  "classification": "false_negative|true_bug|race_condition|unknown",
+  "confidence": 0.85,
+  "root_cause": "Detailed explanation of what went wrong",
+  "fix_summary": "What was changed and why",
+  "affected_files": ["path/to/file1.ts", "path/to/file2.ts"]
+}
+```
+
+**PR Format:**
+
+- **Title:** `fix(statemachine): auto-fix verification failure #{run_id}`
+- **Branch:** `claude/fix/{run_id}`
+- **Body:** Includes links to failed run and doctor run, classification with confidence, root cause, fix summary, test plan checklist
+- **Human Review Required:** PRs do NOT auto-merge — human must review classification and verify fix
+
 ### Setup
 
 1. `CLAUDE_CODE_OAUTH_TOKEN` secret
