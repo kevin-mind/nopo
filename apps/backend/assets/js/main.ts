@@ -13,7 +13,9 @@ import "../css/tailwind.css";
 let clicked = false;
 
 function initApp(): void {
+  // eslint-disable-next-line no-console
   console.log("🚀 Django + Vite + TypeScript integration working!");
+  // eslint-disable-next-line no-console
   console.log("Build timestamp:", new Date().toISOString());
 
   // Add some interactive functionality to demonstrate the integration
@@ -21,6 +23,7 @@ function initApp(): void {
   if (viteButton) {
     // Add a click listener to demonstrate TypeScript functionality
     viteButton.addEventListener("click", (event: Event) => {
+      // eslint-disable-next-line no-console
       console.log("Button clicked:", event.target);
       if (!clicked) {
         viteButton.innerHTML = "Clicked!";
