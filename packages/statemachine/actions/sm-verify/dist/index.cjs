@@ -74509,6 +74509,9 @@ var triagingMutator = (current, context2) => {
       tree.issue.labels.push("triaged");
     }
     tree.issue.body.hasDescription = false;
+    tree.issue.body.hasTodos = false;
+    tree.issue.body.hasAffectedAreas = false;
+    tree.issue.body.todoStats = null;
     tree.issue.body.hasRequirements = true;
     tree.issue.body.hasApproach = true;
     addHistoryEntry3(tree.issue, {

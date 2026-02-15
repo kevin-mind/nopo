@@ -28,8 +28,11 @@ export const triagingMutator: StateMutator = (current, context) => {
     //   ## Questions     (from initial_questions — optional)
     //   + preserved Iteration History / Agent Notes from existing body
     //
-    // The original Description heading is replaced.
+    // The original Description/Todo/Affected Areas headings are replaced.
     tree.issue.body.hasDescription = false;
+    tree.issue.body.hasTodos = false;
+    tree.issue.body.hasAffectedAreas = false;
+    tree.issue.body.todoStats = null;
     tree.issue.body.hasRequirements = true;
     tree.issue.body.hasApproach = true;
     addHistoryEntry(tree.issue, {
