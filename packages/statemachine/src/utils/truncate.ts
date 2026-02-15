@@ -3,11 +3,11 @@
  *
  * @param str - The string to truncate
  * @param maxLen - Maximum length of the resulting string (must be > 0)
- * @returns The truncated string with "..." appended if truncation occurred
+ * @returns The truncated string with "…" appended if truncation occurred
  * @throws Error if maxLen is <= 0
  *
  * @example
- * truncate("hello world", 8) // Returns "hello..."
+ * truncate("hello world", 8) // Returns "hello w…"
  * truncate("hello", 10)      // Returns "hello"
  * truncate("hi", 3)          // Returns "hi"
  */
@@ -21,13 +21,13 @@ export function truncate(str: string, maxLen: number): string {
     return str;
   }
 
-  // For very short maxLen values (1-3), just return the substring
+  // For very short maxLen (1), just return the substring
   // There's not enough room for meaningful ellipsis
-  if (maxLen <= 3) {
+  if (maxLen <= 1) {
     return str.substring(0, maxLen);
   }
 
-  // For maxLen >= 4, we can add ellipsis
-  // Subtract 3 for the "..." and take that many characters
-  return str.substring(0, maxLen - 3) + "...";
+  // For maxLen >= 2, we can add ellipsis
+  // Subtract 1 for the "…" and take that many characters
+  return str.substring(0, maxLen - 1) + "…";
 }

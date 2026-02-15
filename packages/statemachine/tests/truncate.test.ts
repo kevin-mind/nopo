@@ -15,7 +15,7 @@ describe("truncate", () => {
   });
 
   it("truncates string when longer than maxLen", () => {
-    expect(truncate("hello world", 8)).toBe("hello...");
+    expect(truncate("hello world", 8)).toBe("hello w…");
   });
 
   it("throws error when maxLen is 0", () => {
@@ -32,29 +32,29 @@ describe("truncate", () => {
     expect(truncate("hello", 1)).toBe("h");
   });
 
-  it("handles maxLen = 2 (returns two characters)", () => {
-    expect(truncate("hello", 2)).toBe("he");
+  it("handles maxLen = 2 (adds ellipsis)", () => {
+    expect(truncate("hello", 2)).toBe("h…");
   });
 
-  it("handles maxLen = 3 (not enough room for ellipsis)", () => {
-    expect(truncate("hello", 3)).toBe("hel");
+  it("handles maxLen = 3 (adds ellipsis)", () => {
+    expect(truncate("hello", 3)).toBe("he…");
   });
 
-  it("adds ellipsis when maxLen >= 4 and truncation needed", () => {
-    expect(truncate("hello world", 7)).toBe("hell...");
+  it("adds ellipsis when maxLen >= 2 and truncation needed", () => {
+    expect(truncate("hello world", 7)).toBe("hello …");
   });
 
   it("handles strings with unicode characters", () => {
     // Note: truncate works with UTF-16 code units, not grapheme clusters
     // The emoji 😀 takes 2 code units, so "hello 😀 world" is 14 code units
-    // Truncating to 11 gives us "hello 😀" (8 code units) + "..." = 11
-    expect(truncate("hello 😀 world", 11)).toBe("hello 😀...");
+    // Truncating to 11 gives us "hello 😀 w" (10 code units) + "…" = 11
+    expect(truncate("hello 😀 world", 11)).toBe("hello 😀 w…");
   });
 
   it("handles very long strings", () => {
     const longString = "a".repeat(1000);
     const result = truncate(longString, 50);
-    expect(result).toBe("a".repeat(47) + "...");
+    expect(result).toBe("a".repeat(49) + "…");
     expect(result.length).toBe(50);
   });
 });
