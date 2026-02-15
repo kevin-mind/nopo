@@ -75164,16 +75164,18 @@ function predictFromActions(pendingActions, currentTree, machineContext, options
     machineContext
   );
   const phase = sub ? String(machineContext.currentPhase ?? "-") : "-";
-  const successAction = enrichedSuccessEntry(
-    options.finalState,
-    pendingActions
-  );
-  for (const tree of outcomes) {
-    addHistoryEntry3(tree.issue, {
-      iteration,
-      phase,
-      action: successAction
-    });
+  if (!options.finalState.endsWith("Logging")) {
+    const successAction = enrichedSuccessEntry(
+      options.finalState,
+      pendingActions
+    );
+    for (const tree of outcomes) {
+      addHistoryEntry3(tree.issue, {
+        iteration,
+        phase,
+        action: successAction
+      });
+    }
   }
   const hasCreateBranch = pendingActions.some((a) => a.type === "createBranch");
   if (hasCreateBranch) {

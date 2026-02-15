@@ -146,19 +146,20 @@ export function predictFromActions(
   const phase = sub ? String(machineContext.currentPhase ?? "-") : "-";
 
   // Append logRunEnd success entry to each outcome.
-  // For iterate-family transitions, determineOutcome enriches the transition
-  // name (e.g. "Opened PR", "Updated PR") — mirror that here so verification
-  // matches via startsWith.
-  const successAction = enrichedSuccessEntry(
-    options.finalState,
-    pendingActions,
-  );
-  for (const tree of outcomes) {
-    addHistoryEntry(tree.issue, {
-      iteration,
-      phase,
-      action: successAction,
-    });
+  // Logging states (e.g. mergeQueueLogging) handle their own history entries
+  // via machine actions — the runner skips logRunEnd for them, so we must too.
+  if (!options.finalState.endsWith("Logging")) {
+    const successAction = enrichedSuccessEntry(
+      options.finalState,
+      pendingActions,
+    );
+    for (const tree of outcomes) {
+      addHistoryEntry(tree.issue, {
+        iteration,
+        phase,
+        action: successAction,
+      });
+    }
   }
 
   // If createBranch is in the actions, add a rebase-only outcome
