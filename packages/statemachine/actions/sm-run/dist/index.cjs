@@ -76307,9 +76307,7 @@ async function run() {
     core19.info(`Resource: ${ctx.resource_type} #${ctx.resource_number}`);
     core19.info(`Dry run: ${dryRun}`);
     core19.info(`E2E mode: ${e2eMode}`);
-    core19.info(
-      `Machine: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`
-    );
+    core19.info(`Machine: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`);
     const codeOctokit = github.getOctokit(codeToken);
     const reviewOctokit = reviewToken ? github.getOctokit(reviewToken) : void 0;
     const { owner, repo } = github.context.repo;

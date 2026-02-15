@@ -78233,9 +78233,7 @@ async function run() {
   if (!unifiedContext.skip && !isDiscussionTrigger(unifiedContext.trigger)) {
     core21.startGroup("Predict expected state");
     core21.info("=".repeat(60));
-    core21.info(
-      `MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`
-    );
+    core21.info(`MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`);
     core21.info("=".repeat(60));
     try {
       const octokit = github2.getOctokit(token);

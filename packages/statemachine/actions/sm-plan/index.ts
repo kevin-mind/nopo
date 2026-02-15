@@ -98,9 +98,7 @@ async function run(): Promise<void> {
   if (!unifiedContext.skip && !isDiscussionTrigger(unifiedContext.trigger)) {
     core.startGroup("Predict expected state");
     core.info("=".repeat(60));
-    core.info(
-      `MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`,
-    );
+    core.info(`MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`);
     core.info("=".repeat(60));
 
     try {

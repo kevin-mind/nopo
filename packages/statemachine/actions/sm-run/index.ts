@@ -510,9 +510,7 @@ async function run(): Promise<void> {
     core.info(`Resource: ${ctx.resource_type} #${ctx.resource_number}`);
     core.info(`Dry run: ${dryRun}`);
     core.info(`E2E mode: ${e2eMode}`);
-    core.info(
-      `Machine: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`,
-    );
+    core.info(`Machine: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`);
 
     // Create octokits
     const codeOctokit = github.getOctokit(codeToken);
