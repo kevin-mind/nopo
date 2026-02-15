@@ -61041,6 +61041,57 @@ Scope is most important, outcome is second most important.` })
 ] }));
 var live_issue_scout_default = LiveIssueScout;
 
+// packages/prompts/src/prompts/doctor.tsx
+var Doctor = promptFactory().inputs((z) => ({
+  diagnosisFile: z.string()
+})).outputs((z) => ({
+  classification: z.enum([
+    "false_negative",
+    "true_bug",
+    "race_condition",
+    "unknown"
+  ]),
+  confidence: z.number(),
+  root_cause: z.string(),
+  fix_summary: z.string(),
+  affected_files: z.array(z.string())
+})).prompt((inputs) => /* @__PURE__ */ jsxs("prompt", { children: [
+  /* @__PURE__ */ jsx("line", { children: "You are diagnosing a state machine verification failure." }),
+  /* @__PURE__ */ jsx("section", { title: "Instructions", children: `1. **Read the diagnosis file** at \`${inputs.diagnosisFile}\` using the Read tool.
+   The file contains a JSON object with:
+   - \`expectedState\`: the predicted post-run state from sm-plan
+   - \`actualTree\`: the actual issue state after sm-run executed
+   - \`diffJson\`: structured diff showing field-level mismatches
+   - \`summaryMarkdown\`: human-readable summary of the verification failure
+   - \`retriggerMismatch\`: whether the retrigger flag was wrong
+   - \`workflowRunUrl\`: link to the failed workflow run
+
+2. **Read the relevant source code** in \`packages/statemachine/\`:
+   - Predictors: \`src/core/predictors/\` \u2014 predict post-run state
+   - Mutators: \`src/core/mutators/\` \u2014 execute state changes
+   - Compare logic: \`src/core/verify/\` \u2014 compare expected vs actual
+   - Actions: \`src/core/actions/\` \u2014 action implementations
+
+3. **Determine the root cause**:
+   - **false_negative**: The prediction is wrong (predictor bug) but execution was correct
+   - **true_bug**: The execution produced wrong state (mutator/action bug)
+   - **race_condition**: Timing issue between predict and verify
+   - **unknown**: Cannot determine with confidence
+
+4. **Fix the code** \u2014 edit the relevant files in \`packages/statemachine/\`
+
+5. **Add a test case** that reproduces this specific failure scenario
+
+6. **Run tests**: \`cd packages/statemachine && pnpm exec vitest run\`` }),
+  /* @__PURE__ */ jsx("section", { title: "Output", children: `Return structured JSON with:
+- \`classification\`: one of false_negative, true_bug, race_condition, unknown
+- \`confidence\`: 0-1 confidence score
+- \`root_cause\`: detailed explanation of what went wrong
+- \`fix_summary\`: what was changed and why
+- \`affected_files\`: list of files that were modified` })
+] }));
+var doctor_default = Doctor;
+
 // packages/prompts/src/prompts/grooming/engineer.tsx
 var GroomingEngineer = promptFactory().inputs((z) => ({
   issueNumber: z.number(),
@@ -61880,6 +61931,7 @@ var PROMPTS = {
   "human-review-response": human_review_response_default,
   "test-analysis": test_analysis_default,
   "live-issue-scout": live_issue_scout_default,
+  doctor: doctor_default,
   // Grooming prompts
   "grooming/engineer": engineer_default,
   "grooming/pm": pm_default,

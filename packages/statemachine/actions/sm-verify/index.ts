@@ -12,8 +12,10 @@
  * 5. Output verified (true/false) and structured diff
  */
 
+import * as fs from "fs";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { DefaultArtifactClient } from "@actions/artifact";
 import { parseIssue, type OctokitLike } from "@more/issue-state";
 import {
   getRequiredInput,
@@ -706,6 +708,41 @@ async function run(): Promise<void> {
         core.warning(
           `Failed to block issue after verification failure: ${error}`,
         );
+      }
+
+      // Upload diagnosis artifact and trigger sm-doctor workflow
+      try {
+        const runId = process.env.GITHUB_RUN_ID || "";
+        const diagnosis = {
+          expectedState: expected,
+          actualTree,
+          diffJson: result.bestMatch,
+          summaryMarkdown: summaryParts.join("\n"),
+          retriggerMismatch: !retriggerPass,
+          workflowRunUrl: `${process.env.GITHUB_SERVER_URL || "https://github.com"}/${owner}/${repo}/actions/runs/${runId}`,
+        };
+
+        const diagnosisPath = "/tmp/diagnosis.json";
+        fs.writeFileSync(diagnosisPath, JSON.stringify(diagnosis, null, 2));
+
+        const artifact = new DefaultArtifactClient();
+        await artifact.uploadArtifact(
+          `sm-diagnosis-${runId}`,
+          [diagnosisPath],
+          "/tmp",
+        );
+        core.info(`Uploaded diagnosis artifact: sm-diagnosis-${runId}`);
+
+        await octokit.rest.actions.createWorkflowDispatch({
+          owner,
+          repo,
+          workflow_id: "sm-doctor.yml",
+          ref: "main",
+          inputs: { failed_run_id: runId },
+        });
+        core.info("Triggered sm-doctor workflow");
+      } catch (error) {
+        core.warning(`Failed to trigger sm-doctor: ${error}`);
       }
 
       setOutputs({ verified: "false", diff_json: diffJson });

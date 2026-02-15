@@ -8,6 +8,7 @@ export { default as Pivot } from "./prompts/pivot.js";
 export { default as HumanReviewResponse } from "./prompts/human-review-response.js";
 export { default as TestAnalysis } from "./prompts/test-analysis.js";
 export { default as LiveIssueScout } from "./prompts/live-issue-scout.js";
+export { default as Doctor } from "./prompts/doctor.js";
 
 // Grooming prompts
 export * as Grooming from "./prompts/grooming/index.js";
