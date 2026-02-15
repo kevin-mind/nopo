@@ -1148,3 +1148,169 @@ describe("issue-next: MachineVerifier", () => {
     expect(verification.retriggerPass).toBe(true);
   });
 });
+
+// ============================================================================
+// MachineVerifier.verifyExpected() unit tests
+// ============================================================================
+
+describe("MachineVerifier.verifyExpected() unit tests", () => {
+  const verifier = new MachineVerifier();
+
+  // Minimal test fixtures
+  function createMinimalExpectedState(
+    overrides: Partial<{
+      outcomes: Array<unknown>;
+      expectedRetrigger: boolean;
+    }> = {},
+  ) {
+    const outcomes = overrides.outcomes ?? [
+      {
+        issue: {
+          number: 42,
+          state: "OPEN",
+          projectStatus: "In progress",
+          iteration: 1,
+          failures: 0,
+          labels: ["triaged"],
+          assignees: ["nopo-bot"],
+          hasBranch: true,
+          hasPR: false,
+          pr: null,
+          body: {
+            hasDescription: false,
+            hasTodos: false,
+            hasHistory: false,
+            hasAgentNotes: false,
+            hasQuestions: false,
+            hasAffectedAreas: false,
+            hasRequirements: false,
+            hasApproach: false,
+            hasAcceptanceCriteria: false,
+            hasTesting: false,
+            hasRelated: false,
+            todoStats: null,
+            questionStats: null,
+            historyEntries: [],
+            agentNotesEntries: [],
+          },
+        },
+        subIssues: [],
+      },
+    ];
+
+    return {
+      finalState: "iterating",
+      outcomes,
+      expectedRetrigger: overrides.expectedRetrigger ?? false,
+      timestamp: new Date().toISOString(),
+      trigger: "issue-edited",
+      issueNumber: 42,
+      parentIssueNumber: null,
+    };
+  }
+
+  function createMinimalPredictableTree() {
+    return {
+      issue: {
+        number: 42,
+        state: "OPEN" as const,
+        projectStatus: "In progress" as const,
+        iteration: 1,
+        failures: 0,
+        labels: ["triaged"],
+        assignees: ["nopo-bot"],
+        hasBranch: true,
+        hasPR: false,
+        pr: null,
+        body: {
+          hasDescription: false,
+          hasTodos: false,
+          hasHistory: false,
+          hasAgentNotes: false,
+          hasQuestions: false,
+          hasAffectedAreas: false,
+          hasRequirements: false,
+          hasApproach: false,
+          hasAcceptanceCriteria: false,
+          hasTesting: false,
+          hasRelated: false,
+          todoStats: null,
+          questionStats: null,
+          historyEntries: [],
+          agentNotesEntries: [],
+        },
+      },
+      subIssues: [],
+    };
+  }
+
+  it("verifyExpected unpacks outcomes array from ExpectedState", () => {
+    const expectedOutcomes = [createMinimalPredictableTree()];
+    const expected = createMinimalExpectedState({ outcomes: expectedOutcomes });
+    const actualTree = createMinimalPredictableTree();
+
+    const verification = verifier.verifyExpected(expected, actualTree);
+
+    // verifyExpected should extract outcomes from ExpectedState and pass to verify()
+    expect(verification).toHaveProperty("result");
+    expect(verification.result).toHaveProperty("matchedOutcomeIndex");
+    expect(verification.pass).toBe(true);
+  });
+
+  it("verifyExpected unpacks expectedRetrigger from ExpectedState", () => {
+    const expected = createMinimalExpectedState({ expectedRetrigger: true });
+    const actualTree = createMinimalPredictableTree();
+
+    // Pass actualRetrigger=false to cause retrigger mismatch
+    const verification = verifier.verifyExpected(expected, actualTree, false);
+
+    // Should use expectedRetrigger from ExpectedState
+    expect(verification.retriggerPass).toBe(false);
+    expect(verification.pass).toBe(false);
+  });
+
+  it("verifyExpected passes optional actualRetrigger parameter to verify()", () => {
+    const expected = createMinimalExpectedState({ expectedRetrigger: true });
+    const actualTree = createMinimalPredictableTree();
+
+    // Pass matching actualRetrigger
+    const verificationMatch = verifier.verifyExpected(
+      expected,
+      actualTree,
+      true,
+    );
+    expect(verificationMatch.retriggerPass).toBe(true);
+    expect(verificationMatch.pass).toBe(true);
+
+    // Pass mismatched actualRetrigger
+    const verificationMismatch = verifier.verifyExpected(
+      expected,
+      actualTree,
+      false,
+    );
+    expect(verificationMismatch.retriggerPass).toBe(false);
+    expect(verificationMismatch.pass).toBe(false);
+
+    // Pass undefined actualRetrigger (should skip check)
+    const verificationUndefined = verifier.verifyExpected(
+      expected,
+      actualTree,
+      undefined,
+    );
+    expect(verificationUndefined.retriggerPass).toBe(true);
+  });
+
+  it("extractStateTree() alias delegates to extractTree()", () => {
+    const context = ctx({
+      trigger: "issue-edited",
+      issue: createIssue({ number: 123 }),
+    });
+
+    const fromAlias = verifier.extractStateTree(context);
+    const fromBase = verifier.extractTree(context);
+
+    // Both should return the same structure
+    expect(fromAlias).toEqual(fromBase);
+    expect(fromAlias.issue.number).toBe(123);
+  });
+});
