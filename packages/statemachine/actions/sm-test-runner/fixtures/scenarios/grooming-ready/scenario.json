@@ -1,4 +1,0 @@
-{
-  "name": "grooming-ready",
-  "description": "Tests simple issue grooming: detecting -> grooming (runs 4 agents + summary, adds groomed label, no sub-issues for small scope)"
-}

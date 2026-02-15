@@ -14,7 +14,7 @@ import {
   getOptionalInput,
   setOutputs,
   deriveIssueActions,
-  IssueNextInvoke,
+  deriveFromWorkflow,
   isDiscussionTrigger,
   addHistoryEntry,
   type WorkflowContext,
@@ -120,7 +120,7 @@ async function run(): Promise<void> {
       };
 
       const deriveResult = useNewMachine
-        ? await IssueNextInvoke.deriveFromWorkflow(deriveOptions)
+        ? await deriveFromWorkflow(deriveOptions)
         : await deriveIssueActions(deriveOptions);
 
       if (deriveResult) {

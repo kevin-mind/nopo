@@ -27,16 +27,11 @@ import {
   isDiscussionTrigger as checkDiscussionTrigger,
   type WorkflowContext,
   // Issue machine
-  claudeMachine,
+  issueInvokeMachine,
   buildMachineContext,
   formatAgentNotesForPrompt,
   agentNotesExtractor,
   type TriggerType,
-  // Discussion machine
-  discussionMachine,
-  buildDiscussionContext,
-  type DiscussionTriggerType,
-  type DiscussionCommand,
 } from "@more/statemachine";
 import { TriggerTypeSchema } from "@more/statemachine/schemas";
 import {
@@ -57,8 +52,6 @@ import {
   PullRequestForReviewCommentPayloadSchema,
   WorkflowRunPayloadSchema,
   MergeGroupPayloadSchema,
-  DiscussionPayloadSchema,
-  DiscussionCommentPayloadSchema,
 } from "./payload-schemas.js";
 
 // ============================================================================
@@ -126,42 +119,6 @@ async function addReactionToComment(
   } catch (error) {
     // Don't fail the workflow if reaction fails - it's just feedback
     core.warning(`Failed to add reaction to comment: ${error}`);
-  }
-}
-
-/**
- * Add an emoji reaction to a discussion comment via GraphQL
- */
-async function addReactionToDiscussionComment(
-  octokit: ReturnType<typeof github.getOctokit>,
-  nodeId: string,
-  reaction:
-    | "THUMBS_UP"
-    | "THUMBS_DOWN"
-    | "LAUGH"
-    | "CONFUSED"
-    | "HEART"
-    | "HOORAY"
-    | "ROCKET"
-    | "EYES",
-): Promise<void> {
-  try {
-    await octokit.graphql(
-      `
-      mutation($subjectId: ID!, $content: ReactionContent!) {
-        addReaction(input: {subjectId: $subjectId, content: $content}) {
-          reaction {
-            content
-          }
-        }
-      }
-      `,
-      { subjectId: nodeId, content: reaction },
-    );
-    core.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
-  } catch (error) {
-    // Don't fail the workflow if reaction fails - it's just feedback
-    core.warning(`Failed to add reaction to discussion comment: ${error}`);
   }
 }
 
@@ -1760,74 +1717,11 @@ async function handlePullRequestReviewEvent(
 }
 
 async function handleDiscussionEvent(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
+  _octokit: ReturnType<typeof github.getOctokit>,
+  _owner: string,
+  _repo: string,
 ): Promise<DetectionResult> {
-  const { context } = github;
-  const payload = context.payload;
-  const action = payload.action ?? "";
-  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
-
-  // Fetch discussion labels via GraphQL
-  let discussionLabels: string[] = [];
-  try {
-    const result = await octokit.graphql<{
-      repository: {
-        discussion: {
-          labels: {
-            nodes: Array<{ name: string }>;
-          } | null;
-        } | null;
-      };
-    }>(
-      `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $number) {
-            labels(first: 20) {
-              nodes { name }
-            }
-          }
-        }
-      }
-    `,
-      { owner, repo, number: discussion.number },
-    );
-    discussionLabels =
-      result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
-  } catch (error) {
-    core.warning(`Failed to fetch discussion labels: ${error}`);
-  }
-
-  // Check for e2e test mode
-  const isTestAutomation = discussionLabels.includes("test:automation");
-
-  // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (test:automation label present)
-  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
-    return emptyResult(true, "Discussion title starts with [TEST]");
-  }
-
-  if (action === "created") {
-    return {
-      job: "discussion-research",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: "",
-      contextJson: {
-        discussion_number: String(discussion.number),
-        discussion_title: discussion.title,
-        discussion_body: discussion.body ?? "",
-        trigger_type: "discussion-created",
-        is_test_automation: isTestAutomation,
-      },
-      skip: false,
-      skipReason: "",
-    };
-  }
-
-  return emptyResult(true, `Unhandled discussion action: ${action}`);
+  return emptyResult(true, "Discussion automation removed");
 }
 
 async function handleMergeGroupEvent(
@@ -1880,171 +1774,11 @@ async function handleMergeGroupEvent(
 }
 
 async function handleDiscussionCommentEvent(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
+  _octokit: ReturnType<typeof github.getOctokit>,
+  _owner: string,
+  _repo: string,
 ): Promise<DetectionResult> {
-  const { context } = github;
-  const payload = context.payload;
-  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
-  const comment = DiscussionCommentPayloadSchema.parse(payload.comment);
-
-  // Fetch discussion labels via GraphQL
-  let discussionLabels: string[] = [];
-  try {
-    const result = await octokit.graphql<{
-      repository: {
-        discussion: {
-          labels: {
-            nodes: Array<{ name: string }>;
-          } | null;
-        } | null;
-      };
-    }>(
-      `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $number) {
-            labels(first: 20) {
-              nodes { name }
-            }
-          }
-        }
-      }
-    `,
-      { owner, repo, number: discussion.number },
-    );
-    discussionLabels =
-      result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
-  } catch (error) {
-    core.warning(`Failed to fetch discussion labels: ${error}`);
-  }
-
-  // Check for e2e test mode
-  const isTestAutomation = discussionLabels.includes("test:automation");
-
-  // Check for [TEST] in title (circuit breaker for test automation)
-  // Skip unless in testing mode (test:automation label present)
-  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
-    return emptyResult(true, "Discussion title starts with [TEST]");
-  }
-
-  const body = comment.body.trim();
-  const author = comment.user.login;
-  const isTopLevel = !comment.parent_id;
-
-  // Check for commands first (any author can use commands)
-  if (body === "/summarize") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "EYES");
-    return {
-      job: "discussion-summarize",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        trigger_type: "discussion-command",
-        command: "summarize",
-        is_test_automation: isTestAutomation,
-      },
-      skip: false,
-      skipReason: "",
-    };
-  }
-
-  if (body === "/plan") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
-    return {
-      job: "discussion-plan",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        trigger_type: "discussion-command",
-        command: "plan",
-        is_test_automation: isTestAutomation,
-      },
-      skip: false,
-      skipReason: "",
-    };
-  }
-
-  if (body === "/complete") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "THUMBS_UP");
-    return {
-      job: "discussion-complete",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        trigger_type: "discussion-command",
-        command: "complete",
-        is_test_automation: isTestAutomation,
-      },
-      skip: false,
-      skipReason: "",
-    };
-  }
-
-  // /lfg or /research - triggers research phase (spawns research threads)
-  // Useful for kicking off research on existing discussions
-  if (body === "/lfg" || body === "/research") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
-    return {
-      job: "discussion-research",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        discussion_title: discussion.title,
-        discussion_body: discussion.body ?? "",
-        trigger_type: "discussion-created",
-        is_test_automation: isTestAutomation,
-      },
-      skip: false,
-      skipReason: "",
-    };
-  }
-
-  // Human comments - always respond
-  if (author !== "claude[bot]" && author !== "nopo-bot") {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author,
-        trigger_type: "discussion-comment",
-        is_test_automation: isTestAutomation,
-      },
-      skip: false,
-      skipReason: "",
-    };
-  }
-
-  // Bot's research thread comments - skip, investigation happens in same workflow
-  // that created the threads (no separate trigger needed)
-  if (isTopLevel && comment.body.includes("## 🔍 Research:")) {
-    return emptyResult(
-      true,
-      "Bot research thread - investigation handled in same workflow",
-    );
-  }
-
-  // Bot's investigation findings - skip for now
-  // Future: could trigger follow-up research if questions remain
-  if (comment.body.includes("## 📊 Findings:")) {
-    return emptyResult(true, "Bot investigation findings - no action needed");
-  }
-
-  // Skip all other bot comments to prevent infinite loops
-  return emptyResult(true, "Bot comment - preventing infinite loop");
+  return emptyResult(true, "Discussion automation removed");
 }
 
 async function handleWorkflowDispatchEvent(
@@ -2515,17 +2249,6 @@ async function detectEvent(
 // ============================================================================
 
 /**
- * Parse discussion command from comment body
- */
-function parseDiscussionCommand(body: string): DiscussionCommand | undefined {
-  const trimmed = body.trim();
-  if (trimmed === "/summarize") return "summarize";
-  if (trimmed === "/plan") return "plan";
-  if (trimmed === "/complete") return "complete";
-  return undefined;
-}
-
-/**
  * Map final state to a human-readable transition name.
  */
 function getTransitionName(finalState: string): string {
@@ -2590,122 +2313,6 @@ function getTransitionName(finalState: string): string {
   };
 
   return stateNames[finalState] || finalState;
-}
-
-// ============================================================================
-// Discussion Machine Runner
-// ============================================================================
-
-interface DiscussionMachineOptions {
-  mode: string;
-  trigger: DiscussionTriggerType;
-  ctx: WorkflowContext;
-  octokit: ReturnType<typeof github.getOctokit>;
-  owner: string;
-  repo: string;
-  maxRetries: number;
-  botUsername: string;
-}
-
-async function runDiscussionMachine(
-  options: DiscussionMachineOptions,
-): Promise<void> {
-  const { mode, trigger, ctx, octokit, owner, repo, maxRetries, botUsername } =
-    options;
-
-  // Extract discussion-specific fields from context
-  const discussionNumber = parseInt(ctx.discussion_number || "0", 10);
-  const commentId = ctx.comment_id || undefined;
-  const commentBody = ctx.comment_body || undefined;
-  const commentAuthor = ctx.comment_author || undefined;
-
-  core.info(`Claude Discussion Machine starting...`);
-  core.info(`Mode: ${mode}`);
-  core.info(`Discussion: #${discussionNumber}`);
-  core.info(`Trigger: ${trigger}`);
-
-  // Get command from context (already parsed by detect-event)
-  let command: DiscussionCommand | undefined = ctx.command;
-  // Fallback: parse from comment body if not in context
-  if (!command && commentBody) {
-    command = parseDiscussionCommand(commentBody);
-  }
-
-  // Build discussion context
-  const context = await buildDiscussionContext(
-    octokit,
-    owner,
-    repo,
-    discussionNumber,
-    trigger,
-    {
-      commentId,
-      commentBody,
-      commentAuthor,
-      command,
-      maxRetries,
-      botUsername,
-    },
-  );
-
-  if (!context) {
-    core.setFailed(
-      `Failed to build discussion context for discussion #${discussionNumber}`,
-    );
-    return;
-  }
-
-  core.info(`Discussion context built successfully`);
-  core.info(`Discussion title: ${context.discussion.title}`);
-  core.info(`Comment count: ${context.discussion.commentCount}`);
-
-  // Context-only mode: return context without running state machine
-  if (mode === "context") {
-    core.info("Context-only mode - skipping state machine");
-
-    core.startGroup("Context JSON");
-    core.info(JSON.stringify(context, null, 2));
-    core.endGroup();
-
-    setOutputs({
-      actions_json: "[]",
-      final_state: "context_only",
-      transition_name: "Context Only",
-      context_json: JSON.stringify(context),
-      action_count: "0",
-      discussion_number: String(discussionNumber),
-    });
-    return;
-  }
-
-  // Create and run the discussion state machine
-  const actor = createActor(discussionMachine, { input: context });
-  actor.start();
-
-  const snapshot = actor.getSnapshot();
-  const finalState = String(snapshot.value);
-  const pendingActions = snapshot.context.pendingActions;
-  const transitionName = getTransitionName(finalState);
-
-  core.info(`Machine final state: ${finalState}`);
-  core.info(`Transition: ${transitionName}`);
-  core.info(`Derived actions: ${pendingActions.length}`);
-
-  if (pendingActions.length > 0) {
-    const actionTypes = pendingActions.map((a) => a.type);
-    core.info(`Action types: ${actionTypes.join(", ")}`);
-  }
-
-  setOutputs({
-    actions_json: JSON.stringify(pendingActions),
-    final_state: finalState,
-    transition_name: transitionName,
-    context_json: JSON.stringify(context),
-    action_count: String(pendingActions.length),
-    discussion_number: String(discussionNumber),
-  });
-
-  actor.stop();
 }
 
 // ============================================================================
@@ -2889,7 +2496,7 @@ async function runIssueMachine(options: IssueMachineOptions): Promise<void> {
 
   // Create and run the state machine
   // Send DETECT event to trigger ONE state transition (event-based, not `always`)
-  const actor = createActor(claudeMachine, { input: context });
+  const actor = createActor(issueInvokeMachine, { input: context });
   actor.start();
   actor.send({ type: "DETECT" });
 
@@ -3020,19 +2627,13 @@ async function _run(overrideMode?: string): Promise<void> {
     const { owner, repo } = github.context.repo;
 
     // ====================================================================
-    // ROUTE: Discussion Triggers
+    // ROUTE: Discussion Triggers (removed — discussion automation deleted)
     // ====================================================================
     if (checkDiscussionTrigger(trigger)) {
-      await runDiscussionMachine({
-        mode,
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- checkDiscussionTrigger guard confirms this is a DiscussionTriggerType
-        trigger: trigger as DiscussionTriggerType,
-        ctx,
-        octokit,
-        owner,
-        repo,
-        maxRetries,
-        botUsername,
+      core.info("Discussion triggers are no longer supported — skipping");
+      setOutputs({
+        skip: "true",
+        skip_reason: "discussion_not_supported",
       });
       return;
     }

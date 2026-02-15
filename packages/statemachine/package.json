@@ -11,9 +11,9 @@
       "default": "./src/index.ts"
     },
     "./schemas": {
-      "types": "./src/schemas/index.ts",
-      "import": "./src/schemas/index.ts",
-      "default": "./src/schemas/index.ts"
+      "types": "./src/core/schemas/index.ts",
+      "import": "./src/core/schemas/index.ts",
+      "default": "./src/core/schemas/index.ts"
     }
   },
   "scripts": {

@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { parseMarkdown } from "@more/issue-state";
 import { createMachineContext } from "../src/index.js";
 import * as guards from "../src/machines/issues/guards.js";
-import type { MachineContext } from "../src/schemas/index.js";
-import { ParentIssueSchema } from "../src/schemas/index.js";
+import type { MachineContext } from "../src/core/schemas/index.js";
+import { ParentIssueSchema } from "../src/core/schemas/index.js";
 
 // ============================================================================
 // Test Fixtures

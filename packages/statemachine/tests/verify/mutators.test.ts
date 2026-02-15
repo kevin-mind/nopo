@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { parseMarkdown } from "@more/issue-state";
-import type { MachineContext } from "../../src/schemas/state.js";
-import { extractPredictableTree } from "../../src/verify/predictable-state.js";
-import { getMutator } from "../../src/verify/mutators/index.js";
-import { HISTORY_ICONS, HISTORY_MESSAGES } from "../../src/constants.js";
+import type { MachineContext } from "../../src/core/schemas/state.js";
+import { extractPredictableTree } from "../../src/machines/issues/verify/predictable-state.js";
+import { getMutator } from "../../src/machines/issues/verify/mutators/index.js";
+import { HISTORY_ICONS, HISTORY_MESSAGES } from "../../src/core/constants.js";
 import {
   successEntry,
   ITER_OPENED_PR,
   ITER_UPDATED_PR,
   ITER_FIXED_CI,
   ITER_REBASED,
-} from "../../src/verify/mutators/helpers.js";
+} from "../../src/machines/issues/verify/mutators/helpers.js";
 
 function makeContext(overrides: Partial<MachineContext> = {}): MachineContext {
   const defaultIssue = {

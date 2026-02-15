@@ -1,4 +1,0 @@
-{
-  "name": "ci-failure-recovery",
-  "description": "Tests recovery from CI failure: iterate -> CI fail -> fix -> CI pass"
-}

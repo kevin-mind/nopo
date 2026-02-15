@@ -1,15 +1,40 @@
-// Issue automation state machine
+// Issue automation state machine — invoke-based approach
 
-export { issueMachine } from "./machine.js";
-/** @deprecated Use issueMachine instead */
-export { issueMachine as claudeMachine } from "./machine.js";
+export { issueInvokeMachine, IssueMachine } from "./machine.js";
+export type {
+  InvokeMachineContext,
+  MachineResult,
+  RunOptions,
+  ExecuteOptions,
+  ExecuteResult,
+} from "./machine.js";
+export { buildActionsForService, createDefaultServices } from "./services.js";
+export type { ServiceInput, ServiceOutput } from "./services.js";
+export {
+  ContextLoader,
+  buildDeriveMetadata,
+  buildEventFromWorkflow,
+  deriveFromWorkflow,
+  deriveIssueActions,
+  getTransitionName,
+} from "./context.js";
+export type {
+  ContextLoaderOptions,
+  DeriveMetadata,
+  DeriveResult,
+  DeriveIssueOptions,
+  WorkflowEventFields,
+} from "./context.js";
+export { MachineVerifier } from "./verifier.js";
+export type { VerificationResult } from "./verifier.js";
+
+// Re-export shared pieces
 export { STATES } from "./states.js";
-export type { IssueState as IssueMachineState } from "./states.js";
+// IssueState exported via STATES type inference; not re-exported to avoid
+// conflict with @more/issue-state's IssueState at the barrel level.
+// Import directly from ./states.js if needed.
 export { guards } from "./guards.js";
 export { getTriggerEvent, type IssueMachineEvent } from "./events.js";
-
-// Re-export core helpers
-export { emitLog } from "../../core/action-helpers.js";
 
 // Re-export individual guards for direct testing
 export {
@@ -113,3 +138,6 @@ export {
   deployedStageFailure,
   deployedProdFailure,
 } from "./actions.js";
+
+// Verification infrastructure
+export * as Verify from "./verify/index.js";

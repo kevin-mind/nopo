@@ -2,7 +2,7 @@
  * Shared utility functions used across machines.
  */
 
-import type { IssueComment } from "../schemas/index.js";
+import type { IssueComment } from "./schemas/index.js";
 
 /**
  * Format issue comments for inclusion in prompts

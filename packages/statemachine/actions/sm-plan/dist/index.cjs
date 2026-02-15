@@ -398,7 +398,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers = connectOptions.headers || {};
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
-      debug6("making CONNECT request");
+      debug4("making CONNECT request");
       var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
@@ -418,40 +418,40 @@ var require_tunnel = __commonJS({
         connectReq.removeAllListeners();
         socket.removeAllListeners();
         if (res.statusCode !== 200) {
-          debug6(
+          debug4(
             "tunneling socket could not be established, statusCode=%d",
             res.statusCode
           );
           socket.destroy();
-          var error7 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
-          error7.code = "ECONNRESET";
-          options.request.emit("error", error7);
+          var error6 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
+          error6.code = "ECONNRESET";
+          options.request.emit("error", error6);
           self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
-          debug6("got illegal response body from proxy");
+          debug4("got illegal response body from proxy");
           socket.destroy();
-          var error7 = new Error("got illegal response body from proxy");
-          error7.code = "ECONNRESET";
-          options.request.emit("error", error7);
+          var error6 = new Error("got illegal response body from proxy");
+          error6.code = "ECONNRESET";
+          options.request.emit("error", error6);
           self2.removeSocket(placeholder);
           return;
         }
-        debug6("tunneling connection has established");
+        debug4("tunneling connection has established");
         self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
         connectReq.removeAllListeners();
-        debug6(
+        debug4(
           "tunneling socket could not be established, cause=%s\n",
           cause.message,
           cause.stack
         );
-        var error7 = new Error("tunneling socket could not be established, cause=" + cause.message);
-        error7.code = "ECONNRESET";
-        options.request.emit("error", error7);
+        var error6 = new Error("tunneling socket could not be established, cause=" + cause.message);
+        error6.code = "ECONNRESET";
+        options.request.emit("error", error6);
         self2.removeSocket(placeholder);
       }
     };
@@ -506,9 +506,9 @@ var require_tunnel = __commonJS({
       }
       return target;
     }
-    var debug6;
+    var debug4;
     if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-      debug6 = function() {
+      debug4 = function() {
         var args = Array.prototype.slice.call(arguments);
         if (typeof args[0] === "string") {
           args[0] = "TUNNEL: " + args[0];
@@ -518,10 +518,10 @@ var require_tunnel = __commonJS({
         console.error.apply(console, args);
       };
     } else {
-      debug6 = function() {
+      debug4 = function() {
       };
     }
-    exports2.debug = debug6;
+    exports2.debug = debug4;
   }
 });
 
@@ -4116,15 +4116,15 @@ var require_util2 = __commonJS({
       let reader;
       try {
         reader = body.stream.getReader();
-      } catch (e2) {
-        errorSteps(e2);
+      } catch (e) {
+        errorSteps(e);
         return;
       }
       try {
         const result = await readAllBytes(reader);
         successSteps(result);
-      } catch (e2) {
-        errorSteps(e2);
+      } catch (e) {
+        errorSteps(e);
       }
     }
     var ReadableStream = globalThis.ReadableStream;
@@ -5579,12 +5579,12 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         throw new TypeError("Body is unusable");
       }
       const promise = createDeferredPromise();
-      const errorSteps = (error7) => promise.reject(error7);
+      const errorSteps = (error6) => promise.reject(error6);
       const successSteps = (data) => {
         try {
           promise.resolve(convertBytesToJSValue(data));
-        } catch (e2) {
-          errorSteps(e2);
+        } catch (e) {
+          errorSteps(e);
         }
       };
       if (object[kState].body == null) {
@@ -5865,16 +5865,16 @@ var require_request = __commonJS({
           this.onError(err);
         }
       }
-      onError(error7) {
+      onError(error6) {
         this.onFinally();
         if (channels.error.hasSubscribers) {
-          channels.error.publish({ request: this, error: error7 });
+          channels.error.publish({ request: this, error: error6 });
         }
         if (this.aborted) {
           return;
         }
         this.aborted = true;
-        return this[kHandler].onError(error7);
+        return this[kHandler].onError(error6);
       }
       onFinally() {
         if (this.errorHandler) {
@@ -6737,8 +6737,8 @@ var require_RedirectHandler = __commonJS({
       onUpgrade(statusCode, headers, socket) {
         this.handler.onUpgrade(statusCode, headers, socket);
       }
-      onError(error7) {
-        this.handler.onError(error7);
+      onError(error6) {
+        this.handler.onError(error6);
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util3.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
@@ -7255,7 +7255,7 @@ var require_client = __commonJS({
       let mod;
       try {
         mod = await WebAssembly.compile(Buffer.from(require_llhttp_simd_wasm(), "base64"));
-      } catch (e2) {
+      } catch (e) {
         mod = await WebAssembly.compile(Buffer.from(llhttpWasmData || require_llhttp_wasm(), "base64"));
       }
       return await WebAssembly.instantiate(mod, {
@@ -8879,7 +8879,7 @@ var require_pool = __commonJS({
         this[kOptions] = { ...util3.deepClone(options), connect, allowH2 };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
-        this.on("connectionError", (origin2, targets, error7) => {
+        this.on("connectionError", (origin2, targets, error6) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
             if (idx !== -1) {
@@ -10488,13 +10488,13 @@ var require_mock_utils = __commonJS({
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
-      const { data: { statusCode, data, headers, trailers, error: error7 }, delay, persist } = mockDispatch2;
+      const { data: { statusCode, data, headers, trailers, error: error6 }, delay, persist } = mockDispatch2;
       const { timesInvoked, times } = mockDispatch2;
       mockDispatch2.consumed = !persist && timesInvoked >= times;
       mockDispatch2.pending = timesInvoked < times;
-      if (error7 !== null) {
+      if (error6 !== null) {
         deleteMockDispatch(this[kDispatches], key);
-        handler.onError(error7);
+        handler.onError(error6);
         return true;
       }
       if (typeof delay === "number" && delay > 0) {
@@ -10532,19 +10532,19 @@ var require_mock_utils = __commonJS({
         if (agent.isMockActive) {
           try {
             mockDispatch.call(this, opts, handler);
-          } catch (error7) {
-            if (error7 instanceof MockNotMatchedError) {
+          } catch (error6) {
+            if (error6 instanceof MockNotMatchedError) {
               const netConnect = agent[kGetNetConnect]();
               if (netConnect === false) {
-                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
+                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`);
               }
               if (checkNetConnect(netConnect, origin)) {
                 originalDispatch.call(this, opts, handler);
               } else {
-                throw new MockNotMatchedError(`${error7.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
+                throw new MockNotMatchedError(`${error6.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`);
               }
             } else {
-              throw error7;
+              throw error6;
             }
           }
         } else {
@@ -10707,11 +10707,11 @@ var require_mock_interceptor = __commonJS({
       /**
        * Mock an undici request with a defined error.
        */
-      replyWithError(error7) {
-        if (typeof error7 === "undefined") {
+      replyWithError(error6) {
+        if (typeof error6 === "undefined") {
           throw new InvalidArgumentError("error must be defined");
         }
-        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error7 });
+        const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error: error6 });
         return new MockScope(newMockDispatch);
       }
       /**
@@ -13038,27 +13038,27 @@ var require_fetch = __commonJS({
         this.emit("terminated", reason);
       }
       // https://fetch.spec.whatwg.org/#fetch-controller-abort
-      abort(error7) {
+      abort(error6) {
         if (this.state !== "ongoing") {
           return;
         }
         this.state = "aborted";
-        if (!error7) {
-          error7 = new DOMException2("The operation was aborted.", "AbortError");
+        if (!error6) {
+          error6 = new DOMException2("The operation was aborted.", "AbortError");
         }
-        this.serializedAbortReason = error7;
-        this.connection?.destroy(error7);
-        this.emit("terminated", error7);
+        this.serializedAbortReason = error6;
+        this.connection?.destroy(error6);
+        this.emit("terminated", error6);
       }
     };
-    function fetch2(input, init = {}) {
+    function fetch(input, init = {}) {
       webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p = createDeferredPromise();
       let requestObject;
       try {
         requestObject = new Request(input, init);
-      } catch (e2) {
-        p.reject(e2);
+      } catch (e) {
+        p.reject(e);
         return p.promise;
       }
       const request = requestObject[kState];
@@ -13152,13 +13152,13 @@ var require_fetch = __commonJS({
         performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis2, cacheState);
       }
     }
-    function abortFetch(p, request, responseObject, error7) {
-      if (!error7) {
-        error7 = new DOMException2("The operation was aborted.", "AbortError");
+    function abortFetch(p, request, responseObject, error6) {
+      if (!error6) {
+        error6 = new DOMException2("The operation was aborted.", "AbortError");
       }
-      p.reject(error7);
+      p.reject(error6);
       if (request.body != null && isReadable(request.body?.stream)) {
-        request.body.stream.cancel(error7).catch((err) => {
+        request.body.stream.cancel(error6).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13170,7 +13170,7 @@ var require_fetch = __commonJS({
       }
       const response = responseObject[kState];
       if (response.body != null && isReadable(response.body?.stream)) {
-        response.body.stream.cancel(error7).catch((err) => {
+        response.body.stream.cancel(error6).catch((err) => {
           if (err.code === "ERR_INVALID_STATE") {
             return;
           }
@@ -13723,14 +13723,14 @@ var require_fetch = __commonJS({
             fetchParams.processRequestEndOfBody();
           }
         };
-        const processBodyError = (e2) => {
+        const processBodyError = (e) => {
           if (isCancelled(fetchParams)) {
             return;
           }
-          if (e2.name === "AbortError") {
+          if (e.name === "AbortError") {
             fetchParams.controller.abort();
           } else {
-            fetchParams.controller.terminate(e2);
+            fetchParams.controller.terminate(e);
           }
         };
         requestBody = async function* () {
@@ -13950,13 +13950,13 @@ var require_fetch = __commonJS({
               fetchParams.controller.ended = true;
               this.body.push(null);
             },
-            onError(error7) {
+            onError(error6) {
               if (this.abort) {
                 fetchParams.controller.off("terminated", this.abort);
               }
-              this.body?.destroy(error7);
-              fetchParams.controller.terminate(error7);
-              reject(error7);
+              this.body?.destroy(error6);
+              fetchParams.controller.terminate(error6);
+              reject(error6);
             },
             onUpgrade(status, headersList, socket) {
               if (status !== 101) {
@@ -13981,7 +13981,7 @@ var require_fetch = __commonJS({
       }
     }
     module2.exports = {
-      fetch: fetch2,
+      fetch,
       Fetch,
       fetching,
       finalizeAndReportTiming
@@ -14422,8 +14422,8 @@ var require_util4 = __commonJS({
                   }
                   fr[kResult] = result;
                   fireAProgressEvent("load", fr);
-                } catch (error7) {
-                  fr[kError] = error7;
+                } catch (error6) {
+                  fr[kError] = error6;
                   fireAProgressEvent("error", fr);
                 }
                 if (fr[kState] !== "loading") {
@@ -14432,13 +14432,13 @@ var require_util4 = __commonJS({
               });
               break;
             }
-          } catch (error7) {
+          } catch (error6) {
             if (fr[kAborted]) {
               return;
             }
             queueMicrotask(() => {
               fr[kState] = "done";
-              fr[kError] = error7;
+              fr[kError] = error6;
               fireAProgressEvent("error", fr);
               if (fr[kState] !== "loading") {
                 fireAProgressEvent("loadend", fr);
@@ -14449,8 +14449,8 @@ var require_util4 = __commonJS({
         }
       })();
     }
-    function fireAProgressEvent(e2, reader) {
-      const event = new ProgressEvent(e2, {
+    function fireAProgressEvent(e, reader) {
+      const event = new ProgressEvent(e, {
         bubbles: false,
         cancelable: false
       });
@@ -15017,8 +15017,8 @@ var require_cache = __commonJS({
         let errorData = null;
         try {
           this.#batchCacheOperations(operations);
-        } catch (e2) {
-          errorData = e2;
+        } catch (e) {
+          errorData = e;
         }
         queueMicrotask(() => {
           if (errorData === null) {
@@ -15097,8 +15097,8 @@ var require_cache = __commonJS({
         let errorData = null;
         try {
           this.#batchCacheOperations(operations);
-        } catch (e2) {
-          errorData = e2;
+        } catch (e) {
+          errorData = e;
         }
         queueMicrotask(() => {
           if (errorData === null) {
@@ -15136,8 +15136,8 @@ var require_cache = __commonJS({
         let requestResponses;
         try {
           requestResponses = this.#batchCacheOperations(operations);
-        } catch (e2) {
-          errorData = e2;
+        } catch (e) {
+          errorData = e;
         }
         queueMicrotask(() => {
           if (errorData === null) {
@@ -15271,10 +15271,10 @@ var require_cache = __commonJS({
             resultList.push([operation.request, operation.response]);
           }
           return resultList;
-        } catch (e2) {
+        } catch (e) {
           this.#relevantRequestResponseList.length = 0;
           this.#relevantRequestResponseList = backupCache;
-          throw e2;
+          throw e;
         }
       }
       /**
@@ -16230,8 +16230,8 @@ var require_util7 = __commonJS({
     function isClosed(ws) {
       return ws[kReadyState] === states.CLOSED;
     }
-    function fireEvent(e2, target, eventConstructor = Event, eventInitDict) {
-      const event = new eventConstructor(e2, eventInitDict);
+    function fireEvent(e, target, eventConstructor = Event, eventInitDict) {
+      const event = new eventConstructor(e, eventInitDict);
       target.dispatchEvent(event);
     }
     function websocketMessageReceived(ws, type, data) {
@@ -16438,11 +16438,11 @@ var require_connection = __commonJS({
         });
       }
     }
-    function onSocketError(error7) {
+    function onSocketError(error6) {
       const { ws } = this;
       ws[kReadyState] = states.CLOSING;
       if (channels.socketError.hasSubscribers) {
-        channels.socketError.publish(error7);
+        channels.socketError.publish(error6);
       }
       this.destroy();
     }
@@ -16801,8 +16801,8 @@ var require_websocket = __commonJS({
         let urlRecord;
         try {
           urlRecord = new URL(url, baseURL);
-        } catch (e2) {
-          throw new DOMException2(e2, "SyntaxError");
+        } catch (e) {
+          throw new DOMException2(e, "SyntaxError");
         }
         if (urlRecord.protocol === "http:") {
           urlRecord.protocol = "ws:";
@@ -17237,7 +17237,7 @@ var require_undici = __commonJS({
     module2.exports.getGlobalDispatcher = getGlobalDispatcher;
     if (util3.nodeMajor > 16 || util3.nodeMajor === 16 && util3.nodeMinor >= 8) {
       let fetchImpl = null;
-      module2.exports.fetch = async function fetch2(resource) {
+      module2.exports.fetch = async function fetch(resource) {
         if (!fetchImpl) {
           fetchImpl = require_fetch().fetch;
         }
@@ -17330,15 +17330,15 @@ var require_lib = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -17586,12 +17586,12 @@ var require_lib = __commonJS({
             throw new Error("Client has already been disposed.");
           }
           const parsedUrl = new URL(requestUrl);
-          let info21 = this._prepareRequest(verb, parsedUrl, headers);
+          let info17 = this._prepareRequest(verb, parsedUrl, headers);
           const maxTries = this._allowRetries && RetryableHttpVerbs.includes(verb) ? this._maxRetries + 1 : 1;
           let numTries = 0;
           let response;
           do {
-            response = yield this.requestRaw(info21, data);
+            response = yield this.requestRaw(info17, data);
             if (response && response.message && response.message.statusCode === HttpCodes.Unauthorized) {
               let authenticationHandler;
               for (const handler of this.handlers) {
@@ -17601,7 +17601,7 @@ var require_lib = __commonJS({
                 }
               }
               if (authenticationHandler) {
-                return authenticationHandler.handleAuthentication(this, info21, data);
+                return authenticationHandler.handleAuthentication(this, info17, data);
               } else {
                 return response;
               }
@@ -17624,8 +17624,8 @@ var require_lib = __commonJS({
                   }
                 }
               }
-              info21 = this._prepareRequest(verb, parsedRedirectUrl, headers);
-              response = yield this.requestRaw(info21, data);
+              info17 = this._prepareRequest(verb, parsedRedirectUrl, headers);
+              response = yield this.requestRaw(info17, data);
               redirectsRemaining--;
             }
             if (!response.message.statusCode || !HttpResponseRetryCodes.includes(response.message.statusCode)) {
@@ -17654,7 +17654,7 @@ var require_lib = __commonJS({
        * @param info
        * @param data
        */
-      requestRaw(info21, data) {
+      requestRaw(info17, data) {
         return __awaiter(this, void 0, void 0, function* () {
           return new Promise((resolve2, reject) => {
             function callbackForResult(err, res) {
@@ -17666,7 +17666,7 @@ var require_lib = __commonJS({
                 resolve2(res);
               }
             }
-            this.requestRawWithCallback(info21, data, callbackForResult);
+            this.requestRawWithCallback(info17, data, callbackForResult);
           });
         });
       }
@@ -17676,12 +17676,12 @@ var require_lib = __commonJS({
        * @param data
        * @param onResult
        */
-      requestRawWithCallback(info21, data, onResult) {
+      requestRawWithCallback(info17, data, onResult) {
         if (typeof data === "string") {
-          if (!info21.options.headers) {
-            info21.options.headers = {};
+          if (!info17.options.headers) {
+            info17.options.headers = {};
           }
-          info21.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
+          info17.options.headers["Content-Length"] = Buffer.byteLength(data, "utf8");
         }
         let callbackCalled = false;
         function handleResult3(err, res) {
@@ -17690,7 +17690,7 @@ var require_lib = __commonJS({
             onResult(err, res);
           }
         }
-        const req = info21.httpModule.request(info21.options, (msg) => {
+        const req = info17.httpModule.request(info17.options, (msg) => {
           const res = new HttpClientResponse(msg);
           handleResult3(void 0, res);
         });
@@ -17702,7 +17702,7 @@ var require_lib = __commonJS({
           if (socket) {
             socket.end();
           }
-          handleResult3(new Error(`Request timeout: ${info21.options.path}`));
+          handleResult3(new Error(`Request timeout: ${info17.options.path}`));
         });
         req.on("error", function(err) {
           handleResult3(err);
@@ -17738,27 +17738,27 @@ var require_lib = __commonJS({
         return this._getProxyAgentDispatcher(parsedUrl, proxyUrl);
       }
       _prepareRequest(method, requestUrl, headers) {
-        const info21 = {};
-        info21.parsedUrl = requestUrl;
-        const usingSsl = info21.parsedUrl.protocol === "https:";
-        info21.httpModule = usingSsl ? https : http;
+        const info17 = {};
+        info17.parsedUrl = requestUrl;
+        const usingSsl = info17.parsedUrl.protocol === "https:";
+        info17.httpModule = usingSsl ? https : http;
         const defaultPort = usingSsl ? 443 : 80;
-        info21.options = {};
-        info21.options.host = info21.parsedUrl.hostname;
-        info21.options.port = info21.parsedUrl.port ? parseInt(info21.parsedUrl.port) : defaultPort;
-        info21.options.path = (info21.parsedUrl.pathname || "") + (info21.parsedUrl.search || "");
-        info21.options.method = method;
-        info21.options.headers = this._mergeHeaders(headers);
+        info17.options = {};
+        info17.options.host = info17.parsedUrl.hostname;
+        info17.options.port = info17.parsedUrl.port ? parseInt(info17.parsedUrl.port) : defaultPort;
+        info17.options.path = (info17.parsedUrl.pathname || "") + (info17.parsedUrl.search || "");
+        info17.options.method = method;
+        info17.options.headers = this._mergeHeaders(headers);
         if (this.userAgent != null) {
-          info21.options.headers["user-agent"] = this.userAgent;
+          info17.options.headers["user-agent"] = this.userAgent;
         }
-        info21.options.agent = this._getAgent(info21.parsedUrl);
+        info17.options.agent = this._getAgent(info17.parsedUrl);
         if (this.handlers) {
           for (const handler of this.handlers) {
-            handler.prepareRequest(info21.options);
+            handler.prepareRequest(info17.options);
           }
         }
-        return info21;
+        return info17;
       }
       _mergeHeaders(headers) {
         if (this.requestOptions && this.requestOptions.headers) {
@@ -17922,15 +17922,15 @@ var require_auth = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -18026,15 +18026,15 @@ var require_oidc_utils = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -18074,12 +18074,12 @@ var require_oidc_utils = __commonJS({
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
           const httpclient = _OidcClient.createHttpClient();
-          const res = yield httpclient.getJson(id_token_url).catch((error7) => {
+          const res = yield httpclient.getJson(id_token_url).catch((error6) => {
             throw new Error(`Failed to get ID Token. 
  
-        Error Code : ${error7.statusCode}
+        Error Code : ${error6.statusCode}
  
-        Error Message: ${error7.message}`);
+        Error Message: ${error6.message}`);
           });
           const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
           if (!id_token) {
@@ -18100,8 +18100,8 @@ var require_oidc_utils = __commonJS({
             const id_token = yield _OidcClient.getCall(id_token_url);
             (0, core_1.setSecret)(id_token);
             return id_token;
-          } catch (error7) {
-            throw new Error(`Error message: ${error7.message}`);
+          } catch (error6) {
+            throw new Error(`Error message: ${error6.message}`);
           }
         });
       }
@@ -18124,15 +18124,15 @@ var require_summary = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -18490,15 +18490,15 @@ var require_io_util = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -18663,15 +18663,15 @@ var require_io = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -18858,8 +18858,8 @@ var require_io = __commonJS({
           try {
             yield ioUtil.lstat(destFile);
             yield ioUtil.unlink(destFile);
-          } catch (e2) {
-            if (e2.code === "EPERM") {
+          } catch (e) {
+            if (e.code === "EPERM") {
               yield ioUtil.chmod(destFile, "0666");
               yield ioUtil.unlink(destFile);
             }
@@ -18911,15 +18911,15 @@ var require_toolrunner = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -19223,7 +19223,7 @@ var require_toolrunner = __commonJS({
               this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
               state.CheckComplete();
             });
-            state.on("done", (error7, exitCode) => {
+            state.on("done", (error6, exitCode) => {
               if (stdbuffer.length > 0) {
                 this.emit("stdline", stdbuffer);
               }
@@ -19231,8 +19231,8 @@ var require_toolrunner = __commonJS({
                 this.emit("errline", errbuffer);
               }
               cp.removeAllListeners();
-              if (error7) {
-                reject(error7);
+              if (error6) {
+                reject(error6);
               } else {
                 resolve2(exitCode);
               }
@@ -19327,14 +19327,14 @@ var require_toolrunner = __commonJS({
         this.emit("debug", message);
       }
       _setResult() {
-        let error7;
+        let error6;
         if (this.processExited) {
           if (this.processError) {
-            error7 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            error6 = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
           } else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
-            error7 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            error6 = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
           } else if (this.processStderr && this.options.failOnStdErr) {
-            error7 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            error6 = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
           }
         }
         if (this.timeout) {
@@ -19342,7 +19342,7 @@ var require_toolrunner = __commonJS({
           this.timeout = null;
         }
         this.done = true;
-        this.emit("done", error7, this.processExitCode);
+        this.emit("done", error6, this.processExitCode);
       }
       static HandleTimeout(state) {
         if (state.done) {
@@ -19395,15 +19395,15 @@ var require_exec = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -19416,7 +19416,7 @@ var require_exec = __commonJS({
     exports2.getExecOutput = exports2.exec = void 0;
     var string_decoder_1 = require("string_decoder");
     var tr = __importStar(require_toolrunner());
-    function exec13(commandLine, args, options) {
+    function exec11(commandLine, args, options) {
       return __awaiter(this, void 0, void 0, function* () {
         const commandArgs = tr.argStringToArray(commandLine);
         if (commandArgs.length === 0) {
@@ -19428,7 +19428,7 @@ var require_exec = __commonJS({
         return runner.exec();
       });
     }
-    exports2.exec = exec13;
+    exports2.exec = exec11;
     function getExecOutput(commandLine, args, options) {
       var _a, _b;
       return __awaiter(this, void 0, void 0, function* () {
@@ -19451,7 +19451,7 @@ var require_exec = __commonJS({
           }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec13(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec11(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
         return {
@@ -19506,15 +19506,15 @@ var require_platform = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -19529,12 +19529,12 @@ var require_platform = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDetails = exports2.isLinux = exports2.isMacOS = exports2.isWindows = exports2.arch = exports2.platform = void 0;
     var os_1 = __importDefault(require("os"));
-    var exec13 = __importStar(require_exec());
+    var exec11 = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version2 } = yield exec13.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version2 } = yield exec11.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
-      const { stdout: name } = yield exec13.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
+      const { stdout: name } = yield exec11.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
         silent: true
       });
       return {
@@ -19544,7 +19544,7 @@ var require_platform = __commonJS({
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       var _a, _b, _c, _d;
-      const { stdout } = yield exec13.getExecOutput("sw_vers", void 0, {
+      const { stdout } = yield exec11.getExecOutput("sw_vers", void 0, {
         silent: true
       });
       const version2 = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
@@ -19555,7 +19555,7 @@ var require_platform = __commonJS({
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout } = yield exec13.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
+      const { stdout } = yield exec11.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
       const [name, version2] = stdout.trim().split("\n");
@@ -19625,15 +19625,15 @@ var require_core = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -19725,33 +19725,33 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     exports2.setCommandEcho = setCommandEcho;
     function setFailed2(message) {
       process.exitCode = ExitCode.Failure;
-      error7(message);
+      error6(message);
     }
     exports2.setFailed = setFailed2;
     function isDebug() {
       return process.env["RUNNER_DEBUG"] === "1";
     }
     exports2.isDebug = isDebug;
-    function debug6(message) {
+    function debug4(message) {
       (0, command_1.issueCommand)("debug", {}, message);
     }
-    exports2.debug = debug6;
-    function error7(message, properties = {}) {
+    exports2.debug = debug4;
+    function error6(message, properties = {}) {
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.error = error7;
-    function warning17(message, properties = {}) {
+    exports2.error = error6;
+    function warning16(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning17;
+    exports2.warning = warning16;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.notice = notice;
-    function info21(message) {
+    function info17(message) {
       process.stdout.write(message + os.EOL);
     }
-    exports2.info = info21;
+    exports2.info = info17;
     function startGroup7(name) {
       (0, command_1.issue)("group", name);
     }
@@ -19913,15 +19913,15 @@ var require_utils3 = __commonJS({
         function fulfilled(value) {
           try {
             step(generator.next(value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function rejected(value) {
           try {
             step(generator["throw"](value));
-          } catch (e2) {
-            reject(e2);
+          } catch (e) {
+            reject(e);
           }
         }
         function step(result) {
@@ -20041,8 +20041,8 @@ var require_add = __commonJS({
       }
       if (kind === "error") {
         hook = function(method, options) {
-          return Promise.resolve().then(method.bind(null, options)).catch(function(error7) {
-            return orig(error7, options);
+          return Promise.resolve().then(method.bind(null, options)).catch(function(error6) {
+            return orig(error6, options);
           });
         };
       }
@@ -20713,16 +20713,16 @@ var require_dist_node5 = __commonJS({
       let headers = {};
       let status;
       let url;
-      let { fetch: fetch2 } = globalThis;
+      let { fetch } = globalThis;
       if ((_b = requestOptions.request) == null ? void 0 : _b.fetch) {
-        fetch2 = requestOptions.request.fetch;
+        fetch = requestOptions.request.fetch;
       }
-      if (!fetch2) {
+      if (!fetch) {
         throw new Error(
           "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
         );
       }
-      return fetch2(requestOptions.url, {
+      return fetch(requestOptions.url, {
         method: requestOptions.method,
         body: requestOptions.body,
         redirect: (_c = requestOptions.request) == null ? void 0 : _c.redirect,
@@ -20774,7 +20774,7 @@ var require_dist_node5 = __commonJS({
         }
         if (status >= 400) {
           const data = await getResponseData(response);
-          const error7 = new import_request_error.RequestError(toErrorMessage(data), status, {
+          const error6 = new import_request_error.RequestError(toErrorMessage(data), status, {
             response: {
               url,
               status,
@@ -20783,7 +20783,7 @@ var require_dist_node5 = __commonJS({
             },
             request: requestOptions
           });
-          throw error7;
+          throw error6;
         }
         return parseSuccessResponseBody ? await getResponseData(response) : response.body;
       }).then((data) => {
@@ -20793,17 +20793,17 @@ var require_dist_node5 = __commonJS({
           headers,
           data
         };
-      }).catch((error7) => {
-        if (error7 instanceof import_request_error.RequestError)
-          throw error7;
-        else if (error7.name === "AbortError")
-          throw error7;
-        let message = error7.message;
-        if (error7.name === "TypeError" && "cause" in error7) {
-          if (error7.cause instanceof Error) {
-            message = error7.cause.message;
-          } else if (typeof error7.cause === "string") {
-            message = error7.cause;
+      }).catch((error6) => {
+        if (error6 instanceof import_request_error.RequestError)
+          throw error6;
+        else if (error6.name === "AbortError")
+          throw error6;
+        let message = error6.message;
+        if (error6.name === "TypeError" && "cause" in error6) {
+          if (error6.cause instanceof Error) {
+            message = error6.cause.message;
+          } else if (typeof error6.cause === "string") {
+            message = error6.cause;
           }
         }
         throw new import_request_error.RequestError(message, 500, {
@@ -20904,7 +20904,7 @@ var require_dist_node6 = __commonJS({
     var import_request = require_dist_node5();
     function _buildMessageForResponseErrors(data) {
       return `Request failed due to following response errors:
-` + data.errors.map((e2) => ` - ${e2.message}`).join("\n");
+` + data.errors.map((e) => ` - ${e.message}`).join("\n");
     }
     var GraphqlResponseError = class extends Error {
       constructor(request2, headers, response) {
@@ -23475,9 +23475,9 @@ var require_dist_node10 = __commonJS({
                 /<([^<>]+)>;\s*rel="next"/
               ) || [])[1];
               return { value: normalizedResponse };
-            } catch (error7) {
-              if (error7.status !== 409)
-                throw error7;
+            } catch (error6) {
+              if (error6.status !== 409)
+                throw error6;
               url = "";
               return {
                 value: {
@@ -23974,7 +23974,7 @@ var require_extend = __commonJS({
 });
 
 // packages/statemachine/actions/sm-plan/index.ts
-var core21 = __toESM(require_core(), 1);
+var core17 = __toESM(require_core(), 1);
 var github2 = __toESM(require_github(), 1);
 
 // packages/issue-state/src/constants.ts
@@ -24144,8 +24144,8 @@ var util;
     return util3.objectValues(filtered);
   };
   util3.objectValues = (obj) => {
-    return util3.objectKeys(obj).map(function(e2) {
-      return obj[e2];
+    return util3.objectKeys(obj).map(function(e) {
+      return obj[e];
     });
   };
   util3.objectKeys = typeof Object.keys === "function" ? (obj) => Object.keys(obj) : (object) => {
@@ -24300,8 +24300,8 @@ var ZodError = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error7) => {
-      for (const issue2 of error7.issues) {
+    const processError = (error6) => {
+      for (const issue2 of error6.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -24364,8 +24364,8 @@ var ZodError = class _ZodError extends Error {
   }
 };
 ZodError.create = (issues) => {
-  const error7 = new ZodError(issues);
-  return error7;
+  const error6 = new ZodError(issues);
+  return error6;
 };
 
 // node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
@@ -24629,8 +24629,8 @@ var handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error7 = new ZodError(ctx.common.issues);
-        this._error = error7;
+        const error6 = new ZodError(ctx.common.issues);
+        this._error = error6;
         return this._error;
       }
     };
@@ -27285,25 +27285,25 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
       return INVALID;
     }
-    function makeArgsIssue(args, error7) {
+    function makeArgsIssue(args, error6) {
       return makeIssue({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_arguments,
-          argumentsError: error7
+          argumentsError: error6
         }
       });
     }
-    function makeReturnsIssue(returns, error7) {
+    function makeReturnsIssue(returns, error6) {
       return makeIssue({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), en_default].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode.invalid_return_type,
-          returnTypeError: error7
+          returnTypeError: error6
         }
       });
     }
@@ -27312,15 +27312,15 @@ var ZodFunction = class _ZodFunction extends ZodType {
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
       return OK(async function(...args) {
-        const error7 = new ZodError([]);
-        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e2) => {
-          error7.addIssue(makeArgsIssue(args, e2));
-          throw error7;
+        const error6 = new ZodError([]);
+        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
+          error6.addIssue(makeArgsIssue(args, e));
+          throw error6;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
-        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e2) => {
-          error7.addIssue(makeReturnsIssue(result, e2));
-          throw error7;
+        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
+          error6.addIssue(makeReturnsIssue(result, e));
+          throw error6;
         });
         return parsedReturns;
       });
@@ -28170,9 +28170,9 @@ var IssueStateDataSchema = external_exports.object({
 });
 
 // node_modules/.pnpm/bail@2.0.2/node_modules/bail/index.js
-function bail(error7) {
-  if (error7) {
-    throw error7;
+function bail(error6) {
+  if (error6) {
+    throw error6;
   }
 }
 
@@ -28204,11 +28204,11 @@ function trough() {
       throw new TypeError("Expected function as last argument, not " + callback);
     }
     next(null, ...values);
-    function next(error7, ...output) {
+    function next(error6, ...output) {
       const fn = fns[++middlewareIndex];
       let index2 = -1;
-      if (error7) {
-        callback(error7);
+      if (error6) {
+        callback(error6);
         return;
       }
       while (++index2 < values.length) {
@@ -28245,10 +28245,10 @@ function wrap(middleware, callback) {
     }
     try {
       result = middleware.apply(this, parameters);
-    } catch (error7) {
+    } catch (error6) {
       const exception = (
         /** @type {Error} */
-        error7
+        error6
       );
       if (fnExpectsCallback && called) {
         throw exception;
@@ -28265,10 +28265,10 @@ function wrap(middleware, callback) {
       }
     }
   }
-  function done(error7, ...output) {
+  function done(error6, ...output) {
     if (!called) {
       called = true;
-      callback(error7, ...output);
+      callback(error6, ...output);
     }
   }
   function then(value) {
@@ -29176,9 +29176,9 @@ var Processor = class _Processor extends CallableInstance {
         /** @type {unknown} */
         self2.parse(realFile)
       );
-      self2.run(parseTree, realFile, function(error7, tree, file2) {
-        if (error7 || !tree || !file2) {
-          return realDone(error7);
+      self2.run(parseTree, realFile, function(error6, tree, file2) {
+        if (error6 || !tree || !file2) {
+          return realDone(error6);
         }
         const compileTree = (
           /** @type {CompileTree extends undefined ? Node : CompileTree} */
@@ -29192,14 +29192,14 @@ var Processor = class _Processor extends CallableInstance {
           file2.result = compileResult;
         }
         realDone(
-          error7,
+          error6,
           /** @type {VFileWithOutput<CompileResult>} */
           file2
         );
       });
-      function realDone(error7, file2) {
-        if (error7 || !file2) {
-          reject(error7);
+      function realDone(error6, file2) {
+        if (error6 || !file2) {
+          reject(error6);
         } else if (resolve2) {
           resolve2(file2);
         } else {
@@ -29250,9 +29250,9 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("processSync", "process", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error7, file2) {
+    function realDone(error6, file2) {
       complete = true;
-      bail(error7);
+      bail(error6);
       result = file2;
     }
   }
@@ -29310,13 +29310,13 @@ var Processor = class _Processor extends CallableInstance {
       );
       const realFile = vfile(file);
       transformers.run(tree, realFile, realDone);
-      function realDone(error7, outputTree, file2) {
+      function realDone(error6, outputTree, file2) {
         const resultingTree = (
           /** @type {TailTree extends undefined ? Node : TailTree} */
           outputTree || tree
         );
-        if (error7) {
-          reject(error7);
+        if (error6) {
+          reject(error6);
         } else if (resolve2) {
           resolve2(resultingTree);
         } else {
@@ -29350,8 +29350,8 @@ var Processor = class _Processor extends CallableInstance {
     assertDone("runSync", "run", complete);
     ok(result, "we either bailed on an error or have a tree");
     return result;
-    function realDone(error7, tree2) {
-      bail(error7);
+    function realDone(error6, tree2) {
+      bail(error6);
       result = tree2;
       complete = true;
     }
@@ -32604,9 +32604,9 @@ function tokenizeCodeFenced(effects, ok3, nok) {
     effects.enter("chunkString", {
       contentType: "string"
     });
-    return info21(code3);
+    return info17(code3);
   }
-  function info21(code3) {
+  function info17(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
       effects.exit("chunkString");
       effects.exit("codeFencedFenceInfo");
@@ -32621,7 +32621,7 @@ function tokenizeCodeFenced(effects, ok3, nok) {
       return nok(code3);
     }
     effects.consume(code3);
-    return info21;
+    return info17;
   }
   function metaBefore(code3) {
     if (code3 === null || markdownLineEnding(code3)) {
@@ -35460,11 +35460,11 @@ function createTokenizer(parser2, initialize, from) {
     context3.events.push(["exit", token, context3]);
     return token;
   }
-  function onsuccessfulconstruct(construct, info21) {
-    addResult(construct, info21.from);
+  function onsuccessfulconstruct(construct, info17) {
+    addResult(construct, info17.from);
   }
-  function onsuccessfulcheck(_, info21) {
-    info21.restore();
+  function onsuccessfulcheck(_, info17) {
+    info17.restore();
   }
   function constructFactory(onreturn, fields) {
     return hook;
@@ -35472,7 +35472,7 @@ function createTokenizer(parser2, initialize, from) {
       let listOfConstructs;
       let constructIndex;
       let currentConstruct;
-      let info21;
+      let info17;
       return Array.isArray(constructs2) ? (
         /* c8 ignore next 1 */
         handleListOfConstructs(constructs2)
@@ -35508,7 +35508,7 @@ function createTokenizer(parser2, initialize, from) {
       function handleConstruct(construct) {
         return start;
         function start(code3) {
-          info21 = store();
+          info17 = store();
           currentConstruct = construct;
           if (!construct.partial) {
             context3.currentConstruct = construct;
@@ -35529,12 +35529,12 @@ function createTokenizer(parser2, initialize, from) {
       }
       function ok3(code3) {
         consumed = true;
-        onreturn(currentConstruct, info21);
+        onreturn(currentConstruct, info17);
         return returnState;
       }
       function nok(code3) {
         consumed = true;
-        info21.restore();
+        info17.restore();
         if (++constructIndex < listOfConstructs.length) {
           return handleConstruct(listOfConstructs[constructIndex]);
         }
@@ -37003,8 +37003,8 @@ function exitFootnoteDefinition(token) {
 function footnoteReferencePeek() {
   return "[";
 }
-function footnoteReference(node2, _, state, info21) {
-  const tracker = state.createTracker(info21);
+function footnoteReference(node2, _, state, info17) {
+  const tracker = state.createTracker(info17);
   let value = tracker.move("[^");
   const exit3 = state.enter("footnoteReference");
   const subexit = state.enter("reference");
@@ -37042,8 +37042,8 @@ function gfmFootnoteToMarkdown(options) {
     // This is on by default already.
     unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
   };
-  function footnoteDefinition(node2, _, state, info21) {
-    const tracker = state.createTracker(info21);
+  function footnoteDefinition(node2, _, state, info17) {
+    const tracker = state.createTracker(info17);
     let value = tracker.move("[^");
     const exit3 = state.enter("footnoteDefinition");
     const subexit = state.enter("label");
@@ -37107,8 +37107,8 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node2, _, state, info21) {
-  const tracker = state.createTracker(info21);
+function handleDelete(node2, _, state, info17) {
+  const tracker = state.createTracker(info17);
   const exit3 = state.enter("strikethrough");
   let value = tracker.move("~~");
   value += state.containerPhrasing(node2, {
@@ -37335,9 +37335,9 @@ function map(left, right) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
-function blockquote(node2, _, state, info21) {
+function blockquote(node2, _, state, info17) {
   const exit3 = state.enter("blockquote");
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   tracker.move("> ");
   tracker.shift(2);
   const value = state.indentLines(
@@ -37372,11 +37372,11 @@ function listInScope(stack, list4, none) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/break.js
-function hardBreak(_, _1, state, info21) {
+function hardBreak(_, _1, state, info17) {
   let index2 = -1;
   while (++index2 < state.unsafe.length) {
     if (state.unsafe[index2].character === "\n" && patternInScope(state.stack, state.unsafe[index2])) {
-      return /[ \t]/.test(info21.before) ? "" : " ";
+      return /[ \t]/.test(info17.before) ? "" : " ";
     }
   }
   return "\\\n";
@@ -37428,7 +37428,7 @@ function checkFence(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/code.js
-function code(node2, _, state, info21) {
+function code(node2, _, state, info17) {
   const marker = checkFence(state);
   const raw = node2.value || "";
   const suffix = marker === "`" ? "GraveAccent" : "Tilde";
@@ -37438,7 +37438,7 @@ function code(node2, _, state, info21) {
     exit4();
     return value2;
   }
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
   const exit3 = state.enter("codeFenced");
   let value = tracker.move(sequence);
@@ -37491,12 +37491,12 @@ function checkQuote(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/definition.js
-function definition2(node2, _, state, info21) {
+function definition2(node2, _, state, info17) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("definition");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   let value = tracker.move("[");
   value += tracker.move(
     state.safe(state.associationId(node2), {
@@ -37606,10 +37606,10 @@ function encodeInfo(outside, inside, marker) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
 emphasis.peek = emphasisPeek;
-function emphasis(node2, _, state, info21) {
+function emphasis(node2, _, state, info17) {
   const marker = checkEmphasis(state);
   const exit3 = state.enter("emphasis");
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   const before = tracker.move(marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -37620,7 +37620,7 @@ function emphasis(node2, _, state, info21) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info21.before.charCodeAt(info21.before.length - 1),
+    info17.before.charCodeAt(info17.before.length - 1),
     betweenHead,
     marker
   );
@@ -37628,7 +37628,7 @@ function emphasis(node2, _, state, info21) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info21.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info17.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -37681,9 +37681,9 @@ function formatHeadingAsSetext(node2, state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/heading.js
-function heading(node2, _, state, info21) {
+function heading(node2, _, state, info17) {
   const rank = Math.max(Math.min(6, node2.depth || 1), 1);
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   if (formatHeadingAsSetext(node2, state)) {
     const exit4 = state.enter("headingSetext");
     const subexit2 = state.enter("phrasing");
@@ -37733,12 +37733,12 @@ function htmlPeek() {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image.js
 image.peek = imagePeek;
-function image(node2, _, state, info21) {
+function image(node2, _, state, info17) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
   const exit3 = state.enter("image");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   let value = tracker.move("![");
   value += tracker.move(
     state.safe(node2.alt, { before: value, after: "]", ...tracker.current() })
@@ -37790,11 +37790,11 @@ function imagePeek() {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
 imageReference.peek = imageReferencePeek;
-function imageReference(node2, _, state, info21) {
+function imageReference(node2, _, state, info17) {
   const type = node2.referenceType;
   const exit3 = state.enter("imageReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   let value = tracker.move("![");
   const alt = state.safe(node2.alt, {
     before: value,
@@ -37875,10 +37875,10 @@ function formatLinkAsAutolink(node2, state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link.js
 link.peek = linkPeek;
-function link(node2, _, state, info21) {
+function link(node2, _, state, info17) {
   const quote = checkQuote(state);
   const suffix = quote === '"' ? "Quote" : "Apostrophe";
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   let exit3;
   let subexit;
   if (formatLinkAsAutolink(node2, state)) {
@@ -37955,11 +37955,11 @@ function linkPeek(node2, _, state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
 linkReference.peek = linkReferencePeek;
-function linkReference(node2, _, state, info21) {
+function linkReference(node2, _, state, info17) {
   const type = node2.referenceType;
   const exit3 = state.enter("linkReference");
   let subexit = state.enter("label");
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   let value = tracker.move("[");
   const text5 = state.containerPhrasing(node2, {
     before: value,
@@ -38046,7 +38046,7 @@ function checkRule(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list.js
-function list3(node2, parent, state, info21) {
+function list3(node2, parent, state, info17) {
   const exit3 = state.enter("list");
   const bulletCurrent = state.bulletCurrent;
   let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
@@ -38078,7 +38078,7 @@ function list3(node2, parent, state, info21) {
     bullet = bulletOther;
   }
   state.bulletCurrent = bullet;
-  const value = state.containerFlow(node2, info21);
+  const value = state.containerFlow(node2, info17);
   state.bulletLastUsed = bullet;
   state.bulletCurrent = bulletCurrent;
   exit3();
@@ -38097,7 +38097,7 @@ function checkListItemIndent(state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/list-item.js
-function listItem(node2, parent, state, info21) {
+function listItem(node2, parent, state, info17) {
   const listItemIndent = checkListItemIndent(state);
   let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === "list" && parent.ordered) {
@@ -38107,7 +38107,7 @@ function listItem(node2, parent, state, info21) {
   if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   tracker.move(bullet + " ".repeat(size - bullet.length));
   tracker.shift(size);
   const exit3 = state.enter("listItem");
@@ -38126,10 +38126,10 @@ function listItem(node2, parent, state, info21) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
-function paragraph(node2, _, state, info21) {
+function paragraph(node2, _, state, info17) {
   const exit3 = state.enter("paragraph");
   const subexit = state.enter("phrasing");
-  const value = state.containerPhrasing(node2, info21);
+  const value = state.containerPhrasing(node2, info17);
   subexit();
   exit3();
   return value;
@@ -38164,12 +38164,12 @@ var phrasing = (
 );
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/root.js
-function root(node2, _, state, info21) {
+function root(node2, _, state, info17) {
   const hasPhrasing = node2.children.some(function(d) {
     return phrasing(d);
   });
   const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
-  return container.call(state, node2, info21);
+  return container.call(state, node2, info17);
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-strong.js
@@ -38185,10 +38185,10 @@ function checkStrong(state) {
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/strong.js
 strong.peek = strongPeek;
-function strong(node2, _, state, info21) {
+function strong(node2, _, state, info17) {
   const marker = checkStrong(state);
   const exit3 = state.enter("strong");
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   const before = tracker.move(marker + marker);
   let between2 = tracker.move(
     state.containerPhrasing(node2, {
@@ -38199,7 +38199,7 @@ function strong(node2, _, state, info21) {
   );
   const betweenHead = between2.charCodeAt(0);
   const open2 = encodeInfo(
-    info21.before.charCodeAt(info21.before.length - 1),
+    info17.before.charCodeAt(info17.before.length - 1),
     betweenHead,
     marker
   );
@@ -38207,7 +38207,7 @@ function strong(node2, _, state, info21) {
     between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
   }
   const betweenTail = between2.charCodeAt(between2.length - 1);
-  const close = encodeInfo(info21.after.charCodeAt(0), betweenTail, marker);
+  const close = encodeInfo(info17.after.charCodeAt(0), betweenTail, marker);
   if (close.inside) {
     between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
   }
@@ -38224,8 +38224,8 @@ function strongPeek(_, _1, state) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/handle/text.js
-function text3(node2, _, state, info21) {
-  return state.safe(node2.value, info21);
+function text3(node2, _, state, info17) {
+  return state.safe(node2.value, info17);
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
@@ -38440,15 +38440,15 @@ function compilePattern(pattern) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, state, info21) {
+function containerPhrasing(parent, state, info17) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
   const results = [];
   let index2 = -1;
-  let before = info21.before;
+  let before = info17.before;
   let encodeAfter;
   indexStack.push(-1);
-  let tracker = state.createTracker(info21);
+  let tracker = state.createTracker(info17);
   while (++index2 < children.length) {
     const child = children[index2];
     let after;
@@ -38462,7 +38462,7 @@ function containerPhrasing(parent, state, info21) {
         ...tracker.current()
       }).charAt(0) : "";
     } else {
-      after = info21.after;
+      after = info17.after;
     }
     if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
       results[results.length - 1] = results[results.length - 1].replace(
@@ -38470,7 +38470,7 @@ function containerPhrasing(parent, state, info21) {
         " "
       );
       before = " ";
-      tracker = state.createTracker(info21);
+      tracker = state.createTracker(info17);
       tracker.move(results.join(""));
     }
     let value = state.handle(child, parent, state, {
@@ -38499,10 +38499,10 @@ function containerPhrasing(parent, state, info21) {
 }
 
 // node_modules/.pnpm/mdast-util-to-markdown@2.1.2/node_modules/mdast-util-to-markdown/lib/util/container-flow.js
-function containerFlow(parent, state, info21) {
+function containerFlow(parent, state, info17) {
   const indexStack = state.indexStack;
   const children = parent.children || [];
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   const results = [];
   let index2 = -1;
   indexStack.push(-1);
@@ -38738,11 +38738,11 @@ function joinDefinition(left, right) {
     return 0;
   }
 }
-function containerPhrasingBound(parent, info21) {
-  return containerPhrasing(parent, this, info21);
+function containerPhrasingBound(parent, info17) {
+  return containerPhrasing(parent, this, info17);
 }
-function containerFlowBound(parent, info21) {
-  return containerFlow(parent, this, info21);
+function containerFlowBound(parent, info17) {
+  return containerFlow(parent, this, info17);
 }
 function safeBound(value, config2) {
   return safe(this, value, config2);
@@ -38839,19 +38839,19 @@ function gfmTableToMarkdown(options) {
       tableRow: handleTableRow
     }
   };
-  function handleTable(node2, _, state, info21) {
-    return serializeData(handleTableAsData(node2, state, info21), node2.align);
+  function handleTable(node2, _, state, info17) {
+    return serializeData(handleTableAsData(node2, state, info17), node2.align);
   }
-  function handleTableRow(node2, _, state, info21) {
-    const row = handleTableRowAsData(node2, state, info21);
+  function handleTableRow(node2, _, state, info17) {
+    const row = handleTableRowAsData(node2, state, info17);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf("\n"));
   }
-  function handleTableCell(node2, _, state, info21) {
+  function handleTableCell(node2, _, state, info17) {
     const exit3 = state.enter("tableCell");
     const subexit = state.enter("phrasing");
     const value = state.containerPhrasing(node2, {
-      ...info21,
+      ...info17,
       before: around,
       after: around
     });
@@ -38870,24 +38870,24 @@ function gfmTableToMarkdown(options) {
       stringLength
     });
   }
-  function handleTableAsData(node2, state, info21) {
+  function handleTableAsData(node2, state, info17) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("table");
     while (++index2 < children.length) {
-      result[index2] = handleTableRowAsData(children[index2], state, info21);
+      result[index2] = handleTableRowAsData(children[index2], state, info17);
     }
     subexit();
     return result;
   }
-  function handleTableRowAsData(node2, state, info21) {
+  function handleTableRowAsData(node2, state, info17) {
     const children = node2.children;
     let index2 = -1;
     const result = [];
     const subexit = state.enter("tableRow");
     while (++index2 < children.length) {
-      result[index2] = handleTableCell(children[index2], node2, state, info21);
+      result[index2] = handleTableCell(children[index2], node2, state, info17);
     }
     subexit();
     return result;
@@ -38953,16 +38953,16 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node2, parent, state, info21) {
+function listItemWithTaskListItem(node2, parent, state, info17) {
   const head = node2.children[0];
   const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
   const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
-  const tracker = state.createTracker(info21);
+  const tracker = state.createTracker(info17);
   if (checkable) {
     tracker.move(checkbox);
   }
   let value = handle.listItem(node2, parent, state, {
-    ...info21,
+    ...info17,
     ...tracker.current()
   });
   if (checkable) {
@@ -41703,7 +41703,7 @@ function createMutator(inputSchema, mutate) {
   };
 }
 
-// packages/statemachine/src/constants.ts
+// packages/statemachine/src/core/constants.ts
 var HISTORY_ICONS = {
   ITERATING: "\u23F3",
   CI_PASSED: "\u2705",
@@ -41803,7 +41803,7 @@ var ParentIssueBodyStructureSchema = SubIssueBodyStructureSchema.extend({
   hasRelated: external_exports.boolean()
 });
 
-// packages/statemachine/src/schemas/entities.ts
+// packages/statemachine/src/core/schemas/entities.ts
 var CIResultSchema = external_exports.enum([
   "success",
   "failure",
@@ -41820,7 +41820,7 @@ function isTerminalStatus(status) {
   return status === "Done" || status === "Blocked" || status === "Error";
 }
 
-// packages/statemachine/src/schemas/state.ts
+// packages/statemachine/src/core/schemas/state.ts
 var TriggerTypeSchema = external_exports.enum([
   // Issue triggers
   "issue-assigned",
@@ -41956,7 +41956,7 @@ function createMachineContext(partial2) {
   });
 }
 
-// packages/statemachine/src/schemas/actions/_shared.ts
+// packages/statemachine/src/core/schemas/actions/_shared.ts
 var core = __toESM(require_core(), 1);
 var fs = __toESM(require("fs"), 1);
 var TokenTypeSchema = external_exports.enum(["code", "review"]);
@@ -42021,8 +42021,8 @@ function getStructuredOutput(action, chainCtx) {
     try {
       const files = fs.readdirSync(".");
       core.info(`Files in cwd: ${files.slice(0, 20).join(", ")}`);
-    } catch (e2) {
-      core.warning(`Failed to list files: ${e2}`);
+    } catch (e) {
+      core.warning(`Failed to list files: ${e}`);
     }
     if (fs.existsSync(action.filePath)) {
       try {
@@ -42030,9 +42030,9 @@ function getStructuredOutput(action, chainCtx) {
         const parsed = JSON.parse(content3);
         core.info(`Loaded structured output from file: ${action.filePath}`);
         return parsed;
-      } catch (e2) {
+      } catch (e) {
         core.warning(
-          `Failed to read structured output from ${action.filePath}: ${e2}`
+          `Failed to read structured output from ${action.filePath}: ${e}`
         );
       }
     } else {
@@ -42042,7 +42042,7 @@ function getStructuredOutput(action, chainCtx) {
   return void 0;
 }
 
-// packages/statemachine/src/schemas/actions/grooming.ts
+// packages/statemachine/src/core/schemas/actions/grooming.ts
 var core3 = __toESM(require_core(), 1);
 var fs5 = __toESM(require("fs"), 1);
 
@@ -42617,17 +42617,17 @@ var require_codegen = __commonJS2((exports2) => {
       const cond = this.condition;
       if (cond === true)
         return this.nodes;
-      let e2 = this.else;
-      if (e2) {
-        const ns = e2.optimizeNodes();
-        e2 = this.else = Array.isArray(ns) ? new Else(ns) : ns;
+      let e = this.else;
+      if (e) {
+        const ns = e.optimizeNodes();
+        e = this.else = Array.isArray(ns) ? new Else(ns) : ns;
       }
-      if (e2) {
+      if (e) {
         if (cond === false)
-          return e2 instanceof If ? e2 : e2.nodes;
+          return e instanceof If ? e : e.nodes;
         if (this.nodes.length)
           return this;
-        return new If(not2(cond), e2 instanceof If ? [e2] : e2.nodes);
+        return new If(not2(cond), e instanceof If ? [e] : e.nodes);
       }
       if (cond === false || !this.nodes.length)
         return;
@@ -43041,8 +43041,8 @@ var require_codegen = __commonJS2((exports2) => {
       delete names[n.str];
       return c;
     }
-    function canOptimize(e2) {
-      return e2 instanceof code_1._Code && e2._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+    function canOptimize(e) {
+      return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
     }
   }
   function subtractNames(names, from) {
@@ -43847,7 +43847,7 @@ var require_keyword = __commonJS2((exports2) => {
     }
     function validateAsync() {
       const ruleErrs = gen.let("ruleErrs", null);
-      gen.try(() => assignValid((0, codegen_1._)`await `), (e2) => gen.assign(valid, false).if((0, codegen_1._)`${e2} instanceof ${it.ValidationError}`, () => gen.assign(ruleErrs, (0, codegen_1._)`${e2}.errors`), () => gen.throw(e2)));
+      gen.try(() => assignValid((0, codegen_1._)`await `), (e) => gen.assign(valid, false).if((0, codegen_1._)`${e} instanceof ${it.ValidationError}`, () => gen.assign(ruleErrs, (0, codegen_1._)`${e}.errors`), () => gen.throw(e)));
       return ruleErrs;
     }
     function validateSync() {
@@ -44892,12 +44892,12 @@ var require_compile = __commonJS2((exports2) => {
       }
       sch.validate = validate;
       return sch;
-    } catch (e2) {
+    } catch (e) {
       delete sch.validate;
       delete sch.validateName;
       if (sourceCode)
         this.logger.error("Error compiling schema, function code:", sourceCode);
-      throw e2;
+      throw e;
     } finally {
       this._compilations.delete(sch);
     }
@@ -45637,8 +45637,8 @@ var require_fast_uri = __commonJS2((exports2, module2) => {
         if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
           try {
             parsed.host = URL.domainToASCII(parsed.host.toLowerCase());
-          } catch (e2) {
-            parsed.error = parsed.error || "Host's domain name can not be converted to ASCII: " + e2;
+          } catch (e) {
+            parsed.error = parsed.error || "Host's domain name can not be converted to ASCII: " + e;
           }
         }
       }
@@ -45872,11 +45872,11 @@ var require_core2 = __commonJS2((exports2) => {
       async function _compileAsync(sch) {
         try {
           return this._compileSchemaEnv(sch);
-        } catch (e2) {
-          if (!(e2 instanceof ref_error_1.default))
-            throw e2;
-          checkLoaded.call(this, e2);
-          await loadMissingSchema.call(this, e2.missingSchema);
+        } catch (e) {
+          if (!(e instanceof ref_error_1.default))
+            throw e;
+          checkLoaded.call(this, e);
+          await loadMissingSchema.call(this, e.missingSchema);
           return _compileAsync.call(this, sch);
         }
       }
@@ -46059,7 +46059,7 @@ var require_core2 = __commonJS2((exports2) => {
     errorsText(errors3 = this.errors, { separator = ", ", dataVar = "data" } = {}) {
       if (!errors3 || errors3.length === 0)
         return "No errors";
-      return errors3.map((e2) => `${dataVar}${e2.instancePath} ${e2.message}`).reduce((text5, msg) => text5 + separator + msg);
+      return errors3.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text5, msg) => text5 + separator + msg);
     }
     $dataMetaSchema(metaSchema, keywordsJsonPointers) {
       const rules = this.RULES.all;
@@ -46357,9 +46357,9 @@ var require_ref = __commonJS2((exports2) => {
         addEvaluatedFrom(v);
         if (!allErrors)
           gen.assign(valid, true);
-      }, (e2) => {
-        gen.if((0, codegen_1._)`!(${e2} instanceof ${it.ValidationError})`, () => gen.throw(e2));
-        addErrorsFrom(e2);
+      }, (e) => {
+        gen.if((0, codegen_1._)`!(${e} instanceof ${it.ValidationError})`, () => gen.throw(e));
+        addErrorsFrom(e);
         if (!allErrors)
           gen.assign(valid, false);
       });
@@ -48258,7 +48258,7 @@ var require_formats = __commonJS2((exports2) => {
     try {
       new RegExp(str);
       return true;
-    } catch (e2) {
+    } catch (e) {
       return false;
     }
   }
@@ -48389,7 +48389,7 @@ function getRawTag(value) {
   try {
     value[symToStringTag] = void 0;
     var unmasked = true;
-  } catch (e2) {
+  } catch (e) {
   }
   var result = nativeObjectToString.call(value);
   if (unmasked) {
@@ -48451,11 +48451,11 @@ function toSource(func) {
   if (func != null) {
     try {
       return funcToString.call(func);
-    } catch (e2) {
+    } catch (e) {
     }
     try {
       return func + "";
-    } catch (e2) {
+    } catch (e) {
     }
   }
   return "";
@@ -49499,12 +49499,12 @@ var ProcessTransport = class {
       this.abortHandler = cleanup;
       process.on("exit", this.processExitHandler);
       this.abortController.signal.addEventListener("abort", this.abortHandler);
-      this.process.on("error", (error7) => {
+      this.process.on("error", (error6) => {
         this.ready = false;
         if (this.abortController.signal.aborted) {
           this.exitError = new AbortError("Claude Code process aborted by user");
         } else {
-          this.exitError = new Error(`Failed to spawn Claude Code process: ${error7.message}`);
+          this.exitError = new Error(`Failed to spawn Claude Code process: ${error6.message}`);
           logForSdkDebugging(this.exitError.message);
         }
       });
@@ -49513,17 +49513,17 @@ var ProcessTransport = class {
         if (this.abortController.signal.aborted) {
           this.exitError = new AbortError("Claude Code process aborted by user");
         } else {
-          const error7 = this.getProcessExitError(code3, signal);
-          if (error7) {
-            this.exitError = error7;
-            logForSdkDebugging(error7.message);
+          const error6 = this.getProcessExitError(code3, signal);
+          if (error6) {
+            this.exitError = error6;
+            logForSdkDebugging(error6.message);
           }
         }
       });
       this.ready = true;
-    } catch (error7) {
+    } catch (error6) {
       this.ready = false;
-      throw error7;
+      throw error6;
     }
   }
   getProcessExitError(code3, signal) {
@@ -49553,9 +49553,9 @@ var ProcessTransport = class {
       if (!written) {
         logForSdkDebugging("[ProcessTransport] Write buffer full, data queued");
       }
-    } catch (error7) {
+    } catch (error6) {
       this.ready = false;
-      throw new Error(`Failed to write to process stdin: ${error7.message}`);
+      throw new Error(`Failed to write to process stdin: ${error6.message}`);
     }
   }
   close() {
@@ -49601,8 +49601,8 @@ var ProcessTransport = class {
         }
       }
       await this.waitForExit();
-    } catch (error7) {
-      throw error7;
+    } catch (error6) {
+      throw error6;
     } finally {
       rl.close();
     }
@@ -49620,8 +49620,8 @@ var ProcessTransport = class {
       return () => {
       };
     const handler = (code3, signal) => {
-      const error7 = this.getProcessExitError(code3, signal);
-      callback(error7);
+      const error6 = this.getProcessExitError(code3, signal);
+      callback(error6);
     };
     this.process.on("exit", handler);
     this.exitListeners.push({ callback, handler });
@@ -49654,17 +49654,17 @@ var ProcessTransport = class {
           reject(new AbortError("Operation aborted"));
           return;
         }
-        const error7 = this.getProcessExitError(code3, signal);
-        if (error7) {
-          reject(error7);
+        const error6 = this.getProcessExitError(code3, signal);
+        if (error6) {
+          reject(error6);
         } else {
           resolve2();
         }
       };
       this.process.once("exit", exitHandler);
-      const errorHandler = (error7) => {
+      const errorHandler = (error6) => {
         this.process.off("exit", exitHandler);
-        reject(error7);
+        reject(error6);
       };
       this.process.once("error", errorHandler);
       this.process.once("exit", () => {
@@ -49732,13 +49732,13 @@ var Stream = class {
       resolve2({ done: true, value: void 0 });
     }
   }
-  error(error7) {
-    this.hasError = error7;
+  error(error6) {
+    this.hasError = error6;
     if (this.readReject) {
       const reject = this.readReject;
       this.readResolve = void 0;
       this.readReject = void 0;
-      reject(error7);
+      reject(error6);
     }
   }
   return() {
@@ -49815,10 +49815,10 @@ var Query = class {
     this.initialization.catch(() => {
     });
   }
-  setError(error7) {
-    this.inputStream.error(error7);
+  setError(error6) {
+    this.inputStream.error(error6);
   }
-  cleanup(error7) {
+  cleanup(error6) {
     if (this.cleanupPerformed)
       return;
     this.cleanupPerformed = true;
@@ -49835,8 +49835,8 @@ var Query = class {
         }
       }
       this.sdkMcpTransports.clear();
-      if (error7) {
-        this.inputStream.error(error7);
+      if (error6) {
+        this.inputStream.error(error6);
       } else {
         this.inputStream.done();
       }
@@ -49849,8 +49849,8 @@ var Query = class {
   return(value) {
     return this.sdkMessages.return(value);
   }
-  throw(e2) {
-    return this.sdkMessages.throw(e2);
+  throw(e) {
+    return this.sdkMessages.throw(e);
   }
   [Symbol.asyncIterator]() {
     return this.sdkMessages;
@@ -49893,12 +49893,12 @@ var Query = class {
       }
       this.inputStream.done();
       this.cleanup();
-    } catch (error7) {
+    } catch (error6) {
       if (this.firstResultReceivedResolve) {
         this.firstResultReceivedResolve();
       }
-      this.inputStream.error(error7);
-      this.cleanup(error7);
+      this.inputStream.error(error6);
+      this.cleanup(error6);
     }
   }
   async handleControlRequest(request) {
@@ -49916,13 +49916,13 @@ var Query = class {
       };
       await Promise.resolve(this.transport.write(jsonStringify(controlResponse) + `
 `));
-    } catch (error7) {
+    } catch (error6) {
       const controlErrorResponse = {
         type: "control_response",
         response: {
           subtype: "error",
           request_id: request.request_id,
-          error: error7.message || String(error7)
+          error: error6.message || String(error6)
         }
       };
       await Promise.resolve(this.transport.write(jsonStringify(controlErrorResponse) + `
@@ -50144,9 +50144,9 @@ var Query = class {
       }
       logForDebugging(`[Query] Calling transport.endInput() to close stdin to CLI process`);
       this.transport.endInput();
-    } catch (error7) {
-      if (!(error7 instanceof AbortError)) {
-        throw error7;
+    } catch (error6) {
+      if (!(error6 instanceof AbortError)) {
+        throw error6;
       }
     }
   }
@@ -50222,9 +50222,9 @@ var Query = class {
         cleanup();
         resolve2(response);
       };
-      const rejectAndCleanup = (error7) => {
+      const rejectAndCleanup = (error6) => {
         cleanup();
-        reject(error7);
+        reject(error6);
       };
       this.pendingMcpResponses.set(key, {
         resolve: resolveAndCleanup,
@@ -50267,8 +50267,8 @@ var util2;
     return util22.objectValues(filtered);
   };
   util22.objectValues = (obj) => {
-    return util22.objectKeys(obj).map(function(e2) {
-      return obj[e2];
+    return util22.objectKeys(obj).map(function(e) {
+      return obj[e];
     });
   };
   util22.objectKeys = typeof Object.keys === "function" ? (obj) => Object.keys(obj) : (object) => {
@@ -50416,8 +50416,8 @@ var ZodError2 = class _ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error7) => {
-      for (const issue2 of error7.issues) {
+    const processError = (error6) => {
+      for (const issue2 of error6.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -50480,8 +50480,8 @@ var ZodError2 = class _ZodError extends Error {
   }
 };
 ZodError2.create = (issues) => {
-  const error7 = new ZodError2(issues);
-  return error7;
+  const error6 = new ZodError2(issues);
+  return error6;
 };
 var errorMap2 = (issue2, _ctx) => {
   let message;
@@ -50727,8 +50727,8 @@ var handleResult2 = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error7 = new ZodError2(ctx.common.issues);
-        this._error = error7;
+        const error6 = new ZodError2(ctx.common.issues);
+        this._error = error6;
         return this._error;
       }
     };
@@ -53288,25 +53288,25 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
       });
       return INVALID2;
     }
-    function makeArgsIssue(args, error7) {
+    function makeArgsIssue(args, error6) {
       return makeIssue2({
         data: args,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_arguments,
-          argumentsError: error7
+          argumentsError: error6
         }
       });
     }
-    function makeReturnsIssue(returns, error7) {
+    function makeReturnsIssue(returns, error6) {
       return makeIssue2({
         data: returns,
         path: ctx.path,
         errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap2(), en_default2].filter((x) => !!x),
         issueData: {
           code: ZodIssueCode2.invalid_return_type,
-          returnTypeError: error7
+          returnTypeError: error6
         }
       });
     }
@@ -53315,15 +53315,15 @@ var ZodFunction2 = class _ZodFunction extends ZodType2 {
     if (this._def.returns instanceof ZodPromise2) {
       const me = this;
       return OK2(async function(...args) {
-        const error7 = new ZodError2([]);
-        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e2) => {
-          error7.addIssue(makeArgsIssue(args, e2));
-          throw error7;
+        const error6 = new ZodError2([]);
+        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
+          error6.addIssue(makeArgsIssue(args, e));
+          throw error6;
         });
         const result = await Reflect.apply(fn, this, parsedArgs);
-        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e2) => {
-          error7.addIssue(makeReturnsIssue(result, e2));
-          throw error7;
+        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
+          error6.addIssue(makeReturnsIssue(result, e));
+          throw error6;
         });
         return parsedReturns;
       });
@@ -54594,10 +54594,10 @@ var initializer = (inst, def) => {
 };
 var $ZodError = $constructor("$ZodError", initializer);
 var $ZodRealError = $constructor("$ZodError", initializer, { Parent: Error });
-function flattenError(error7, mapper = (issue2) => issue2.message) {
+function flattenError(error6, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
-  for (const sub of error7.issues) {
+  for (const sub of error6.issues) {
     if (sub.path.length > 0) {
       fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
       fieldErrors[sub.path[0]].push(mapper(sub));
@@ -54607,7 +54607,7 @@ function flattenError(error7, mapper = (issue2) => issue2.message) {
   }
   return { formErrors, fieldErrors };
 }
-function formatError(error7, _mapper) {
+function formatError(error6, _mapper) {
   const mapper = _mapper || function(issue2) {
     return issue2.message;
   };
@@ -54640,7 +54640,7 @@ function formatError(error7, _mapper) {
       }
     }
   };
-  processError(error7);
+  processError(error6);
   return fieldErrors;
 }
 var _parse = (_Err) => (schema, value, _ctx, _params) => {
@@ -54650,9 +54650,9 @@ var _parse = (_Err) => (schema, value, _ctx, _params) => {
     throw new $ZodAsyncError();
   }
   if (result.issues.length) {
-    const e2 = new (_params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
-    captureStackTrace(e2, _params?.callee);
-    throw e2;
+    const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
+    captureStackTrace(e, _params?.callee);
+    throw e;
   }
   return result.value;
 };
@@ -54662,9 +54662,9 @@ var _parseAsync = (_Err) => async (schema, value, _ctx, params) => {
   if (result instanceof Promise)
     result = await result;
   if (result.issues.length) {
-    const e2 = new (params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
-    captureStackTrace(e2, params?.callee);
-    throw e2;
+    const e = new (params?.Err ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
+    captureStackTrace(e, params?.callee);
+    throw e;
   }
   return result.value;
 };
@@ -58902,8 +58902,8 @@ ${colors.green}${colors.bold}[SDK]${colors.reset} Completed successfully (${numT
       numTurns,
       costUsd
     };
-  } catch (error7) {
-    const errorMessage = error7 instanceof Error ? error7.message : String(error7);
+  } catch (error6) {
+    const errorMessage = error6 instanceof Error ? error6.message : String(error6);
     core2.error(`Failed to run Claude: ${errorMessage}`);
     return {
       success: false,
@@ -62003,7 +62003,7 @@ function resolvePrompt(options) {
   throw new Error("Either prompt, promptFile, or promptDir must be provided");
 }
 
-// packages/statemachine/src/runner/helpers/output-schemas.ts
+// packages/statemachine/src/core/helpers/output-schemas.ts
 function parseOutput(schema, data, label) {
   const result = schema.safeParse(data);
   if (!result.success) {
@@ -62230,7 +62230,7 @@ var PlanOutputSchema = external_exports.object({
   summary_comment: external_exports.string()
 });
 
-// packages/statemachine/src/parser/issue-adapter.ts
+// packages/statemachine/src/core/parser/issue-adapter.ts
 function deriveBranchName2(parentIssueNumber3, phaseNumber) {
   if (phaseNumber !== void 0 && phaseNumber > 0) {
     return `claude/issue/${parentIssueNumber3}/phase-${phaseNumber}`;
@@ -62238,7 +62238,7 @@ function deriveBranchName2(parentIssueNumber3, phaseNumber) {
   return `claude/issue/${parentIssueNumber3}`;
 }
 
-// packages/statemachine/src/parser/type-guards.ts
+// packages/statemachine/src/core/parser/type-guards.ts
 function isList(node2) {
   return node2.type === "list";
 }
@@ -62249,7 +62249,7 @@ function childrenAsRootContent(node2) {
   return node2.children ?? [];
 }
 
-// packages/statemachine/src/parser/extractors.ts
+// packages/statemachine/src/core/parser/extractors.ts
 function findHeadingIndex(ast, text5) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
@@ -62649,7 +62649,7 @@ var parentIssueBodyStructureExtractor = createExtractor(
   (data) => extractParentIssueBodyStructure(data.issue.bodyAst)
 );
 
-// packages/statemachine/src/parser/state-parser.ts
+// packages/statemachine/src/core/parser/state-parser.ts
 function parseProjectState2(projectItems, projectNumber) {
   const projectItem = projectItems.find(
     (item) => item.project?.number === projectNumber
@@ -62995,7 +62995,7 @@ async function buildMachineContext(octokit, event, projectNumber, options = {}) 
   });
 }
 
-// packages/statemachine/src/parser/mutators.ts
+// packages/statemachine/src/core/parser/mutators.ts
 function findHeadingIndex2(ast, text5) {
   return ast.children.findIndex((node2) => {
     if (node2.type !== "heading") return false;
@@ -63517,7 +63517,7 @@ var replaceBody = createMutator(
   })
 );
 
-// packages/statemachine/src/schemas/actions/grooming.ts
+// packages/statemachine/src/core/schemas/actions/grooming.ts
 function buildPhaseIssueBody(phase) {
   const children = [];
   children.push(
@@ -63755,9 +63755,9 @@ async function createAllPhases(ctx, parentIssueNumber3, phases) {
       );
       core3.info(`Created sub-issue #${result.issueNumber}: ${title}`);
       created++;
-    } catch (error7) {
+    } catch (error6) {
       core3.error(
-        `Failed to create sub-issue for phase ${phase.phase_number}: ${error7}`
+        `Failed to create sub-issue for phase ${phase.phase_number}: ${error6}`
       );
     }
   }
@@ -63785,8 +63785,8 @@ async function createAllPhases(ctx, parentIssueNumber3, phases) {
       if (parentState !== parentData) {
         await parentUpdate(parentState);
       }
-    } catch (error7) {
-      core3.warning(`Failed to update parent issue body: ${error7}`);
+    } catch (error6) {
+      core3.warning(`Failed to update parent issue body: ${error6}`);
     }
   }
   return created;
@@ -63913,8 +63913,8 @@ var groomingActions = {
               }
             });
             core3.info(`Added 'groomed' label to issue #${action.issueNumber}`);
-          } catch (error7) {
-            core3.warning(`Failed to add 'groomed' label: ${error7}`);
+          } catch (error6) {
+            core3.warning(`Failed to add 'groomed' label: ${error6}`);
           }
           const engineerOutput = parseOutput(
             EngineerOutputSchema,
@@ -63946,8 +63946,8 @@ var groomingActions = {
             }
           });
           core3.info(`Added 'needs-info' label to issue #${action.issueNumber}`);
-        } catch (error7) {
-          core3.warning(`Failed to add 'needs-info' label: ${error7}`);
+        } catch (error6) {
+          core3.warning(`Failed to add 'needs-info' label: ${error6}`);
         }
         return { applied: true, decision };
       }
@@ -64074,9 +64074,9 @@ var groomingActions = {
               `Created sub-issue #${createResult.issueNumber}: ${title}`
             );
             created++;
-          } catch (error7) {
+          } catch (error6) {
             core3.error(
-              `Failed to create sub-issue for phase ${spec.phase_number}: ${error7}`
+              `Failed to create sub-issue for phase ${spec.phase_number}: ${error6}`
             );
           }
         }
@@ -64163,8 +64163,8 @@ var groomingActions = {
               `Updated sub-issue #${spec.number}: ${title} (reason: ${spec.match_reason})`
             );
             updated++;
-          } catch (error7) {
-            core3.error(`Failed to update sub-issue #${spec.number}: ${error7}`);
+          } catch (error6) {
+            core3.error(`Failed to update sub-issue #${spec.number}: ${error6}`);
           }
         }
         let deleted = 0;
@@ -64193,8 +64193,8 @@ var groomingActions = {
             });
             core3.info(`Closed sub-issue #${entry.number}: ${entry.reason}`);
             deleted++;
-          } catch (error7) {
-            core3.error(`Failed to close sub-issue #${entry.number}: ${error7}`);
+          } catch (error6) {
+            core3.error(`Failed to close sub-issue #${entry.number}: ${error6}`);
           }
         }
         const changes = [
@@ -64231,8 +64231,8 @@ var groomingActions = {
             core3.info(
               `Updated parent issue #${action.issueNumber} with reconciliation notes`
             );
-          } catch (error7) {
-            core3.warning(`Failed to update parent issue body: ${error7}`);
+          } catch (error6) {
+            core3.warning(`Failed to update parent issue body: ${error6}`);
           }
         }
         return { reconciled: true, created, updated, deleted };
@@ -64241,7 +64241,7 @@ var groomingActions = {
   )
 };
 
-// packages/statemachine/src/schemas/actions/control.ts
+// packages/statemachine/src/core/schemas/actions/control.ts
 var core4 = __toESM(require_core(), 1);
 var controlActions = {
   /** Stop execution with a message */
@@ -64296,7 +64296,7 @@ var controlActions = {
   )
 };
 
-// packages/statemachine/src/schemas/actions/project.ts
+// packages/statemachine/src/core/schemas/actions/project.ts
 var core5 = __toESM(require_core(), 1);
 function parseProjectFields(projectData) {
   const project = projectData;
@@ -64420,8 +64420,8 @@ async function ensureIssueOpen(ctx, issueNumber) {
       });
       core5.info(`Reopened closed issue #${issueNumber}`);
     }
-  } catch (error7) {
-    core5.warning(`Failed to ensure issue #${issueNumber} is open: ${error7}`);
+  } catch (error6) {
+    core5.warning(`Failed to ensure issue #${issueNumber} is open: ${error6}`);
   }
 }
 var projectActions = {
@@ -64628,7 +64628,7 @@ var projectActions = {
   )
 };
 
-// packages/statemachine/src/schemas/actions/github.ts
+// packages/statemachine/src/core/schemas/actions/github.ts
 var core6 = __toESM(require_core(), 1);
 var exec3 = __toESM(require_exec(), 1);
 var githubActions = {
@@ -64729,9 +64729,9 @@ var githubActions = {
             core6.info(`Reopened issue #${action.issueNumber}`);
             resetCount++;
           }
-        } catch (error7) {
+        } catch (error6) {
           core6.warning(
-            `Failed to reopen issue #${action.issueNumber}: ${error7}`
+            `Failed to reopen issue #${action.issueNumber}: ${error6}`
           );
         }
         for (const subIssueNumber of action.subIssueNumbers) {
@@ -64755,9 +64755,9 @@ var githubActions = {
               core6.info(`Reopened sub-issue #${subIssueNumber}`);
               resetCount++;
             }
-          } catch (error7) {
+          } catch (error6) {
             core6.warning(
-              `Failed to reopen sub-issue #${subIssueNumber}: ${error7}`
+              `Failed to reopen sub-issue #${subIssueNumber}: ${error6}`
             );
           }
         }
@@ -64785,9 +64785,9 @@ var githubActions = {
           core6.info(
             `Unassigned ${action.botUsername} from issue #${action.issueNumber}`
           );
-        } catch (error7) {
+        } catch (error6) {
           core6.warning(
-            `Failed to unassign bot from issue #${action.issueNumber}: ${error7}`
+            `Failed to unassign bot from issue #${action.issueNumber}: ${error6}`
           );
         }
         for (const subIssueNumber of action.subIssueNumbers) {
@@ -64815,9 +64815,9 @@ var githubActions = {
             core6.info(
               `Unassigned ${action.botUsername} from sub-issue #${subIssueNumber}`
             );
-          } catch (error7) {
+          } catch (error6) {
             core6.warning(
-              `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error7}`
+              `Failed to unassign bot from sub-issue #${subIssueNumber}: ${error6}`
             );
           }
         }
@@ -65167,9 +65167,9 @@ var githubActions = {
             `Added label "${action.label}" to issue #${action.issueNumber}`
           );
           return { added: true };
-        } catch (error7) {
+        } catch (error6) {
           core6.warning(
-            `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error7}`
+            `Failed to add label "${action.label}" to issue #${action.issueNumber}: ${error6}`
           );
           return { added: false };
         }
@@ -65209,15 +65209,15 @@ var githubActions = {
             `Removed label "${action.label}" from issue #${action.issueNumber}`
           );
           return { removed: true };
-        } catch (error7) {
-          if (error7 instanceof Error && error7.message.includes("404")) {
+        } catch (error6) {
+          if (error6 instanceof Error && error6.message.includes("404")) {
             core6.info(
               `Label "${action.label}" was not present on issue #${action.issueNumber}`
             );
             return { removed: false };
           }
           core6.warning(
-            `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error7}`
+            `Failed to remove label "${action.label}" from issue #${action.issueNumber}: ${error6}`
           );
           return { removed: false };
         }
@@ -65691,8 +65691,8 @@ Fixes #${action.issueNumber}`;
             }
           });
           core6.info(`Added "${label}" label to PR #${action.prNumber}`);
-        } catch (error7) {
-          core6.warning(`Failed to add label: ${error7}`);
+        } catch (error6) {
+          core6.warning(`Failed to add label: ${error6}`);
         }
         const { data, update } = await parseIssue(
           ctx.owner,
@@ -65777,21 +65777,21 @@ Fixes #${action.issueNumber}`;
             `Removed reviewer ${action.reviewer} from PR #${action.prNumber}`
           );
           return { removed: true };
-        } catch (error7) {
-          if (error7 instanceof Error && error7.message.includes("404")) {
+        } catch (error6) {
+          if (error6 instanceof Error && error6.message.includes("404")) {
             core6.info(
               `Reviewer ${action.reviewer} was not a requested reviewer on PR #${action.prNumber}`
             );
             return { removed: false };
           }
-          throw error7;
+          throw error6;
         }
       }
     }
   )
 };
 
-// packages/statemachine/src/schemas/actions/claude.ts
+// packages/statemachine/src/core/schemas/actions/claude.ts
 var core7 = __toESM(require_core(), 1);
 var exec5 = __toESM(require_exec(), 1);
 var fs6 = __toESM(require("fs"), 1);
@@ -65857,9 +65857,9 @@ It simulates Claude's code changes in mock mode.`;
       return;
     }
     core7.info(`[MOCK MODE] Created and pushed placeholder commit`);
-  } catch (error7) {
+  } catch (error6) {
     core7.warning(
-      `[MOCK MODE] Failed to create mock commit: ${error7 instanceof Error ? error7.message : String(error7)}`
+      `[MOCK MODE] Failed to create mock commit: ${error6 instanceof Error ? error6.message : String(error6)}`
     );
   }
 }
@@ -66038,7 +66038,7 @@ var claudeActions = {
   )
 };
 
-// packages/statemachine/src/schemas/actions/apply.ts
+// packages/statemachine/src/core/schemas/actions/apply.ts
 var core8 = __toESM(require_core(), 1);
 var fs7 = __toESM(require("node:fs"), 1);
 async function getProjectInfo(ctx) {
@@ -66081,8 +66081,8 @@ async function getProjectInfo(ctx) {
       }
     }
     return projectInfo;
-  } catch (error7) {
-    core8.warning(`Failed to get project info: ${error7}`);
+  } catch (error6) {
+    core8.warning(`Failed to get project info: ${error6}`);
     return null;
   }
 }
@@ -66120,8 +66120,8 @@ async function applyLabels(ctx, issueNumber, classification) {
       const state = { ...data, issue: { ...data.issue, labels: mergedLabels } };
       await update(state);
       core8.info(`Applied labels: ${newLabels.join(", ")}`);
-    } catch (error7) {
-      core8.warning(`Failed to apply labels: ${error7}`);
+    } catch (error6) {
+      core8.warning(`Failed to apply labels: ${error6}`);
     }
   }
 }
@@ -66192,8 +66192,8 @@ async function applyProjectFields(ctx, issueNumber, classification) {
       });
       core8.info(`Set Estimate to ${classification.estimate}`);
     }
-  } catch (error7) {
-    core8.warning(`Failed to apply project fields: ${error7}`);
+  } catch (error6) {
+    core8.warning(`Failed to apply project fields: ${error6}`);
   }
 }
 function extractPreservedSections(ast) {
@@ -66252,8 +66252,8 @@ ${questionLines}`);
       body: newBody
     });
     core8.info(`Updated issue #${issueNumber} with structured sections`);
-  } catch (error7) {
-    core8.warning(`Failed to update issue structure: ${error7}`);
+  } catch (error6) {
+    core8.warning(`Failed to update issue structure: ${error6}`);
   }
 }
 async function updateIssueBodyLegacy(ctx, issueNumber, newBody) {
@@ -66272,8 +66272,8 @@ async function updateIssueBodyLegacy(ctx, issueNumber, newBody) {
     const state = replaceBody({ bodyAst }, data);
     await update(state);
     core8.info(`Updated issue body for #${issueNumber}`);
-  } catch (error7) {
-    core8.warning(`Failed to update issue body: ${error7}`);
+  } catch (error6) {
+    core8.warning(`Failed to update issue body: ${error6}`);
   }
 }
 async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
@@ -66289,8 +66289,8 @@ async function linkRelatedIssues(ctx, issueNumber, relatedIssues) {
       asOctokitLike(ctx)
     );
     core8.info(`Linked related issues: ${links}`);
-  } catch (error7) {
-    core8.warning(`Failed to link related issues: ${error7}`);
+  } catch (error6) {
+    core8.warning(`Failed to link related issues: ${error6}`);
   }
 }
 var applyActions = {
@@ -66345,8 +66345,8 @@ var applyActions = {
             core8.startGroup("Triage Output (File)");
             core8.info(JSON.stringify(rawData, null, 2));
             core8.endGroup();
-          } catch (error7) {
-            core8.warning(`Failed to parse triage output: ${error7}`);
+          } catch (error6) {
+            core8.warning(`Failed to parse triage output: ${error6}`);
             return { applied: false };
           }
         } else {
@@ -66438,8 +66438,8 @@ var applyActions = {
               "iterate file"
             );
             core8.info(`Iterate output from file: ${filePath}`);
-          } catch (error7) {
-            core8.warning(`Failed to parse iterate output: ${error7}`);
+          } catch (error6) {
+            core8.warning(`Failed to parse iterate output: ${error6}`);
             return { applied: false };
           }
         } else {
@@ -66545,8 +66545,8 @@ var applyActions = {
               core8.info(
                 `Blocked issue #${issueNumber}: ${iterateOutput.blocked_reason}`
               );
-            } catch (error7) {
-              core8.warning(`Failed to transition to blocked: ${error7}`);
+            } catch (error6) {
+              core8.warning(`Failed to transition to blocked: ${error6}`);
             }
             break;
           case "all_done":
@@ -66586,8 +66586,8 @@ var applyActions = {
                   ctx
                 );
                 core8.info(`Set issue #${issueNumber} status to "In review"`);
-              } catch (error7) {
-                core8.warning(`Failed to transition to review: ${error7}`);
+              } catch (error6) {
+                core8.warning(`Failed to transition to review: ${error6}`);
               }
             } else {
               core8.info(
@@ -66688,9 +66688,9 @@ var applyActions = {
               "review file"
             );
             core8.info(`Review output from file: ${action.filePath}`);
-          } catch (error7) {
+          } catch (error6) {
             throw new Error(
-              `Failed to parse review output from file: ${error7}`
+              `Failed to parse review output from file: ${error6}`
             );
           }
         } else {
@@ -66755,9 +66755,9 @@ var applyActions = {
               "pr-response file"
             );
             core8.info(`PR response output from file: ${action.filePath}`);
-          } catch (error7) {
+          } catch (error6) {
             throw new Error(
-              `Failed to parse PR response output from file: ${error7}`
+              `Failed to parse PR response output from file: ${error6}`
             );
           }
         } else {
@@ -66801,8 +66801,8 @@ var applyActions = {
             core8.info(
               `Re-requested review from ${action.reviewer} on PR #${action.prNumber}`
             );
-          } catch (error7) {
-            core8.warning(`Failed to re-request review: ${error7}`);
+          } catch (error6) {
+            core8.warning(`Failed to re-request review: ${error6}`);
           }
         }
         if (responseOutput.agent_notes && responseOutput.agent_notes.length > 0) {
@@ -67004,8 +67004,8 @@ ${todoList}`;
               core8.info(
                 `Created sub-issue #${result.issueNumber}: ${newSubIssue.title} (${newSubIssue.reason})`
               );
-            } catch (error7) {
-              core8.warning(`Failed to create sub-issue: ${error7}`);
+            } catch (error6) {
+              core8.warning(`Failed to create sub-issue: ${error6}`);
             }
           }
         }
@@ -67027,7 +67027,7 @@ ${pivotOutput.summary_for_user}
   )
 };
 
-// packages/statemachine/src/schemas/actions/discussions.ts
+// packages/statemachine/src/core/schemas/actions/discussions.ts
 var core9 = __toESM(require_core(), 1);
 var fs8 = __toESM(require("node:fs"), 1);
 async function executeAddDiscussionComment(action, ctx) {
@@ -67457,9 +67457,9 @@ ${thread.investigation_areas.map((a) => `- ${a}`).join("\n")}`;
             );
             investigated++;
             core9.info(`Investigated thread: ${thread.title}`);
-          } catch (error7) {
+          } catch (error6) {
             core9.warning(
-              `Failed to investigate thread "${thread.title}": ${error7}`
+              `Failed to investigate thread "${thread.title}": ${error6}`
             );
           }
         }
@@ -67492,7 +67492,7 @@ ${thread.investigation_areas.map((a) => `- ${a}`).join("\n")}`;
   )
 };
 
-// packages/statemachine/src/schemas/actions/index.ts
+// packages/statemachine/src/core/schemas/actions/index.ts
 var actions = {
   ...projectActions,
   ...githubActions,
@@ -67583,12 +67583,12 @@ var ISSUE_ACTION_SET = new Set(ISSUE_ACTION_TYPES);
 var DISCUSSION_ACTION_SET = new Set(DISCUSSION_ACTION_TYPES);
 var SHARED_ACTION_SET = new Set(SHARED_ACTION_TYPES);
 
-// packages/statemachine/src/schemas/events.ts
+// packages/statemachine/src/core/schemas/events.ts
 function eventToTrigger(event) {
   return event.type;
 }
 
-// packages/statemachine/src/schemas/issue-triggers.ts
+// packages/statemachine/src/core/schemas/issue-triggers.ts
 var IssueTriggerTypeSchema = external_exports.enum([
   // Issue triggers
   "issue-assigned",
@@ -67622,7 +67622,7 @@ var IssueTriggerTypeSchema = external_exports.enum([
 ]);
 var ISSUE_TRIGGER_TYPES = IssueTriggerTypeSchema.options;
 
-// packages/statemachine/src/schemas/discussion-triggers.ts
+// packages/statemachine/src/core/schemas/discussion-triggers.ts
 var DiscussionTriggerTypeSchema = external_exports.enum([
   "discussion-created",
   "discussion-comment",
@@ -67630,7 +67630,7 @@ var DiscussionTriggerTypeSchema = external_exports.enum([
 ]);
 var DISCUSSION_TRIGGER_TYPES = DiscussionTriggerTypeSchema.options;
 
-// packages/statemachine/src/schemas/discussion-context.ts
+// packages/statemachine/src/core/schemas/discussion-context.ts
 var DiscussionCommandSchema = external_exports.enum([
   "summarize",
   "plan",
@@ -67666,7 +67666,7 @@ var DiscussionContextSchema = external_exports.object({
   botUsername: external_exports.string().default("nopo-bot")
 });
 
-// packages/statemachine/src/schemas/runner-context.ts
+// packages/statemachine/src/core/schemas/runner-context.ts
 var TriggerTypeSchema2 = external_exports.union([
   IssueTriggerTypeSchema,
   DiscussionTriggerTypeSchema
@@ -67905,6 +67905,186 @@ function isDiscussionTrigger(trigger) {
   return DiscussionTriggerTypeSchema.safeParse(trigger).success;
 }
 
+// packages/statemachine/src/core/executor.ts
+var core11 = __toESM(require_core(), 1);
+
+// packages/statemachine/src/core/signaler.ts
+var core10 = __toESM(require_core(), 1);
+
+// packages/statemachine/src/core/executor.ts
+function getOctokitForAction(action, ctx) {
+  const tokenType = action.token || "code";
+  if (tokenType === "review" && ctx.reviewOctokit) {
+    return ctx.reviewOctokit;
+  }
+  return ctx.octokit;
+}
+async function executeAction(action, ctx, chainCtx) {
+  const actionCtx = {
+    ...ctx,
+    octokit: getOctokitForAction(action, ctx)
+  };
+  const def = actions[action.type];
+  return def.execute(action, actionCtx, chainCtx);
+}
+async function executeActions(actions2, ctx, options = {}) {
+  const startTime = Date.now();
+  const results = [];
+  let stoppedEarly = false;
+  let stopReason;
+  const chainCtx = {};
+  const { stopOnError = true, logActions = true } = options;
+  for (const action of actions2) {
+    const actionStartTime = Date.now();
+    const parseResult = ActionSchema.safeParse(action);
+    if (!parseResult.success) {
+      core11.error(`Invalid action: ${JSON.stringify(action)}`);
+      results.push({
+        action,
+        success: false,
+        skipped: false,
+        error: new Error(`Invalid action: ${parseResult.error.message}`),
+        durationMs: Date.now() - actionStartTime
+      });
+      if (stopOnError) {
+        stoppedEarly = true;
+        stopReason = "Invalid action";
+        break;
+      }
+      continue;
+    }
+    const validatedAction = parseResult.data;
+    if (logActions) {
+      core11.info(`Executing action: ${validatedAction.type}`);
+    }
+    if (ctx.dryRun) {
+      core11.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
+      results.push({
+        action: validatedAction,
+        success: true,
+        skipped: true,
+        durationMs: Date.now() - actionStartTime
+      });
+      continue;
+    }
+    try {
+      const result = await executeAction(validatedAction, ctx, chainCtx);
+      if (validatedAction.type === "runClaude") {
+        const claudeResult = result;
+        if (claudeResult.structuredOutput) {
+          chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
+          core11.info("Stored structured output for subsequent actions");
+        }
+      }
+      if (validatedAction.type === "runClaudeGrooming") {
+        const groomingResult = result;
+        if (groomingResult.outputs) {
+          chainCtx.lastClaudeStructuredOutput = groomingResult.outputs;
+          core11.info("Stored grooming outputs for subsequent actions");
+        }
+      }
+      if (validatedAction.type === "applyGroomingOutput") {
+        chainCtx.lastClaudeStructuredOutput = result;
+        core11.info("Stored grooming decision for subsequent reconcileSubIssues");
+      }
+      const branchResult = result;
+      if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
+        const hasPendingCreatePR = actions2.some((a) => a.type === "createPR");
+        if (!hasPendingCreatePR) {
+          results.push({
+            action: validatedAction,
+            success: true,
+            skipped: false,
+            result,
+            durationMs: Date.now() - actionStartTime
+          });
+          stoppedEarly = true;
+          stopReason = "branch_rebased_and_pushed";
+          core11.info(
+            "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
+          );
+          break;
+        }
+        core11.info(
+          "Branch rebased and pushed, but no PR exists yet \u2014 continuing execution"
+        );
+      }
+      results.push({
+        action: validatedAction,
+        success: true,
+        skipped: false,
+        result,
+        durationMs: Date.now() - actionStartTime
+      });
+      if (isTerminalAction(validatedAction)) {
+        stoppedEarly = true;
+        stopReason = validatedAction.type === "stop" ? validatedAction.message : `${validatedAction.type} action`;
+        break;
+      }
+    } catch (error6) {
+      const err = error6 instanceof Error ? error6 : new Error(String(error6));
+      core11.error(`Action failed: ${validatedAction.type} - ${err.message}`);
+      results.push({
+        action: validatedAction,
+        success: false,
+        skipped: false,
+        error: err,
+        durationMs: Date.now() - actionStartTime
+      });
+      if (stopOnError && shouldStopOnError(validatedAction.type)) {
+        stoppedEarly = true;
+        stopReason = `Error in ${validatedAction.type}: ${err.message}`;
+        break;
+      }
+    }
+  }
+  return {
+    success: results.every((r) => r.success || r.skipped),
+    results,
+    totalDurationMs: Date.now() - startTime,
+    stoppedEarly,
+    stopReason
+  };
+}
+
+// packages/statemachine/src/core/helpers/git.ts
+var core12 = __toESM(require_core(), 1);
+var exec7 = __toESM(require_exec(), 1);
+
+// packages/statemachine/src/core/action-utils.ts
+var core13 = __toESM(require_core(), 1);
+var exec9 = __toESM(require_exec(), 1);
+function getOptionalInput(name) {
+  const value = core13.getInput(name);
+  return value === "" ? void 0 : value;
+}
+function getRequiredInput(name) {
+  return core13.getInput(name, { required: true });
+}
+function setOutputs(outputs) {
+  for (const [key, value] of Object.entries(outputs)) {
+    if (value !== void 0) {
+      core13.setOutput(key, value);
+    }
+  }
+}
+async function execCommand(command, args = [], options) {
+  let stdout = "";
+  let stderr = "";
+  const exitCode = await exec9.exec(command, args, {
+    ...options,
+    listeners: {
+      stdout: (data) => {
+        stdout += data.toString();
+      },
+      stderr: (data) => {
+        stderr += data.toString();
+      }
+    }
+  });
+  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
+}
+
 // node_modules/.pnpm/xstate@5.26.0/node_modules/xstate/dev/dist/xstate-dev.esm.js
 function getGlobal() {
   if (typeof globalThis !== "undefined") {
@@ -68006,10 +68186,10 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error7) {
+function createErrorActorEvent(id, error6) {
   return {
     type: `xstate.error.actor.${id}`,
-    error: error7,
+    error: error6,
     actorId: id
   };
 }
@@ -68443,7 +68623,7 @@ var Actor = class {
         }
       },
       actionExecutor: (action) => {
-        const exec13 = () => {
+        const exec11 = () => {
           this._actorScope.system._sendInspectionEvent({
             type: "@xstate.action",
             actorRef: this,
@@ -68464,9 +68644,9 @@ var Actor = class {
           }
         };
         if (this._processingStatus === ProcessingStatus.Running) {
-          exec13();
+          exec11();
         } else {
-          this._deferred.push(exec13);
+          this._deferred.push(exec11);
         }
       }
     };
@@ -69628,8 +69808,8 @@ function microstep(transitions, currentSnapshot, actorScope, event, isInitial, i
       _nodes: nextStateNodes,
       historyValue
     });
-  } catch (e2) {
-    throw e2;
+  } catch (e) {
+    throw e;
   }
 }
 function getMachineOutput(snapshot, event, actorScope, rootNode, rootCompletionNode) {
@@ -70196,96 +70376,6 @@ function fromTransition(transition, initialContext) {
     getPersistedSnapshot: (snapshot) => snapshot,
     restoreSnapshot: (snapshot) => snapshot
   };
-}
-var XSTATE_PROMISE_RESOLVE = "xstate.promise.resolve";
-var XSTATE_PROMISE_REJECT = "xstate.promise.reject";
-var controllerMap = /* @__PURE__ */ new WeakMap();
-function fromPromise(promiseCreator) {
-  const logic = {
-    config: promiseCreator,
-    transition: (state, event, scope) => {
-      if (state.status !== "active") {
-        return state;
-      }
-      switch (event.type) {
-        case XSTATE_PROMISE_RESOLVE: {
-          const resolvedValue = event.data;
-          return {
-            ...state,
-            status: "done",
-            output: resolvedValue,
-            input: void 0
-          };
-        }
-        case XSTATE_PROMISE_REJECT:
-          return {
-            ...state,
-            status: "error",
-            error: event.data,
-            input: void 0
-          };
-        case XSTATE_STOP: {
-          controllerMap.get(scope.self)?.abort();
-          controllerMap.delete(scope.self);
-          return {
-            ...state,
-            status: "stopped",
-            input: void 0
-          };
-        }
-        default:
-          return state;
-      }
-    },
-    start: (state, {
-      self: self2,
-      system,
-      emit: emit3
-    }) => {
-      if (state.status !== "active") {
-        return;
-      }
-      const controller = new AbortController();
-      controllerMap.set(self2, controller);
-      const resolvedPromise = Promise.resolve(promiseCreator({
-        input: state.input,
-        system,
-        self: self2,
-        signal: controller.signal,
-        emit: emit3
-      }));
-      resolvedPromise.then((response) => {
-        if (self2.getSnapshot().status !== "active") {
-          return;
-        }
-        controllerMap.delete(self2);
-        system._relay(self2, self2, {
-          type: XSTATE_PROMISE_RESOLVE,
-          data: response
-        });
-      }, (errorData) => {
-        if (self2.getSnapshot().status !== "active") {
-          return;
-        }
-        controllerMap.delete(self2);
-        system._relay(self2, self2, {
-          type: XSTATE_PROMISE_REJECT,
-          data: errorData
-        });
-      });
-    },
-    getInitialSnapshot: (_, input) => {
-      return {
-        status: "active",
-        output: void 0,
-        error: void 0,
-        input
-      };
-    },
-    getPersistedSnapshot: (snapshot) => snapshot,
-    restoreSnapshot: (snapshot) => snapshot
-  };
-  return logic;
 }
 var emptyLogic = fromTransition((_) => void 0, void 0);
 
@@ -70891,13 +70981,13 @@ function executeEmit(actorScope, {
   actorScope.defer(() => actorScope.emit(event));
 }
 function emit(eventOrExpr) {
-  function emit3(_args, _params) {
+  function emit2(_args, _params) {
   }
-  emit3.type = "xstate.emit";
-  emit3.event = eventOrExpr;
-  emit3.resolve = resolveEmit;
-  emit3.execute = executeEmit;
-  return emit3;
+  emit2.type = "xstate.emit";
+  emit2.event = eventOrExpr;
+  emit2.resolve = resolveEmit;
+  emit2.execute = executeEmit;
+  return emit2;
 }
 var SpecialTargets = /* @__PURE__ */ function(SpecialTargets2) {
   SpecialTargets2["Parent"] = "#_parent";
@@ -71131,67 +71221,183 @@ function setup({
   };
 }
 
-// packages/statemachine/src/core/constants.ts
-var HISTORY_ICONS2 = {
-  ITERATING: "\u23F3",
-  CI_PASSED: "\u2705",
-  CI_FAILED: "\u274C",
-  BLOCKED: "\u{1F6AB}",
-  REVIEW_REQUESTED: "\u{1F440}",
-  MERGED: "\u{1F6A2}",
-  INITIALIZED: "\u{1F680}",
-  PHASE_ADVANCED: "\u23ED\uFE0F",
-  CODE_PUSHED: "\u{1F4DD}",
-  WARNING: "\u26A0\uFE0F"
+// packages/statemachine/src/core/types.ts
+var consoleLogger = {
+  debug: (m) => console.debug(m),
+  info: (m) => console.info(m),
+  warning: (m) => console.warn(m),
+  error: (m) => console.error(m)
 };
-var HISTORY_MESSAGES2 = {
-  // Iteration
-  ITERATING: `${HISTORY_ICONS2.ITERATING} Iterating...`,
-  CI_PASSED: `${HISTORY_ICONS2.CI_PASSED} CI Passed`,
-  CI_FAILED: `${HISTORY_ICONS2.CI_FAILED} CI Failed`,
-  REVIEW_REQUESTED: `${HISTORY_ICONS2.REVIEW_REQUESTED} Review requested`,
-  // Orchestration
-  ALL_PHASES_COMPLETE: `${HISTORY_ICONS2.CI_PASSED} All phases complete`,
-  MERGED: `${HISTORY_ICONS2.MERGED} Merged`,
-  // Merge queue
-  ENTERED_QUEUE: `${HISTORY_ICONS2.INITIALIZED} Entered queue`,
-  REMOVED_FROM_QUEUE: `${HISTORY_ICONS2.CI_FAILED} Removed from queue`,
-  // Deployment
-  DEPLOYED_STAGE: `${HISTORY_ICONS2.CI_PASSED} Deployed to stage`,
-  RELEASED_PROD: `${HISTORY_ICONS2.CI_PASSED} Released to production`,
-  STAGE_DEPLOY_FAILED: `${HISTORY_ICONS2.CI_FAILED} Stage deploy failed`,
-  PROD_DEPLOY_FAILED: `${HISTORY_ICONS2.CI_FAILED} Prod deploy failed`,
-  // Push to draft
-  CODE_PUSHED: `${HISTORY_ICONS2.CODE_PUSHED} Code pushed - converting to draft`,
-  // Grooming
-  GROOMING: `${HISTORY_ICONS2.ITERATING} grooming...`,
-  ANALYZING_PIVOT: `${HISTORY_ICONS2.ITERATING} Analyzing pivot request...`,
-  // Invalid iteration
-  INVALID_ITERATION: `${HISTORY_ICONS2.CI_FAILED} FATAL: Cannot iterate on parent issue without sub-issues. Only sub-issues can be iterated on directly. Run grooming to create sub-issues first.`,
-  // Verification (for future sm-verify)
-  VERIFICATION_FAILED: `${HISTORY_ICONS2.CI_FAILED} Verification failed`,
-  // Dynamic builders
-  initialized: (phaseCount) => `${HISTORY_ICONS2.INITIALIZED} Initialized with ${phaseCount} phase(s)`,
-  phaseStarted: (phase) => `${HISTORY_ICONS2.PHASE_ADVANCED} Phase ${phase} started`,
-  blocked: (failures) => `${HISTORY_ICONS2.BLOCKED} Blocked: Max failures reached (${failures})`,
-  agentBlocked: (reason) => `${HISTORY_ICONS2.BLOCKED} Blocked: Agent reported blocked - ${reason}`,
-  RETRY: `${HISTORY_ICONS2.INITIALIZED} Retried: Failures cleared, resuming work`
+
+// packages/statemachine/src/core/machine.ts
+var BaseMachine = class {
+  context;
+  logger;
+  constructor(context3, options) {
+    this.context = context3;
+    this.logger = options?.logger ?? consoleLogger;
+  }
+  /**
+   * Return a log message for a given state name, or null to skip logging.
+   * Override in subclasses to provide state-specific diagnostic logging.
+   */
+  getLogMessage(_stateName) {
+    return null;
+  }
+  /**
+   * Run the machine: start, send event, collect actions.
+   * State transitions are logged via actor.subscribe().
+   */
+  run(options) {
+    const actor = createActor(this.getMachine(), {
+      input: this.context
+    });
+    actor.subscribe((snapshot2) => {
+      const stateName = String(snapshot2.value);
+      const message = this.getLogMessage(stateName);
+      if (message) {
+        this.logger.info(message);
+      }
+    });
+    actor.start();
+    actor.send(options?.event ?? this.getDefaultEvent());
+    const snapshot = actor.getSnapshot();
+    return {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState snapshot.value is string; TState is declared by the subclass
+      state: String(snapshot.value),
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState snapshot context has pendingActions from our machine setup
+      actions: snapshot.context.pendingActions,
+      context: this.context
+    };
+  }
+  /**
+   * Predict mode: run the machine with default stubs.
+   * Same as run() — alias for clarity.
+   */
+  predict(options) {
+    return this.run(options);
+  }
+  /**
+   * Execute mode: run the machine to derive actions, then execute them
+   * via the runner infrastructure.
+   */
+  async execute(options) {
+    const machineResult = this.predict(options);
+    const runnerResult = await executeActions(
+      machineResult.actions,
+      options.runnerContext,
+      options.runnerOptions
+    );
+    return { ...machineResult, runnerResult };
+  }
+  /**
+   * Get the final state without computing actions.
+   */
+  getState(options) {
+    const actor = createActor(this.getMachine(), {
+      input: this.context
+    });
+    actor.start();
+    actor.send(options?.event ?? this.getDefaultEvent());
+    return String(actor.getSnapshot().value);
+  }
 };
-var TODO_ALIASES2 = ["Todo", "Todos"];
-var SECTION_NAMES2 = {
-  DESCRIPTION: "Description",
-  REQUIREMENTS: "Requirements",
-  APPROACH: "Approach",
-  ACCEPTANCE_CRITERIA: "Acceptance Criteria",
-  TESTING: "Testing",
-  RELATED: "Related",
-  QUESTIONS: "Questions",
-  TODOS: "Todos",
-  AGENT_NOTES: "Agent Notes",
-  ITERATION_HISTORY: "Iteration History",
-  AFFECTED_AREAS: "Affected Areas",
-  TODO_ALIASES: TODO_ALIASES2
+
+// packages/statemachine/src/core/verifier/base-verifier.ts
+var BaseVerifier = class {
+  /**
+   * Union-aware verification: passes if ANY expected outcome matches.
+   * Returns best match for diagnostics.
+   */
+  verifyOutcomes(expected, actual) {
+    if (expected.length === 0) {
+      return {
+        pass: true,
+        matchedOutcomeIndex: null,
+        bestMatch: { outcomeIndex: -1, diffs: [] }
+      };
+    }
+    let bestIndex = 0;
+    let bestDiffs = [];
+    let foundMatch = false;
+    for (let i = 0; i < expected.length; i++) {
+      const outcome = expected[i];
+      if (!outcome) continue;
+      const diffs = this.compareTree(outcome, actual);
+      if (diffs.length === 0) {
+        return {
+          pass: true,
+          matchedOutcomeIndex: i,
+          bestMatch: { outcomeIndex: i, diffs: [] }
+        };
+      }
+      if (!foundMatch || diffs.length < bestDiffs.length) {
+        bestIndex = i;
+        bestDiffs = diffs;
+        foundMatch = true;
+      }
+    }
+    return {
+      pass: false,
+      matchedOutcomeIndex: null,
+      bestMatch: { outcomeIndex: bestIndex, diffs: bestDiffs }
+    };
+  }
+  /**
+   * Full verification including retrigger check.
+   */
+  verify(expected, actual, opts) {
+    const result = this.verifyOutcomes(expected, actual);
+    const retriggerPass = opts.actualRetrigger === void 0 || opts.expectedRetrigger === opts.actualRetrigger;
+    return {
+      pass: result.pass && retriggerPass,
+      result,
+      retriggerPass
+    };
+  }
 };
+
+// packages/statemachine/src/core/verifier/diff-helpers.ts
+function diffExact(path3, expected, actual) {
+  if (expected === actual) return null;
+  return { path: path3, expected, actual, comparison: "exact" };
+}
+function diffGte(path3, expected, actual) {
+  if (actual >= expected) return null;
+  return { path: path3, expected, actual, comparison: "gte" };
+}
+function diffLte(path3, expected, actual) {
+  if (actual <= expected) return null;
+  return { path: path3, expected, actual, comparison: "lte" };
+}
+function diffSuperset(path3, expected, actual) {
+  const missing = expected.filter((e) => !actual.includes(e));
+  if (missing.length === 0) return null;
+  return { path: path3, expected: missing, actual, comparison: "superset" };
+}
+function diffBooleanFlag(path3, expected, actual) {
+  if (expected && !actual) {
+    return { path: path3, expected, actual, comparison: "exact" };
+  }
+  return null;
+}
+function diffHistoryEntries(path3, expected, actual) {
+  const diffs = [];
+  for (const exp of expected) {
+    const found = actual.some(
+      (act) => act.iteration === exp.iteration && act.phase === exp.phase && act.action.startsWith(exp.action)
+    );
+    if (!found) {
+      diffs.push({
+        path: `${path3}[iter=${exp.iteration},phase=${exp.phase}]`,
+        expected: exp.action,
+        actual: actual.map((a) => a.action),
+        comparison: "history_entry"
+      });
+    }
+  }
+  return diffs;
+}
 
 // packages/statemachine/src/core/parser.ts
 function findHeadingIndexAny3(ast, texts) {
@@ -71214,7 +71420,7 @@ function isList2(node2) {
   return node2.type === "list";
 }
 function extractTodosFromAst2(bodyAst) {
-  const todosIdx = findHeadingIndexAny3(bodyAst, SECTION_NAMES2.TODO_ALIASES);
+  const todosIdx = findHeadingIndexAny3(bodyAst, SECTION_NAMES.TODO_ALIASES);
   if (todosIdx === -1) {
     return { total: 0, completed: 0, uncheckedNonManual: 0 };
   }
@@ -71246,24 +71452,6 @@ function deriveBranchName4(parentIssueNumber3, phaseNumber) {
     return `claude/issue/${parentIssueNumber3}/phase-${phaseNumber}`;
   }
   return `claude/issue/${parentIssueNumber3}`;
-}
-
-// packages/statemachine/src/core/emit-helper.ts
-function accumulateFromEmitter(existingActions, context3, emitter) {
-  return [...existingActions, ...emitter({ context: context3 })];
-}
-function emit2(emitter) {
-  return assign({
-    pendingActions: ({ context: context3 }) => accumulateFromEmitter(context3.pendingActions, context3, emitter)
-  });
-}
-function createEmitter() {
-  return (emitter) => emit2(emitter);
-}
-
-// packages/statemachine/src/core/action-helpers.ts
-function emitLog(_ctx, message, level = "info") {
-  return [actions.log.create({ level, message, worktree: "main" })];
 }
 
 // packages/statemachine/src/machines/issues/guards.ts
@@ -71740,8 +71928,8 @@ function handleCIFailure({ context: context3 }) {
       issueNumber: context3.issue.number,
       matchIteration: context3.issue.iteration,
       matchPhase: String(context3.currentPhase ?? "-"),
-      matchPattern: HISTORY_ICONS2.ITERATING,
-      newMessage: HISTORY_MESSAGES2.CI_FAILED,
+      matchPattern: HISTORY_ICONS.ITERATING,
+      newMessage: HISTORY_MESSAGES.CI_FAILED,
       timestamp: context3.workflowStartedAt ?? void 0,
       commitSha: context3.ciCommitSha ?? void 0,
       runLink: context3.ciRunUrl ?? void 0
@@ -71760,7 +71948,7 @@ function blockIssue({ context: context3 }) {
     }),
     ...emitAppendHistory(
       { context: context3 },
-      HISTORY_MESSAGES2.blocked(context3.issue.failures)
+      HISTORY_MESSAGES.blocked(context3.issue.failures)
     ),
     actions.block.create({
       issueNumber: context3.issue.number,
@@ -71912,13 +72100,7 @@ function runClaudePRReview({ context: context3 }) {
   const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
   const prNumber = context3.pr?.number;
   if (!prNumber) {
-    return [
-      actions.log.create({
-        level: "warning",
-        message: "No PR found for review",
-        worktree: "main"
-      })
-    ];
+    return [];
   }
   const promptVars = {
     PR_NUMBER: String(prNumber),
@@ -71953,13 +72135,7 @@ function runClaudePRResponse({ context: context3 }) {
   const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
   const prNumber = context3.pr?.number;
   if (!prNumber) {
-    return [
-      actions.log.create({
-        level: "warning",
-        message: "No PR found for response",
-        worktree: "main"
-      })
-    ];
+    return [];
   }
   const promptVars = {
     PR_NUMBER: String(prNumber),
@@ -71999,13 +72175,7 @@ function runClaudePRHumanResponse({
   const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
   const prNumber = context3.pr?.number;
   if (!prNumber) {
-    return [
-      actions.log.create({
-        level: "warning",
-        message: "No PR found for human response",
-        worktree: "main"
-      })
-    ];
+    return [];
   }
   const promptVars = {
     PR_NUMBER: String(prNumber),
@@ -72041,13 +72211,6 @@ function runClaudePRHumanResponse({
 }
 function orchestrate({ context: context3 }) {
   const result = [];
-  result.push(
-    actions.log.create({
-      level: "info",
-      message: `Orchestrating issue #${context3.issue.number} with ${context3.issue.subIssues.length} phases`,
-      worktree: "main"
-    })
-  );
   const needsInit = context3.issue.projectStatus === null || context3.issue.projectStatus === "Backlog";
   if (needsInit) {
     result.push(
@@ -72055,7 +72218,7 @@ function orchestrate({ context: context3 }) {
         issueNumber: context3.issue.number,
         iteration: context3.issue.iteration,
         phase: "1",
-        message: HISTORY_MESSAGES2.initialized(context3.issue.subIssues.length),
+        message: HISTORY_MESSAGES.initialized(context3.issue.subIssues.length),
         timestamp: context3.workflowStartedAt ?? void 0
       })
     );
@@ -72096,11 +72259,6 @@ function orchestrate({ context: context3 }) {
 }
 function allPhasesDone2({ context: context3 }) {
   return [
-    actions.log.create({
-      level: "info",
-      message: `All phases complete for issue #${context3.issue.number}`,
-      worktree: "main"
-    }),
     actions.updateProjectStatus.create({
       issueNumber: context3.issue.number,
       status: "Done"
@@ -72113,7 +72271,7 @@ function allPhasesDone2({ context: context3 }) {
       issueNumber: context3.issue.number,
       iteration: context3.issue.iteration,
       phase: "-",
-      message: HISTORY_MESSAGES2.ALL_PHASES_COMPLETE,
+      message: HISTORY_MESSAGES.ALL_PHASES_COMPLETE,
       timestamp: context3.workflowStartedAt ?? void 0
     })
   ];
@@ -72205,7 +72363,7 @@ function pushToDraft({ context: context3 }) {
       issueNumber,
       iteration: 0,
       phase,
-      message: HISTORY_MESSAGES2.CODE_PUSHED,
+      message: HISTORY_MESSAGES.CODE_PUSHED,
       commitSha: context3.ciCommitSha ?? void 0,
       runLink: context3.ciRunUrl ?? void 0
     })
@@ -72231,7 +72389,7 @@ function runClaudeGrooming({ context: context3 }) {
       issueNumber,
       iteration: 0,
       phase: "groom",
-      message: HISTORY_MESSAGES2.GROOMING,
+      message: HISTORY_MESSAGES.GROOMING,
       timestamp: context3.workflowStartedAt ?? void 0,
       runLink: context3.workflowRunUrl ?? context3.ciRunUrl ?? void 0
     }),
@@ -72278,7 +72436,7 @@ function runClaudePivot({ context: context3 }) {
       issueNumber,
       iteration: context3.issue.iteration,
       phase: "pivot",
-      message: HISTORY_MESSAGES2.ANALYZING_PIVOT,
+      message: HISTORY_MESSAGES.ANALYZING_PIVOT,
       timestamp: context3.workflowStartedAt ?? void 0,
       runLink: context3.workflowRunUrl ?? context3.ciRunUrl ?? void 0
     }),
@@ -72296,7 +72454,7 @@ function runClaudePivot({ context: context3 }) {
   ];
 }
 function logInvalidIteration({ context: context3 }) {
-  const message = HISTORY_MESSAGES2.INVALID_ITERATION;
+  const message = HISTORY_MESSAGES.INVALID_ITERATION;
   return [
     actions.appendHistory.create({
       issueNumber: context3.issue.number,
@@ -72333,7 +72491,7 @@ function mergeQueueEntry({ context: context3 }) {
       issueNumber,
       iteration,
       phase,
-      message: HISTORY_MESSAGES2.ENTERED_QUEUE,
+      message: HISTORY_MESSAGES.ENTERED_QUEUE,
       timestamp: context3.workflowStartedAt ?? void 0,
       runLink: context3.ciRunUrl ?? void 0
     })
@@ -72348,7 +72506,7 @@ function mergeQueueFailure({ context: context3 }) {
       issueNumber,
       iteration,
       phase,
-      message: HISTORY_MESSAGES2.REMOVED_FROM_QUEUE,
+      message: HISTORY_MESSAGES.REMOVED_FROM_QUEUE,
       timestamp: context3.workflowStartedAt ?? void 0,
       runLink: context3.ciRunUrl ?? void 0
     })
@@ -72363,7 +72521,7 @@ function merged({ context: context3 }) {
       issueNumber,
       iteration,
       phase,
-      message: HISTORY_MESSAGES2.MERGED,
+      message: HISTORY_MESSAGES.MERGED,
       timestamp: context3.workflowStartedAt ?? void 0,
       commitSha: context3.ciCommitSha ?? void 0,
       runLink: context3.ciRunUrl ?? void 0
@@ -72379,7 +72537,7 @@ function deployedStage({ context: context3 }) {
       issueNumber,
       iteration,
       phase,
-      message: HISTORY_MESSAGES2.DEPLOYED_STAGE,
+      message: HISTORY_MESSAGES.DEPLOYED_STAGE,
       timestamp: context3.workflowStartedAt ?? void 0,
       commitSha: context3.ciCommitSha ?? void 0,
       runLink: context3.ciRunUrl ?? void 0
@@ -72395,7 +72553,7 @@ function deployedProd({ context: context3 }) {
       issueNumber,
       iteration,
       phase,
-      message: HISTORY_MESSAGES2.RELEASED_PROD,
+      message: HISTORY_MESSAGES.RELEASED_PROD,
       timestamp: context3.workflowStartedAt ?? void 0,
       commitSha: context3.ciCommitSha ?? void 0,
       runLink: context3.ciRunUrl ?? void 0
@@ -72410,7 +72568,7 @@ function deployedStageFailure({ context: context3 }) {
       issueNumber,
       iteration: context3.issue.iteration ?? 0,
       phase,
-      message: HISTORY_MESSAGES2.STAGE_DEPLOY_FAILED,
+      message: HISTORY_MESSAGES.STAGE_DEPLOY_FAILED,
       runLink: context3.ciRunUrl ?? void 0
     })
   ];
@@ -72423,7 +72581,7 @@ function deployedProdFailure({ context: context3 }) {
       issueNumber,
       iteration: context3.issue.iteration ?? 0,
       phase,
-      message: HISTORY_MESSAGES2.PROD_DEPLOY_FAILED,
+      message: HISTORY_MESSAGES.PROD_DEPLOY_FAILED,
       runLink: context3.ciRunUrl ?? void 0
     })
   ];
@@ -72474,7 +72632,7 @@ function emitAdvancePhase({ context: context3 }) {
         issueNumber: context3.issue.number,
         iteration: context3.issue.iteration,
         phase: String(nextPhase),
-        message: HISTORY_MESSAGES2.phaseStarted(nextPhase),
+        message: HISTORY_MESSAGES.phaseStarted(nextPhase),
         timestamp: context3.workflowStartedAt ?? void 0
       })
     );
@@ -72482,709 +72640,21 @@ function emitAdvancePhase({ context: context3 }) {
   return result;
 }
 
-// packages/statemachine/src/machines/issues/machine.ts
-var e = createEmitter();
-var issueMachine = setup({
-  types: {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    events: {},
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    input: {}
-  },
-  guards,
-  actions: {
-    // =========================================================================
-    // Simple inline actions
-    // =========================================================================
-    // Log actions
-    logDetecting: e((ctx) => emitLog(ctx, "Detecting initial state")),
-    logIterating: e(
-      (ctx) => emitLog(ctx, `Starting iteration ${ctx.context.issue.iteration + 1}`)
-    ),
-    logFixingCI: e(
-      (ctx) => emitLog(ctx, `Fixing CI (iteration ${ctx.context.issue.iteration + 1})`)
-    ),
-    logReviewing: e((ctx) => emitLog(ctx, "PR is under review")),
-    logTriaging: e(
-      (ctx) => emitLog(ctx, `Triaging issue #${ctx.context.issue.number}`)
-    ),
-    logCommenting: e(
-      (ctx) => emitLog(ctx, `Responding to comment on #${ctx.context.issue.number}`)
-    ),
-    logWaitingForReview: e(
-      (ctx) => emitLog(ctx, "Waiting for review on current phase")
-    ),
-    logAwaitingMerge: e(
-      (ctx) => emitLog(
-        ctx,
-        `PR #${ctx.context.pr?.number} marked ready for merge - awaiting human action`
-      )
-    ),
-    logOrchestrating: e(
-      (ctx) => emitLog(
-        ctx,
-        `Orchestrating issue #${ctx.context.issue.number} (phase ${ctx.context.currentPhase}/${ctx.context.totalPhases})`
-      )
-    ),
-    logPRReviewing: e(
-      (ctx) => emitLog(ctx, `Reviewing PR #${ctx.context.pr?.number ?? "unknown"}`)
-    ),
-    logPRResponding: e(
-      (ctx) => emitLog(
-        ctx,
-        `Responding to review on PR #${ctx.context.pr?.number ?? "unknown"}`
-      )
-    ),
-    logResetting: e(
-      (ctx) => emitLog(
-        ctx,
-        `Resetting issue #${ctx.context.issue.number} to initial state`
-      )
-    ),
-    logRetrying: e(
-      (ctx) => emitLog(
-        ctx,
-        `Retrying issue #${ctx.context.issue.number} (clearing failures)`
-      )
-    ),
-    logGrooming: e(
-      (ctx) => emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`)
-    ),
-    logPivoting: e(
-      (ctx) => emitLog(ctx, `Pivoting issue #${ctx.context.issue.number}`)
-    ),
-    // Iteration history logging (writes to issue body)
-    historyIterationStarted: e(
-      (ctx) => emitAppendHistory(ctx, HISTORY_MESSAGES2.ITERATING)
-    ),
-    historyCISuccess: e(
-      (ctx) => emitUpdateHistory(
-        ctx,
-        HISTORY_ICONS2.ITERATING,
-        HISTORY_MESSAGES2.CI_PASSED
-      )
-    ),
-    historyReviewRequested: e(
-      (ctx) => emitAppendHistory(ctx, HISTORY_MESSAGES2.REVIEW_REQUESTED)
-    ),
-    // Status actions
-    setWorking: e((ctx) => emitStatus(ctx, "In progress")),
-    setReview: e((ctx) => emitStatus(ctx, "In review")),
-    setInProgress: e(({ context: context3 }) => [
-      actions.updateProjectStatus.create({
-        issueNumber: context3.issue.number,
-        status: "In progress"
-      })
-    ]),
-    setDone: e(({ context: context3 }) => [
-      actions.updateProjectStatus.create({
-        issueNumber: context3.issue.number,
-        status: "Done"
-      })
-    ]),
-    setError: e(({ context: context3 }) => [
-      actions.updateProjectStatus.create({
-        issueNumber: context3.issue.number,
-        status: "Error"
-      })
-    ]),
-    // Iteration actions
-    incrementIteration: e(({ context: context3 }) => [
-      actions.incrementIteration.create({
-        issueNumber: context3.issue.number
-      })
-    ]),
-    clearFailures: e(({ context: context3 }) => [
-      actions.clearFailures.create({
-        issueNumber: context3.issue.number
-      })
-    ]),
-    // Issue actions
-    closeIssue: e(({ context: context3 }) => [
-      actions.closeIssue.create({
-        issueNumber: context3.issue.number,
-        reason: "completed"
-      })
-    ]),
-    // Git actions
-    createBranch: e(({ context: context3 }) => [
-      actions.createBranch.create({
-        branchName: context3.branch ?? deriveBranchName4(
-          context3.issue.number,
-          context3.currentPhase ?? void 0
-        ),
-        baseBranch: "main",
-        worktree: "main"
-      })
-    ]),
-    // PR actions
-    createPR: e(({ context: context3 }) => {
-      if (context3.pr) return [];
-      const branchName = context3.branch ?? deriveBranchName4(
-        context3.issue.number,
-        context3.currentPhase ?? void 0
-      );
-      const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
-      return [
-        actions.createPR.create({
-          title: context3.currentSubIssue?.title ?? context3.issue.title,
-          body: `Fixes #${issueNumber}`,
-          branchName,
-          baseBranch: "main",
-          draft: true,
-          issueNumber
-        })
-      ];
-    }),
-    convertToDraft: e(({ context: context3 }) => {
-      if (!context3.pr) return [];
-      return [actions.convertPRToDraft.create({ prNumber: context3.pr.number })];
-    }),
-    mergePR: e(({ context: context3 }) => {
-      if (!context3.pr) return [];
-      const issueNumber = context3.currentSubIssue?.number ?? context3.issue.number;
-      return [
-        actions.mergePR.create({
-          prNumber: context3.pr.number,
-          issueNumber,
-          mergeMethod: "squash"
-        })
-      ];
-    }),
-    // =========================================================================
-    // Compound/complex actions (from ./actions.ts)
-    // =========================================================================
-    transitionToReview: e(transitionToReview),
-    handleCIFailure: e(handleCIFailure),
-    blockIssue: e(blockIssue),
-    orchestrate: e(orchestrate),
-    allPhasesDone: e(allPhasesDone2),
-    resetIssue: e(resetIssue),
-    retryIssue: e(retryIssue),
-    pushToDraft: e(pushToDraft),
-    logInvalidIteration: e(logInvalidIteration),
-    // Claude actions
-    runClaude: e(runClaude),
-    runClaudeFixCI: e(runClaudeFixCI),
-    runClaudeTriage: e(runClaudeTriage),
-    runClaudeComment: e(runClaudeComment),
-    runClaudePRReview: e(runClaudePRReview),
-    runClaudePRResponse: e(runClaudePRResponse),
-    runClaudePRHumanResponse: e(runClaudePRHumanResponse),
-    runClaudeGrooming: e(runClaudeGrooming),
-    runClaudePivot: e(runClaudePivot),
-    // Merge queue logging actions
-    logMergeQueueEntry: e(mergeQueueEntry),
-    logMergeQueueFailure: e(mergeQueueFailure),
-    logMerged: e(merged),
-    logDeployedStage: e(deployedStage),
-    logDeployedProd: e(deployedProd),
-    logDeployedStageFailure: e(deployedStageFailure),
-    logDeployedProdFailure: e(deployedProdFailure),
-    // Stop action (needs event.reason for the message - inline assign)
-    stopWithReason: assign({
-      pendingActions: ({ context: context3, event }) => {
-        const reason = "reason" in event && typeof event.reason === "string" ? event.reason : "unknown";
-        return accumulateFromEmitter(context3.pendingActions, context3, () => [
-          actions.stop.create({ message: reason })
-        ]);
-      }
-    })
-  }
-}).createMachine({
-  id: "issue-automation",
-  initial: STATES.detecting,
-  context: ({ input }) => ({
-    ...input,
-    pendingActions: []
-  }),
-  states: {
-    /**
-     * Initial state - determine what to do based on context
-     */
-    [STATES.detecting]: {
-      entry: "logDetecting",
-      on: {
-        DETECT: [
-          // Reset takes priority - can reset even Done/Blocked issues
-          { target: STATES.resetting, guard: "triggeredByReset" },
-          // Retry takes priority - can retry even Blocked issues (circuit breaker recovery)
-          { target: STATES.retrying, guard: "triggeredByRetry" },
-          // Pivot takes priority - can pivot even Done/Blocked issues
-          { target: STATES.pivoting, guard: "triggeredByPivot" },
-          // All phases complete takes priority
-          { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
-          // Check terminal states
-          { target: STATES.done, guard: "isAlreadyDone" },
-          { target: STATES.alreadyBlocked, guard: "isBlocked" },
-          { target: STATES.error, guard: "isError" },
-          // Merge queue logging events (handle early, they're log-only)
-          {
-            target: STATES.mergeQueueLogging,
-            guard: "triggeredByMergeQueueEntry"
-          },
-          {
-            target: STATES.mergeQueueFailureLogging,
-            guard: "triggeredByMergeQueueFailure"
-          },
-          // PR merged -> process merge (close sub-issue, then orchestrate)
-          { target: STATES.processingMerge, guard: "triggeredByPRMerged" },
-          {
-            target: STATES.deployedStageLogging,
-            guard: "triggeredByDeployedStage"
-          },
-          {
-            target: STATES.deployedProdLogging,
-            guard: "triggeredByDeployedProd"
-          },
-          {
-            target: STATES.deployedStageFailureLogging,
-            guard: "triggeredByDeployedStageFailure"
-          },
-          {
-            target: STATES.deployedProdFailureLogging,
-            guard: "triggeredByDeployedProdFailure"
-          },
-          // Check if this is a triage request
-          { target: STATES.triaging, guard: "triggeredByTriage" },
-          // Check if this is a comment (@claude mention)
-          { target: STATES.commenting, guard: "triggeredByComment" },
-          // Check if this is an orchestration request
-          { target: STATES.orchestrating, guard: "triggeredByOrchestrate" },
-          // Check if this is a PR review request (bot should review)
-          {
-            target: STATES.prReviewing,
-            guard: and(["triggeredByPRReview", "ciPassed"])
-          },
-          // Ack review request when CI status is unknown
-          {
-            target: STATES.prReviewAssigned,
-            guard: and(["triggeredByPRReview", not("ciFailed")])
-          },
-          // Skip review when CI explicitly failed
-          { target: STATES.prReviewSkipped, guard: "triggeredByPRReview" },
-          // Check if this is a PR response (bot responds to bot's review)
-          { target: STATES.prResponding, guard: "triggeredByPRResponse" },
-          // Check if this is a PR human response
-          {
-            target: STATES.prRespondingHuman,
-            guard: "triggeredByPRHumanResponse"
-          },
-          // Check if this is a PR review approval
-          {
-            target: STATES.processingReview,
-            guard: "triggeredByPRReviewApproved"
-          },
-          // Check if this is a push to a PR branch
-          { target: STATES.prPush, guard: "triggeredByPRPush" },
-          // Check if this is a CI completion event
-          { target: STATES.processingCI, guard: "triggeredByCI" },
-          // Check if this is a review submission event (for orchestration)
-          { target: STATES.processingReview, guard: "triggeredByReview" },
-          // Check if issue needs triage
-          { target: STATES.triaging, guard: "needsTriage" },
-          // Sub-issues with bot assigned iterate
-          { target: STATES.iterating, guard: "subIssueCanIterate" },
-          // Sub-issues without bot assignment: no-op
-          { target: STATES.subIssueIdle, guard: "isSubIssue" },
-          // Check if this is a grooming trigger
-          { target: STATES.grooming, guard: "triggeredByGroom" },
-          // Check if issue needs grooming
-          { target: STATES.grooming, guard: "needsGrooming" },
-          // Check for multi-phase work
-          { target: STATES.initializing, guard: "needsSubIssues" },
-          { target: STATES.orchestrating, guard: "hasSubIssues" },
-          // Check current state
-          { target: STATES.reviewing, guard: "isInReview" },
-          // Check if ready for review
-          { target: STATES.transitioningToReview, guard: "readyForReview" },
-          // FATAL: Parent issue without sub-issues cannot iterate
-          { target: STATES.invalidIteration }
-        ]
-      }
-    },
-    [STATES.triaging]: {
-      entry: ["logTriaging", "runClaudeTriage"],
-      type: "final"
-    },
-    [STATES.grooming]: {
-      entry: ["logGrooming", "runClaudeGrooming"],
-      type: "final"
-    },
-    [STATES.pivoting]: {
-      entry: ["logPivoting", "runClaudePivot"],
-      type: "final"
-    },
-    [STATES.resetting]: {
-      entry: ["logResetting", "resetIssue"],
-      type: "final"
-    },
-    [STATES.retrying]: {
-      entry: ["logRetrying", "retryIssue"],
-      always: [
-        { target: STATES.orchestrationRunning, guard: "hasSubIssues" },
-        { target: STATES.iterating }
-      ]
-    },
-    [STATES.commenting]: {
-      entry: ["logCommenting", "runClaudeComment"],
-      type: "final"
-    },
-    [STATES.prReviewing]: {
-      entry: ["logPRReviewing", "runClaudePRReview"],
-      type: "final"
-    },
-    [STATES.prResponding]: {
-      entry: ["logPRResponding", "runClaudePRResponse"],
-      type: "final"
-    },
-    [STATES.prRespondingHuman]: {
-      entry: ["logPRResponding", "runClaudePRHumanResponse"],
-      type: "final"
-    },
-    [STATES.prReviewSkipped]: {
-      type: "final"
-    },
-    [STATES.prReviewAssigned]: {
-      type: "final"
-    },
-    [STATES.prPush]: {
-      entry: ["pushToDraft", "setInProgress"],
-      type: "final"
-    },
-    [STATES.initializing]: {
-      entry: ["setInProgress"],
-      always: STATES.orchestrating
-    },
-    [STATES.orchestrating]: {
-      entry: ["logOrchestrating"],
-      always: [
-        { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
-        { target: STATES.orchestrationWaiting, guard: "currentPhaseInReview" },
-        { target: STATES.orchestrationRunning }
-      ]
-    },
-    [STATES.orchestrationRunning]: {
-      entry: ["orchestrate"],
-      type: "final"
-    },
-    [STATES.orchestrationWaiting]: {
-      entry: ["logWaitingForReview"],
-      type: "final"
-    },
-    [STATES.orchestrationComplete]: {
-      entry: ["allPhasesDone"],
-      type: "final"
-    },
-    [STATES.processingCI]: {
-      always: [
-        {
-          target: STATES.transitioningToReview,
-          guard: "readyForReview",
-          actions: ["historyCISuccess"]
-        },
-        {
-          target: STATES.iterating,
-          guard: "ciPassed",
-          actions: ["clearFailures", "historyCISuccess"]
-        },
-        {
-          target: STATES.blocked,
-          guard: "shouldBlock",
-          actions: ["blockIssue"]
-        },
-        {
-          target: STATES.iteratingFix,
-          guard: "ciFailed",
-          actions: ["handleCIFailure"]
-        },
-        { target: STATES.iterating }
-      ]
-    },
-    [STATES.processingReview]: {
-      always: [
-        {
-          target: STATES.awaitingMerge,
-          guard: "reviewApproved",
-          actions: ["mergePR"]
-        },
-        {
-          target: STATES.iterating,
-          guard: "reviewRequestedChanges",
-          actions: ["convertToDraft"]
-        },
-        { target: STATES.reviewing }
-      ]
-    },
-    [STATES.awaitingMerge]: {
-      entry: ["logAwaitingMerge", "setReview"],
-      type: "final"
-    },
-    [STATES.processingMerge]: {
-      entry: ["logMerged", "setDone", "closeIssue"],
-      always: STATES.orchestrating
-    },
-    [STATES.transitioningToReview]: {
-      entry: ["transitionToReview", "historyReviewRequested"],
-      always: STATES.reviewing
-    },
-    [STATES.iterating]: {
-      entry: [
-        "createBranch",
-        "setWorking",
-        "incrementIteration",
-        "historyIterationStarted",
-        "logIterating",
-        "runClaude",
-        "createPR"
-      ],
-      on: {
-        CI_SUCCESS: [
-          {
-            target: STATES.transitioningToReview,
-            guard: "todosDone",
-            actions: ["historyCISuccess"]
-          },
-          {
-            target: STATES.iterating,
-            actions: ["clearFailures", "historyCISuccess"]
-          }
-        ],
-        CI_FAILURE: [
-          {
-            target: STATES.blocked,
-            guard: "maxFailuresReached",
-            actions: ["blockIssue"]
-          },
-          {
-            target: STATES.iteratingFix,
-            actions: ["handleCIFailure"]
-          }
-        ]
-      },
-      type: "final"
-    },
-    [STATES.iteratingFix]: {
-      entry: [
-        "createBranch",
-        "incrementIteration",
-        "historyIterationStarted",
-        "logFixingCI",
-        "runClaudeFixCI",
-        "createPR"
-      ],
-      on: {
-        CI_SUCCESS: [
-          {
-            target: STATES.transitioningToReview,
-            guard: "todosDone",
-            actions: ["historyCISuccess"]
-          },
-          {
-            target: STATES.iterating,
-            actions: ["clearFailures", "historyCISuccess"]
-          }
-        ],
-        CI_FAILURE: [
-          {
-            target: STATES.blocked,
-            guard: "maxFailuresReached",
-            actions: ["blockIssue"]
-          },
-          {
-            target: STATES.iteratingFix,
-            actions: ["handleCIFailure"]
-          }
-        ]
-      },
-      type: "final"
-    },
-    [STATES.reviewing]: {
-      entry: ["logReviewing", "setReview"],
-      on: {
-        REVIEW_APPROVED: STATES.orchestrating,
-        REVIEW_CHANGES_REQUESTED: {
-          target: STATES.iterating,
-          actions: ["convertToDraft"]
-        },
-        REVIEW_COMMENTED: STATES.reviewing
-      },
-      type: "final"
-    },
-    [STATES.blocked]: {
-      type: "final"
-    },
-    [STATES.alreadyBlocked]: {
-      type: "final"
-    },
-    [STATES.error]: {
-      type: "final"
-    },
-    [STATES.subIssueIdle]: {
-      entry: [
-        e(
-          (ctx) => emitLog(
-            ctx,
-            `Sub-issue #${ctx.context.issue.number} edited but not assigned \u2014 skipping`
-          )
-        )
-      ],
-      type: "final"
-    },
-    [STATES.invalidIteration]: {
-      entry: ["logInvalidIteration", "setError"],
-      type: "final"
-    },
-    // Merge Queue Logging States
-    [STATES.mergeQueueLogging]: {
-      entry: ["logMergeQueueEntry"],
-      type: "final"
-    },
-    [STATES.mergeQueueFailureLogging]: {
-      entry: ["logMergeQueueFailure"],
-      type: "final"
-    },
-    [STATES.mergedLogging]: {
-      entry: ["logMerged"],
-      type: "final"
-    },
-    [STATES.deployedStageLogging]: {
-      entry: ["logDeployedStage"],
-      type: "final"
-    },
-    [STATES.deployedProdLogging]: {
-      entry: ["logDeployedProd"],
-      type: "final"
-    },
-    [STATES.deployedStageFailureLogging]: {
-      entry: ["logDeployedStageFailure"],
-      type: "final"
-    },
-    [STATES.deployedProdFailureLogging]: {
-      entry: ["logDeployedProdFailure"],
-      type: "final"
-    },
-    [STATES.done]: {
-      entry: ["setDone", "closeIssue"],
-      type: "final"
-    }
-  }
-});
-
-// packages/statemachine/src/machines/issues/events.ts
-function getTriggerEvent(context3) {
-  switch (context3.trigger) {
-    case "workflow-run-completed":
-      if (context3.ciResult === "success") {
-        return { type: "CI_SUCCESS" };
-      } else if (context3.ciResult === "failure") {
-        return { type: "CI_FAILURE" };
-      }
-      return { type: "START" };
-    case "pr-review-submitted":
-      switch (context3.reviewDecision) {
-        case "APPROVED":
-          return { type: "REVIEW_APPROVED" };
-        case "CHANGES_REQUESTED":
-          return { type: "REVIEW_CHANGES_REQUESTED" };
-        case "COMMENTED":
-          return { type: "REVIEW_COMMENTED" };
-        default:
-          return { type: "START" };
-      }
-    default:
-      return { type: "START" };
-  }
-}
-
-// packages/statemachine/src/machines/issue-next-invoke/index.ts
-var issue_next_invoke_exports = {};
-__export(issue_next_invoke_exports, {
-  ContextLoader: () => ContextLoader,
-  IssueMachine: () => IssueMachine,
-  MachineVerifier: () => MachineVerifier,
-  STATES: () => STATES,
-  buildActionsForService: () => buildActionsForService,
-  buildDeriveMetadata: () => buildDeriveMetadata,
-  buildEventFromWorkflow: () => buildEventFromWorkflow,
-  createDefaultServices: () => createDefaultServices,
-  deriveFromWorkflow: () => deriveFromWorkflow,
-  getTriggerEvent: () => getTriggerEvent,
-  guards: () => guards,
-  issueInvokeMachine: () => issueInvokeMachine
-});
-
-// packages/statemachine/src/machines/issue-next-invoke/services.ts
+// packages/statemachine/src/machines/issues/services.ts
 function buildActionsForService(serviceName, context3, reason) {
   const ctx = { context: context3 };
   switch (serviceName) {
-    // Log services
-    case "logDetecting":
-      return emitLog(ctx, "Detecting initial state");
-    case "logIterating":
-      return emitLog(ctx, `Starting iteration ${context3.issue.iteration + 1}`);
-    case "logFixingCI":
-      return emitLog(
-        ctx,
-        `Fixing CI (iteration ${context3.issue.iteration + 1})`
-      );
-    case "logReviewing":
-      return emitLog(ctx, "PR is under review");
-    case "logTriaging":
-      return emitLog(ctx, `Triaging issue #${context3.issue.number}`);
-    case "logCommenting":
-      return emitLog(ctx, `Responding to comment on #${context3.issue.number}`);
-    case "logWaitingForReview":
-      return emitLog(ctx, "Waiting for review on current phase");
-    case "logAwaitingMerge":
-      return emitLog(
-        ctx,
-        `PR #${context3.pr?.number} marked ready for merge - awaiting human action`
-      );
-    case "logOrchestrating":
-      return emitLog(
-        ctx,
-        `Orchestrating issue #${context3.issue.number} (phase ${context3.currentPhase}/${context3.totalPhases})`
-      );
-    case "logPRReviewing":
-      return emitLog(ctx, `Reviewing PR #${context3.pr?.number ?? "unknown"}`);
-    case "logPRResponding":
-      return emitLog(
-        ctx,
-        `Responding to review on PR #${context3.pr?.number ?? "unknown"}`
-      );
-    case "logResetting":
-      return emitLog(
-        ctx,
-        `Resetting issue #${context3.issue.number} to initial state`
-      );
-    case "logRetrying":
-      return emitLog(
-        ctx,
-        `Retrying issue #${context3.issue.number} (clearing failures)`
-      );
-    case "logGrooming":
-      return emitLog(ctx, `Grooming issue #${context3.issue.number}`);
-    case "logPivoting":
-      return emitLog(ctx, `Pivoting issue #${context3.issue.number}`);
-    case "logSubIssueIdle":
-      return emitLog(
-        ctx,
-        `Sub-issue #${context3.issue.number} edited but not assigned \u2014 skipping`
-      );
     // History services
     case "historyIterationStarted":
-      return emitAppendHistory(ctx, HISTORY_MESSAGES2.ITERATING);
+      return emitAppendHistory(ctx, HISTORY_MESSAGES.ITERATING);
     case "historyCISuccess":
       return emitUpdateHistory(
         ctx,
-        HISTORY_ICONS2.ITERATING,
-        HISTORY_MESSAGES2.CI_PASSED
+        HISTORY_ICONS.ITERATING,
+        HISTORY_MESSAGES.CI_PASSED
       );
     case "historyReviewRequested":
-      return emitAppendHistory(ctx, HISTORY_MESSAGES2.REVIEW_REQUESTED);
+      return emitAppendHistory(ctx, HISTORY_MESSAGES.REVIEW_REQUESTED);
     // Status services
     case "setWorking":
       return emitStatus(ctx, "In progress");
@@ -73338,78 +72808,8 @@ function buildActionsForService(serviceName, context3, reason) {
       return [];
   }
 }
-function createDefaultServices() {
-  const serviceNames = [
-    "logDetecting",
-    "logIterating",
-    "logFixingCI",
-    "logReviewing",
-    "logTriaging",
-    "logCommenting",
-    "logWaitingForReview",
-    "logAwaitingMerge",
-    "logOrchestrating",
-    "logPRReviewing",
-    "logPRResponding",
-    "logResetting",
-    "logRetrying",
-    "logGrooming",
-    "logPivoting",
-    "logSubIssueIdle",
-    "historyIterationStarted",
-    "historyCISuccess",
-    "historyReviewRequested",
-    "setWorking",
-    "setReview",
-    "setInProgress",
-    "setDone",
-    "setError",
-    "incrementIteration",
-    "clearFailures",
-    "closeIssue",
-    "createBranch",
-    "createPR",
-    "convertToDraft",
-    "mergePR",
-    "transitionToReview",
-    "handleCIFailure",
-    "blockIssue",
-    "orchestrate",
-    "allPhasesDone",
-    "resetIssue",
-    "retryIssue",
-    "pushToDraft",
-    "logInvalidIteration",
-    "runClaude",
-    "runClaudeFixCI",
-    "runClaudeTriage",
-    "runClaudeComment",
-    "runClaudePRReview",
-    "runClaudePRResponse",
-    "runClaudePRHumanResponse",
-    "runClaudeGrooming",
-    "runClaudePivot",
-    "logMergeQueueEntry",
-    "logMergeQueueFailure",
-    "logMerged",
-    "logDeployedStage",
-    "logDeployedProd",
-    "logDeployedStageFailure",
-    "logDeployedProdFailure",
-    "stopWithReason"
-  ];
-  const services = {};
-  for (const name of serviceNames) {
-    services[name] = fromPromise(
-      async ({ input }) => ({
-        actions: buildActionsForService(name, input.context, input.reason)
-      })
-    );
-  }
-  return services;
-}
 
-// packages/statemachine/src/machines/issue-next-invoke/machine.ts
+// packages/statemachine/src/machines/issues/machine.ts
 function syncAction(...serviceNames) {
   return assign({
     pendingActions: ({ context: context3 }) => {
@@ -73432,22 +72832,6 @@ var issueInvokeMachine = setup({
   },
   guards,
   actions: {
-    // Log actions
-    logDetecting: syncAction("logDetecting"),
-    logIterating: syncAction("logIterating"),
-    logFixingCI: syncAction("logFixingCI"),
-    logReviewing: syncAction("logReviewing"),
-    logTriaging: syncAction("logTriaging"),
-    logCommenting: syncAction("logCommenting"),
-    logWaitingForReview: syncAction("logWaitingForReview"),
-    logAwaitingMerge: syncAction("logAwaitingMerge"),
-    logOrchestrating: syncAction("logOrchestrating"),
-    logPRReviewing: syncAction("logPRReviewing"),
-    logPRResponding: syncAction("logPRResponding"),
-    logResetting: syncAction("logResetting"),
-    logRetrying: syncAction("logRetrying"),
-    logGrooming: syncAction("logGrooming"),
-    logPivoting: syncAction("logPivoting"),
     // History actions
     historyIterationStarted: syncAction("historyIterationStarted"),
     historyCISuccess: syncAction("historyCISuccess"),
@@ -73506,9 +72890,7 @@ var issueInvokeMachine = setup({
           ...buildActionsForService("stopWithReason", context3, reason)
         ];
       }
-    }),
-    // subIssueIdle inline log
-    logSubIssueIdle: syncAction("logSubIssueIdle")
+    })
   }
 }).createMachine({
   id: "issue-invoke",
@@ -73519,7 +72901,6 @@ var issueInvokeMachine = setup({
   }),
   states: {
     [STATES.detecting]: {
-      entry: "logDetecting",
       on: {
         DETECT: [
           { target: STATES.resetting, guard: "triggeredByReset" },
@@ -73592,42 +72973,42 @@ var issueInvokeMachine = setup({
       }
     },
     [STATES.triaging]: {
-      entry: ["logTriaging", "runClaudeTriage"],
+      entry: "runClaudeTriage",
       type: "final"
     },
     [STATES.grooming]: {
-      entry: ["logGrooming", "runClaudeGrooming"],
+      entry: "runClaudeGrooming",
       type: "final"
     },
     [STATES.pivoting]: {
-      entry: ["logPivoting", "runClaudePivot"],
+      entry: "runClaudePivot",
       type: "final"
     },
     [STATES.resetting]: {
-      entry: ["logResetting", "resetIssue"],
+      entry: "resetIssue",
       type: "final"
     },
     [STATES.retrying]: {
-      entry: ["logRetrying", "retryIssue"],
+      entry: "retryIssue",
       always: [
         { target: STATES.orchestrationRunning, guard: "hasSubIssues" },
         { target: STATES.iterating }
       ]
     },
     [STATES.commenting]: {
-      entry: ["logCommenting", "runClaudeComment"],
+      entry: "runClaudeComment",
       type: "final"
     },
     [STATES.prReviewing]: {
-      entry: ["logPRReviewing", "runClaudePRReview"],
+      entry: "runClaudePRReview",
       type: "final"
     },
     [STATES.prResponding]: {
-      entry: ["logPRResponding", "runClaudePRResponse"],
+      entry: "runClaudePRResponse",
       type: "final"
     },
     [STATES.prRespondingHuman]: {
-      entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      entry: "runClaudePRHumanResponse",
       type: "final"
     },
     [STATES.prReviewSkipped]: {
@@ -73645,7 +73026,6 @@ var issueInvokeMachine = setup({
       always: STATES.orchestrating
     },
     [STATES.orchestrating]: {
-      entry: ["logOrchestrating"],
       always: [
         { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
         { target: STATES.orchestrationWaiting, guard: "currentPhaseInReview" },
@@ -73657,7 +73037,6 @@ var issueInvokeMachine = setup({
       type: "final"
     },
     [STATES.orchestrationWaiting]: {
-      entry: ["logWaitingForReview"],
       type: "final"
     },
     [STATES.orchestrationComplete]: {
@@ -73705,7 +73084,7 @@ var issueInvokeMachine = setup({
       ]
     },
     [STATES.awaitingMerge]: {
-      entry: ["logAwaitingMerge", "setReview"],
+      entry: "setReview",
       type: "final"
     },
     [STATES.processingMerge]: {
@@ -73722,7 +73101,6 @@ var issueInvokeMachine = setup({
         "setWorking",
         "incrementIteration",
         "historyIterationStarted",
-        "logIterating",
         "runClaude",
         "createPR"
       ],
@@ -73757,7 +73135,6 @@ var issueInvokeMachine = setup({
         "createBranch",
         "incrementIteration",
         "historyIterationStarted",
-        "logFixingCI",
         "runClaudeFixCI",
         "createPR"
       ],
@@ -73788,7 +73165,7 @@ var issueInvokeMachine = setup({
       type: "final"
     },
     [STATES.reviewing]: {
-      entry: ["logReviewing", "setReview"],
+      entry: "setReview",
       on: {
         REVIEW_APPROVED: STATES.orchestrating,
         REVIEW_CHANGES_REQUESTED: {
@@ -73809,7 +73186,6 @@ var issueInvokeMachine = setup({
       type: "final"
     },
     [STATES.subIssueIdle]: {
-      entry: ["logSubIssueIdle"],
       type: "final"
     },
     [STATES.invalidIteration]: {
@@ -73850,756 +73226,64 @@ var issueInvokeMachine = setup({
     }
   }
 });
-
-// packages/statemachine/src/core/types.ts
-var consoleLogger = {
-  debug: (m) => console.debug(m),
-  info: (m) => console.info(m),
-  warning: (m) => console.warn(m),
-  error: (m) => console.error(m)
+var STATE_LOG_MESSAGES = {
+  detecting: () => "Detecting initial state",
+  triaging: (ctx) => `Triaging issue #${ctx.issue.number}`,
+  grooming: (ctx) => `Grooming issue #${ctx.issue.number}`,
+  pivoting: (ctx) => `Pivoting issue #${ctx.issue.number}`,
+  resetting: (ctx) => `Resetting issue #${ctx.issue.number} to initial state`,
+  retrying: (ctx) => `Retrying issue #${ctx.issue.number} (clearing failures)`,
+  commenting: (ctx) => `Responding to comment on #${ctx.issue.number}`,
+  prReviewing: (ctx) => `Reviewing PR #${ctx.pr?.number ?? "unknown"}`,
+  prResponding: (ctx) => `Responding to review on PR #${ctx.pr?.number ?? "unknown"}`,
+  prRespondingHuman: (ctx) => `Responding to review on PR #${ctx.pr?.number ?? "unknown"}`,
+  orchestrating: (ctx) => `Orchestrating issue #${ctx.issue.number} (phase ${ctx.currentPhase}/${ctx.totalPhases})`,
+  orchestrationWaiting: () => "Waiting for review on current phase",
+  awaitingMerge: (ctx) => `PR #${ctx.pr?.number} marked ready for merge - awaiting human action`,
+  iterating: (ctx) => `Starting iteration ${ctx.issue.iteration + 1}`,
+  iteratingFix: (ctx) => `Fixing CI (iteration ${ctx.issue.iteration + 1})`,
+  reviewing: () => "PR is under review",
+  subIssueIdle: (ctx) => `Sub-issue #${ctx.issue.number} edited but not assigned \u2014 skipping`
 };
-var LOG_LEVELS = /* @__PURE__ */ new Set(["debug", "info", "warning", "error"]);
-function routeLogAction(action, logger) {
-  const rawLevel = "level" in action && typeof action.level === "string" ? action.level : "info";
-  const level = LOG_LEVELS.has(rawLevel) ? rawLevel : "info";
-  const message = "message" in action && typeof action.message === "string" ? action.message : "unknown";
-  logger[level](message);
-}
-
-// packages/statemachine/src/runner/runner.ts
-var core11 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/types.ts
-function getOctokitForAction(action, ctx) {
-  const tokenType = action.token || "code";
-  if (tokenType === "review" && ctx.reviewOctokit) {
-    return ctx.reviewOctokit;
+var IssueMachine = class extends BaseMachine {
+  getMachine() {
+    return issueInvokeMachine;
   }
-  return ctx.octokit;
-}
-
-// packages/statemachine/src/runner/signaler.ts
-var core10 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/runner.ts
-async function executeAction(action, ctx, chainCtx) {
-  const actionCtx = {
-    ...ctx,
-    octokit: getOctokitForAction(action, ctx)
-  };
-  const def = actions[action.type];
-  return def.execute(action, actionCtx, chainCtx);
-}
-async function executeActions(actions2, ctx, options = {}) {
-  const startTime = Date.now();
-  const results = [];
-  let stoppedEarly = false;
-  let stopReason;
-  const chainCtx = {};
-  const { stopOnError = true, logActions = true } = options;
-  for (const action of actions2) {
-    const actionStartTime = Date.now();
-    const parseResult = ActionSchema.safeParse(action);
-    if (!parseResult.success) {
-      core11.error(`Invalid action: ${JSON.stringify(action)}`);
-      results.push({
-        action,
-        success: false,
-        skipped: false,
-        error: new Error(`Invalid action: ${parseResult.error.message}`),
-        durationMs: Date.now() - actionStartTime
-      });
-      if (stopOnError) {
-        stoppedEarly = true;
-        stopReason = "Invalid action";
-        break;
-      }
-      continue;
-    }
-    const validatedAction = parseResult.data;
-    if (logActions) {
-      core11.info(`Executing action: ${validatedAction.type}`);
-    }
-    if (ctx.dryRun) {
-      core11.info(`[DRY RUN] Would execute: ${validatedAction.type}`);
-      results.push({
-        action: validatedAction,
-        success: true,
-        skipped: true,
-        durationMs: Date.now() - actionStartTime
-      });
-      continue;
-    }
-    try {
-      const result = await executeAction(validatedAction, ctx, chainCtx);
-      if (validatedAction.type === "runClaude") {
-        const claudeResult = result;
-        if (claudeResult.structuredOutput) {
-          chainCtx.lastClaudeStructuredOutput = claudeResult.structuredOutput;
-          core11.info("Stored structured output for subsequent actions");
-        }
-      }
-      if (validatedAction.type === "runClaudeGrooming") {
-        const groomingResult = result;
-        if (groomingResult.outputs) {
-          chainCtx.lastClaudeStructuredOutput = groomingResult.outputs;
-          core11.info("Stored grooming outputs for subsequent actions");
-        }
-      }
-      if (validatedAction.type === "applyGroomingOutput") {
-        chainCtx.lastClaudeStructuredOutput = result;
-        core11.info("Stored grooming decision for subsequent reconcileSubIssues");
-      }
-      const branchResult = result;
-      if (validatedAction.type === "createBranch" && branchResult.shouldStop) {
-        const hasPendingCreatePR = actions2.some((a) => a.type === "createPR");
-        if (!hasPendingCreatePR) {
-          results.push({
-            action: validatedAction,
-            success: true,
-            skipped: false,
-            result,
-            durationMs: Date.now() - actionStartTime
-          });
-          stoppedEarly = true;
-          stopReason = "branch_rebased_and_pushed";
-          core11.info(
-            "Stopping after branch rebase - CI will re-trigger with up-to-date branch"
-          );
-          break;
-        }
-        core11.info(
-          "Branch rebased and pushed, but no PR exists yet \u2014 continuing execution"
-        );
-      }
-      results.push({
-        action: validatedAction,
-        success: true,
-        skipped: false,
-        result,
-        durationMs: Date.now() - actionStartTime
-      });
-      if (isTerminalAction(validatedAction)) {
-        stoppedEarly = true;
-        stopReason = validatedAction.type === "stop" ? validatedAction.message : `${validatedAction.type} action`;
-        break;
-      }
-    } catch (error7) {
-      const err = error7 instanceof Error ? error7 : new Error(String(error7));
-      core11.error(`Action failed: ${validatedAction.type} - ${err.message}`);
-      results.push({
-        action: validatedAction,
-        success: false,
-        skipped: false,
-        error: err,
-        durationMs: Date.now() - actionStartTime
-      });
-      if (stopOnError && shouldStopOnError(validatedAction.type)) {
-        stoppedEarly = true;
-        stopReason = `Error in ${validatedAction.type}: ${err.message}`;
-        break;
-      }
-    }
+  getDefaultEvent() {
+    return { type: "DETECT" };
   }
-  return {
-    success: results.every((r) => r.success || r.skipped),
-    results,
-    totalDurationMs: Date.now() - startTime,
-    stoppedEarly,
-    stopReason
-  };
-}
-
-// packages/statemachine/src/machines/issue-next-invoke/issue-machine.ts
-var IssueMachine = class {
-  context;
-  logger;
-  constructor(context3, options) {
-    this.context = context3;
-    this.logger = options?.logger ?? consoleLogger;
-  }
-  /**
-   * Run the machine: start, send DETECT, collect actions.
-   * Log actions are consumed by the injected logger instead of being
-   * included in the returned action list.
-   */
-  run(options) {
-    const actor = createActor(issueInvokeMachine, {
-      input: this.context
-    });
-    actor.start();
-    actor.send(options?.event ?? { type: "DETECT" });
-    const snapshot = actor.getSnapshot();
-    const allActions = snapshot.context.pendingActions;
-    const actions2 = [];
-    for (const action of allActions) {
-      if (action.type === "log") {
-        routeLogAction(action, this.logger);
-      } else {
-        actions2.push(action);
-      }
-    }
-    return {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState snapshot.value is typed as string, but our machine only produces IssueState values
-      state: snapshot.value,
-      actions: actions2,
-      context: this.context
-    };
-  }
-  /**
-   * Predict mode: run the machine with default stubs.
-   * Same as run() — alias for clarity.
-   */
-  predict(options) {
-    return this.run(options);
-  }
-  /**
-   * Execute mode: run the machine to derive actions, then execute them
-   * via the existing runner infrastructure.
-   */
-  async execute(options) {
-    const machineResult = this.predict(options);
-    const runnerResult = await executeActions(
-      machineResult.actions,
-      options.runnerContext,
-      options.runnerOptions
-    );
-    return { ...machineResult, runnerResult };
-  }
-  /**
-   * Get the final state without computing actions.
-   */
-  getState(options) {
-    const actor = createActor(issueInvokeMachine, {
-      input: this.context
-    });
-    actor.start();
-    actor.send(options?.event ?? { type: "DETECT" });
-    return actor.getSnapshot().value;
+  getLogMessage(stateName) {
+    const messageFn = STATE_LOG_MESSAGES[stateName];
+    return messageFn ? messageFn(this.context) : null;
   }
 };
 
-// packages/statemachine/src/machines/issue-next-invoke/context-loader.ts
+// packages/statemachine/src/machines/issues/context.ts
 var core14 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/runner/derive.ts
-var core13 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/discussion/context-builder.ts
-var core12 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/discussion/guards.ts
-function triggeredByDiscussionCreated({ context: context3 }) {
-  return context3.trigger === "discussion-created";
-}
-function triggeredByDiscussionComment({ context: context3 }) {
-  return context3.trigger === "discussion-comment";
-}
-function triggeredByDiscussionCommand({ context: context3 }) {
-  return context3.trigger === "discussion-command";
-}
-function commandIsSummarize({ context: context3 }) {
-  return context3.discussion.command === "summarize";
-}
-function commandIsPlan({ context: context3 }) {
-  return context3.discussion.command === "plan";
-}
-function commandIsComplete({ context: context3 }) {
-  return context3.discussion.command === "complete";
-}
-function isHumanComment({ context: context3 }) {
-  const author = context3.discussion.commentAuthor;
-  if (!author) return false;
-  return !author.endsWith("[bot]") && author !== context3.botUsername;
-}
-function isBotResearchThread({ context: context3 }) {
-  const author = context3.discussion.commentAuthor;
-  return (author === context3.botUsername || author?.endsWith("[bot]") === true) && context3.trigger === "discussion-comment";
-}
-function hasDiscussionContext({ context: context3 }) {
-  return context3.discussion !== null && context3.discussion !== void 0;
-}
-function hasComment({ context: context3 }) {
-  return context3.discussion.commentId !== void 0 && context3.discussion.commentBody !== void 0;
-}
-var discussionGuards = {
-  // Trigger guards
-  triggeredByDiscussionCreated,
-  triggeredByDiscussionComment,
-  triggeredByDiscussionCommand,
-  // Command guards
-  commandIsSummarize,
-  commandIsPlan,
-  commandIsComplete,
-  // Author guards
-  isHumanComment,
-  isBotResearchThread,
-  // State guards
-  hasDiscussionContext,
-  hasComment
-};
-
-// packages/statemachine/src/discussion/action-emitters.ts
-function emitRunClaudeResearch({
-  context: context3
-}) {
-  const promptVars = {
-    DISCUSSION_NUMBER: String(context3.discussion.number),
-    DISCUSSION_NODE_ID: context3.discussion.nodeId,
-    DISCUSSION_TITLE: context3.discussion.title,
-    DISCUSSION_BODY: context3.discussion.body
-  };
-  const researchArtifact = {
-    name: `claude-research-output-${context3.discussion.number}`,
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "discussion/research",
-      promptVars,
-      issueNumber: context3.discussion.number,
-      producesArtifact: researchArtifact
-    },
-    {
-      type: "applyDiscussionResearchOutput",
-      token: "code",
-      discussionNumber: context3.discussion.number,
-      discussionNodeId: context3.discussion.nodeId,
-      promptVars,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: researchArtifact
-    }
-  ];
-}
-function emitRunClaudeRespond({ context: context3 }) {
-  const promptVars = {
-    DISCUSSION_NUMBER: String(context3.discussion.number),
-    DISCUSSION_NODE_ID: context3.discussion.nodeId,
-    DISCUSSION_TITLE: context3.discussion.title,
-    DISCUSSION_BODY: context3.discussion.body,
-    COMMENT_ID: context3.discussion.commentId ?? "",
-    COMMENT_BODY: context3.discussion.commentBody ?? "",
-    COMMENT_AUTHOR: context3.discussion.commentAuthor ?? ""
-  };
-  const respondArtifact = {
-    name: `claude-respond-output-${context3.discussion.number}`,
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "discussion/respond",
-      promptVars,
-      issueNumber: context3.discussion.number,
-      producesArtifact: respondArtifact
-    },
-    {
-      type: "applyDiscussionRespondOutput",
-      token: "code",
-      discussionNumber: context3.discussion.number,
-      discussionNodeId: context3.discussion.nodeId,
-      replyToNodeId: context3.discussion.commentId,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: respondArtifact
-    }
-  ];
-}
-function emitRunClaudeSummarize({
-  context: context3
-}) {
-  const promptVars = {
-    DISCUSSION_NUMBER: String(context3.discussion.number),
-    DISCUSSION_NODE_ID: context3.discussion.nodeId,
-    DISCUSSION_TITLE: context3.discussion.title,
-    DISCUSSION_BODY: context3.discussion.body
-  };
-  const summarizeArtifact = {
-    name: `claude-summarize-output-${context3.discussion.number}`,
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "discussion/summarize",
-      promptVars,
-      issueNumber: context3.discussion.number,
-      producesArtifact: summarizeArtifact
-    },
-    {
-      type: "applyDiscussionSummarizeOutput",
-      token: "code",
-      discussionNumber: context3.discussion.number,
-      discussionNodeId: context3.discussion.nodeId,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: summarizeArtifact
-    }
-  ];
-}
-function emitRunClaudePlan({ context: context3 }) {
-  const promptVars = {
-    DISCUSSION_NUMBER: String(context3.discussion.number),
-    DISCUSSION_NODE_ID: context3.discussion.nodeId,
-    DISCUSSION_TITLE: context3.discussion.title,
-    DISCUSSION_BODY: context3.discussion.body
-  };
-  const planArtifact = {
-    name: `claude-plan-output-${context3.discussion.number}`,
-    path: "claude-structured-output.json"
-  };
-  return [
-    {
-      type: "runClaude",
-      token: "code",
-      promptDir: "discussion/plan",
-      promptVars,
-      issueNumber: context3.discussion.number,
-      producesArtifact: planArtifact
-    },
-    {
-      type: "applyDiscussionPlanOutput",
-      token: "code",
-      discussionNumber: context3.discussion.number,
-      discussionNodeId: context3.discussion.nodeId,
-      filePath: "claude-structured-output.json",
-      consumesArtifact: planArtifact
-    }
-  ];
-}
-function emitComplete({ context: context3 }) {
-  const actions2 = [];
-  if (context3.discussion.commentId) {
-    actions2.push({
-      type: "addDiscussionReaction",
-      token: "code",
-      subjectId: context3.discussion.commentId,
-      content: "ROCKET"
-    });
-  }
-  actions2.push({
-    type: "addDiscussionComment",
-    token: "code",
-    discussionNodeId: context3.discussion.nodeId,
-    body: `This discussion has been marked as complete.
-
-If you have additional questions, feel free to post a new comment!`
-  });
-  return actions2;
-}
-function emitLogResearching({ context: context3 }) {
-  return [
-    {
-      type: "log",
-      token: "code",
-      level: "info",
-      message: `Researching discussion #${context3.discussion.number}`
-    }
-  ];
-}
-function emitLogResponding({ context: context3 }) {
-  return [
-    {
-      type: "log",
-      token: "code",
-      level: "info",
-      message: `Responding to comment in discussion #${context3.discussion.number}`
-    }
-  ];
-}
-function emitLogSummarizing({ context: context3 }) {
-  return [
-    {
-      type: "log",
-      token: "code",
-      level: "info",
-      message: `Summarizing discussion #${context3.discussion.number}`
-    }
-  ];
-}
-function emitLogPlanning({ context: context3 }) {
-  return [
-    {
-      type: "log",
-      token: "code",
-      level: "info",
-      message: `Creating plan from discussion #${context3.discussion.number}`
-    }
-  ];
-}
-function emitLogCompleting({ context: context3 }) {
-  return [
-    {
-      type: "log",
-      token: "code",
-      level: "info",
-      message: `Completing discussion #${context3.discussion.number}`
-    }
-  ];
-}
-
-// packages/statemachine/src/discussion/machine.ts
-function accumulateActions(existingActions, newActions) {
-  return [...existingActions, ...newActions];
-}
-var discussionMachine = setup({
-  types: {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    events: {},
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    input: {}
-  },
-  guards: {
-    // Trigger guards
-    triggeredByDiscussionCreated: ({ context: context3 }) => discussionGuards.triggeredByDiscussionCreated({ context: context3 }),
-    triggeredByDiscussionComment: ({ context: context3 }) => discussionGuards.triggeredByDiscussionComment({ context: context3 }),
-    triggeredByDiscussionCommand: ({ context: context3 }) => discussionGuards.triggeredByDiscussionCommand({ context: context3 }),
-    // Command guards
-    commandIsSummarize: ({ context: context3 }) => discussionGuards.commandIsSummarize({ context: context3 }),
-    commandIsPlan: ({ context: context3 }) => discussionGuards.commandIsPlan({ context: context3 }),
-    commandIsComplete: ({ context: context3 }) => discussionGuards.commandIsComplete({ context: context3 }),
-    // Author guards
-    isHumanComment: ({ context: context3 }) => discussionGuards.isHumanComment({ context: context3 }),
-    isBotResearchThread: ({ context: context3 }) => discussionGuards.isBotResearchThread({ context: context3 }),
-    // State guards
-    hasDiscussionContext: ({ context: context3 }) => discussionGuards.hasDiscussionContext({ context: context3 }),
-    noDiscussionContext: ({ context: context3 }) => !discussionGuards.hasDiscussionContext({ context: context3 }),
-    isHumanDiscussionComment: ({ context: context3 }) => discussionGuards.triggeredByDiscussionComment({ context: context3 }) && discussionGuards.isHumanComment({ context: context3 })
-  },
-  actions: {
-    // Logging actions
-    logDetecting: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, [
-        {
-          type: "log",
-          token: "code",
-          level: "info",
-          message: "Detecting discussion trigger type"
-        }
-      ])
-    }),
-    logResearching: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitLogResearching({ context: context3 })
-      )
-    }),
-    logResponding: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitLogResponding({ context: context3 })
-      )
-    }),
-    logSummarizing: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitLogSummarizing({ context: context3 })
-      )
-    }),
-    logPlanning: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, emitLogPlanning({ context: context3 }))
-    }),
-    logCompleting: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitLogCompleting({ context: context3 })
-      )
-    }),
-    logSkipped: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, [
-        {
-          type: "log",
-          token: "code",
-          level: "info",
-          message: `Skipping - bot comment or no action needed for discussion #${context3.discussion.number}`
-        }
-      ])
-    }),
-    logNoContext: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, [
-        {
-          type: "log",
-          token: "code",
-          level: "warning",
-          message: "No discussion context available"
-        }
-      ])
-    }),
-    // Research actions
-    runClaudeResearch: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitRunClaudeResearch({ context: context3 })
-      )
-    }),
-    // Respond actions
-    runClaudeRespond: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitRunClaudeRespond({ context: context3 })
-      )
-    }),
-    // Summarize actions
-    runClaudeSummarize: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitRunClaudeSummarize({ context: context3 })
-      )
-    }),
-    // Plan actions
-    runClaudePlan: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(
-        context3.pendingActions,
-        emitRunClaudePlan({ context: context3 })
-      )
-    }),
-    // Complete actions
-    complete: assign({
-      pendingActions: ({ context: context3 }) => accumulateActions(context3.pendingActions, emitComplete({ context: context3 }))
-    })
-  }
-}).createMachine({
-  id: "discussion-automation",
-  initial: "detecting",
-  context: ({ input }) => ({
-    ...input,
-    pendingActions: []
-  }),
-  states: {
-    /**
-     * Initial state - determine what to do based on trigger type
-     */
-    detecting: {
-      entry: "logDetecting",
-      always: [
-        // No discussion context - error
-        {
-          target: "noContext",
-          guard: "noDiscussionContext"
-        },
-        // New discussion created - spawn research threads
-        {
-          target: "researching",
-          guard: "triggeredByDiscussionCreated"
-        },
-        // Command triggered - route to appropriate handler
-        {
-          target: "commanding",
-          guard: "triggeredByDiscussionCommand"
-        },
-        // Discussion comment - respond
-        {
-          target: "responding",
-          guard: "triggeredByDiscussionComment"
-        },
-        // Default - skip (unknown trigger)
-        { target: "skipped" }
-      ]
-    },
-    /**
-     * No discussion context available
-     */
-    noContext: {
-      entry: "logNoContext",
-      type: "final"
-    },
-    /**
-     * Skipped - no action needed
-     */
-    skipped: {
-      entry: "logSkipped",
-      type: "final"
-    },
-    /**
-     * Research a new discussion
-     * Spawns research threads to investigate the topic
-     */
-    researching: {
-      entry: ["logResearching", "runClaudeResearch"],
-      type: "final"
-    },
-    /**
-     * Respond to a human comment
-     */
-    responding: {
-      entry: ["logResponding", "runClaudeRespond"],
-      type: "final"
-    },
-    /**
-     * Handle a slash command - route to specific handler
-     */
-    commanding: {
-      always: [
-        { target: "summarizing", guard: "commandIsSummarize" },
-        { target: "planning", guard: "commandIsPlan" },
-        { target: "completing", guard: "commandIsComplete" },
-        // Unknown command - skip
-        { target: "skipped" }
-      ]
-    },
-    /**
-     * Summarize the discussion (/summarize command)
-     */
-    summarizing: {
-      entry: ["logSummarizing", "runClaudeSummarize"],
-      type: "final"
-    },
-    /**
-     * Create issues from discussion (/plan command)
-     */
-    planning: {
-      entry: ["logPlanning", "runClaudePlan"],
-      type: "final"
-    },
-    /**
-     * Mark discussion as complete (/complete command)
-     */
-    completing: {
-      entry: ["logCompleting", "complete"],
-      type: "final"
-    }
-  }
-});
-
-// packages/statemachine/src/runner/derive.ts
 function getTransitionName(finalState) {
   const stateNames = {
-    // Issue states - Triage flow
     triaging: "Triage",
-    // Issue states - Reset flow
     resetting: "Reset",
-    // Issue states - Comment flow
     commenting: "Comment",
-    // Issue states - PR review flows
     prReviewing: "PR Review",
     prResponding: "PR Response",
     prRespondingHuman: "PR Human Response",
     prReviewSkipped: "PR Review Skipped",
     prReviewAssigned: "PR Review Assigned",
     prPush: "PR Push",
-    // Issue states - Orchestration flows
     orchestrationRunning: "Orchestrate",
     orchestrationWaiting: "Wait (Review)",
     orchestrationComplete: "Complete Phases",
-    // Issue states - CI/merge/review processing
     processingCI: "CI Result",
     processingMerge: "Merge",
     processingReview: "Review Result",
-    // Issue states - Iteration flows
     iterating: "Iterate",
     iteratingFix: "Fix CI",
-    // Issue states - Review/transition flows
     reviewing: "In Review",
     transitioningToReview: "Request Review",
-    // Issue states - Terminal states
     blocked: "Blocked",
     error: "Error",
     done: "Done",
-    // Issue states - Merge queue logging states
     mergeQueueLogging: "Log Queue Entry",
     mergeQueueFailureLogging: "Log Queue Failure",
     mergedLogging: "Log Merged",
@@ -74607,158 +73291,19 @@ function getTransitionName(finalState) {
     deployedProdLogging: "Log Prod Deploy",
     deployedStageFailureLogging: "Log Stage Deploy Failure",
     deployedProdFailureLogging: "Log Prod Deploy Failure",
-    // Issue states - Early detection states
     alreadyDone: "Already Done",
     alreadyBlocked: "Already Blocked",
-    // Issue states - Pivot flow
     pivoting: "Pivot",
-    // Issue states - Retry flow
     retrying: "Retry",
-    // Issue states - Rebase flow (runner override, not a machine state)
     rebased: "Rebased",
-    // Issue states - Grooming flow
     grooming: "Grooming",
-    // Discussion states
     detecting: "Detecting",
-    researching: "Research",
-    responding: "Respond",
-    commanding: "Command",
-    summarizing: "Summarize",
-    planning: "Plan",
-    completing: "Complete",
-    skipped: "Skipped",
-    noContext: "No Context"
+    subIssueIdle: "Sub-Issue Idle",
+    invalidIteration: "Invalid Iteration",
+    initializing: "Initializing"
   };
   return stateNames[finalState] || finalState;
 }
-var TRIGGER_TO_EVENT_TYPE = {
-  "issue-assigned": "issue_assigned",
-  "issue-edited": "issue_edited",
-  "issue-closed": "issue_closed",
-  "issue-triage": "issue_assigned",
-  "issue-orchestrate": "issue_assigned",
-  "issue-comment": "issue_comment",
-  "issue-reset": "issue_comment",
-  "issue-retry": "issue_comment",
-  "pr-review-requested": "pr_review_requested",
-  "pr-review-submitted": "pr_review_submitted",
-  "pr-review": "pr_review_submitted",
-  "pr-review-approved": "pr_review_submitted",
-  "pr-response": "pr_review_submitted",
-  "pr-human-response": "pr_review_submitted",
-  "pr-push": "pr_push",
-  "workflow-run-completed": "workflow_run_completed",
-  "merge-queue-entered": "merge_queue_entered",
-  "merge-queue-failed": "merge_queue_failed",
-  "pr-merged": "pr_merged",
-  "deployed-stage": "deployed_stage",
-  "deployed-prod": "deployed_prod",
-  "deployed-stage-failed": "deployed_stage_failed",
-  "deployed-prod-failed": "deployed_prod_failed"
-};
-async function deriveIssueActions(options) {
-  const {
-    trigger,
-    ctx,
-    octokit,
-    owner,
-    repo,
-    projectNumber,
-    maxRetries,
-    botUsername
-  } = options;
-  const issueNumber = parseInt(ctx.issue_number || "0", 10);
-  const ciResult = ctx.ci_result || null;
-  const ciRunUrl = ctx.ci_run_url || null;
-  const ciCommitSha = ctx.ci_commit_sha || null;
-  const reviewDecision = ctx.review_decision || null;
-  const reviewer = ctx.reviewer || ctx.reviewer_login || null;
-  const commentContextType = ctx.context_type?.toLowerCase() || null;
-  const commentContextDescription = ctx.context_description || null;
-  const inputBranch = ctx.branch_name || null;
-  const workflowStartedAt = (/* @__PURE__ */ new Date()).toISOString();
-  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
-  const runId = process.env.GITHUB_RUN_ID;
-  const workflowRunUrl = runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null;
-  core13.info(`Derive issue actions: issue=#${issueNumber}, trigger=${trigger}`);
-  const eventType = TRIGGER_TO_EVENT_TYPE[trigger] || trigger;
-  const event = {
-    type: eventType,
-    owner,
-    repo,
-    issueNumber,
-    timestamp: workflowStartedAt,
-    ...ciResult && { result: ciResult },
-    ...ciRunUrl && { runUrl: ciRunUrl },
-    ...ciCommitSha && { headSha: ciCommitSha },
-    ...reviewDecision && { decision: reviewDecision },
-    ...reviewer && { reviewer }
-  };
-  const context3 = await buildMachineContext(
-    octokit,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- event object matches buildMachineContext parameter type
-    event,
-    projectNumber,
-    {
-      maxRetries,
-      botUsername,
-      commentContextType,
-      commentContextDescription,
-      branch: inputBranch,
-      triggerOverride: trigger,
-      ciRunUrl,
-      workflowStartedAt,
-      workflowRunUrl
-    }
-  );
-  if (!context3) {
-    return null;
-  }
-  core13.info(
-    `Context built: status=${context3.issue.projectStatus}, iteration=${context3.issue.iteration}`
-  );
-  const iteration = String(context3.issue.iteration ?? 0);
-  const phase = context3.currentPhase !== null ? String(context3.currentPhase) : "-";
-  const parentIssueNum = String(
-    context3.parentIssue?.number || context3.issue.number
-  );
-  const subIssueNum = context3.currentSubIssue?.number ? String(context3.currentSubIssue.number) : "";
-  const agentNotesEntries = agentNotesExtractor({
-    owner,
-    repo,
-    issue: context3.issue,
-    parentIssue: context3.parentIssue ?? null
-  });
-  const agentNotes = formatAgentNotesForPrompt(agentNotesEntries);
-  const actor = createActor(issueMachine, { input: context3 });
-  actor.start();
-  actor.send({ type: "DETECT" });
-  const snapshot = actor.getSnapshot();
-  const finalState = String(snapshot.value);
-  const pendingActions = snapshot.context.pendingActions;
-  const transitionName = getTransitionName(finalState);
-  core13.info(
-    `Machine: state=${finalState}, transition=${transitionName}, actions=${pendingActions.length}`
-  );
-  actor.stop();
-  return {
-    finalState,
-    transitionName,
-    pendingActions,
-    trigger,
-    iteration,
-    phase,
-    parentIssueNumber: parentIssueNum,
-    subIssueNumber: subIssueNum,
-    prNumber: context3.pr?.number ? String(context3.pr.number) : "",
-    commitSha: context3.ciCommitSha || "",
-    agentNotes,
-    machineContext: context3
-  };
-}
-
-// packages/statemachine/src/machines/issue-next-invoke/context-loader.ts
 var ContextLoader = class {
   async load(options) {
     return buildMachineContext(
@@ -74805,7 +73350,7 @@ function buildDeriveMetadata(machineContext, _machineResult) {
     agentNotes
   };
 }
-var TRIGGER_TO_EVENT_TYPE2 = {
+var TRIGGER_TO_EVENT_TYPE = {
   "issue-assigned": "issue_assigned",
   "issue-edited": "issue_edited",
   "issue-closed": "issue_closed",
@@ -74845,7 +73390,7 @@ function buildEventFromWorkflow(trigger, ctx, owner, repo) {
   const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
   const runId = process.env.GITHUB_RUN_ID;
   const workflowRunUrl = runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null;
-  const eventType = TRIGGER_TO_EVENT_TYPE2[trigger] || trigger;
+  const eventType = TRIGGER_TO_EVENT_TYPE[trigger] || trigger;
   const event = {
     type: eventType,
     owner,
@@ -74866,6 +73411,107 @@ function buildEventFromWorkflow(trigger, ctx, owner, repo) {
     ciRunUrl,
     workflowStartedAt,
     workflowRunUrl
+  };
+}
+async function deriveIssueActions(options) {
+  const {
+    trigger,
+    ctx,
+    octokit,
+    owner,
+    repo,
+    projectNumber,
+    maxRetries,
+    botUsername
+  } = options;
+  const issueNumber = parseInt(ctx.issue_number || "0", 10);
+  const ciResult = ctx.ci_result || null;
+  const ciRunUrl = ctx.ci_run_url || null;
+  const ciCommitSha = ctx.ci_commit_sha || null;
+  const reviewDecision = ctx.review_decision || null;
+  const reviewer = ctx.reviewer || ctx.reviewer_login || null;
+  const commentContextType = ctx.context_type?.toLowerCase() || null;
+  const commentContextDescription = ctx.context_description || null;
+  const inputBranch = ctx.branch_name || null;
+  const workflowStartedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID;
+  const workflowRunUrl = runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null;
+  core14.info(`Derive issue actions: issue=#${issueNumber}, trigger=${trigger}`);
+  const eventType = TRIGGER_TO_EVENT_TYPE[trigger] || trigger;
+  const event = {
+    type: eventType,
+    owner,
+    repo,
+    issueNumber,
+    timestamp: workflowStartedAt,
+    ...ciResult && { result: ciResult },
+    ...ciRunUrl && { runUrl: ciRunUrl },
+    ...ciCommitSha && { headSha: ciCommitSha },
+    ...reviewDecision && { decision: reviewDecision },
+    ...reviewer && { reviewer }
+  };
+  const context3 = await buildMachineContext(
+    octokit,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- event object matches buildMachineContext parameter type
+    event,
+    projectNumber,
+    {
+      maxRetries,
+      botUsername,
+      commentContextType,
+      commentContextDescription,
+      branch: inputBranch,
+      triggerOverride: trigger,
+      ciRunUrl,
+      workflowStartedAt,
+      workflowRunUrl
+    }
+  );
+  if (!context3) {
+    return null;
+  }
+  core14.info(
+    `Context built: status=${context3.issue.projectStatus}, iteration=${context3.issue.iteration}`
+  );
+  const iteration = String(context3.issue.iteration ?? 0);
+  const phase = context3.currentPhase !== null ? String(context3.currentPhase) : "-";
+  const parentIssueNum = String(
+    context3.parentIssue?.number || context3.issue.number
+  );
+  const subIssueNum = context3.currentSubIssue?.number ? String(context3.currentSubIssue.number) : "";
+  const agentNotesEntries = agentNotesExtractor({
+    owner,
+    repo,
+    issue: context3.issue,
+    parentIssue: context3.parentIssue ?? null
+  });
+  const agentNotes = formatAgentNotesForPrompt(agentNotesEntries);
+  const actor = createActor(issueInvokeMachine, { input: context3 });
+  actor.start();
+  actor.send({ type: "DETECT" });
+  const snapshot = actor.getSnapshot();
+  const finalState = String(snapshot.value);
+  const pendingActions = snapshot.context.pendingActions;
+  const transitionName = getTransitionName(finalState);
+  core14.info(
+    `Machine: state=${finalState}, transition=${transitionName}, actions=${pendingActions.length}`
+  );
+  actor.stop();
+  return {
+    finalState,
+    transitionName,
+    pendingActions,
+    trigger,
+    iteration,
+    phase,
+    parentIssueNumber: parentIssueNum,
+    subIssueNumber: subIssueNum,
+    prNumber: context3.pr?.number ? String(context3.pr.number) : "",
+    commitSha: context3.ciCommitSha || "",
+    agentNotes,
+    machineContext: context3
   };
 }
 async function deriveFromWorkflow(options) {
@@ -74923,7 +73569,7 @@ async function deriveFromWorkflow(options) {
   };
 }
 
-// packages/statemachine/src/verify/predictable-state.ts
+// packages/statemachine/src/machines/issues/verify/predictable-state.ts
 var PredictablePRStateSchema = external_exports.object({
   isDraft: external_exports.boolean(),
   state: PRStateSchema
@@ -75020,7 +73666,7 @@ function buildExpectedState(options) {
   });
 }
 
-// packages/statemachine/src/schemas/prediction-helpers.ts
+// packages/statemachine/src/core/schemas/prediction-helpers.ts
 function cloneTree(tree) {
   const clone2 = structuredClone(tree);
   clone2.issue.body.historyEntries = [];
@@ -75105,7 +73751,7 @@ var ITER_UPDATED_PR = "\u2705 Updated PR";
 var ITER_FIXED_CI = "\u{1F527} Fixed CI";
 var ITER_REBASED = "\u{1F504} Rebased";
 
-// packages/statemachine/src/verify/predict.ts
+// packages/statemachine/src/machines/issues/verify/predict.ts
 var MAX_OUTCOMES = 20;
 var ITERATE_STATES = /* @__PURE__ */ new Set(["iterating", "iteratingFix"]);
 function enrichedSuccessEntry(finalState, pendingActions) {
@@ -75190,47 +73836,7 @@ function predictFromActions(pendingActions, currentTree, machineContext, options
   return outcomes;
 }
 
-// packages/statemachine/src/verify/compare.ts
-function diffExact(path3, expected, actual) {
-  if (expected === actual) return null;
-  return { path: path3, expected, actual, comparison: "exact" };
-}
-function diffGte(path3, expected, actual) {
-  if (actual >= expected) return null;
-  return { path: path3, expected, actual, comparison: "gte" };
-}
-function diffLte(path3, expected, actual) {
-  if (actual <= expected) return null;
-  return { path: path3, expected, actual, comparison: "lte" };
-}
-function diffSuperset(path3, expected, actual) {
-  const missing = expected.filter((e2) => !actual.includes(e2));
-  if (missing.length === 0) return null;
-  return { path: path3, expected: missing, actual, comparison: "superset" };
-}
-function diffBooleanFlag(path3, expected, actual) {
-  if (expected && !actual) {
-    return { path: path3, expected, actual, comparison: "exact" };
-  }
-  return null;
-}
-function diffHistoryEntries(path3, expected, actual) {
-  const diffs = [];
-  for (const exp of expected) {
-    const found = actual.some(
-      (act) => act.iteration === exp.iteration && act.phase === exp.phase && act.action.startsWith(exp.action)
-    );
-    if (!found) {
-      diffs.push({
-        path: `${path3}[iter=${exp.iteration},phase=${exp.phase}]`,
-        expected: exp.action,
-        actual: actual.map((a) => a.action),
-        comparison: "history_entry"
-      });
-    }
-  }
-  return diffs;
-}
+// packages/statemachine/src/machines/issues/verify/compare.ts
 function compareSubIssueBody(path3, expected, actual) {
   const diffs = [];
   const flags = [
@@ -75395,7 +74001,7 @@ function compareSubIssue(path3, expected, actual) {
   );
   return diffs;
 }
-function compareTree(expected, actual) {
+function compareTreeFields(expected, actual) {
   const diffs = [];
   diffs.push(...compareIssue("issue", expected.issue, actual.issue));
   for (const expSub of expected.subIssues) {
@@ -75429,7 +74035,7 @@ function compareStateTree(expected, actual) {
   for (let i = 0; i < expected.length; i++) {
     const outcome = expected[i];
     if (!outcome) continue;
-    const diffs = compareTree(outcome, actual);
+    const diffs = compareTreeFields(outcome, actual);
     if (diffs.length === 0) {
       return {
         pass: true,
@@ -75450,11 +74056,36 @@ function compareStateTree(expected, actual) {
   };
 }
 
-// packages/statemachine/src/machines/issue-next-invoke/verifier.ts
-var MachineVerifier = class {
+// packages/statemachine/src/machines/issues/verifier.ts
+var MachineVerifier = class extends BaseVerifier {
+  /**
+   * Extract a predictable state tree from a machine context.
+   */
+  extractTree(context3) {
+    return extractPredictableTree(context3);
+  }
+  /**
+   * Compare a single expected tree against actual. Returns field diffs.
+   */
+  compareTree(expected, actual) {
+    return compareTreeFields(expected, actual);
+  }
+  /**
+   * Predict whether the workflow should retrigger after execution.
+   * Uses an allowlist of states that need retrigger.
+   */
+  predictRetrigger(finalState) {
+    const retriggerStates = /* @__PURE__ */ new Set([
+      "orchestrationRunning",
+      "triaging",
+      "resetting",
+      "prReviewAssigned"
+    ]);
+    return retriggerStates.has(finalState);
+  }
   /**
    * Predict expected post-execution state from machine results.
-   * Replaces predictExpectedState() in sm-plan/lib/expected-state.ts.
+   * Issue-specific — not part of BaseVerifier.
    */
   predictExpectedState(machineResult, machineContext) {
     const currentTree = extractPredictableTree(machineContext);
@@ -75477,44 +74108,26 @@ var MachineVerifier = class {
     });
   }
   /**
-   * Extract a predictable state tree from a machine context.
-   * Useful for building the "actual" state to compare against.
+   * Convenience method: verify an ExpectedState against actual state.
+   * Wraps the base verify() to match the existing caller interface.
+   *
+   * @deprecated Prefer using base verify() directly with explicit opts.
+   */
+  verifyExpected(expected, actualTree, actualRetrigger) {
+    return this.verify(expected.outcomes, actualTree, {
+      expectedRetrigger: expected.expectedRetrigger,
+      actualRetrigger
+    });
+  }
+  /**
+   * Alias for extractTree — backward compatibility.
    */
   extractStateTree(machineContext) {
-    return extractPredictableTree(machineContext);
-  }
-  /**
-   * Compare expected outcomes against actual state.
-   */
-  verify(expected, actualTree, actualRetrigger) {
-    const result = compareStateTree(expected.outcomes, actualTree);
-    const retriggerPass = actualRetrigger === void 0 || expected.expectedRetrigger === actualRetrigger;
-    return {
-      pass: result.pass && retriggerPass,
-      result,
-      retriggerPass
-    };
-  }
-  /**
-   * Predict whether the workflow should retrigger after execution.
-   * Uses an allowlist of states that need retrigger.
-   */
-  predictRetrigger(finalState) {
-    const retriggerStates = /* @__PURE__ */ new Set([
-      "orchestrationRunning",
-      "triaging",
-      "resetting",
-      "prReviewAssigned"
-    ]);
-    return retriggerStates.has(finalState);
+    return this.extractTree(machineContext);
   }
 };
 
-// packages/statemachine/src/runner/helpers/git.ts
-var core15 = __toESM(require_core(), 1);
-var exec7 = __toESM(require_exec(), 1);
-
-// packages/statemachine/src/verify/index.ts
+// packages/statemachine/src/machines/issues/verify/index.ts
 var verify_exports = {};
 __export(verify_exports, {
   ExpectedStateSchema: () => ExpectedStateSchema,
@@ -75524,13 +74137,14 @@ __export(verify_exports, {
   PredictableSubIssueStateSchema: () => PredictableSubIssueStateSchema,
   buildExpectedState: () => buildExpectedState,
   compareStateTree: () => compareStateTree,
+  compareTreeFields: () => compareTreeFields,
   extractPredictableTree: () => extractPredictableTree,
   getMutator: () => getMutator,
   hasMutator: () => hasMutator,
   predictFromActions: () => predictFromActions
 });
 
-// packages/statemachine/src/verify/mutators/terminal.ts
+// packages/statemachine/src/machines/issues/verify/mutators/terminal.ts
 var doneMutator = (current) => {
   const tree = cloneTree(current);
   tree.issue.projectStatus = "Done";
@@ -75560,7 +74174,7 @@ var noopMutator = (current) => {
   return [cloneTree(current)];
 };
 
-// packages/statemachine/src/verify/mutators/iteration.ts
+// packages/statemachine/src/machines/issues/verify/mutators/iteration.ts
 var iteratingMutator = (current, context3) => {
   const phase = String(context3.currentPhase ?? "-");
   const iteration = context3.issue.iteration;
@@ -75629,7 +74243,7 @@ var iteratingFixMutator = (current, context3) => {
   return [fixedTree, rebasedTree];
 };
 
-// packages/statemachine/src/verify/mutators/review.ts
+// packages/statemachine/src/machines/issues/verify/mutators/review.ts
 var reviewingMutator = (current, context3) => {
   const tree = cloneTree(current);
   const sub = findCurrentSubIssue(tree, context3);
@@ -75671,7 +74285,7 @@ var awaitingMergeMutator = (current, context3) => {
   return [tree];
 };
 
-// packages/statemachine/src/verify/mutators/orchestration.ts
+// packages/statemachine/src/machines/issues/verify/mutators/orchestration.ts
 var orchestrationRunningMutator = (current, context3) => {
   const tree = cloneTree(current);
   const isRetry = context3.trigger === "issue-retry";
@@ -75723,7 +74337,7 @@ var orchestrationCompleteMutator = (current, context3) => {
   return [tree];
 };
 
-// packages/statemachine/src/verify/mutators/ai-dependent.ts
+// packages/statemachine/src/machines/issues/verify/mutators/ai-dependent.ts
 var triagingMutator = (current, context3) => {
   const phase = String(context3.currentPhase ?? "-");
   const applyTriageMutations = (tree) => {
@@ -75801,7 +74415,7 @@ var pivotingMutator = (current, context3) => {
   return [tree];
 };
 
-// packages/statemachine/src/verify/mutators/logging.ts
+// packages/statemachine/src/machines/issues/verify/mutators/logging.ts
 function makeLoggingMutator(message) {
   return (current, context3) => {
     const tree = cloneTree(current);
@@ -75834,7 +74448,7 @@ var deployedProdFailureLoggingMutator = makeLoggingMutator(
   HISTORY_MESSAGES.PROD_DEPLOY_FAILED
 );
 
-// packages/statemachine/src/verify/mutators/control.ts
+// packages/statemachine/src/machines/issues/verify/mutators/control.ts
 var processingCIMutator = (current, context3) => {
   const ciPassed2 = context3.ciResult === "success";
   const phase = String(context3.currentPhase ?? "-");
@@ -75934,7 +74548,7 @@ var prReviewAssignedMutator = (current, context3) => {
   return [tree];
 };
 
-// packages/statemachine/src/verify/mutators/index.ts
+// packages/statemachine/src/machines/issues/verify/mutators/index.ts
 var MUTATOR_REGISTRY = {
   // Terminal
   done: doneMutator,
@@ -75988,329 +74602,8 @@ function hasMutator(finalState) {
   return finalState in MUTATOR_REGISTRY;
 }
 
-// packages/statemachine/src/test-runner/poller.ts
-var core16 = __toESM(require_core(), 1);
-var exec9 = __toESM(require_exec(), 1);
-
-// packages/statemachine/src/test-runner/configurable/types.ts
-var StateNameSchema = external_exports.enum([
-  // Transient states (routing decisions)
-  "detecting",
-  "initializing",
-  "orchestrating",
-  "processingCI",
-  "processingReview",
-  "processingMerge",
-  "transitioningToReview",
-  // Final states (work is done or stopped)
-  "triaging",
-  "grooming",
-  "resetting",
-  "commenting",
-  "pivoting",
-  "prReviewing",
-  "prResponding",
-  "prRespondingHuman",
-  "prPush",
-  "orchestrationRunning",
-  "orchestrationWaiting",
-  "orchestrationComplete",
-  "awaitingMerge",
-  "iterating",
-  "iteratingFix",
-  "reviewing",
-  "blocked",
-  "error",
-  "done",
-  // Logging states
-  "mergeQueueLogging",
-  "mergeQueueFailureLogging",
-  "mergedLogging",
-  "deployedStageLogging",
-  "deployedProdLogging"
-]);
-var ClaudeMockSchema = external_exports.object({
-  /** Optional description of what this mock represents */
-  description: external_exports.string().optional(),
-  /** The structured output to return when this mock is used */
-  output: external_exports.record(external_exports.unknown())
-});
-var TestSubIssueSchema = external_exports.object({
-  number: external_exports.number().int().nonnegative(),
-  // 0 = placeholder
-  title: external_exports.string(),
-  body: external_exports.string(),
-  state: external_exports.enum(["OPEN", "CLOSED"]),
-  projectStatus: external_exports.string().nullable(),
-  branch: external_exports.string().nullable().optional(),
-  pr: external_exports.object({
-    number: external_exports.number().int().nonnegative(),
-    // 0 = placeholder
-    state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
-    isDraft: external_exports.boolean(),
-    title: external_exports.string(),
-    headRef: external_exports.string(),
-    baseRef: external_exports.string()
-  }).nullable().optional(),
-  todos: external_exports.object({
-    total: external_exports.number().int().nonnegative(),
-    completed: external_exports.number().int().nonnegative(),
-    uncheckedNonManual: external_exports.number().int().nonnegative()
-  }).optional()
-});
-var TestPRSchema = external_exports.object({
-  number: external_exports.number().int().nonnegative(),
-  // 0 = create new PR
-  state: external_exports.enum(["OPEN", "CLOSED", "MERGED"]),
-  isDraft: external_exports.boolean(),
-  title: external_exports.string(),
-  body: external_exports.string().optional(),
-  headRef: external_exports.string().optional(),
-  // Branch name (will use test branch if not specified)
-  baseRef: external_exports.string().default("main")
-});
-var TestParentIssueSchema = external_exports.object({
-  number: external_exports.number().int().nonnegative(),
-  // Allow 0 as placeholder
-  title: external_exports.string(),
-  state: external_exports.enum(["OPEN", "CLOSED"]),
-  body: external_exports.string(),
-  projectStatus: external_exports.string().nullable(),
-  iteration: external_exports.number().int().nonnegative(),
-  failures: external_exports.number().int().nonnegative(),
-  assignees: external_exports.array(external_exports.string()),
-  labels: external_exports.array(external_exports.string()),
-  subIssues: external_exports.array(TestSubIssueSchema),
-  // Now typed for test fixtures
-  hasSubIssues: external_exports.boolean(),
-  history: external_exports.array(external_exports.unknown()),
-  // Simplified for fixtures
-  todos: external_exports.object({
-    total: external_exports.number().int().nonnegative(),
-    completed: external_exports.number().int().nonnegative(),
-    uncheckedNonManual: external_exports.number().int().nonnegative()
-  }),
-  /** PR linked to this issue (optional, for states that need a PR) */
-  pr: TestPRSchema.nullable().optional()
-});
-var TestCommentSchema = external_exports.object({
-  id: external_exports.number().int().nonnegative(),
-  // 0 = placeholder
-  body: external_exports.string(),
-  author: external_exports.string()
-});
-var StateFixtureSchema = external_exports.object({
-  /** The state name this fixture represents */
-  state: StateNameSchema,
-  /** Optional description of this fixture state */
-  description: external_exports.string().optional(),
-  /** Explicit trigger type to use (optional, overrides auto-detection) */
-  trigger: IssueTriggerTypeSchema.optional(),
-  /** CI result to inject for this transition (optional) */
-  ciResult: CIResultSchema.optional(),
-  /** Review decision to inject for this transition (optional) */
-  reviewDecision: external_exports.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]).optional(),
-  /** Issue state - uses test-specific schema allowing placeholder values */
-  issue: TestParentIssueSchema,
-  /** Comment that triggered this state (for comment/pivot scenarios) */
-  comment: TestCommentSchema.optional(),
-  /** Pivot description from /pivot command (for pivot scenarios) */
-  pivotDescription: external_exports.string().optional(),
-  /** Reference to a claude mock file (when mock_claude=true) */
-  claudeMock: external_exports.string().optional(),
-  /** Multiple claude mock references (for states that call multiple Claude prompts, like grooming) */
-  claudeMocks: external_exports.array(external_exports.string()).optional(),
-  /** Expected results for this state transition (optional, for validation) */
-  expected: external_exports.record(external_exports.unknown()).optional()
-});
-var ScenarioConfigSchema = external_exports.object({
-  name: external_exports.string(),
-  description: external_exports.string()
-});
-var TestRunnerInputsSchema = external_exports.object({
-  /** false = stop after one step, true = run to completion */
-  continue: external_exports.boolean().default(true),
-  /** Start at a specific state name (e.g., "iteratingFix") */
-  startStep: external_exports.string().optional(),
-  /** true = use fixture outputs, false = run real Claude */
-  mockClaude: external_exports.boolean().default(true),
-  /** true = CI passes/fails immediately, false = run real CI */
-  mockCI: external_exports.boolean().default(true),
-  /** true = include all tasks (multi sub-issues), false = pick one random task */
-  multiIssue: external_exports.boolean().default(true)
-});
-var StateTransitionResultSchema = external_exports.object({
-  /** Starting state */
-  fromState: StateNameSchema,
-  /** Ending state */
-  toState: StateNameSchema,
-  /** Whether the transition succeeded */
-  success: external_exports.boolean(),
-  /** Error message if failed */
-  error: external_exports.string().optional(),
-  /** Duration in milliseconds */
-  durationMs: external_exports.number(),
-  /** Verification failures if any */
-  verificationErrors: external_exports.array(external_exports.string()).optional()
-});
-var ConfigurableTestResultSchema = external_exports.object({
-  /** Overall status */
-  status: external_exports.enum(["completed", "paused", "failed", "error"]),
-  /** Current state (if paused) */
-  currentState: StateNameSchema.optional(),
-  /** Next state (if paused) */
-  nextState: StateNameSchema.optional(),
-  /** Issue number used for test */
-  issueNumber: external_exports.number(),
-  /** All state transitions executed */
-  transitions: external_exports.array(StateTransitionResultSchema),
-  /** Total duration in milliseconds */
-  totalDurationMs: external_exports.number(),
-  /** Error message if status is error */
-  error: external_exports.string().optional()
-});
-
-// packages/statemachine/src/test-runner/configurable/loader.ts
-var core17 = __toESM(require_core(), 1);
-
-// packages/statemachine/src/discussion/actions.ts
-var TokenTypeSchema2 = external_exports.enum(["code", "admin"]);
-var BaseActionSchema2 = external_exports.object({
-  type: external_exports.string(),
-  token: TokenTypeSchema2
-});
-var ArtifactSchema2 = external_exports.object({
-  name: external_exports.string(),
-  path: external_exports.string()
-});
-var AddDiscussionCommentActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("addDiscussionComment"),
-  discussionNodeId: external_exports.string(),
-  body: external_exports.string(),
-  replyToNodeId: external_exports.string().optional()
-});
-var UpdateDiscussionBodyActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("updateDiscussionBody"),
-  discussionNodeId: external_exports.string(),
-  newBody: external_exports.string()
-});
-var AddDiscussionReactionActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("addDiscussionReaction"),
-  subjectId: external_exports.string(),
-  content: external_exports.enum([
-    "THUMBS_UP",
-    "THUMBS_DOWN",
-    "LAUGH",
-    "HOORAY",
-    "CONFUSED",
-    "HEART",
-    "ROCKET",
-    "EYES"
-  ])
-});
-var CreateIssuesFromDiscussionActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("createIssuesFromDiscussion"),
-  discussionNumber: external_exports.number().int().positive(),
-  issues: external_exports.array(
-    external_exports.object({
-      title: external_exports.string(),
-      body: external_exports.string(),
-      labels: external_exports.array(external_exports.string())
-    })
-  )
-});
-var ApplyDiscussionResearchOutputActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionResearchOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  promptVars: external_exports.record(external_exports.string()).optional(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var ApplyDiscussionRespondOutputActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionRespondOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  replyToNodeId: external_exports.string().optional(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var ApplyDiscussionSummarizeOutputActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionSummarizeOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var ApplyDiscussionPlanOutputActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("applyDiscussionPlanOutput"),
-  discussionNumber: external_exports.number().int().positive(),
-  discussionNodeId: external_exports.string(),
-  filePath: external_exports.string().optional(),
-  consumesArtifact: ArtifactSchema2.optional()
-});
-var RunClaudeActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("runClaude"),
-  promptDir: external_exports.string(),
-  promptsBase: external_exports.string().optional(),
-  promptVars: external_exports.record(external_exports.string()),
-  issueNumber: external_exports.number().int().positive().optional(),
-  producesArtifact: ArtifactSchema2.optional()
-});
-var LogActionSchema = BaseActionSchema2.extend({
-  type: external_exports.literal("log"),
-  level: external_exports.enum(["debug", "info", "warning", "error"]),
-  message: external_exports.string()
-});
-var DiscussionActionSchema = external_exports.discriminatedUnion("type", [
-  AddDiscussionCommentActionSchema,
-  UpdateDiscussionBodyActionSchema,
-  AddDiscussionReactionActionSchema,
-  CreateIssuesFromDiscussionActionSchema,
-  ApplyDiscussionResearchOutputActionSchema,
-  ApplyDiscussionRespondOutputActionSchema,
-  ApplyDiscussionSummarizeOutputActionSchema,
-  ApplyDiscussionPlanOutputActionSchema,
-  RunClaudeActionSchema,
-  LogActionSchema
-]);
-
-// packages/statemachine/src/action-utils.ts
-var core18 = __toESM(require_core(), 1);
-var exec11 = __toESM(require_exec(), 1);
-function getOptionalInput(name) {
-  const value = core18.getInput(name);
-  return value === "" ? void 0 : value;
-}
-function getRequiredInput(name) {
-  return core18.getInput(name, { required: true });
-}
-function setOutputs(outputs) {
-  for (const [key, value] of Object.entries(outputs)) {
-    if (value !== void 0) {
-      core18.setOutput(key, value);
-    }
-  }
-}
-async function execCommand(command, args = [], options) {
-  let stdout = "";
-  let stderr = "";
-  const exitCode = await exec11.exec(command, args, {
-    ...options,
-    listeners: {
-      stdout: (data) => {
-        stdout += data.toString();
-      },
-      stderr: (data) => {
-        stderr += data.toString();
-      }
-    }
-  });
-  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
-}
-
 // packages/statemachine/actions/sm-plan/lib/router-impl.ts
-var core19 = __toESM(require_core(), 1);
+var core15 = __toESM(require_core(), 1);
 var github = __toESM(require_github(), 1);
 
 // packages/statemachine/actions/sm-plan/lib/payload-schemas.ts
@@ -76412,28 +74705,9 @@ async function addReactionToComment(octokit, owner, repo, commentId, reaction) {
       comment_id: commentId,
       content: reaction
     });
-    core19.info(`Added ${reaction} reaction to comment ${commentId}`);
-  } catch (error7) {
-    core19.warning(`Failed to add reaction to comment: ${error7}`);
-  }
-}
-async function addReactionToDiscussionComment(octokit, nodeId, reaction) {
-  try {
-    await octokit.graphql(
-      `
-      mutation($subjectId: ID!, $content: ReactionContent!) {
-        addReaction(input: {subjectId: $subjectId, content: $content}) {
-          reaction {
-            content
-          }
-        }
-      }
-      `,
-      { subjectId: nodeId, content: reaction }
-    );
-    core19.info(`Added ${reaction} reaction to discussion comment ${nodeId}`);
-  } catch (error7) {
-    core19.warning(`Failed to add reaction to discussion comment: ${error7}`);
+    core15.info(`Added ${reaction} reaction to comment ${commentId}`);
+  } catch (error6) {
+    core15.warning(`Failed to add reaction to comment: ${error6}`);
   }
 }
 function jobToTrigger(job, contextJson) {
@@ -76655,11 +74929,11 @@ async function ensureBranchExists(branch) {
       branch
     ]);
     if (stdout.includes(branch)) {
-      core19.info(`Branch ${branch} exists`);
+      core15.info(`Branch ${branch} exists`);
       return true;
     }
   }
-  core19.info(`Creating branch ${branch}`);
+  core15.info(`Creating branch ${branch}`);
   await execCommand("git", ["checkout", "-b", branch]);
   const { exitCode: pushCode } = await execCommand(
     "git",
@@ -76667,10 +74941,10 @@ async function ensureBranchExists(branch) {
     { ignoreReturnCode: true }
   );
   if (pushCode !== 0) {
-    core19.warning(`Failed to push branch ${branch}`);
+    core15.warning(`Failed to push branch ${branch}`);
     return false;
   }
-  core19.info(`Created and pushed branch ${branch}`);
+  core15.info(`Created and pushed branch ${branch}`);
   return true;
 }
 async function checkBranchExists2(branch) {
@@ -77412,7 +75686,7 @@ async function handleWorkflowRunEvent(issueState, resolvedIssueNumber) {
   }
   if (!isClaudePr(issueState))
     return emptyResult(true, "PR is not a Claude PR");
-  if (!resolvedIssueNumber) core19.setFailed("PR has no issue number");
+  if (!resolvedIssueNumber) core15.setFailed("PR has no issue number");
   const issueNumber = String(resolvedIssueNumber ?? "");
   if (issueLabels(issueState).includes("test:automation")) {
     return emptyResult(
@@ -77590,53 +75864,8 @@ async function handlePullRequestReviewEvent(resolvedIssueNumber, issueState) {
     skipReason: ""
   };
 }
-async function handleDiscussionEvent(octokit, owner, repo) {
-  const { context: context3 } = github;
-  const payload = context3.payload;
-  const action = payload.action ?? "";
-  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
-  let discussionLabels = [];
-  try {
-    const result = await octokit.graphql(
-      `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $number) {
-            labels(first: 20) {
-              nodes { name }
-            }
-          }
-        }
-      }
-    `,
-      { owner, repo, number: discussion.number }
-    );
-    discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
-  } catch (error7) {
-    core19.warning(`Failed to fetch discussion labels: ${error7}`);
-  }
-  const isTestAutomation = discussionLabels.includes("test:automation");
-  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
-    return emptyResult(true, "Discussion title starts with [TEST]");
-  }
-  if (action === "created") {
-    return {
-      job: "discussion-research",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: "",
-      contextJson: {
-        discussion_number: String(discussion.number),
-        discussion_title: discussion.title,
-        discussion_body: discussion.body ?? "",
-        trigger_type: "discussion-created",
-        is_test_automation: isTestAutomation
-      },
-      skip: false,
-      skipReason: ""
-    };
-  }
-  return emptyResult(true, `Unhandled discussion action: ${action}`);
+async function handleDiscussionEvent(_octokit, _owner, _repo) {
+  return emptyResult(true, "Discussion automation removed");
 }
 async function handleMergeGroupEvent(resolvedIssueNumber, prNumber, issueState) {
   const { context: context3 } = github;
@@ -77674,134 +75903,8 @@ async function handleMergeGroupEvent(resolvedIssueNumber, prNumber, issueState) 
     skipReason: ""
   };
 }
-async function handleDiscussionCommentEvent(octokit, owner, repo) {
-  const { context: context3 } = github;
-  const payload = context3.payload;
-  const discussion = DiscussionPayloadSchema.parse(payload.discussion);
-  const comment = DiscussionCommentPayloadSchema.parse(payload.comment);
-  let discussionLabels = [];
-  try {
-    const result = await octokit.graphql(
-      `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $number) {
-            labels(first: 20) {
-              nodes { name }
-            }
-          }
-        }
-      }
-    `,
-      { owner, repo, number: discussion.number }
-    );
-    discussionLabels = result.repository.discussion?.labels?.nodes?.map((l) => l.name) ?? [];
-  } catch (error7) {
-    core19.warning(`Failed to fetch discussion labels: ${error7}`);
-  }
-  const isTestAutomation = discussionLabels.includes("test:automation");
-  if (discussion.title.startsWith("[TEST]") && !isTestAutomation) {
-    return emptyResult(true, "Discussion title starts with [TEST]");
-  }
-  const body = comment.body.trim();
-  const author = comment.user.login;
-  const isTopLevel = !comment.parent_id;
-  if (body === "/summarize") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "EYES");
-    return {
-      job: "discussion-summarize",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        trigger_type: "discussion-command",
-        command: "summarize",
-        is_test_automation: isTestAutomation
-      },
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (body === "/plan") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
-    return {
-      job: "discussion-plan",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        trigger_type: "discussion-command",
-        command: "plan",
-        is_test_automation: isTestAutomation
-      },
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (body === "/complete") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "THUMBS_UP");
-    return {
-      job: "discussion-complete",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        trigger_type: "discussion-command",
-        command: "complete",
-        is_test_automation: isTestAutomation
-      },
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (body === "/lfg" || body === "/research") {
-    await addReactionToDiscussionComment(octokit, comment.node_id, "ROCKET");
-    return {
-      job: "discussion-research",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        discussion_title: discussion.title,
-        discussion_body: discussion.body ?? "",
-        trigger_type: "discussion-created",
-        is_test_automation: isTestAutomation
-      },
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (author !== "claude[bot]" && author !== "nopo-bot") {
-    return {
-      job: "discussion-respond",
-      resourceType: "discussion",
-      resourceNumber: String(discussion.number),
-      commentId: comment.node_id,
-      contextJson: {
-        discussion_number: String(discussion.number),
-        comment_body: comment.body,
-        comment_author: author,
-        trigger_type: "discussion-comment",
-        is_test_automation: isTestAutomation
-      },
-      skip: false,
-      skipReason: ""
-    };
-  }
-  if (isTopLevel && comment.body.includes("## \u{1F50D} Research:")) {
-    return emptyResult(
-      true,
-      "Bot research thread - investigation handled in same workflow"
-    );
-  }
-  if (comment.body.includes("## \u{1F4CA} Findings:")) {
-    return emptyResult(true, "Bot investigation findings - no action needed");
-  }
-  return emptyResult(true, "Bot comment - preventing infinite loop");
+async function handleDiscussionCommentEvent(_octokit, _owner, _repo) {
+  return emptyResult(true, "Discussion automation removed");
 }
 async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   if (!resourceNumber) {
@@ -77814,7 +75917,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   if (isNaN(issueNum)) {
     return emptyResult(true, `Invalid resource_number: ${resourceNumber}`);
   }
-  core19.info(`Workflow dispatch for issue #${issueNum}`);
+  core15.info(`Workflow dispatch for issue #${issueNum}`);
   if (shouldSkipProjectStatus(issueState)) {
     return emptyResult(
       true,
@@ -77824,13 +75927,13 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   let parentIssueStr = "0";
   if (isSubIssue2(issueState) && parentIssueNumber2(issueState) > 0) {
     parentIssueStr = String(parentIssueNumber2(issueState));
-    core19.info(`Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`);
+    core15.info(`Issue #${issueNum} is a sub-issue of parent #${parentIssueStr}`);
   }
   const labels = issueLabels(issueState);
   const hasTriaged = labels.includes("triaged");
   const hasGroomed = labels.includes("groomed");
   if (hasTriaged && !hasGroomed) {
-    core19.info(
+    core15.info(
       `Issue #${issueNum} needs grooming (triaged=${hasTriaged}, groomed=${hasGroomed})`
     );
     return {
@@ -77859,7 +75962,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
         issueNum,
         phaseNumber || assignedSubIssue.number
       );
-      core19.info(
+      core15.info(
         `Sub-issue #${assignedSubIssue.number} is assigned and needs work \u2014 routing to iterate`
       );
       return {
@@ -77882,7 +75985,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
     );
     if (reviewSubIssue && reviewSubIssue.pr) {
       const branchName2 = reviewSubIssue.pr.headRef;
-      core19.info(
+      core15.info(
         `Sub-issue #${reviewSubIssue.number} is in review with PR #${reviewSubIssue.pr.number} \u2014 routing to review`
       );
       return {
@@ -77916,7 +76019,7 @@ async function handleWorkflowDispatchEvent(resourceNumber, issueState) {
   }
   if (isSubIssue2(issueState) && issueState.issue.projectStatus === "In review" && issueState.issue.pr && !issueState.issue.pr.isDraft) {
     const pr = issueState.issue.pr;
-    core19.info(
+    core15.info(
       `Sub-issue #${issueNum} is in review with PR #${pr.number} \u2014 routing to review`
     );
     return {
@@ -78037,13 +76140,13 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride, projectNu
       issue_number: issueNumber,
       ci_run_url: ciRunUrl
     };
-    core19.info(
+    core15.info(
       `Trigger override: ${triggerTypeOverride} -> job=${job}, issue #${issueNumber}`
     );
     return unifiedContext2;
   }
   const resolved = await resolveEvent(octokit, owner, repo, resourceNumber);
-  core19.info(
+  core15.info(
     `Processing event: ${github.context.eventName} (handler=${resolved.handler}, issueNumber=${resolved.issueNumber ?? "none"})`
   );
   let issueState = null;
@@ -78057,8 +76160,8 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride, projectNu
         // Handlers use parentIssueNumber from issue data
       });
       issueState = data;
-    } catch (error7) {
-      core19.warning(`Failed to parse issue #${resolved.issueNumber}: ${error7}`);
+    } catch (error6) {
+      core15.warning(`Failed to parse issue #${resolved.issueNumber}: ${error6}`);
     }
   }
   let result;
@@ -78137,24 +76240,24 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride, projectNu
       result = emptyResult(true, `Unhandled event: ${resolved.handler}`);
   }
   if (result.skip) {
-    core19.info(`Skipping: ${result.skipReason}`);
+    core15.info(`Skipping: ${result.skipReason}`);
   } else {
-    core19.info(`Detected job: ${result.job}`);
-    core19.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
+    core15.info(`Detected job: ${result.job}`);
+    core15.info(`Resource: ${result.resourceType} #${result.resourceNumber}`);
   }
   const ctx = result.contextJson;
   const ctxParentIssue = String(ctx.parent_issue ?? "0");
   const branch = String(ctx.branch_name ?? "");
   const trigger = jobToTrigger(result.job, JSON.stringify(ctx));
-  core19.info(`Trigger: ${trigger}`);
+  core15.info(`Trigger: ${trigger}`);
   const concurrency = computeConcurrency(
     result.job,
     result.resourceNumber,
     ctxParentIssue,
     branch
   );
-  core19.info(`Concurrency group: ${concurrency.group}`);
-  core19.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
+  core15.info(`Concurrency group: ${concurrency.group}`);
+  core15.info(`Cancel in progress: ${concurrency.cancelInProgress}`);
   const unifiedContext = {
     // Routing & control
     job: result.job,
@@ -78174,7 +76277,7 @@ async function detectEvent(token, resourceNumber, triggerTypeOverride, projectNu
 }
 
 // packages/statemachine/actions/sm-plan/lib/expected-state.ts
-var core20 = __toESM(require_core(), 1);
+var core16 = __toESM(require_core(), 1);
 function predictRetrigger(finalState) {
   const retriggerStates = /* @__PURE__ */ new Set([
     "orchestrationRunning",
@@ -78191,11 +76294,11 @@ function predictRetrigger(finalState) {
 function predictExpectedState(deriveResult) {
   const { finalState, machineContext } = deriveResult;
   if (!machineContext) {
-    core20.info("No machine context available \u2014 skipping expected state");
+    core16.info("No machine context available \u2014 skipping expected state");
     return null;
   }
   if (isDiscussionTrigger(machineContext.trigger)) {
-    core20.info("Discussion trigger \u2014 skipping expected state");
+    core16.info("Discussion trigger \u2014 skipping expected state");
     return null;
   }
   try {
@@ -78217,27 +76320,27 @@ function predictExpectedState(deriveResult) {
       issueNumber,
       parentIssueNumber: parentIssueNumber3
     });
-    core20.info(
+    core16.info(
       `Expected state built: finalState=${finalState}, outcomes=${outcomes.length}, expectedRetrigger=${expectedRetrigger}`
     );
     return JSON.stringify(expected);
-  } catch (error7) {
-    core20.warning(`Failed to build expected state: ${error7}`);
+  } catch (error6) {
+    core16.warning(`Failed to build expected state: ${error6}`);
     return null;
   }
 }
 function predictExpectedStateNew(deriveResult) {
   const { machineContext } = deriveResult;
   if (!machineContext) {
-    core20.info("No machine context available \u2014 skipping expected state (new)");
+    core16.info("No machine context available \u2014 skipping expected state (new)");
     return null;
   }
   if (isDiscussionTrigger(machineContext.trigger)) {
-    core20.info("Discussion trigger \u2014 skipping expected state (new)");
+    core16.info("Discussion trigger \u2014 skipping expected state (new)");
     return null;
   }
   try {
-    const verifier = new issue_next_invoke_exports.MachineVerifier();
+    const verifier = new MachineVerifier();
     const machineResult = {
       state: deriveResult.finalState,
       actions: deriveResult.pendingActions,
@@ -78247,12 +76350,12 @@ function predictExpectedStateNew(deriveResult) {
       machineResult,
       machineContext
     );
-    core20.info(
+    core16.info(
       `Expected state built (new): finalState=${deriveResult.finalState}, outcomes=${expected.outcomes.length}, expectedRetrigger=${expected.expectedRetrigger}`
     );
     return JSON.stringify(expected);
-  } catch (error7) {
-    core20.warning(`Failed to build expected state (new): ${error7}`);
+  } catch (error6) {
+    core16.warning(`Failed to build expected state (new): ${error6}`);
     return null;
   }
 }
@@ -78289,9 +76392,9 @@ async function logRunStart(octokit, owner, repo, deriveResult) {
       data
     );
     await update(state);
-    core21.info(`Logged run start for issue #${issueNumber}`);
-  } catch (error7) {
-    core21.warning(`Failed to log run start: ${error7}`);
+    core17.info(`Logged run start for issue #${issueNumber}`);
+  } catch (error6) {
+    core17.warning(`Failed to log run start: ${error6}`);
   }
 }
 async function run() {
@@ -78304,10 +76407,10 @@ async function run() {
   let deriveResultJson = "";
   const useNewMachine = getOptionalInput("use_new_machine") === "true";
   if (!unifiedContext.skip && !isDiscussionTrigger(unifiedContext.trigger)) {
-    core21.startGroup("Predict expected state");
-    core21.info("=".repeat(60));
-    core21.info(`MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`);
-    core21.info("=".repeat(60));
+    core17.startGroup("Predict expected state");
+    core17.info("=".repeat(60));
+    core17.info(`MACHINE: ${useNewMachine ? ">>> INVOKE (NEW) <<<" : "legacy"}`);
+    core17.info("=".repeat(60));
     try {
       const octokit = github2.getOctokit(token);
       const { owner, repo } = github2.context.repo;
@@ -78322,7 +76425,7 @@ async function run() {
         maxRetries: 5,
         botUsername: "nopo-bot"
       };
-      const deriveResult = useNewMachine ? await issue_next_invoke_exports.deriveFromWorkflow(deriveOptions) : await deriveIssueActions(deriveOptions);
+      const deriveResult = useNewMachine ? await deriveFromWorkflow(deriveOptions) : await deriveIssueActions(deriveOptions);
       if (deriveResult) {
         const result = useNewMachine ? predictExpectedStateNew(deriveResult) : predictExpectedState(deriveResult);
         if (result) {
@@ -78332,10 +76435,10 @@ async function run() {
         deriveResultJson = JSON.stringify(serializableResult);
         await logRunStart(octokit, owner, repo, deriveResult);
       }
-    } catch (error7) {
-      core21.warning(`Expected state prediction failed: ${error7}`);
+    } catch (error6) {
+      core17.warning(`Expected state prediction failed: ${error6}`);
     }
-    core21.endGroup();
+    core17.endGroup();
   }
   setOutputs({
     context_json: JSON.stringify(unifiedContext),

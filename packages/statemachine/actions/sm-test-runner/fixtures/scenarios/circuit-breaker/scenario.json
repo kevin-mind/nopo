@@ -1,4 +1,0 @@
-{
-  "name": "circuit-breaker",
-  "description": "Tests circuit breaker: repeated CI failures until max retries (5) triggers blocked state"
-}

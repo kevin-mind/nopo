@@ -1,4 +1,0 @@
-{
-  "name": "test-cleanup",
-  "description": "Tests the /reset command: resets a completed issue with sub-issues to initial state"
-}

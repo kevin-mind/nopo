@@ -1,9 +1,17 @@
 /**
- * Domain-specific constants re-exported for machine consumption.
+ * Domain-specific constants for the state machine.
  *
- * Copied from src/constants.ts — these are standalone values with zero deps.
- * The originals remain in src/constants.ts for other consumers (runner, verify, etc.).
+ * All emoji icons, history messages, section heading names, and body structure
+ * schemas are defined here and imported by machine/actions.ts, parser/extractors.ts,
+ * parser/mutators.ts, and the verification system.
  */
+
+import { z } from "zod";
+import {
+  TodoStatsSchema,
+  HistoryEntrySchema,
+  AgentNotesEntrySchema,
+} from "@more/issue-state";
 
 // ============================================================================
 // History Icons
@@ -103,3 +111,77 @@ export const SECTION_NAMES = {
   AFFECTED_AREAS: "Affected Areas",
   TODO_ALIASES,
 } as const;
+
+// ============================================================================
+// Standard Section Order
+// ============================================================================
+
+/**
+ * Canonical ordering for section insertion.
+ * Used by upsertSection to determine where to insert new sections.
+ */
+export const STANDARD_SECTION_ORDER: readonly string[] = [
+  SECTION_NAMES.DESCRIPTION,
+  SECTION_NAMES.REQUIREMENTS,
+  SECTION_NAMES.APPROACH,
+  SECTION_NAMES.ACCEPTANCE_CRITERIA,
+  SECTION_NAMES.TESTING,
+  SECTION_NAMES.RELATED,
+  SECTION_NAMES.QUESTIONS,
+  SECTION_NAMES.TODOS,
+  SECTION_NAMES.AGENT_NOTES,
+  SECTION_NAMES.ITERATION_HISTORY,
+];
+
+// ============================================================================
+// Body Structure Schemas
+// ============================================================================
+
+/**
+ * Question statistics schema (mirrors QuestionStatsSchema from extractors).
+ * Re-declared here to avoid circular dependency with parser/extractors.
+ */
+export const QuestionStatsSchemaForBody = z.object({
+  total: z.number(),
+  answered: z.number(),
+  unanswered: z.number(),
+});
+
+/**
+ * Schema for the extracted domain structure of a sub-issue body.
+ * Composes generic schemas from @more/issue-state.
+ */
+export const SubIssueBodyStructureSchema = z.object({
+  // Section existence flags
+  hasDescription: z.boolean(),
+  hasTodos: z.boolean(),
+  hasHistory: z.boolean(),
+  hasAgentNotes: z.boolean(),
+  hasQuestions: z.boolean(),
+  hasAffectedAreas: z.boolean(),
+
+  // Extracted data
+  todoStats: TodoStatsSchema.nullable(),
+  questionStats: QuestionStatsSchemaForBody.nullable(),
+  historyEntries: z.array(HistoryEntrySchema),
+  agentNotesEntries: z.array(AgentNotesEntrySchema),
+});
+
+export type SubIssueBodyStructure = z.infer<typeof SubIssueBodyStructureSchema>;
+
+/**
+ * Schema for the extracted domain structure of a parent issue body.
+ * Extends sub-issue structure with parent-only section flags.
+ */
+export const ParentIssueBodyStructureSchema =
+  SubIssueBodyStructureSchema.extend({
+    hasRequirements: z.boolean(),
+    hasApproach: z.boolean(),
+    hasAcceptanceCriteria: z.boolean(),
+    hasTesting: z.boolean(),
+    hasRelated: z.boolean(),
+  });
+
+export type ParentIssueBodyStructure = z.infer<
+  typeof ParentIssueBodyStructureSchema
+>;

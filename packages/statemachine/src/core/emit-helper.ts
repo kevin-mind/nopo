@@ -7,8 +7,8 @@
  * Use:
  *   emit(emitX)
  *
- * For emitters that need extra args (e.g. emitLog with message):
- *   emit((ctx) => emitLog(ctx, "message"))
+ * For emitters that need extra args (e.g. emitStatus with status):
+ *   emit((ctx) => emitStatus(ctx, "In progress"))
  */
 
 import { assign } from "xstate";
@@ -47,21 +47,4 @@ export function emit<TEvent extends EventObject = EventObject>(
     pendingActions: ({ context }: { context: MachineContextWithActions }) =>
       accumulateFromEmitter(context.pendingActions, context, emitter),
   });
-}
-
-/**
- * Create a typed emit function bound to a specific event type.
- * Eliminates repetitive `emit<MyEvent>(...)` generics at each call site.
- *
- * Usage:
- *   const e = createEmitter<IssueMachineEvent>();
- *   // then in actions:
- *   logDetecting: e((ctx) => emitLog(ctx, "Detecting")),
- */
-export function createEmitter<TEvent extends EventObject>() {
-  return (
-    emitter: (
-      ctx: ActionContext,
-    ) => MachineContextWithActions["pendingActions"],
-  ) => emit<TEvent>(emitter);
 }

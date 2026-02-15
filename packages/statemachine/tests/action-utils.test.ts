@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { determineOutcome } from "../src/action-utils.js";
+import { determineOutcome } from "../src/core/action-utils.js";
 
 describe("determineOutcome", () => {
   const baseParams = {

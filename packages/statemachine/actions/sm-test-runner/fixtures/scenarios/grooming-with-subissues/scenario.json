@@ -1,4 +1,0 @@
-{
-  "name": "grooming-with-subissues",
-  "description": "Tests grooming that creates sub-issues for larger/phased work (after decision=ready)"
-}

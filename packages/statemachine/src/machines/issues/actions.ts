@@ -381,13 +381,7 @@ export function runClaudePRReview({ context }: ActionContext): ActionResult {
   const prNumber = context.pr?.number;
 
   if (!prNumber) {
-    return [
-      actions.log.create({
-        level: "warning",
-        message: "No PR found for review",
-        worktree: "main",
-      }),
-    ];
+    return [];
   }
 
   const promptVars: Record<string, string> = {
@@ -430,13 +424,7 @@ export function runClaudePRResponse({ context }: ActionContext): ActionResult {
   const prNumber = context.pr?.number;
 
   if (!prNumber) {
-    return [
-      actions.log.create({
-        level: "warning",
-        message: "No PR found for response",
-        worktree: "main",
-      }),
-    ];
+    return [];
   }
 
   const promptVars: Record<string, string> = {
@@ -484,13 +472,7 @@ export function runClaudePRHumanResponse({
   const prNumber = context.pr?.number;
 
   if (!prNumber) {
-    return [
-      actions.log.create({
-        level: "warning",
-        message: "No PR found for human response",
-        worktree: "main",
-      }),
-    ];
+    return [];
   }
 
   const promptVars: Record<string, string> = {
@@ -537,14 +519,6 @@ export function runClaudePRHumanResponse({
  */
 export function orchestrate({ context }: ActionContext): ActionResult {
   const result: Action[] = [];
-
-  result.push(
-    actions.log.create({
-      level: "info",
-      message: `Orchestrating issue #${context.issue.number} with ${context.issue.subIssues.length} phases`,
-      worktree: "main",
-    }),
-  );
 
   // Check if parent needs initialization
   const needsInit =
@@ -617,11 +591,6 @@ export function orchestrate({ context }: ActionContext): ActionResult {
  */
 export function allPhasesDone({ context }: ActionContext): ActionResult {
   return [
-    actions.log.create({
-      level: "info",
-      message: `All phases complete for issue #${context.issue.number}`,
-      worktree: "main",
-    }),
     actions.updateProjectStatus.create({
       issueNumber: context.issue.number,
       status: "Done",

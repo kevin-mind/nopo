@@ -6,9 +6,12 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { parseMarkdown } from "@more/issue-state";
-import { createMachineContext } from "../src/schemas/state.js";
-import { ParentIssueSchema, SubIssueSchema } from "../src/schemas/index.js";
-import type { MachineContext } from "../src/schemas/index.js";
+import { createMachineContext } from "../src/core/schemas/state.js";
+import {
+  ParentIssueSchema,
+  SubIssueSchema,
+} from "../src/core/schemas/index.js";
+import type { MachineContext } from "../src/core/schemas/index.js";
 import type { Logger } from "../src/core/types.js";
 
 // Invoke-based implementation
@@ -16,8 +19,8 @@ import {
   IssueMachine,
   MachineVerifier,
   buildDeriveMetadata,
-} from "../src/machines/issue-next-invoke/index.js";
-import { buildActionsForService } from "../src/machines/issue-next-invoke/services.js";
+} from "../src/machines/issues/index.js";
+import { buildActionsForService } from "../src/machines/issues/services.js";
 
 function createMockLogger(): Logger & {
   debug: ReturnType<typeof vi.fn>;
@@ -912,7 +915,7 @@ describe("issue-next: Machine class API", () => {
 
     // Use dry run mode to avoid real API calls
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mock object for dry-run testing
-    const mockOctokit = {} as import("../src/runner/types.js").Octokit;
+    const mockOctokit = {} as import("../src/core/executor.js").Octokit;
     const result = await machine.execute({
       runnerContext: {
         octokit: mockOctokit,
@@ -947,10 +950,9 @@ describe("issue-next-invoke: buildActionsForService", () => {
     }),
   });
 
-  it("builds log action for logDetecting", () => {
+  it("returns empty for removed log services", () => {
     const result = buildActionsForService("logDetecting", context);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.type).toBe("log");
+    expect(result).toHaveLength(0);
   });
 
   it("builds updateProjectStatus for setWorking", () => {
@@ -1101,7 +1103,7 @@ describe("issue-next: MachineVerifier", () => {
     const actualTree = verifier.extractStateTree(context);
 
     // Pick the first outcome — it should match or be close
-    const verification = verifier.verify(expected, actualTree, true);
+    const verification = verifier.verifyExpected(expected, actualTree, true);
 
     // Since triage actions haven't been executed, there will be diffs
     // (expected has triage outputs applied, actual doesn't).
@@ -1123,7 +1125,7 @@ describe("issue-next: MachineVerifier", () => {
     const actualTree = verifier.extractStateTree(context);
 
     // expectedRetrigger is true for triaging, pass false
-    const verification = verifier.verify(expected, actualTree, false);
+    const verification = verifier.verifyExpected(expected, actualTree, false);
     expect(verification.retriggerPass).toBe(false);
     expect(verification.pass).toBe(false);
   });
@@ -1141,7 +1143,7 @@ describe("issue-next: MachineVerifier", () => {
     const expected = verifier.predictExpectedState(result, context);
     const actualTree = verifier.extractStateTree(context);
 
-    const verification = verifier.verify(expected, actualTree);
+    const verification = verifier.verifyExpected(expected, actualTree);
     // retriggerPass should be true when actualRetrigger is undefined
     expect(verification.retriggerPass).toBe(true);
   });

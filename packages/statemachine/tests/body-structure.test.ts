@@ -3,7 +3,7 @@ import { parseMarkdown } from "@more/issue-state";
 import {
   extractSubIssueBodyStructure,
   extractParentIssueBodyStructure,
-} from "../src/parser/extractors.js";
+} from "../src/core/parser/extractors.js";
 
 /**
  * Helper to parse markdown into a Root AST.

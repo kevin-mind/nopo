@@ -1,0 +1,5 @@
+rename context-loader.ts to context.ts
+move IssueMachine to core as a generic BaseMachine<Context> that defines core types/methods, then export IssueMachine as Machine from ./machines/issues/machine.ts ( no extra file)
+update the if (action.type === "log") to straight actor.on() loggers. we should just log all actions and events as they come in. no need to actually model these in the state machine. make the state machine purely focused on core business logic and let logging concerns be left to the actors.
+move core verification logic in verifier.ts to core/verifier/* the core structure of defining verifiers, and the logic for running verification is a core concern that should not be specifically dependent on the issues machine. we should only define our actual verifiers for the issues machine in issues/
+remove the concept of a runner as we now have a fully contained machine architecture.. we have no need for a runner anymore.

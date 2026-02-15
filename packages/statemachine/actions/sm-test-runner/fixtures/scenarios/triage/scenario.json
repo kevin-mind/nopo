@@ -1,4 +1,0 @@
-{
-  "name": "triage",
-  "description": "Tests issue triage: detecting -> triaging (adds labels, structures issue body, no sub-issues)"
-}

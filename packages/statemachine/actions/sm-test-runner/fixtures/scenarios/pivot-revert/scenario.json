@@ -1,4 +1,0 @@
-{
-  "name": "pivot-revert",
-  "description": "Tests /pivot command - attempting to revert completed work creates a new sub-issue"
-}

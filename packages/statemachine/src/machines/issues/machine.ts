@@ -1,304 +1,168 @@
 /**
  * Issue automation state machine.
  *
- * Simple actions are inlined directly. Compound/complex actions are imported
- * from ./actions.ts and wrapped with emit().
+ * Contains both the XState machine definition (issueInvokeMachine) and the
+ * IssueMachine class that wraps it with logging and type aliases.
+ *
+ * Uses XState's invoke + fromPromise for side effects.
+ * Default stubs auto-succeed (predict mode).
+ * Real implementations injected via .provide() (execute mode).
+ * onDone + assign() accumulates actions into context.
+ *
+ * Key difference from emit approach: side effects are modeled as
+ * invoked services, making the machine aware of async operations.
+ * The machine waits for services to complete before transitioning.
+ *
+ * Note: For the synchronous predict/plan use case, all services
+ * resolve immediately. For execute mode, .provide() can inject
+ * services that perform real I/O.
  */
 
 import { and, not, assign, setup } from "xstate";
-import type { MachineContext } from "../../core/schemas.js";
-import { actions } from "../../core/schemas.js";
-import { deriveBranchName } from "../../core/parser.js";
-import { HISTORY_ICONS, HISTORY_MESSAGES } from "../../core/constants.js";
+import type { AnyEventObject, AnyStateMachine, EventObject } from "xstate";
+import type { MachineContext, Action } from "../../core/schemas.js";
 import {
-  createEmitter,
-  accumulateFromEmitter,
-} from "../../core/emit-helper.js";
-import { emitLog } from "../../core/action-helpers.js";
-import type { BaseMachineContext } from "../../core/types.js";
+  BaseMachine,
+  type BaseMachineResult,
+  type BaseRunOptions,
+  type BaseExecuteOptions,
+  type BaseExecuteResult,
+} from "../../core/machine.js";
 import { guards } from "./guards.js";
 import { STATES } from "./states.js";
+import type { IssueState } from "./states.js";
 import type { IssueMachineEvent } from "./events.js";
-import {
-  // History & status helpers
-  emitStatus,
-  emitAppendHistory,
-  emitUpdateHistory,
-  // Compound actions
-  transitionToReview,
-  handleCIFailure,
-  blockIssue,
-  orchestrate,
-  allPhasesDone,
-  resetIssue,
-  retryIssue,
-  pushToDraft,
-  logInvalidIteration,
-  // Claude actions (complex prompt building)
-  runClaude,
-  runClaudeFixCI,
-  runClaudeTriage,
-  runClaudeComment,
-  runClaudePRReview,
-  runClaudePRResponse,
-  runClaudePRHumanResponse,
-  runClaudeGrooming,
-  runClaudePivot,
-  // Merge queue / deployment logging
-  mergeQueueEntry,
-  mergeQueueFailure,
-  merged,
-  deployedStage,
-  deployedProd,
-  deployedStageFailure,
-  deployedProdFailure,
-} from "./actions.js";
+import { buildActionsForService } from "./services.js";
 
 /**
- * Extended context that includes accumulated actions
+ * Machine context with accumulated actions
  */
-interface MachineContextWithActions
-  extends MachineContext,
-    BaseMachineContext {}
-
-/** Typed emit bound to IssueMachineEvent — avoids repeating the generic at every call site. */
-const e = createEmitter<IssueMachineEvent>();
+export interface InvokeMachineContext extends MachineContext {
+  pendingActions: Action[];
+}
 
 /**
- * The issue automation state machine
+ * Helper: create an XState assign action that synchronously builds and
+ * appends actions from a service name. This gives the invoke machine
+ * the same synchronous behavior as the emit machine for plan/predict mode,
+ * while the Machine class can swap in async services for execute mode.
  */
-export const issueMachine = setup({
+function syncAction(...serviceNames: string[]) {
+  return assign<
+    InvokeMachineContext,
+    AnyEventObject,
+    undefined,
+    IssueMachineEvent,
+    never
+  >({
+    pendingActions: ({ context }: { context: InvokeMachineContext }) => {
+      const newActions: Action[] = [];
+      for (const name of serviceNames) {
+        newActions.push(...buildActionsForService(name, context));
+      }
+      return [...context.pendingActions, ...newActions];
+    },
+  });
+}
+
+/**
+ * The invoke-based issue automation state machine.
+ *
+ * Uses synchronous assign actions that call buildActionsForService()
+ * to produce the same output as the original machine. The Machine class
+ * can override individual services via .provide() for execute mode.
+ */
+export const issueInvokeMachine = setup({
   types: {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
-    context: {} as MachineContextWithActions,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions
+    context: {} as InvokeMachineContext,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions
     events: {} as IssueMachineEvent,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions for machine type declarations
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState setup requires type assertions
     input: {} as MachineContext,
   },
   guards,
   actions: {
-    // =========================================================================
-    // Simple inline actions
-    // =========================================================================
-
-    // Log actions
-    logDetecting: e((ctx) => emitLog(ctx, "Detecting initial state")),
-    logIterating: e((ctx) =>
-      emitLog(ctx, `Starting iteration ${ctx.context.issue.iteration + 1}`),
-    ),
-    logFixingCI: e((ctx) =>
-      emitLog(ctx, `Fixing CI (iteration ${ctx.context.issue.iteration + 1})`),
-    ),
-    logReviewing: e((ctx) => emitLog(ctx, "PR is under review")),
-    logTriaging: e((ctx) =>
-      emitLog(ctx, `Triaging issue #${ctx.context.issue.number}`),
-    ),
-    logCommenting: e((ctx) =>
-      emitLog(ctx, `Responding to comment on #${ctx.context.issue.number}`),
-    ),
-    logWaitingForReview: e((ctx) =>
-      emitLog(ctx, "Waiting for review on current phase"),
-    ),
-    logAwaitingMerge: e((ctx) =>
-      emitLog(
-        ctx,
-        `PR #${ctx.context.pr?.number} marked ready for merge - awaiting human action`,
-      ),
-    ),
-    logOrchestrating: e((ctx) =>
-      emitLog(
-        ctx,
-        `Orchestrating issue #${ctx.context.issue.number} (phase ${ctx.context.currentPhase}/${ctx.context.totalPhases})`,
-      ),
-    ),
-    logPRReviewing: e((ctx) =>
-      emitLog(ctx, `Reviewing PR #${ctx.context.pr?.number ?? "unknown"}`),
-    ),
-    logPRResponding: e((ctx) =>
-      emitLog(
-        ctx,
-        `Responding to review on PR #${ctx.context.pr?.number ?? "unknown"}`,
-      ),
-    ),
-    logResetting: e((ctx) =>
-      emitLog(
-        ctx,
-        `Resetting issue #${ctx.context.issue.number} to initial state`,
-      ),
-    ),
-    logRetrying: e((ctx) =>
-      emitLog(
-        ctx,
-        `Retrying issue #${ctx.context.issue.number} (clearing failures)`,
-      ),
-    ),
-    logGrooming: e((ctx) =>
-      emitLog(ctx, `Grooming issue #${ctx.context.issue.number}`),
-    ),
-    logPivoting: e((ctx) =>
-      emitLog(ctx, `Pivoting issue #${ctx.context.issue.number}`),
-    ),
-
-    // Iteration history logging (writes to issue body)
-    historyIterationStarted: e((ctx) =>
-      emitAppendHistory(ctx, HISTORY_MESSAGES.ITERATING),
-    ),
-    historyCISuccess: e((ctx) =>
-      emitUpdateHistory(
-        ctx,
-        HISTORY_ICONS.ITERATING,
-        HISTORY_MESSAGES.CI_PASSED,
-      ),
-    ),
-    historyReviewRequested: e((ctx) =>
-      emitAppendHistory(ctx, HISTORY_MESSAGES.REVIEW_REQUESTED),
-    ),
+    // History actions
+    historyIterationStarted: syncAction("historyIterationStarted"),
+    historyCISuccess: syncAction("historyCISuccess"),
+    historyReviewRequested: syncAction("historyReviewRequested"),
 
     // Status actions
-    setWorking: e((ctx) => emitStatus(ctx, "In progress")),
-    setReview: e((ctx) => emitStatus(ctx, "In review")),
-    setInProgress: e(({ context }) => [
-      actions.updateProjectStatus.create({
-        issueNumber: context.issue.number,
-        status: "In progress",
-      }),
-    ]),
-    setDone: e(({ context }) => [
-      actions.updateProjectStatus.create({
-        issueNumber: context.issue.number,
-        status: "Done",
-      }),
-    ]),
-    setError: e(({ context }) => [
-      actions.updateProjectStatus.create({
-        issueNumber: context.issue.number,
-        status: "Error",
-      }),
-    ]),
+    setWorking: syncAction("setWorking"),
+    setReview: syncAction("setReview"),
+    setInProgress: syncAction("setInProgress"),
+    setDone: syncAction("setDone"),
+    setError: syncAction("setError"),
 
     // Iteration actions
-    incrementIteration: e(({ context }) => [
-      actions.incrementIteration.create({
-        issueNumber: context.issue.number,
-      }),
-    ]),
-    clearFailures: e(({ context }) => [
-      actions.clearFailures.create({
-        issueNumber: context.issue.number,
-      }),
-    ]),
+    incrementIteration: syncAction("incrementIteration"),
+    clearFailures: syncAction("clearFailures"),
 
     // Issue actions
-    closeIssue: e(({ context }) => [
-      actions.closeIssue.create({
-        issueNumber: context.issue.number,
-        reason: "completed" as const,
-      }),
-    ]),
+    closeIssue: syncAction("closeIssue"),
 
     // Git actions
-    createBranch: e(({ context }) => [
-      actions.createBranch.create({
-        branchName:
-          context.branch ??
-          deriveBranchName(
-            context.issue.number,
-            context.currentPhase ?? undefined,
-          ),
-        baseBranch: "main",
-        worktree: "main",
-      }),
-    ]),
+    createBranch: syncAction("createBranch"),
 
     // PR actions
-    createPR: e(({ context }) => {
-      if (context.pr) return [];
-      const branchName =
-        context.branch ??
-        deriveBranchName(
-          context.issue.number,
-          context.currentPhase ?? undefined,
-        );
-      const issueNumber =
-        context.currentSubIssue?.number ?? context.issue.number;
-      return [
-        actions.createPR.create({
-          title: context.currentSubIssue?.title ?? context.issue.title,
-          body: `Fixes #${issueNumber}`,
-          branchName,
-          baseBranch: "main",
-          draft: true,
-          issueNumber,
-        }),
-      ];
-    }),
-    convertToDraft: e(({ context }) => {
-      if (!context.pr) return [];
-      return [actions.convertPRToDraft.create({ prNumber: context.pr.number })];
-    }),
-    mergePR: e(({ context }) => {
-      if (!context.pr) return [];
-      const issueNumber =
-        context.currentSubIssue?.number ?? context.issue.number;
-      return [
-        actions.mergePR.create({
-          prNumber: context.pr.number,
-          issueNumber,
-          mergeMethod: "squash",
-        }),
-      ];
-    }),
+    createPR: syncAction("createPR"),
+    convertToDraft: syncAction("convertToDraft"),
+    mergePR: syncAction("mergePR"),
 
-    // =========================================================================
-    // Compound/complex actions (from ./actions.ts)
-    // =========================================================================
-
-    transitionToReview: e(transitionToReview),
-    handleCIFailure: e(handleCIFailure),
-    blockIssue: e(blockIssue),
-    orchestrate: e(orchestrate),
-    allPhasesDone: e(allPhasesDone),
-    resetIssue: e(resetIssue),
-    retryIssue: e(retryIssue),
-    pushToDraft: e(pushToDraft),
-    logInvalidIteration: e(logInvalidIteration),
+    // Compound actions
+    transitionToReview: syncAction("transitionToReview"),
+    handleCIFailure: syncAction("handleCIFailure"),
+    blockIssue: syncAction("blockIssue"),
+    orchestrate: syncAction("orchestrate"),
+    allPhasesDone: syncAction("allPhasesDone"),
+    resetIssue: syncAction("resetIssue"),
+    retryIssue: syncAction("retryIssue"),
+    pushToDraft: syncAction("pushToDraft"),
+    logInvalidIteration: syncAction("logInvalidIteration"),
 
     // Claude actions
-    runClaude: e(runClaude),
-    runClaudeFixCI: e(runClaudeFixCI),
-    runClaudeTriage: e(runClaudeTriage),
-    runClaudeComment: e(runClaudeComment),
-    runClaudePRReview: e(runClaudePRReview),
-    runClaudePRResponse: e(runClaudePRResponse),
-    runClaudePRHumanResponse: e(runClaudePRHumanResponse),
-    runClaudeGrooming: e(runClaudeGrooming),
-    runClaudePivot: e(runClaudePivot),
+    runClaude: syncAction("runClaude"),
+    runClaudeFixCI: syncAction("runClaudeFixCI"),
+    runClaudeTriage: syncAction("runClaudeTriage"),
+    runClaudeComment: syncAction("runClaudeComment"),
+    runClaudePRReview: syncAction("runClaudePRReview"),
+    runClaudePRResponse: syncAction("runClaudePRResponse"),
+    runClaudePRHumanResponse: syncAction("runClaudePRHumanResponse"),
+    runClaudeGrooming: syncAction("runClaudeGrooming"),
+    runClaudePivot: syncAction("runClaudePivot"),
 
-    // Merge queue logging actions
-    logMergeQueueEntry: e(mergeQueueEntry),
-    logMergeQueueFailure: e(mergeQueueFailure),
-    logMerged: e(merged),
-    logDeployedStage: e(deployedStage),
-    logDeployedProd: e(deployedProd),
-    logDeployedStageFailure: e(deployedStageFailure),
-    logDeployedProdFailure: e(deployedProdFailure),
+    // Merge queue / deployment logging
+    logMergeQueueEntry: syncAction("logMergeQueueEntry"),
+    logMergeQueueFailure: syncAction("logMergeQueueFailure"),
+    logMerged: syncAction("logMerged"),
+    logDeployedStage: syncAction("logDeployedStage"),
+    logDeployedProd: syncAction("logDeployedProd"),
+    logDeployedStageFailure: syncAction("logDeployedStageFailure"),
+    logDeployedProdFailure: syncAction("logDeployedProdFailure"),
 
-    // Stop action (needs event.reason for the message - inline assign)
-    stopWithReason: assign({
+    // Stop (needs event.reason)
+    stopWithReason: assign<
+      InvokeMachineContext,
+      AnyEventObject,
+      undefined,
+      IssueMachineEvent,
+      never
+    >({
       pendingActions: ({ context, event }) => {
         const reason =
           "reason" in event && typeof event.reason === "string"
             ? event.reason
             : "unknown";
-        return accumulateFromEmitter(context.pendingActions, context, () => [
-          actions.stop.create({ message: reason }),
-        ]);
+        return [
+          ...context.pendingActions,
+          ...buildActionsForService("stopWithReason", context, reason),
+        ];
       },
     }),
   },
 }).createMachine({
-  id: "issue-automation",
+  id: "issue-invoke",
   initial: STATES.detecting,
   context: ({ input }) => ({
     ...input,
@@ -306,26 +170,16 @@ export const issueMachine = setup({
   }),
 
   states: {
-    /**
-     * Initial state - determine what to do based on context
-     */
     [STATES.detecting]: {
-      entry: "logDetecting",
       on: {
         DETECT: [
-          // Reset takes priority - can reset even Done/Blocked issues
           { target: STATES.resetting, guard: "triggeredByReset" },
-          // Retry takes priority - can retry even Blocked issues (circuit breaker recovery)
           { target: STATES.retrying, guard: "triggeredByRetry" },
-          // Pivot takes priority - can pivot even Done/Blocked issues
           { target: STATES.pivoting, guard: "triggeredByPivot" },
-          // All phases complete takes priority
           { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
-          // Check terminal states
           { target: STATES.done, guard: "isAlreadyDone" },
           { target: STATES.alreadyBlocked, guard: "isBlocked" },
           { target: STATES.error, guard: "isError" },
-          // Merge queue logging events (handle early, they're log-only)
           {
             target: STATES.mergeQueueLogging,
             guard: "triggeredByMergeQueueEntry",
@@ -334,7 +188,6 @@ export const issueMachine = setup({
             target: STATES.mergeQueueFailureLogging,
             guard: "triggeredByMergeQueueFailure",
           },
-          // PR merged -> process merge (close sub-issue, then orchestrate)
           { target: STATES.processingMerge, guard: "triggeredByPRMerged" },
           {
             target: STATES.deployedStageLogging,
@@ -352,87 +205,66 @@ export const issueMachine = setup({
             target: STATES.deployedProdFailureLogging,
             guard: "triggeredByDeployedProdFailure",
           },
-          // Check if this is a triage request
           { target: STATES.triaging, guard: "triggeredByTriage" },
-          // Check if this is a comment (@claude mention)
           { target: STATES.commenting, guard: "triggeredByComment" },
-          // Check if this is an orchestration request
           { target: STATES.orchestrating, guard: "triggeredByOrchestrate" },
-          // Check if this is a PR review request (bot should review)
           {
             target: STATES.prReviewing,
             guard: and(["triggeredByPRReview", "ciPassed"]),
           },
-          // Ack review request when CI status is unknown
           {
             target: STATES.prReviewAssigned,
             guard: and(["triggeredByPRReview", not("ciFailed")]),
           },
-          // Skip review when CI explicitly failed
           { target: STATES.prReviewSkipped, guard: "triggeredByPRReview" },
-          // Check if this is a PR response (bot responds to bot's review)
           { target: STATES.prResponding, guard: "triggeredByPRResponse" },
-          // Check if this is a PR human response
           {
             target: STATES.prRespondingHuman,
             guard: "triggeredByPRHumanResponse",
           },
-          // Check if this is a PR review approval
           {
             target: STATES.processingReview,
             guard: "triggeredByPRReviewApproved",
           },
-          // Check if this is a push to a PR branch
           { target: STATES.prPush, guard: "triggeredByPRPush" },
-          // Check if this is a CI completion event
           { target: STATES.processingCI, guard: "triggeredByCI" },
-          // Check if this is a review submission event (for orchestration)
           { target: STATES.processingReview, guard: "triggeredByReview" },
-          // Check if issue needs triage
           { target: STATES.triaging, guard: "needsTriage" },
-          // Sub-issues with bot assigned iterate
           { target: STATES.iterating, guard: "subIssueCanIterate" },
-          // Sub-issues without bot assignment: no-op
           { target: STATES.subIssueIdle, guard: "isSubIssue" },
-          // Check if this is a grooming trigger
           { target: STATES.grooming, guard: "triggeredByGroom" },
-          // Check if issue needs grooming
           { target: STATES.grooming, guard: "needsGrooming" },
-          // Check for multi-phase work
           { target: STATES.initializing, guard: "needsSubIssues" },
           { target: STATES.orchestrating, guard: "hasSubIssues" },
-          // Check current state
           { target: STATES.reviewing, guard: "isInReview" },
-          // Check if ready for review
           { target: STATES.transitioningToReview, guard: "readyForReview" },
-          // FATAL: Parent issue without sub-issues cannot iterate
           { target: STATES.invalidIteration },
         ],
       },
     },
 
     [STATES.triaging]: {
-      entry: ["logTriaging", "runClaudeTriage"],
+      entry: "runClaudeTriage",
       type: "final",
     },
 
     [STATES.grooming]: {
-      entry: ["logGrooming", "runClaudeGrooming"],
+      entry: "runClaudeGrooming",
       type: "final",
     },
 
     [STATES.pivoting]: {
-      entry: ["logPivoting", "runClaudePivot"],
+      entry: "runClaudePivot",
       type: "final",
     },
 
     [STATES.resetting]: {
-      entry: ["logResetting", "resetIssue"],
+      entry: "resetIssue",
       type: "final",
     },
 
     [STATES.retrying]: {
-      entry: ["logRetrying", "retryIssue"],
+      entry: "retryIssue",
       always: [
         { target: STATES.orchestrationRunning, guard: "hasSubIssues" },
         { target: STATES.iterating },
@@ -440,22 +272,22 @@ export const issueMachine = setup({
     },
 
     [STATES.commenting]: {
-      entry: ["logCommenting", "runClaudeComment"],
+      entry: "runClaudeComment",
       type: "final",
     },
 
     [STATES.prReviewing]: {
-      entry: ["logPRReviewing", "runClaudePRReview"],
+      entry: "runClaudePRReview",
       type: "final",
     },
 
     [STATES.prResponding]: {
-      entry: ["logPRResponding", "runClaudePRResponse"],
+      entry: "runClaudePRResponse",
       type: "final",
     },
 
     [STATES.prRespondingHuman]: {
-      entry: ["logPRResponding", "runClaudePRHumanResponse"],
+      entry: "runClaudePRHumanResponse",
       type: "final",
     },
 
@@ -478,7 +310,6 @@ export const issueMachine = setup({
     },
 
     [STATES.orchestrating]: {
-      entry: ["logOrchestrating"],
       always: [
         { target: STATES.orchestrationComplete, guard: "allPhasesDone" },
         { target: STATES.orchestrationWaiting, guard: "currentPhaseInReview" },
@@ -492,7 +323,6 @@ export const issueMachine = setup({
     },
 
     [STATES.orchestrationWaiting]: {
-      entry: ["logWaitingForReview"],
       type: "final",
     },
 
@@ -544,7 +374,7 @@ export const issueMachine = setup({
     },
 
     [STATES.awaitingMerge]: {
-      entry: ["logAwaitingMerge", "setReview"],
+      entry: "setReview",
       type: "final",
     },
 
@@ -564,7 +394,6 @@ export const issueMachine = setup({
         "setWorking",
         "incrementIteration",
         "historyIterationStarted",
-        "logIterating",
         "runClaude",
         "createPR",
       ],
@@ -600,7 +429,6 @@ export const issueMachine = setup({
         "createBranch",
         "incrementIteration",
         "historyIterationStarted",
-        "logFixingCI",
         "runClaudeFixCI",
         "createPR",
       ],
@@ -632,7 +460,7 @@ export const issueMachine = setup({
     },
 
     [STATES.reviewing]: {
-      entry: ["logReviewing", "setReview"],
+      entry: "setReview",
       on: {
         REVIEW_APPROVED: STATES.orchestrating,
         REVIEW_CHANGES_REQUESTED: {
@@ -657,14 +485,6 @@ export const issueMachine = setup({
     },
 
     [STATES.subIssueIdle]: {
-      entry: [
-        e((ctx) =>
-          emitLog(
-            ctx,
-            `Sub-issue #${ctx.context.issue.number} edited but not assigned — skipping`,
-          ),
-        ),
-      ],
       type: "final",
     },
 
@@ -673,7 +493,6 @@ export const issueMachine = setup({
       type: "final",
     },
 
-    // Merge Queue Logging States
     [STATES.mergeQueueLogging]: {
       entry: ["logMergeQueueEntry"],
       type: "final",
@@ -715,3 +534,75 @@ export const issueMachine = setup({
     },
   },
 });
+
+// ---------------------------------------------------------------------------
+// IssueMachine — wraps the XState machine with logging and type aliases
+// ---------------------------------------------------------------------------
+
+/**
+ * State-to-log-message map for diagnostic logging.
+ * Messages are generated from the machine context when entering each state.
+ */
+const STATE_LOG_MESSAGES: Record<
+  string,
+  (ctx: MachineContext) => string | null
+> = {
+  detecting: () => "Detecting initial state",
+  triaging: (ctx) => `Triaging issue #${ctx.issue.number}`,
+  grooming: (ctx) => `Grooming issue #${ctx.issue.number}`,
+  pivoting: (ctx) => `Pivoting issue #${ctx.issue.number}`,
+  resetting: (ctx) => `Resetting issue #${ctx.issue.number} to initial state`,
+  retrying: (ctx) => `Retrying issue #${ctx.issue.number} (clearing failures)`,
+  commenting: (ctx) => `Responding to comment on #${ctx.issue.number}`,
+  prReviewing: (ctx) => `Reviewing PR #${ctx.pr?.number ?? "unknown"}`,
+  prResponding: (ctx) =>
+    `Responding to review on PR #${ctx.pr?.number ?? "unknown"}`,
+  prRespondingHuman: (ctx) =>
+    `Responding to review on PR #${ctx.pr?.number ?? "unknown"}`,
+  orchestrating: (ctx) =>
+    `Orchestrating issue #${ctx.issue.number} (phase ${ctx.currentPhase}/${ctx.totalPhases})`,
+  orchestrationWaiting: () => "Waiting for review on current phase",
+  awaitingMerge: (ctx) =>
+    `PR #${ctx.pr?.number} marked ready for merge - awaiting human action`,
+  iterating: (ctx) => `Starting iteration ${ctx.issue.iteration + 1}`,
+  iteratingFix: (ctx) => `Fixing CI (iteration ${ctx.issue.iteration + 1})`,
+  reviewing: () => "PR is under review",
+  subIssueIdle: (ctx) =>
+    `Sub-issue #${ctx.issue.number} edited but not assigned — skipping`,
+};
+
+// Type aliases for backward compatibility
+export type MachineResult = BaseMachineResult<IssueState>;
+
+export interface RunOptions extends BaseRunOptions {
+  event?: IssueMachineEvent;
+}
+
+export type ExecuteOptions = BaseExecuteOptions;
+export type ExecuteResult = BaseExecuteResult<IssueState>;
+
+/**
+ * IssueMachine wraps the invoke-based XState machine.
+ *
+ * Usage (predict mode - default):
+ *   const machine = new IssueMachine(context);
+ *   const result = machine.run();
+ *
+ * Usage (execute mode - with real runner):
+ *   const machine = new IssueMachine(context);
+ *   const result = await machine.execute({ runnerContext });
+ */
+export class IssueMachine extends BaseMachine<IssueState> {
+  protected getMachine(): AnyStateMachine {
+    return issueInvokeMachine;
+  }
+
+  protected getDefaultEvent(): EventObject {
+    return { type: "DETECT" };
+  }
+
+  protected override getLogMessage(stateName: string): string | null {
+    const messageFn = STATE_LOG_MESSAGES[stateName];
+    return messageFn ? messageFn(this.context) : null;
+  }
+}

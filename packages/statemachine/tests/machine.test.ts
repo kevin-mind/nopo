@@ -1,13 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { createActor } from "xstate";
 import { parseMarkdown } from "@more/issue-state";
-import { createMachineContext, claudeMachine } from "../src/index.js";
-import { emitLog } from "../src/core/action-helpers.js";
+import { createMachineContext, issueInvokeMachine } from "../src/index.js";
 import { emit, accumulateFromEmitter } from "../src/core/emit-helper.js";
 import { emitStatus } from "../src/machines/issues/actions.js";
 import type { BaseMachineContext } from "../src/core/types.js";
-import type { MachineContext, Action } from "../src/schemas/index.js";
-import { ParentIssueSchema } from "../src/schemas/index.js";
+import type { MachineContext, Action } from "../src/core/schemas/index.js";
+import { ParentIssueSchema } from "../src/core/schemas/index.js";
 
 // ============================================================================
 // Test Fixtures
@@ -56,23 +55,25 @@ describe("emit helper", () => {
     };
     const existing: Action[] = [
       {
-        type: "log",
+        type: "updateProjectStatus",
         token: "code",
-        level: "info",
-        message: "first",
-        worktree: "main",
+        issueNumber: 42,
+        status: "In progress",
       },
     ];
 
     const result = accumulateFromEmitter(existing, context, (ctx) =>
-      emitStatus(ctx, "In progress"),
+      emitStatus(ctx, "In review"),
     );
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ type: "log", message: "first" });
-    expect(result[1]).toMatchObject({
+    expect(result[0]).toMatchObject({
       type: "updateProjectStatus",
       status: "In progress",
+    });
+    expect(result[1]).toMatchObject({
+      type: "updateProjectStatus",
+      status: "In review",
       issueNumber: 42,
     });
   });
@@ -83,11 +84,6 @@ describe("emit helper", () => {
     expect(
       typeof actionConfig === "function" || typeof actionConfig === "object",
     ).toBe(true);
-  });
-
-  it("emit supports arrow emitters (e.g. emitLog with message)", () => {
-    const actionConfig = emit((ctx) => emitLog(ctx, "Test message"));
-    expect(actionConfig).toBeDefined();
   });
 });
 
@@ -148,10 +144,10 @@ function createSubIssueContext(
 // Machine integration tests (verify emit refactor preserves behavior)
 // ============================================================================
 
-describe("claudeMachine with emit helper", () => {
+describe("issueInvokeMachine with emit helper", () => {
   it("emits expected actions for triaging transition", () => {
     const context = createTriageContext();
-    const actor = createActor(claudeMachine, {
+    const actor = createActor(issueInvokeMachine, {
       input: context,
     });
 
@@ -165,7 +161,7 @@ describe("claudeMachine with emit helper", () => {
     expect(actions.length).toBeGreaterThan(0);
 
     const actionTypes = actions.map((a) => a.type);
-    expect(actionTypes).toContain("log");
+    expect(actionTypes).not.toContain("log");
     expect(actionTypes).toContain("runClaude");
   });
 });
@@ -195,7 +191,7 @@ describe("sub-issue routing", () => {
     });
 
     const context = createSubIssueContext({ issue });
-    const actor = createActor(claudeMachine, { input: context });
+    const actor = createActor(issueInvokeMachine, { input: context });
 
     actor.start();
     actor.send({ type: "DETECT" });
@@ -209,7 +205,7 @@ describe("sub-issue routing", () => {
 
   it("goes to subIssueIdle when sub-issue has NO bot assigned", () => {
     const context = createSubIssueContext();
-    const actor = createActor(claudeMachine, { input: context });
+    const actor = createActor(issueInvokeMachine, { input: context });
 
     actor.start();
     actor.send({ type: "DETECT" });
@@ -217,16 +213,8 @@ describe("sub-issue routing", () => {
     const snapshot = actor.getSnapshot();
     expect(snapshot.value).toBe("subIssueIdle");
 
-    const logActions = snapshot.context.pendingActions.filter(
-      (a) => a.type === "log",
-    );
-    const hasSkipMessage = logActions.some(
-      (a) =>
-        "message" in a &&
-        typeof a.message === "string" &&
-        a.message.includes("not assigned"),
-    );
-    expect(hasSkipMessage).toBe(true);
+    // Should have no pending actions (logging is now via subscribe)
+    expect(snapshot.context.pendingActions).toHaveLength(0);
 
     // Should NOT have runClaude or iteration actions
     const actionTypes = snapshot.context.pendingActions.map((a) => a.type);

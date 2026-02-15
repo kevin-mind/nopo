@@ -7,7 +7,7 @@ import {
   ProjectStatusSchema,
   ParentIssueSchema,
   TodoStatsSchema,
-} from "../src/schemas/index.js";
+} from "../src/core/schemas/index.js";
 import { parseMarkdown } from "@more/issue-state";
 
 describe("schemas", () => {

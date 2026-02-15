@@ -1,6 +1,0 @@
-{
-  "description": "Response about API error structure",
-  "output": {
-    "response": "## API Error Structure\n\nIn this codebase, API errors follow a consistent structure:\n\n```json\n{\n  \"error\": {\n    \"code\": \"ERROR_CODE\",\n    \"message\": \"Human-readable message\",\n    \"details\": {}\n  }\n}\n```\n\n### Key Patterns\n\n1. **Status Codes**: Use appropriate HTTP status codes (400 for validation, 404 for not found, 500 for server errors)\n2. **Error Codes**: Use uppercase snake_case for machine-readable error codes\n3. **Messages**: Provide user-friendly messages that don't expose internal details\n4. **Details**: Include additional context when helpful for debugging\n\n### Example Implementation\n\nSee `apps/backend/src/api/exceptions.py` for the base exception classes."
-  }
-}

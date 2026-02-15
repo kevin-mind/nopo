@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { parseMarkdown } from "@more/issue-state";
-import type { MachineContext } from "../../src/schemas/state.js";
+import type { MachineContext } from "../../src/core/schemas/state.js";
 import {
   extractPredictableTree,
   buildExpectedState,
-} from "../../src/verify/predictable-state.js";
+} from "../../src/machines/issues/verify/predictable-state.js";
 
 /**
  * Create a minimal MachineContext for testing.

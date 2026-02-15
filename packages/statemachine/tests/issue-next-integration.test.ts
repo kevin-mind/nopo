@@ -13,16 +13,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { parseMarkdown } from "@more/issue-state";
 import { createMockFactory } from "@more/mock-factory";
-import { createMachineContext } from "../src/schemas/state.js";
-import type { MachineContext, Action } from "../src/schemas/index.js";
+import { createMachineContext } from "../src/core/schemas/state.js";
+import type { MachineContext, Action } from "../src/core/schemas/index.js";
 import type { Logger } from "../src/core/types.js";
 
-import {
-  IssueMachine,
-  MachineVerifier,
-} from "../src/machines/issue-next-invoke/index.js";
-import { predictFromActions } from "../src/verify/predict.js";
-import { extractPredictableTree } from "../src/verify/predictable-state.js";
+import { IssueMachine, MachineVerifier } from "../src/machines/issues/index.js";
+import { predictFromActions } from "../src/machines/issues/verify/predict.js";
+import { extractPredictableTree } from "../src/machines/issues/verify/predictable-state.js";
 
 function createMockLogger(): Logger & {
   debug: ReturnType<typeof vi.fn>;

@@ -8,7 +8,7 @@
 import * as core from "@actions/core";
 import {
   Verify,
-  IssueNextInvoke,
+  MachineVerifier,
   type DeriveResult,
   isDiscussionTrigger,
 } from "@more/statemachine";
@@ -113,7 +113,7 @@ export function predictExpectedStateNew(
   }
 
   try {
-    const verifier = new IssueNextInvoke.MachineVerifier();
+    const verifier = new MachineVerifier();
     const machineResult = {
       state: deriveResult.finalState,
       actions: deriveResult.pendingActions,

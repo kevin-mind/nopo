@@ -1,4 +1,0 @@
-{
-  "name": "pr-push-during-review",
-  "description": "Tests push to PR during review - converts to draft and back to iteration"
-}

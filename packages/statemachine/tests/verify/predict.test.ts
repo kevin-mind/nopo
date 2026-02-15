@@ -3,10 +3,10 @@ import { parseMarkdown } from "@more/issue-state";
 import {
   enrichedSuccessEntry,
   predictFromActions,
-} from "../../src/verify/predict.js";
-import type { MachineContext } from "../../src/schemas/state.js";
-import type { Action } from "../../src/schemas/actions/index.js";
-import { extractPredictableTree } from "../../src/verify/predictable-state.js";
+} from "../../src/machines/issues/verify/predict.js";
+import type { MachineContext } from "../../src/core/schemas/state.js";
+import type { Action } from "../../src/core/schemas/actions/index.js";
+import { extractPredictableTree } from "../../src/machines/issues/verify/predictable-state.js";
 
 function makeContext(overrides: Partial<MachineContext> = {}): MachineContext {
   const defaultIssue = {

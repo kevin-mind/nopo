@@ -1,36 +1,20 @@
 // @more/statemachine - State machine for GitHub issue automation
-// This package contains the core state machine logic, schemas, and runners
+// Two-directory structure: core/ (library logic) + machines/issues/ (issue state machine)
 
-export * from "./constants.js";
-export * from "./schemas/index.js";
-export * from "./parser/index.js";
-export * from "./machines/issues/index.js";
-
-// Issue-next invoke machine (production implementation)
-export * as IssueNextInvoke from "./machines/issue-next-invoke/index.js";
+// Core: constants, schemas, parser, executor, signaler, helpers, action-utils, machine
+export * from "./core/constants.js";
+export * from "./core/schemas/index.js";
+export * from "./core/parser/index.js";
+export * from "./core/executor.js";
+export { signalStart, signalEnd } from "./core/signaler.js";
+export * from "./core/helpers/git.js";
+export * from "./core/helpers/output-schemas.js";
+export * from "./core/action-utils.js";
+export * from "./core/machine.js";
+export * from "./core/verifier/index.js";
 
 // Claude SDK utilities (re-exported from @more/claude for backward compatibility)
 export * from "@more/claude";
 
-// Runner infrastructure and executors
-export * from "./runner/index.js";
-
-// Verification infrastructure
-export * as Verify from "./verify/index.js";
-
-// Test runner infrastructure
-export * as TestRunner from "./test-runner/index.js";
-
-// Discussion state machine (namespaced export)
-export * as Discussion from "./discussion/index.js";
-
-// Discussion state machine (direct exports for common items)
-export {
-  discussionMachine,
-  buildDiscussionContext,
-  type DiscussionMachineContext,
-  type BuildDiscussionContextOptions,
-} from "./discussion/index.js";
-
-// Action utilities for GitHub Actions entry points
-export * from "./action-utils.js";
+// Issue state machine (all exports including Verify namespace)
+export * from "./machines/issues/index.js";

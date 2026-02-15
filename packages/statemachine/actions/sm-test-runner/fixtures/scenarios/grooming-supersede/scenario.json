@@ -1,4 +1,0 @@
-{
-  "name": "grooming-supersede",
-  "description": "Tests grooming re-run that supersedes abandoned sub-issues and preserves completed (merged) ones"
-}

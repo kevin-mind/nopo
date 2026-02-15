@@ -24,7 +24,6 @@ import {
   isDiscussionTrigger as checkDiscussionTrigger,
   type WorkflowContext,
   type TriggerType,
-  type DiscussionTriggerType,
   type Action,
   // Runner
   executeActions,
@@ -33,8 +32,7 @@ import {
   type RunnerResult,
   // Derive functions
   deriveIssueActions,
-  deriveDiscussionActions,
-  IssueNextInvoke,
+  deriveFromWorkflow,
   type DeriveResult,
   // MDAST mutators
   updateHistoryEntry,
@@ -537,17 +535,9 @@ async function run(): Promise<void> {
         `Loaded pre-computed derive result: state=${deriveResult.finalState}, actions=${deriveResult.pendingActions.length}`,
       );
     } else if (isDiscussion) {
-      // Discussions are not pre-computed by sm-plan — derive fresh
-      deriveResult = await deriveDiscussionActions({
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- checkDiscussionTrigger guard confirms type
-        trigger: trigger as DiscussionTriggerType,
-        ctx,
-        octokit: codeOctokit,
-        owner,
-        repo,
-        maxRetries,
-        botUsername,
-      });
+      // Discussion automation removed — skip
+      core.info("Discussion triggers are no longer supported — skipping");
+      return;
     } else {
       // Fallback: derive fresh (backwards-compatible path)
       core.warning(
@@ -572,7 +562,7 @@ async function run(): Promise<void> {
       };
 
       deriveResult = useNewMachine
-        ? await IssueNextInvoke.deriveFromWorkflow(deriveOptions)
+        ? await deriveFromWorkflow(deriveOptions)
         : await deriveIssueActions(deriveOptions);
     }
 

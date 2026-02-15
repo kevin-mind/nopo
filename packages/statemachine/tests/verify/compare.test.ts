@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { parseMarkdown } from "@more/issue-state";
-import { compareStateTree } from "../../src/verify/compare.js";
-import { extractPredictableTree } from "../../src/verify/predictable-state.js";
-import type { MachineContext } from "../../src/schemas/state.js";
+import { compareStateTree } from "../../src/machines/issues/verify/compare.js";
+import { extractPredictableTree } from "../../src/machines/issues/verify/predictable-state.js";
+import type { MachineContext } from "../../src/core/schemas/state.js";
 
 function makeContext(overrides: Partial<MachineContext> = {}): MachineContext {
   const defaultIssue = {
