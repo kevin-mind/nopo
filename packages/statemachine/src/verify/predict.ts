@@ -34,7 +34,7 @@ const ITERATE_STATES = new Set(["iterating", "iteratingFix"]);
  * "✅ Opened PR" or "✅ Updated PR" instead of the plain "✅ Iterate".
  * We mirror that logic here so the verification startsWith check passes.
  */
-function enrichedSuccessEntry(
+export function enrichedSuccessEntry(
   finalState: string,
   pendingActions: Action[],
 ): string {
