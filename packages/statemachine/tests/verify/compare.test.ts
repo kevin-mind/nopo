@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { parseMarkdown } from "@more/issue-state";
-import { compareStateTree } from "../../src/machines/issues/verify/compare.js";
+import {
+  compareStateTree,
+  compareTreeFields,
+} from "../../src/machines/issues/verify/compare.js";
 import { extractPredictableTree } from "../../src/machines/issues/verify/predictable-state.js";
 import type { MachineContext } from "../../src/core/schemas/state.js";
 
@@ -335,5 +338,92 @@ describe("compareStateTree", () => {
 
     const result = compareStateTree([expected], actual);
     expect(result.pass).toBe(false);
+  });
+});
+
+describe("compareTreeFields", () => {
+  it("returns empty diffs for identical trees", () => {
+    const context = makeContext();
+    const tree = extractPredictableTree(context);
+    const diffs = compareTreeFields(tree, tree);
+
+    expect(diffs).toHaveLength(0);
+  });
+
+  it("returns diff for different issue state", () => {
+    const context = makeContext();
+    const actual = extractPredictableTree(context);
+    const expected = structuredClone(actual);
+    expected.issue.state = "CLOSED";
+
+    const diffs = compareTreeFields(expected, actual);
+
+    expect(diffs.length).toBeGreaterThan(0);
+    const stateDiff = diffs.find((d) => d.path === "issue.state");
+    expect(stateDiff).toBeDefined();
+    expect(stateDiff?.expected).toBe("CLOSED");
+    expect(stateDiff?.actual).toBe("OPEN");
+  });
+
+  it("returns diff for different issue projectStatus", () => {
+    const context = makeContext();
+    const actual = extractPredictableTree(context);
+    const expected = structuredClone(actual);
+    expected.issue.projectStatus = "Done";
+
+    const diffs = compareTreeFields(expected, actual);
+
+    expect(diffs.length).toBeGreaterThan(0);
+    const statusDiff = diffs.find((d) => d.path === "issue.projectStatus");
+    expect(statusDiff).toBeDefined();
+    expect(statusDiff?.expected).toBe("Done");
+    expect(statusDiff?.actual).toBe("In progress");
+  });
+
+  it("returns diff for different sub-issue fields with correct path", () => {
+    const context = makeContext({
+      issue: {
+        number: 100,
+        title: "Test",
+        state: "OPEN" as const,
+        bodyAst: parseMarkdown("## Description\n\nTest."),
+        projectStatus: "In progress" as const,
+        iteration: 1,
+        failures: 0,
+        assignees: [],
+        labels: [],
+        subIssues: [
+          {
+            number: 101,
+            title: "Sub 1",
+            state: "OPEN" as const,
+            bodyAst: parseMarkdown("## Description\n\nSub."),
+            projectStatus: "In progress" as const,
+            assignees: [],
+            labels: [],
+            branch: null,
+            pr: null,
+          },
+        ],
+        hasSubIssues: true,
+        comments: [],
+        branch: null,
+        pr: null,
+        parentIssueNumber: null,
+      },
+    });
+
+    const actual = extractPredictableTree(context);
+    const expected = structuredClone(actual);
+    expected.subIssues[0]!.projectStatus = "Done";
+
+    const diffs = compareTreeFields(expected, actual);
+
+    expect(diffs.length).toBeGreaterThan(0);
+    const subDiff = diffs.find((d) => d.path.includes("subIssues[101]"));
+    expect(subDiff).toBeDefined();
+    expect(subDiff?.path).toBe("subIssues[101].projectStatus");
+    expect(subDiff?.expected).toBe("Done");
+    expect(subDiff?.actual).toBe("In progress");
   });
 });
