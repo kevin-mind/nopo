@@ -75063,6 +75063,27 @@ var ITER_REBASED = "\u{1F504} Rebased";
 
 // packages/statemachine/src/verify/predict.ts
 var MAX_OUTCOMES = 20;
+var ITERATE_STATES = /* @__PURE__ */ new Set(["iterating", "iteratingFix"]);
+function enrichedSuccessEntry(finalState, pendingActions) {
+  const transitionName = getTransitionName(finalState);
+  if (!ITERATE_STATES.has(finalState)) {
+    return `\u2705 ${transitionName}`;
+  }
+  const hasCreatePR = pendingActions.some((a) => a.type === "createPR");
+  const hasExistingPR = pendingActions.some(
+    (a) => a.type === "applyIterateOutput" && "prNumber" in a && typeof a.prNumber === "number"
+  );
+  if (finalState === "iteratingFix") {
+    return "\u{1F527} Fixed CI";
+  }
+  if (hasCreatePR && !hasExistingPR) {
+    return "\u2705 Opened PR";
+  }
+  if (hasExistingPR) {
+    return "\u2705 Updated PR";
+  }
+  return `\u2705 ${transitionName}`;
+}
 function predictFromActions(pendingActions, currentTree, machineContext, options) {
   let outcomes = [cloneTree(currentTree)];
   for (const action of pendingActions) {
@@ -75099,7 +75120,10 @@ function predictFromActions(pendingActions, currentTree, machineContext, options
     machineContext
   );
   const phase = sub ? String(machineContext.currentPhase ?? "-") : "-";
-  const successAction = successEntry(options.finalState);
+  const successAction = enrichedSuccessEntry(
+    options.finalState,
+    pendingActions
+  );
   for (const tree of outcomes) {
     addHistoryEntry3(tree.issue, {
       iteration,

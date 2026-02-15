@@ -15,14 +15,57 @@ import type { MachineContext } from "../schemas/state.js";
 import {
   cloneTree,
   addHistoryEntry,
-  successEntry,
   findCurrentSubIssue,
   resolveTarget,
   applyDiff,
   ITER_REBASED,
 } from "../schemas/prediction-helpers.js";
+import { getTransitionName } from "../runner/derive.js";
 
 const MAX_OUTCOMES = 20;
+
+/** Iterate-family state names that get enriched transition names. */
+const ITERATE_STATES = new Set(["iterating", "iteratingFix"]);
+
+/**
+ * Compute the success history action, mirroring determineOutcome enrichment.
+ *
+ * For iterate-family transitions the runner writes enriched names like
+ * "✅ Opened PR" or "✅ Updated PR" instead of the plain "✅ Iterate".
+ * We mirror that logic here so the verification startsWith check passes.
+ */
+function enrichedSuccessEntry(
+  finalState: string,
+  pendingActions: Action[],
+): string {
+  const transitionName = getTransitionName(finalState);
+
+  if (!ITERATE_STATES.has(finalState)) {
+    return `\u2705 ${transitionName}`;
+  }
+
+  // Check whether the actions create a new PR or update an existing one
+  const hasCreatePR = pendingActions.some((a) => a.type === "createPR");
+  const hasExistingPR = pendingActions.some(
+    (a) =>
+      a.type === "applyIterateOutput" &&
+      "prNumber" in a &&
+      typeof a.prNumber === "number",
+  );
+
+  // Fix CI transitions get a special emoji
+  if (finalState === "iteratingFix") {
+    return "\u{1F527} Fixed CI";
+  }
+
+  if (hasCreatePR && !hasExistingPR) {
+    return "\u2705 Opened PR";
+  }
+  if (hasExistingPR) {
+    return "\u2705 Updated PR";
+  }
+  return `\u2705 ${transitionName}`;
+}
 
 /**
  * Predict expected state trees by folding action predictors over pending actions.
@@ -102,8 +145,14 @@ export function predictFromActions(
   );
   const phase = sub ? String(machineContext.currentPhase ?? "-") : "-";
 
-  // Append logRunEnd success entry to each outcome
-  const successAction = successEntry(options.finalState);
+  // Append logRunEnd success entry to each outcome.
+  // For iterate-family transitions, determineOutcome enriches the transition
+  // name (e.g. "Opened PR", "Updated PR") — mirror that here so verification
+  // matches via startsWith.
+  const successAction = enrichedSuccessEntry(
+    options.finalState,
+    pendingActions,
+  );
   for (const tree of outcomes) {
     addHistoryEntry(tree.issue, {
       iteration,
