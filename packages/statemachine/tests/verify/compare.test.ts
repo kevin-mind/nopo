@@ -445,6 +445,7 @@ describe("compareStateTree", () => {
       expected.issue.body.questionStats = {
         total: 2,
         answered: 1,
+        unanswered: 1,
       };
 
       const result = compareStateTree([expected], actual);
@@ -731,9 +732,10 @@ describe("compareStateTree", () => {
           state: "OPEN" as const,
           isDraft: true,
           reviewDecision: null,
-          headRefName: "test-branch",
-          commits: [],
-          reviewers: [],
+          headRef: "test-branch",
+          baseRef: "main",
+          labels: [],
+          reviews: [],
         },
       });
 
