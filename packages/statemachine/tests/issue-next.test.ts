@@ -19,6 +19,7 @@ import {
   IssueMachine,
   MachineVerifier,
   buildDeriveMetadata,
+  Verify,
 } from "../src/machines/issues/index.js";
 import { buildActionsForService } from "../src/machines/issues/services.js";
 
@@ -1159,7 +1160,7 @@ describe("MachineVerifier.verifyExpected() unit tests", () => {
   // Minimal test fixtures
   function createMinimalExpectedState(
     overrides: Partial<{
-      outcomes: Array<unknown>;
+      outcomes: Verify.PredictableStateTree[];
       expectedRetrigger: boolean;
     }> = {},
   ) {
