@@ -1,0 +1,34 @@
+name: Claude PEV
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_number:
+        description: Issue number to process
+        required: true
+        type: string
+      max_transitions:
+        description: Maximum transitions per invocation
+        required: false
+        type: number
+        default: 1
+
+# Only run one PEV instance per issue at a time
+concurrency:
+  group: pev-issue-${{ inputs.resource_number }}
+  cancel-in-progress: false
+
+jobs:
+  pev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./packages/statemachine/actions/sm-pev
+        with:
+          github_json: ${{ toJson(github) }}
+          max_transitions: ${{ inputs.max_transitions || '1' }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}

@@ -13,10 +13,8 @@ export default {
   ],
   workspaces: {
     ".": {
-      entry: ["fly/scripts/*.js", ".github/workflows-ts/*.wac.ts"],
-      ignoreBinaries: ["dev", "printf"],
+      entry: [],
       ignoreDependencies: ["tsx"],
-      ignoreUnresolved: [".*\\+types.*"],
     },
     "docker/scripts": {
       entry: "bin.ts",
@@ -26,11 +24,9 @@ export default {
       vitest: true,
       entry: "assets/js/main.ts",
       ignoreDependencies: ["@more/ui", "tailwindcss"],
-      ignoreBinaries: ["uv"],
     },
     "apps/web": {
       "react-router": true,
-      ignoreUnresolved: [".*\\+types.*"],
     },
     "packages/config": {
       eslint: false,
@@ -52,7 +48,7 @@ export default {
       ignore: ["dist/**", "prompts/**", "src/components.tsx"],
     },
     "packages/claude": {
-      entry: ["src/index.ts", "actions/claude/index.ts"],
+      entry: ["actions/claude/index.ts"],
       ignore: ["actions/claude/dist/**"],
       ignoreDependencies: ["@more/prompt-factory", "esbuild"],
     },

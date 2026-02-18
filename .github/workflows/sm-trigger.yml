@@ -19,29 +19,12 @@ run-name: >-
     'Claude'
   }}
 
-# Issue-edit-based iteration loop:
-# - `assigned` starts iteration
-# - `edited` continues iteration (triggered by state updates from CI or Claude)
-# - Loop ends when Claude determines work is complete and doesn't edit
-#
-# CI completion (workflow_run) triggers iteration directly - state machine
-# handles recording failures/clearing failures and updating history.
-#
-# Discussion automation:
-# - `discussion:created` triggers research
-# - `discussion_comment:created` triggers respond (or commands like /summarize, /plan)
+# PEV-based automation: sm-pev runs predict-execute-verify in a single invocation.
 
 'on':
-  # External triggers we respond to:
-  # - Assignment (human assigns nopo-bot to issue)
-  # - CI completion (workflow_run)
-  # - Review requests/responses (pull_request, pull_request_review)
-  # - Comments (issue_comment, pull_request_review_comment)
-  # - Push (to convert PR to draft and trigger CI)
-  # - Discussions
   push:
     branches:
-      - 'claude/**'  # Only Claude branches, not main
+      - 'claude/**'
   issues:
     types:
       - opened
@@ -73,7 +56,7 @@ run-name: >-
       - created
   merge_group:
     types:
-      - checks_requested  # PR entered merge queue
+      - checks_requested
   workflow_dispatch:
     inputs:
       resource_number:
@@ -81,11 +64,11 @@ run-name: >-
         required: true
         type: string
       trigger_type:
-        description: Override trigger (e.g. deployed-stage, deployed-prod, pr-merged) for logging from release.yml
+        description: Override trigger for logging from release.yml
         required: false
         type: string
       continue:
-        description: Continue to next state (true) or stop after this iteration (false)
+        description: Continue to next state (true) or stop (false)
         required: false
         type: boolean
         default: true
@@ -102,50 +85,19 @@ defaults:
   run:
     shell: bash
 
-# ============================================================================
 jobs:
-  # ============================================================================
-  # STEP 1: sm-plan (detect event, output context_json)
-  # ============================================================================
-  sm-plan:
+  pev:
     runs-on: ubuntu-latest
-    outputs:
-      context_json: ${{ steps.sm-plan.outputs.context_json }}
-      expected_state_json: ${{ steps.sm-plan.outputs.expected_state_json }}
-      derive_result_json: ${{ steps.sm-plan.outputs.derive_result_json }}
+    concurrency:
+      group: pev-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.discussion.number || github.event.inputs.resource_number || github.run_id }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - id: sm-plan
-        uses: ./packages/statemachine/actions/sm-plan
+      - uses: ./.github/actions/setup-node
+      - uses: ./packages/statemachine/actions/sm-pev
         with:
+          github_json: ${{ toJson(github) }}
+          max_transitions: "5"
           github_token: ${{ secrets.NOPO_BOT_PAT }}
-          resource_number: ${{ inputs.resource_number || '' }}
-          trigger_type: ${{ inputs.trigger_type || '' }}
-          use_new_machine: ${{ vars.USE_NEW_MACHINE || 'true' }}
-
-  # ============================================================================
-  # STEP 2: sm-run (state machine runner)
-  # ============================================================================
-  sm-run:
-    name: "sm-run (${{ fromJson(needs.sm-plan.outputs.context_json).trigger_type }})"
-    needs: sm-plan
-    if: |
-      needs.sm-plan.outputs.context_json != '' &&
-      fromJson(needs.sm-plan.outputs.context_json).skip != true &&
-      fromJson(needs.sm-plan.outputs.context_json).job != ''
-    concurrency:
-      group: ${{ fromJson(needs.sm-plan.outputs.context_json).concurrency_group }}
-      cancel-in-progress: ${{ fromJson(needs.sm-plan.outputs.context_json).cancel_in_progress == true }}
-    uses: ./.github/workflows/sm-runner.yml
-    with:
-      context_json: ${{ needs.sm-plan.outputs.context_json }}
-      expected_state_json: ${{ needs.sm-plan.outputs.expected_state_json || '' }}
-      derive_result_json: ${{ needs.sm-plan.outputs.derive_result_json || '' }}
-      dry_run: false
-      # For workflow_run and other events (no inputs), always continue
-      # For workflow_dispatch, use the explicit input value
-      continue: ${{ github.event_name != 'workflow_dispatch' || (inputs.continue != false && inputs.continue != 'false') }}
-      use_new_machine: ${{ vars.USE_NEW_MACHINE || 'true' }}
-    secrets: inherit

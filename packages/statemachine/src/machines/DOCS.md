@@ -2,6 +2,217 @@
 
 The issue lifecycle state machine lives in `machines/issue-next-invoke/`. It determines what actions to take when GitHub events occur (issue assigned, CI completed, PR merged, etc.) and provides classes for prediction, execution, and verification.
 
+---
+
+## Example PEV machine and Machine Factory
+
+The **example** machine (`machines/example/`) is a minimal PEV (predict–execute–verify) domain machine built with the **machine factory** from core. It demonstrates the single-level, type-safe API and is the reference for reimplementing the issues machine.
+
+### Layout (example)
+
+```
+machines/example/
+├── index.ts      # Barrel export
+├── machine.ts    # createMachineFactory + createDomainMachine
+├── context.ts    # ExampleContext + ExampleContextLoader (extract/load/mutate/save)
+├── actions.ts    # Atomic action builders
+├── guards.ts     # Atomic guard functions
+└── states.ts     # Atomic state parts (routing, queue assigners, static states)
+```
+
+- **No imports** from `machines/issues` or `machines/discussions`. Example is self-contained; context and guards are reimplemented locally.
+- **Core** (`src/core/pev/`) does not import from outside core.
+
+### Machine factory API (core)
+
+Use `createMachineFactory<TDomain>()` to get a stateful factory, then configure and build:
+
+```ts
+const factory = createMachineFactory<ExampleContext>()
+  .actions((createAction) => ({ ... }))   // compose actions explicitly
+  .guards(() => ({ ... }))                // compose guards explicitly
+  .states(({ registry }) => ({ ... })) // compose states explicitly from atomic parts
+  .refreshContext(ExampleContextLoader.refreshFromRunnerContext);
+
+const machine = factory.build({ id: "example" });
+```
+
+- **Actions**: call `.actions(build)` with a function that receives `createAction` and returns an object of action definitions. Payload types are inferred from `createAction<Payload>({ ... })`.
+- **Guards**: call `.guards(build)` with a function that returns a guards object. Guard functions receive `{ context: RunnerMachineContext<TDomain, TAction> }`; `TAction` is inferred from the action registry.
+- **Guard style note**: XState supports both named guards (`guard: "isBlocked"`) and inline guards (`guard: ({ context }) => ...`). We standardize on **named guard functions** because they are easier to reuse across transitions, easier to unit test as pure functions, and keep large routing tables readable.
+- **States**: call `.states(s)` with a domain states object, or `.states(({ registry }) => s)` when states depend on the typed action registry.
+- **Build**: call `.build({ id })` to build the machine directly from configured parts.
+
+### Declarative prediction checks
+
+Actions can declare postconditions in `predict.checks`. The runner evaluates these checks during verify, and they are enforced even when a custom `verify` function is defined.
+
+Actions can also define a top-level `description` field. The runner logs this description before execute. Use `predict` only when you need declarative checks (or additional prediction metadata), not just to emit a description.
+
+`predict.expectedChanges` is removed; declarative postconditions are expressed only via `predict.checks`.
+
+```ts
+predict: () => ({
+  description: "Apply triage output",
+  checks: [
+    {
+      comparator: "all",
+      checks: [
+        { comparator: "includes", field: "issue.labels", expected: "triaged" },
+        { comparator: "includes", field: "issue.labels", expected: "groomed" },
+      ],
+    },
+  ],
+});
+```
+
+#### Check shape
+
+- **Leaf checks** use `field` + `comparator` (+ `expected` when required).
+- **Leaf checks** can include optional `description` to explain intent and improve failure diagnostics.
+- **Group checks** use `comparator: "all" | "any"` and nested `checks`.
+- **Source** can be selected with `from: "old" | "new"` (default is `"new"`).
+
+#### Comparators
+
+- `eq`: deep equality (`expected` required)
+- `gte`: numeric greater-than-or-equal (`expected: number` required)
+- `lte`: numeric less-than-or-equal (`expected: number` required)
+- `subset`: `expected[]` must be a subset of actual array (`expected: unknown[]` required)
+- `includes`: actual array/string includes expected value (`expected` required)
+- `exists`: value at `field` is not `null`/`undefined` (`expected` not allowed)
+- `startsWith`: actual string starts with expected prefix (`expected: string` required)
+- `all`: all child checks must pass (`checks` required)
+- `any`: at least one child check must pass (`checks` required)
+
+#### Verify integration
+
+Custom `verify` receives an object with:
+
+- `action`, `oldCtx`, `newCtx`
+- `prediction`
+- `predictionEval` (pass + diffs from declarative checks)
+- `predictionDiffs` (prebuilt failing check diffs for direct reuse)
+- `executeResult`
+
+This lets `verify` add domain-specific messaging while declarative checks remain the canonical contract.
+
+### Testing
+
+Integration tests live in `tests/pev/example-machine.test.ts` and use only **example** and **core** imports. Fixtures are built from `tests/pev/mock-factories.ts`.
+
+### Sprint 1 additions: trigger normalization + routing skeleton
+
+- `machines/example/events.ts`
+  - Canonical trigger list (`EXAMPLE_TRIGGER_TYPES`)
+  - Trigger-to-machine event resolution (`getTriggerEvent`)
+  - Workflow input normalization (`buildEventFromWorkflow`)
+- `machines/example/context.ts`
+  - `ExampleContextLoader` loads issue-state from GitHub (`parseIssue`) and exposes typed extractor/mutator methods
+  - `toContext()` composes runtime domain context from extracted issue/sub-issue/PR/workflow data
+  - `toState()` / `save()` mutate and persist issue-state updates for action execution flows
+- `machines/example/states.ts`
+  - Expanded DETECT routing skeleton covering all issue/PR/CI/release trigger families
+  - Placeholder states for non-implemented vertical slices (to be filled in sprint-by-sprint)
+- Tests:
+  - `tests/pev/example-events-routing.test.ts` validates trigger mapping + routing skeleton
+
+### Sprint 2 additions: triage + grooming vertical slice
+
+- `machines/example/actions.ts`
+  - Added explicit triage/groom actions in PEV style:
+    - `runClaudeTriage`, `applyTriageOutput`
+    - `runClaudeGrooming`, `applyGroomingOutput`, `reconcileSubIssues`
+  - Each action carries predict/execute/verify callbacks with the new signature.
+- `machines/example/states.ts`
+  - `triaging` now enqueues triage queue:
+    `appendHistory -> runClaudeTriage -> applyTriageOutput -> updateStatus`
+  - `grooming` now enqueues grooming queue:
+    `appendHistory -> runClaudeGrooming -> applyGroomingOutput -> reconcileSubIssues`
+- `machines/example/guards.ts`
+  - `needsTriage` aligned to domain behavior (`not sub-issue` and missing `triaged`)
+  - `needsGrooming` aligned to domain behavior (`triaged` and not `groomed`)
+- Tests:
+  - `tests/pev/example-machine.test.ts` now asserts triage and grooming action flows
+  - `tests/pev/example-events-routing.test.ts` includes context-loader normalization coverage
+
+### Sprint 3 (part 1): CI/review/merge queue behavior
+
+- `machines/example/machine.ts`
+  - `awaitingMerge` is now an executable queue state (not a placeholder final state).
+  - `processingMerge` now enqueues merge actions and runs through the PEV runner.
+- `machines/example/states.ts`
+  - Added queue assigners for:
+    - `assignAwaitingMergeQueue` (`appendHistory`)
+    - `assignMergeQueue` (`updateStatus -> appendHistory`)
+- Tests:
+  - `tests/pev/example-machine.test.ts` now asserts:
+    - approved review trigger executes awaiting-merge queue
+    - `pr-merged` trigger executes merge queue and marks status `Done`
+
+### Sprint 3 (part 2): failure-path review/CI loop context
+
+- `machines/example/states.ts`
+  - Iteration queue now adds explicit failure-context history entries when:
+    - CI failed (`ciResult === "failure"`)
+    - review requested changes (`reviewDecision === "CHANGES_REQUESTED"`)
+  - Review queue now adds explicit comment-context history when:
+    - review commented (`reviewDecision === "COMMENTED"`)
+- Tests:
+  - `tests/pev/example-machine.test.ts` asserts these context-specific history entries
+    are emitted on the corresponding trigger/decision paths.
+
+### Sprint 3 (part 3): deploy lifecycle queues
+
+- `machines/example/machine.ts`
+  - Deploy triggers now route to executable queue states instead of logging-only finals:
+    - `processingDeployedStage`
+    - `processingDeployedProd`
+    - `processingDeployedStageFailure`
+    - `processingDeployedProdFailure`
+- `machines/example/states.ts`
+  - Added queue assigners for deploy flows:
+    - `assignDeployedStageQueue` (append deploy-success history)
+    - `assignDeployedProdQueue` (ensure status `Done` + append deploy-success history)
+    - `assignDeployedStageFailureQueue` (set status `Error` + append failure history)
+    - `assignDeployedProdFailureQueue` (set status `Error` + append failure history)
+- Tests:
+  - `tests/pev/example-machine.test.ts` now asserts deploy stage/prod success and
+    failure triggers execute their queues and mutate status/history as expected.
+
+### Hardening pass: remove trigger placeholders
+
+- `machines/example/machine.ts`
+  - Former placeholder trigger states (`pivoting`, `resetting`, `retrying`,
+    `commenting`, `prReviewing`, `prResponding`, `prRespondingHuman`, `prPush`,
+    `orchestrating`, `mergeQueueLogging`, `mergeQueueFailureLogging`) are now
+    executable queue states routed through the PEV runner.
+- `machines/example/states.ts`
+  - Added concrete queue builders/assigners for each of these trigger families
+    so all mapped triggers execute explicit actions and produce deterministic
+    domain side effects/history.
+- Tests:
+  - `tests/pev/example-state-matrix.test.ts` adds broad scenario coverage for
+    these paths with assertions on action traces and final domain outcomes.
+
+### Parity with issues machine
+
+- `machines/example/guards.ts`
+  - `needsSubIssues` — placeholder (returns false), routes to `initializing`
+  - `triggeredByGroomSummary` — separate guard for `issue-groom-summary` (ARC 37)
+  - Compound guards for ARC 25-27, 29-31: `triggeredByCIAndReadyForReview`, `triggeredByCIAndShouldBlock`, `triggeredByCIAndShouldContinue`, `triggeredByReviewAndApproved`, `triggeredByReviewAndChanges`, `triggeredByReviewAndCommented`
+- `machines/example/machine.ts`
+  - `initializing` — queue: runOrchestration + appendHistory (ARC 39)
+  - `iteratingFix` — CI failure / review changes route here; queue uses mode `retry` (ARC 26, 30)
+  - `alreadyBlocked` — no-op terminal when issue is already blocked (ARC 6)
+  - `triggeredByPRReviewApproved` → `awaitingMerge` direct (ARC 23)
+  - ARC 25-28: CI direct transitions (readyForReview, shouldBlock, shouldContinue, processingCI)
+  - ARC 29-32: Review direct transitions (approved→awaitingMerge, changes→iteratingFix, commented→reviewing)
+  - ARC 42: `readyForReview` → `transitioningToReview` standalone
+  - `processingReview` removed (replaced by direct transitions)
+- `machines/example/states.ts`
+  - `buildIterateFixQueue` — same as iterate but mode `retry` for fix-CI path
+
 ## Directory Layout
 
 ```

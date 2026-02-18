@@ -82,6 +82,25 @@ const config: ReturnType<typeof tseslint.config> = tseslint.config(
       globals: { ...globals.node },
     },
   },
+  // Enforce that the example PEV machine only imports from issues/ via legacy.ts
+  {
+    files: ["packages/statemachine/src/machines/example/**/*.ts"],
+    ignores: ["packages/statemachine/src/machines/example/legacy.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["../issues/*", "../issues/**"],
+              message:
+                "Import from machines/issues/ must go through legacy.ts in the example machine.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
 
 export default config;

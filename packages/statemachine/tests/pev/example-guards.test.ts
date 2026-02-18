@@ -1,0 +1,396 @@
+import { describe, expect, it } from "vitest";
+import type { RunnerMachineContext } from "../../src/core/pev/types.js";
+import type { ExampleContext } from "../../src/machines/example/context.js";
+import {
+  needsTriage,
+  canIterate,
+  isAlreadyDone,
+  isBlocked,
+  isError,
+  isInReview,
+  triggeredByGroom,
+  triggeredByGroomSummary,
+  triggeredByReviewRequest,
+  ciPassed,
+  ciFailed,
+  reviewApproved,
+  reviewRequestedChanges,
+  reviewCommented,
+  needsGrooming,
+  hasSubIssues,
+  currentPhaseInReview,
+  allPhasesDone,
+  maxFailuresReached,
+  todosDone,
+  readyForReview,
+} from "../../src/machines/example/guards.js";
+import {
+  mockExampleContext,
+  mockExampleIssue,
+  mockExamplePR,
+} from "./mock-factories.js";
+
+function withRunnerContext(
+  domain: ExampleContext,
+): RunnerMachineContext<ExampleContext, { type: string }> {
+  return {
+    domain,
+    actionQueue: [],
+    currentAction: null,
+    prediction: null,
+    preActionSnapshot: null,
+    executeResult: null,
+    verifyResult: null,
+    completedActions: [],
+    transitionCount: 0,
+    maxTransitions: 10,
+    error: null,
+    runnerCtx: { token: "token", owner: "owner", repo: "repo" },
+  };
+}
+
+describe("example guards", () => {
+  it("needsTriage is false for sub-issues", () => {
+    const domain = mockExampleContext({
+      trigger: "issue-edited",
+      owner: "owner",
+      repo: "repo",
+      parentIssue: mockExampleIssue({ number: 1 }),
+      issue: mockExampleIssue({ labels: [] }),
+    });
+    expect(needsTriage({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("needsTriage is false when triaged label exists (case-insensitive)", () => {
+    const domain = mockExampleContext({
+      trigger: "issue-edited",
+      issue: mockExampleIssue({ labels: ["TRIAGED"] }),
+    });
+    expect(needsTriage({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("canIterate requires bot assigned to both parent and issue", () => {
+    const domain = mockExampleContext({
+      trigger: "issue-edited",
+      botUsername: "nopo-bot",
+      parentIssue: mockExampleIssue({ assignees: ["nopo-bot"] }),
+      issue: mockExampleIssue({ assignees: ["nopo-bot"] }),
+    });
+    expect(canIterate({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("canIterate is false if parent is missing bot assignment", () => {
+    const domain = mockExampleContext({
+      trigger: "issue-edited",
+      botUsername: "nopo-bot",
+      parentIssue: mockExampleIssue({ assignees: ["someone-else"] }),
+      issue: mockExampleIssue({ assignees: ["nopo-bot"] }),
+    });
+    expect(canIterate({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("isAlreadyDone requires done status and merged PR", () => {
+    const doneAndMerged = {
+      ...mockExampleContext({
+        trigger: "issue-edited",
+        issue: mockExampleIssue({ projectStatus: "Done" }),
+      }),
+      pr: mockExamplePR({ state: "MERGED", title: "PR" }),
+      hasPR: true,
+    };
+    const doneNotMerged = {
+      ...mockExampleContext({
+        trigger: "issue-edited",
+        issue: mockExampleIssue({ projectStatus: "Done" }),
+      }),
+      pr: mockExamplePR({ state: "OPEN", title: "PR" }),
+      hasPR: true,
+    };
+    expect(isAlreadyDone({ context: withRunnerContext(doneAndMerged) })).toBe(
+      true,
+    );
+    expect(isAlreadyDone({ context: withRunnerContext(doneNotMerged) })).toBe(
+      false,
+    );
+  });
+
+  it("triggeredByGroom matches issue-groom, triggeredByGroomSummary matches issue-groom-summary", () => {
+    const groom = mockExampleContext({ trigger: "issue-groom" });
+    const groomSummary = mockExampleContext({ trigger: "issue-groom-summary" });
+    expect(triggeredByGroom({ context: withRunnerContext(groom) })).toBe(true);
+    expect(triggeredByGroom({ context: withRunnerContext(groomSummary) })).toBe(
+      false,
+    );
+    expect(
+      triggeredByGroomSummary({ context: withRunnerContext(groomSummary) }),
+    ).toBe(true);
+    expect(triggeredByGroomSummary({ context: withRunnerContext(groom) })).toBe(
+      false,
+    );
+  });
+
+  it("triggeredByReviewRequest is strict to review-request trigger", () => {
+    const reviewReq = mockExampleContext({ trigger: "pr-review-requested" });
+    const reviewSubmitted = mockExampleContext({
+      trigger: "pr-review-submitted",
+    });
+    expect(
+      triggeredByReviewRequest({
+        context: withRunnerContext(reviewReq),
+      }),
+    ).toBe(true);
+    expect(
+      triggeredByReviewRequest({
+        context: withRunnerContext(reviewSubmitted),
+      }),
+    ).toBe(false);
+  });
+
+  it("ci/review decision guards map expected values", () => {
+    const ciSuccess = mockExampleContext({ ciResult: "success" });
+    const ciFailure = mockExampleContext({ ciResult: "failure" });
+    const reviewOk = mockExampleContext({ reviewDecision: "APPROVED" });
+    const reviewChanges = mockExampleContext({
+      reviewDecision: "CHANGES_REQUESTED",
+    });
+    const reviewComment = mockExampleContext({ reviewDecision: "COMMENTED" });
+    expect(ciPassed({ context: withRunnerContext(ciSuccess) })).toBe(true);
+    expect(ciFailed({ context: withRunnerContext(ciFailure) })).toBe(true);
+    expect(reviewApproved({ context: withRunnerContext(reviewOk) })).toBe(true);
+    expect(
+      reviewRequestedChanges({
+        context: withRunnerContext(reviewChanges),
+      }),
+    ).toBe(true);
+    expect(
+      reviewCommented({
+        context: withRunnerContext(reviewComment),
+      }),
+    ).toBe(true);
+  });
+
+  it("needsGrooming is true only when triaged and not groomed", () => {
+    const yes = mockExampleContext({
+      issue: mockExampleIssue({ labels: ["triaged"] }),
+    });
+    const noAlready = mockExampleContext({
+      issue: mockExampleIssue({ labels: ["triaged", "groomed"] }),
+    });
+    const noTriaged = mockExampleContext({
+      issue: mockExampleIssue({ labels: [] }),
+    });
+    expect(needsGrooming({ context: withRunnerContext(yes) })).toBe(true);
+    expect(needsGrooming({ context: withRunnerContext(noAlready) })).toBe(
+      false,
+    );
+    expect(needsGrooming({ context: withRunnerContext(noTriaged) })).toBe(
+      false,
+    );
+  });
+
+  it("isBlocked returns true when status is Blocked", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ projectStatus: "Blocked" }),
+    });
+    expect(isBlocked({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("isBlocked returns false when status is not Blocked", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ projectStatus: "In progress" }),
+    });
+    expect(isBlocked({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("isError returns true when status is Error", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ projectStatus: "Error" }),
+    });
+    expect(isError({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("isError returns false when status is not Error", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ projectStatus: "In progress" }),
+    });
+    expect(isError({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("isInReview returns true when status is In review", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ projectStatus: "In review" }),
+    });
+    expect(isInReview({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("isInReview returns false when status is not In review", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ projectStatus: "In progress" }),
+    });
+    expect(isInReview({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("hasSubIssues returns true when parent is null and issue has sub-issues", () => {
+    const domain = mockExampleContext({
+      parentIssue: null,
+      issue: mockExampleIssue({
+        hasSubIssues: true,
+        subIssues: [
+          { number: 100, projectStatus: "In progress", state: "OPEN" },
+        ],
+      }),
+    });
+    expect(hasSubIssues({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("hasSubIssues returns false when parent exists (sub-issue context)", () => {
+    const domain = mockExampleContext({
+      parentIssue: mockExampleIssue({ number: 99 }),
+      issue: mockExampleIssue({ hasSubIssues: false }),
+    });
+    expect(hasSubIssues({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("hasSubIssues returns false when no sub-issues", () => {
+    const domain = mockExampleContext({
+      parentIssue: null,
+      issue: mockExampleIssue({ hasSubIssues: false, subIssues: [] }),
+    });
+    expect(hasSubIssues({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("currentPhaseInReview returns true when current sub-issue is In review", () => {
+    const domain = mockExampleContext({
+      parentIssue: null,
+      issue: mockExampleIssue({
+        hasSubIssues: true,
+        subIssues: [
+          { number: 100, projectStatus: "In review", state: "OPEN" },
+          { number: 101, projectStatus: "Backlog", state: "OPEN" },
+        ],
+      }),
+      currentSubIssue: mockExampleIssue({
+        number: 100,
+        projectStatus: "In review",
+        hasSubIssues: false,
+      }),
+    });
+    expect(currentPhaseInReview({ context: withRunnerContext(domain) })).toBe(
+      true,
+    );
+  });
+
+  it("currentPhaseInReview returns false when no sub-issues", () => {
+    const domain = mockExampleContext({
+      parentIssue: null,
+      issue: mockExampleIssue({ hasSubIssues: false }),
+    });
+    expect(currentPhaseInReview({ context: withRunnerContext(domain) })).toBe(
+      false,
+    );
+  });
+
+  it("allPhasesDone returns true when groomed and all sub-issues Done or CLOSED", () => {
+    const domain = mockExampleContext({
+      parentIssue: null,
+      issue: mockExampleIssue({
+        labels: ["triaged", "groomed"],
+        hasSubIssues: true,
+        subIssues: [
+          { number: 100, projectStatus: "Done", state: "CLOSED" },
+          { number: 101, projectStatus: "Done", state: "CLOSED" },
+        ],
+      }),
+    });
+    expect(allPhasesDone({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("allPhasesDone returns false when no sub-issues", () => {
+    const domain = mockExampleContext({
+      parentIssue: null,
+      issue: mockExampleIssue({
+        labels: ["groomed"],
+        hasSubIssues: false,
+        subIssues: [],
+      }),
+    });
+    expect(allPhasesDone({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("maxFailuresReached returns true when failures >= maxRetries", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ failures: 3 }),
+      maxRetries: 3,
+    });
+    expect(maxFailuresReached({ context: withRunnerContext(domain) })).toBe(
+      true,
+    );
+  });
+
+  it("maxFailuresReached returns false when failures < maxRetries", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ failures: 2 }),
+      maxRetries: 3,
+    });
+    expect(maxFailuresReached({ context: withRunnerContext(domain) })).toBe(
+      false,
+    );
+  });
+
+  it("todosDone returns true when Todos section has all checkboxes checked", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({
+        body: "## Todos\n- [x] Task 1\n- [x] Task 2",
+      }),
+    });
+    expect(todosDone({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("todosDone returns false when Todos section has unchecked items", () => {
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({
+        body: "## Todos\n- [x] Task 1\n- [ ] Task 2",
+      }),
+    });
+    expect(todosDone({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
+  it("readyForReview requires ciPassed and todosDone", () => {
+    const yes = mockExampleContext({
+      ciResult: "success",
+      issue: mockExampleIssue({
+        body: "## Todos\n- [x] Done",
+      }),
+    });
+    const noCi = mockExampleContext({
+      ciResult: "failure",
+      issue: mockExampleIssue({
+        body: "## Todos\n- [x] Done",
+      }),
+    });
+    const noTodos = mockExampleContext({
+      ciResult: "success",
+      issue: mockExampleIssue({
+        body: "## Todos\n- [ ] Pending",
+      }),
+    });
+    expect(readyForReview({ context: withRunnerContext(yes) })).toBe(true);
+    expect(readyForReview({ context: withRunnerContext(noCi) })).toBe(false);
+    expect(readyForReview({ context: withRunnerContext(noTodos) })).toBe(false);
+  });
+
+  it("allPhasesDone returns false when some sub-issues not done", () => {
+    const domain = mockExampleContext({
+      parentIssue: null,
+      issue: mockExampleIssue({
+        labels: ["groomed"],
+        hasSubIssues: true,
+        subIssues: [
+          { number: 100, projectStatus: "Done", state: "CLOSED" },
+          { number: 101, projectStatus: "In progress", state: "OPEN" },
+        ],
+      }),
+    });
+    expect(allPhasesDone({ context: withRunnerContext(domain) })).toBe(false);
+  });
+});

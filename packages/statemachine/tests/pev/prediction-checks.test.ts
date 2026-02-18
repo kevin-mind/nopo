@@ -1,0 +1,459 @@
+import { describe, it, expect } from "vitest";
+import { assign, createActor, waitFor } from "xstate";
+import { createDomainMachine } from "../../src/core/pev/domain-machine.js";
+import { evaluatePredictionChecks } from "../../src/core/pev/prediction-checks.js";
+import type {
+  ActionRegistry,
+  PredictionCheck,
+  VerifyArgs,
+} from "../../src/core/pev/types.js";
+
+function isOkResult(value: unknown): value is { ok: true } {
+  if (value == null || typeof value !== "object") return false;
+  return Reflect.get(value, "ok") === true;
+}
+
+interface DemoCtx {
+  issue: {
+    number: number;
+    labels: string[];
+    failures: number;
+    title: string;
+    nested?: { value: number };
+  };
+  counter: number;
+}
+
+interface DemoAction {
+  type: string;
+}
+
+function runMachine(registry: ActionRegistry<DemoAction, DemoCtx>) {
+  const machine = createDomainMachine<DemoCtx, DemoAction>({
+    id: "prediction-checks-test",
+    actionRegistry: registry,
+    refreshContext: async (_runnerCtx, current) => current,
+    guards: {},
+    domainStates: {
+      routing: {
+        always: "queueing",
+      },
+      queueing: {
+        entry: assign({
+          actionQueue: () => [{ type: "step" }],
+        }),
+        always: "executingQueue",
+      },
+    },
+  });
+
+  const actor = createActor(machine, {
+    input: {
+      domain: {
+        issue: {
+          number: 42,
+          labels: [],
+          failures: 2,
+          title: "Test Issue",
+          nested: { value: 10 },
+        },
+        counter: 1,
+      },
+      runnerCtx: {
+        token: "t",
+        owner: "o",
+        repo: "r",
+      },
+      maxTransitions: 10,
+    },
+  });
+
+  actor.start();
+  return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
+}
+
+describe("evaluatePredictionChecks", () => {
+  const oldCtx: DemoCtx = {
+    issue: {
+      number: 42,
+      labels: ["triaged"],
+      failures: 2,
+      title: "Old title",
+      nested: { value: 5 },
+    },
+    counter: 1,
+  };
+
+  const newCtx: DemoCtx = {
+    issue: {
+      number: 42,
+      labels: ["triaged", "groomed"],
+      failures: 0,
+      title: "Updated title",
+      nested: { value: 12 },
+    },
+    counter: 3,
+  };
+
+  it("passes for eq checks", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "eq", field: "issue.number", expected: 42 },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("fails for eq checks", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "eq", field: "issue.number", expected: 99 },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+  });
+
+  it("supports gte and lte checks", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "gte", field: "counter", expected: 2 },
+      { comparator: "lte", field: "counter", expected: 5 },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("supports subset checks", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "subset", field: "issue.labels", expected: ["triaged"] },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("supports includes checks for arrays and strings", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "includes", field: "issue.labels", expected: "groomed" },
+      { comparator: "includes", field: "issue.title", expected: "Updated" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("supports exists and startsWith checks", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "exists", field: "issue.nested.value" },
+      { comparator: "startsWith", field: "issue.title", expected: "Updated" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("supports `from: old` source selection", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "eq",
+        field: "issue.title",
+        expected: "Old title",
+        from: "old",
+      },
+      {
+        comparator: "eq",
+        field: "issue.title",
+        expected: "Updated title",
+        from: "new",
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("supports grouped `all` checks", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "all",
+        checks: [
+          {
+            comparator: "includes",
+            field: "issue.labels",
+            expected: "triaged",
+          },
+          {
+            comparator: "includes",
+            field: "issue.labels",
+            expected: "groomed",
+          },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("supports grouped `any` checks", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "any",
+        checks: [
+          { comparator: "eq", field: "issue.failures", expected: 2 },
+          { comparator: "eq", field: "issue.failures", expected: 0 },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("fails `all` when one child fails", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "all",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 42 },
+          { comparator: "eq", field: "issue.number", expected: 99 },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+  });
+
+  it("fails `any` when all children fail", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "any",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 1 },
+          { comparator: "eq", field: "issue.number", expected: 2 },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+  });
+});
+
+describe("runner integration with prediction checks", () => {
+  it("auto-fails verification when prediction checks fail and no verify is defined", async () => {
+    const registry: ActionRegistry<DemoAction, DemoCtx> = {
+      step: {
+        predict: () => ({
+          description: "Require triaged label",
+          checks: [
+            {
+              comparator: "includes",
+              field: "issue.labels",
+              expected: "triaged",
+            },
+          ],
+        }),
+        execute: async (_action, ctx) => {
+          ctx.issue.labels = [];
+          return { ok: true };
+        },
+      },
+    };
+
+    const snapshot = await runMachine(registry);
+    expect(String(snapshot.value)).toBe("verificationFailed");
+    expect(snapshot.context.verifyResult?.pass).toBe(false);
+    expect(snapshot.context.verifyResult?.message).toContain(
+      "Prediction checks failed",
+    );
+  });
+
+  it("passes when prediction checks pass without custom verify", async () => {
+    const registry: ActionRegistry<DemoAction, DemoCtx> = {
+      step: {
+        predict: () => ({
+          description: "Require triaged label",
+          checks: [
+            {
+              comparator: "includes",
+              field: "issue.labels",
+              expected: "triaged",
+            },
+          ],
+        }),
+        execute: async (_action, ctx) => {
+          if (!ctx.issue.labels.includes("triaged"))
+            ctx.issue.labels.push("triaged");
+          return { ok: true };
+        },
+      },
+    };
+
+    const snapshot = await runMachine(registry);
+    expect(String(snapshot.value)).toBe("done");
+    expect(snapshot.context.verifyResult?.pass).toBe(true);
+  });
+
+  it("enforces prediction checks even if custom verify returns pass", async () => {
+    const registry: ActionRegistry<DemoAction, DemoCtx> = {
+      step: {
+        predict: () => ({
+          description: "Require groomed label",
+          checks: [
+            {
+              comparator: "includes",
+              field: "issue.labels",
+              expected: "groomed",
+            },
+          ],
+        }),
+        execute: async () => ({ ok: true }),
+        verify: () => ({ pass: true, message: "Custom verify passed" }),
+      },
+    };
+
+    const snapshot = await runMachine(registry);
+    expect(String(snapshot.value)).toBe("verificationFailed");
+    expect(snapshot.context.verifyResult?.pass).toBe(false);
+    expect(snapshot.context.verifyResult?.message).toContain(
+      "Prediction checks failed",
+    );
+  });
+
+  it("passes modern verify args with predictionEval and executeResult", async () => {
+    let sawPredictionPass = false;
+    let sawExecuteOk = false;
+
+    const registry: ActionRegistry<DemoAction, DemoCtx> = {
+      step: {
+        predict: () => ({
+          description: "Require triaged label",
+          checks: [
+            {
+              comparator: "includes",
+              field: "issue.labels",
+              expected: "triaged",
+            },
+          ],
+        }),
+        execute: async (_action, ctx) => {
+          if (!ctx.issue.labels.includes("triaged"))
+            ctx.issue.labels.push("triaged");
+          return { ok: true };
+        },
+        verify: ({
+          predictionEval,
+          executeResult,
+        }: VerifyArgs<DemoAction, DemoCtx>) => {
+          sawPredictionPass = predictionEval.pass;
+          sawExecuteOk = isOkResult(executeResult);
+          return { pass: true, message: "modern verify" };
+        },
+      },
+    };
+
+    const snapshot = await runMachine(registry);
+    expect(String(snapshot.value)).toBe("done");
+    expect(sawPredictionPass).toBe(true);
+    expect(sawExecuteOk).toBe(true);
+  });
+
+  it("lets verify return void for pass", async () => {
+    const registry: ActionRegistry<DemoAction, DemoCtx> = {
+      step: {
+        predict: () => ({
+          description: "Require triaged label",
+          checks: [
+            {
+              comparator: "includes",
+              field: "issue.labels",
+              expected: "triaged",
+            },
+          ],
+        }),
+        execute: async (_action, ctx) => {
+          if (!ctx.issue.labels.includes("triaged"))
+            ctx.issue.labels.push("triaged");
+          return { ok: true };
+        },
+        verify: () => undefined,
+      },
+    };
+
+    const snapshot = await runMachine(registry);
+    expect(String(snapshot.value)).toBe("done");
+    expect(snapshot.context.verifyResult?.pass).toBe(true);
+  });
+
+  it("treats failure-only verify return object as failed verification", async () => {
+    const registry: ActionRegistry<DemoAction, DemoCtx> = {
+      step: {
+        predict: () => ({
+          description: "Require triaged label",
+          checks: [
+            {
+              comparator: "includes",
+              field: "issue.labels",
+              expected: "triaged",
+            },
+          ],
+        }),
+        execute: async (_action, ctx) => {
+          if (!ctx.issue.labels.includes("triaged"))
+            ctx.issue.labels.push("triaged");
+          return { ok: true };
+        },
+        verify: () => ({
+          message: "Custom failure context",
+          diffs: [
+            {
+              field: "issue.labels",
+              expected: "triaged",
+              actual: [],
+            },
+          ],
+        }),
+      },
+    };
+
+    const snapshot = await runMachine(registry);
+    expect(String(snapshot.value)).toBe("verificationFailed");
+    expect(snapshot.context.verifyResult?.pass).toBe(false);
+    expect(snapshot.context.verifyResult?.message).toContain(
+      "Custom failure context",
+    );
+  });
+
+  it("includes check description in prediction diffs", () => {
+    const baselineOldCtx: DemoCtx = {
+      issue: {
+        number: 42,
+        labels: ["triaged"],
+        failures: 1,
+        title: "Old title",
+        nested: { value: 5 },
+      },
+      counter: 1,
+    };
+    const baselineNewCtx: DemoCtx = {
+      issue: {
+        number: 42,
+        labels: ["groomed"],
+        failures: 0,
+        title: "Updated title",
+        nested: { value: 12 },
+      },
+      counter: 3,
+    };
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "includes",
+        description: 'Issue labels should include "triaged"',
+        field: "issue.labels",
+        expected: "triaged",
+      },
+    ];
+    const result = evaluatePredictionChecks(
+      checks,
+      baselineOldCtx,
+      baselineNewCtx,
+    );
+    expect(result.pass).toBe(false);
+    expect(result.diffs[0]?.description).toBe(
+      'Issue labels should include "triaged"',
+    );
+    expect(result.diffs[0]?.comparator).toBe("includes");
+  });
+});

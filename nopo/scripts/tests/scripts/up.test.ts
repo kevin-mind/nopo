@@ -10,6 +10,14 @@ import { Environment } from "../../src/parse-env.ts";
 vi.mock("../../src/scripts/build");
 vi.mock("../../src/scripts/pull");
 
+vi.mock("../../src/lib.ts", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../../src/lib.ts")>();
+  return {
+    ...mod,
+    exec: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
 vi.mock("../../src/git-info", () => ({
   GitInfo: {
     exists: () => false,

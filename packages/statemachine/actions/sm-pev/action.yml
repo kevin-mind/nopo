@@ -1,0 +1,28 @@
+name: State Machine PEV (Predict-Execute-Verify)
+description: >
+  Unified state machine action that runs predict-execute-verify
+  in a single invocation. Prototype for the new PEV architecture.
+
+inputs:
+  github_json:
+    description: GitHub context as JSON (${{ toJson(github) }})
+    required: true
+  max_transitions:
+    description: Maximum transitions before exiting (default 1)
+    required: false
+    default: "1"
+  github_token:
+    description: GitHub token for API operations
+    required: true
+
+outputs:
+  final_state:
+    description: Final machine state after PEV cycle
+  actions_executed:
+    description: Number of actions executed
+  error:
+    description: Error message if any
+
+runs:
+  using: node20
+  main: dist/index.cjs
