@@ -25,9 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-node
+      - name: Install Claude Code
+        run: curl -fsSL https://claude.ai/install.sh | bash
 
       - uses: ./packages/statemachine/actions/sm-pev
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
           github_json: ${{ toJson(github) }}
           max_transitions: ${{ inputs.max_transitions || '1' }}
