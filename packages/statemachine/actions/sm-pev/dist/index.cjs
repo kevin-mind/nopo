@@ -61849,8 +61849,10 @@ async function executeClaudeSDK(options) {
     claudePath = process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`,
     allowedTools,
     outputSchema,
-    permissionMode = "acceptEdits"
+    permissionMode = "acceptEdits",
+    envOverrides
   } = options;
+  const env = envOverrides ? { ...process.env, ...envOverrides } : process.env;
   core.info(`Running Claude SDK`);
   core.info(`Working directory: ${cwd2}`);
   core.info(`Claude Code path: ${claudePath}`);
@@ -61870,7 +61872,7 @@ async function executeClaudeSDK(options) {
     pathToClaudeCodeExecutable: claudePath,
     permissionMode,
     // Explicitly pass all env vars (including GH_TOKEN) to Claude Code process
-    env: process.env,
+    env,
     // Load CLAUDE.md and project settings
     settingSources: ["project"],
     // Use Claude Code's system prompt
@@ -65293,7 +65295,7 @@ function mapClaudeOutputToPrResponseResult(output) {
     summary: parsed.summary
   };
 }
-function createClaudeTriageService() {
+function createClaudeTriageService(codeToken) {
   return {
     async triageIssue(input) {
       const resolved = resolvePrompt({
@@ -65303,7 +65305,8 @@ function createClaudeTriageService() {
       const result = await executeClaudeSDK({
         prompt: resolved.prompt,
         cwd: process.cwd(),
-        outputSchema: resolved.outputSchema
+        outputSchema: resolved.outputSchema,
+        ...codeToken && { envOverrides: { GH_TOKEN: codeToken } }
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -65314,7 +65317,7 @@ function createClaudeTriageService() {
     }
   };
 }
-function createClaudeGroomingService() {
+function createClaudeGroomingService(codeToken) {
   return {
     async groomIssue(input) {
       const resolved = resolvePrompt({
@@ -65324,7 +65327,8 @@ function createClaudeGroomingService() {
       const result = await executeClaudeSDK({
         prompt: resolved.prompt,
         cwd: process.cwd(),
-        outputSchema: resolved.outputSchema
+        outputSchema: resolved.outputSchema,
+        ...codeToken && { envOverrides: { GH_TOKEN: codeToken } }
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -65335,7 +65339,7 @@ function createClaudeGroomingService() {
     }
   };
 }
-function createClaudeIterationService() {
+function createClaudeIterationService(codeToken) {
   return {
     async iterateIssue(input) {
       const resolved = resolvePrompt({
@@ -65345,7 +65349,8 @@ function createClaudeIterationService() {
       const result = await executeClaudeSDK({
         prompt: resolved.prompt,
         cwd: process.cwd(),
-        outputSchema: resolved.outputSchema
+        outputSchema: resolved.outputSchema,
+        ...codeToken && { envOverrides: { GH_TOKEN: codeToken } }
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -65356,7 +65361,7 @@ function createClaudeIterationService() {
     }
   };
 }
-function createClaudeReviewService() {
+function createClaudeReviewService(reviewerToken) {
   return {
     async reviewIssue(input) {
       const resolved = resolvePrompt({
@@ -65366,7 +65371,8 @@ function createClaudeReviewService() {
       const result = await executeClaudeSDK({
         prompt: resolved.prompt,
         cwd: process.cwd(),
-        outputSchema: resolved.outputSchema
+        outputSchema: resolved.outputSchema,
+        ...reviewerToken && { envOverrides: { GH_TOKEN: reviewerToken } }
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -65377,7 +65383,7 @@ function createClaudeReviewService() {
     }
   };
 }
-function createClaudePrResponseService() {
+function createClaudePrResponseService(codeToken) {
   return {
     async respondToPr(input) {
       const resolved = resolvePrompt({
@@ -65387,7 +65393,8 @@ function createClaudePrResponseService() {
       const result = await executeClaudeSDK({
         prompt: resolved.prompt,
         cwd: process.cwd(),
-        outputSchema: resolved.outputSchema
+        outputSchema: resolved.outputSchema,
+        ...codeToken && { envOverrides: { GH_TOKEN: codeToken } }
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -67466,6 +67473,7 @@ function asOctokitLike(octokit) {
 }
 async function run() {
   const token = getRequiredInput("github_token");
+  const reviewerToken = getOptionalInput("reviewer_token") || token;
   const maxTransitions = parseInt(
     getOptionalInput("max_transitions") || "1",
     10
@@ -67529,11 +67537,11 @@ async function run() {
   };
   domainContext.services = {
     ...domainContext.services,
-    triage: createClaudeTriageService(),
-    grooming: createClaudeGroomingService(),
-    iteration: createClaudeIterationService(),
-    review: createClaudeReviewService(),
-    prResponse: createClaudePrResponseService()
+    triage: createClaudeTriageService(token),
+    grooming: createClaudeGroomingService(token),
+    iteration: createClaudeIterationService(token),
+    review: createClaudeReviewService(reviewerToken),
+    prResponse: createClaudePrResponseService(token)
   };
   const actor = createActor(exampleMachine, {
     input: {

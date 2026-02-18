@@ -187,7 +187,10 @@ export async function executeClaudeSDK(
     allowedTools,
     outputSchema,
     permissionMode = "acceptEdits",
+    envOverrides,
   } = options;
+
+  const env = envOverrides ? { ...process.env, ...envOverrides } : process.env;
 
   core.info(`Running Claude SDK`);
   core.info(`Working directory: ${cwd}`);
@@ -215,7 +218,7 @@ export async function executeClaudeSDK(
     pathToClaudeCodeExecutable: claudePath,
     permissionMode,
     // Explicitly pass all env vars (including GH_TOKEN) to Claude Code process
-    env: process.env,
+    env,
     // Load CLAUDE.md and project settings
     settingSources: ["project"],
     // Use Claude Code's system prompt

@@ -35,6 +35,7 @@ function asOctokitLike(
 
 async function run(): Promise<void> {
   const token = getRequiredInput("github_token");
+  const reviewerToken = getOptionalInput("reviewer_token") || token;
   const maxTransitions = parseInt(
     getOptionalInput("max_transitions") || "1",
     10,
@@ -114,11 +115,11 @@ async function run(): Promise<void> {
   };
   domainContext.services = {
     ...domainContext.services,
-    triage: createClaudeTriageService(),
-    grooming: createClaudeGroomingService(),
-    iteration: createClaudeIterationService(),
-    review: createClaudeReviewService(),
-    prResponse: createClaudePrResponseService(),
+    triage: createClaudeTriageService(token),
+    grooming: createClaudeGroomingService(token),
+    iteration: createClaudeIterationService(token),
+    review: createClaudeReviewService(reviewerToken),
+    prResponse: createClaudePrResponseService(token),
   };
 
   const actor = createActor(exampleMachine, {

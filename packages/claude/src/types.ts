@@ -23,6 +23,9 @@ export interface ClaudeExecutorOptions {
 
   /** Permission mode: "acceptEdits" (default) or "bypassPermissions" */
   permissionMode?: "acceptEdits" | "bypassPermissions";
+
+  /** Env vars to merge/override when running Claude (e.g. GH_TOKEN for review vs code token) */
+  envOverrides?: Record<string, string>;
 }
 
 /**

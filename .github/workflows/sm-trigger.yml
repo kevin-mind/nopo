@@ -101,3 +101,4 @@ jobs:
           github_json: ${{ toJson(github) }}
           max_transitions: "5"
           github_token: ${{ secrets.NOPO_BOT_PAT }}
+          reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}

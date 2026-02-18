@@ -40533,8 +40533,10 @@ async function executeClaudeSDK(options) {
     claudePath = process.env.CLAUDE_CODE_PATH || `${process.env.HOME}/.local/bin/claude`,
     allowedTools,
     outputSchema,
-    permissionMode = "acceptEdits"
+    permissionMode = "acceptEdits",
+    envOverrides
   } = options;
+  const env = envOverrides ? { ...process.env, ...envOverrides } : process.env;
   core.info(`Running Claude SDK`);
   core.info(`Working directory: ${cwd2}`);
   core.info(`Claude Code path: ${claudePath}`);
@@ -40554,7 +40556,7 @@ async function executeClaudeSDK(options) {
     pathToClaudeCodeExecutable: claudePath,
     permissionMode,
     // Explicitly pass all env vars (including GH_TOKEN) to Claude Code process
-    env: process.env,
+    env,
     // Load CLAUDE.md and project settings
     settingSources: ["project"],
     // Use Claude Code's system prompt

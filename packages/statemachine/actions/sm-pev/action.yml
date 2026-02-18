@@ -12,8 +12,11 @@ inputs:
     required: false
     default: "1"
   github_token:
-    description: GitHub token for API operations
+    description: GitHub token for API operations and code changes (NOPO_BOT_PAT)
     required: true
+  reviewer_token:
+    description: GitHub token for PR review tasks (CLAUDE_REVIEWER_PAT). Falls back to github_token if not set.
+    required: false
 
 outputs:
   final_state:

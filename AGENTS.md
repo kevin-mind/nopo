@@ -434,9 +434,10 @@ Claude must return JSON with these fields:
 ### Setup
 
 1. `CLAUDE_CODE_OAUTH_TOKEN` secret
-2. `NOPO_BOT_PAT` secret (repo scope, for pushes)
-3. `PROJECT_NUMBER` variable
-4. GitHub Project with Status/Iteration/Failures fields
+2. `NOPO_BOT_PAT` secret (repo scope, for pushes and code changes)
+3. `CLAUDE_REVIEWER_PAT` secret (for PR review tasks)
+4. `PROJECT_NUMBER` variable
+5. GitHub Project with Status/Iteration/Failures fields
 
 ---
 

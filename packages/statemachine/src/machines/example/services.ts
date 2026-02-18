@@ -224,7 +224,9 @@ function mapClaudeOutputToPrResponseResult(
   };
 }
 
-export function createClaudeTriageService(): ExampleTriageService {
+export function createClaudeTriageService(
+  codeToken?: string,
+): ExampleTriageService {
   return {
     async triageIssue(input) {
       const resolved = resolvePrompt({
@@ -235,6 +237,7 @@ export function createClaudeTriageService(): ExampleTriageService {
         prompt: resolved.prompt,
         cwd: process.cwd(),
         outputSchema: resolved.outputSchema,
+        ...(codeToken && { envOverrides: { GH_TOKEN: codeToken } }),
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -247,7 +250,9 @@ export function createClaudeTriageService(): ExampleTriageService {
   };
 }
 
-export function createClaudeGroomingService(): ExampleGroomingService {
+export function createClaudeGroomingService(
+  codeToken?: string,
+): ExampleGroomingService {
   return {
     async groomIssue(input) {
       const resolved = resolvePrompt({
@@ -258,6 +263,7 @@ export function createClaudeGroomingService(): ExampleGroomingService {
         prompt: resolved.prompt,
         cwd: process.cwd(),
         outputSchema: resolved.outputSchema,
+        ...(codeToken && { envOverrides: { GH_TOKEN: codeToken } }),
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -270,7 +276,9 @@ export function createClaudeGroomingService(): ExampleGroomingService {
   };
 }
 
-export function createClaudeIterationService(): ExampleIterationService {
+export function createClaudeIterationService(
+  codeToken?: string,
+): ExampleIterationService {
   return {
     async iterateIssue(input) {
       const resolved = resolvePrompt({
@@ -281,6 +289,7 @@ export function createClaudeIterationService(): ExampleIterationService {
         prompt: resolved.prompt,
         cwd: process.cwd(),
         outputSchema: resolved.outputSchema,
+        ...(codeToken && { envOverrides: { GH_TOKEN: codeToken } }),
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -293,7 +302,9 @@ export function createClaudeIterationService(): ExampleIterationService {
   };
 }
 
-export function createClaudeReviewService(): ExampleReviewService {
+export function createClaudeReviewService(
+  reviewerToken?: string,
+): ExampleReviewService {
   return {
     async reviewIssue(input) {
       const resolved = resolvePrompt({
@@ -304,6 +315,7 @@ export function createClaudeReviewService(): ExampleReviewService {
         prompt: resolved.prompt,
         cwd: process.cwd(),
         outputSchema: resolved.outputSchema,
+        ...(reviewerToken && { envOverrides: { GH_TOKEN: reviewerToken } }),
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
@@ -316,7 +328,9 @@ export function createClaudeReviewService(): ExampleReviewService {
   };
 }
 
-export function createClaudePrResponseService(): ExamplePrResponseService {
+export function createClaudePrResponseService(
+  codeToken?: string,
+): ExamplePrResponseService {
   return {
     async respondToPr(input) {
       const resolved = resolvePrompt({
@@ -327,6 +341,7 @@ export function createClaudePrResponseService(): ExamplePrResponseService {
         prompt: resolved.prompt,
         cwd: process.cwd(),
         outputSchema: resolved.outputSchema,
+        ...(codeToken && { envOverrides: { GH_TOKEN: codeToken } }),
       });
       if (!result.success || !result.structuredOutput) {
         throw new Error(
