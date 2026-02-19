@@ -246,7 +246,7 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
       }
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- runtime output check
       const decision = (executeResult as { decision?: string }).decision;
-      if (decision === "ready" && !newCtx.domain.issue.hasSubIssues) {
+      if (decision === "ready" && !newCtx.issue.hasSubIssues) {
         return {
           message:
             "Grooming decision was 'ready' but issue has no sub-issues after reconciliation",
