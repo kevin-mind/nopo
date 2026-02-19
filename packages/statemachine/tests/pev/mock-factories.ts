@@ -10,6 +10,7 @@ import type {
 } from "../../src/machines/example/context.js";
 import type { IssueData, LinkedPR, SubIssueData } from "@more/issue-state";
 import type { ExampleNormalizedEvent } from "../../src/machines/example/events.js";
+import type { ExampleServices } from "../../src/machines/example/services.js";
 
 export const mockExampleIssue = createMockFactory<ExampleIssue>({
   number: 42,
@@ -127,6 +128,47 @@ const issueDefaults = {
 
 export const mockIssueStateIssueData: MockFactory<IssueData> =
   createMockFactory<IssueData>(issueDefaults);
+
+export const mockExampleServices = createMockFactory<ExampleServices>({
+  triage: {
+    triageIssue: async () => ({
+      labelsToAdd: ["triaged"],
+      summary: "Issue triaged",
+    }),
+  },
+  grooming: {
+    groomIssue: async () => ({
+      labelsToAdd: ["groomed"],
+      decision: "ready" as const,
+      summary: "Issue groomed",
+      recommendedPhases: [
+        {
+          phase_number: 1,
+          title: "Implementation",
+          description: "Implement the feature",
+        },
+      ],
+    }),
+  },
+  iteration: {
+    iterateIssue: async () => ({
+      labelsToAdd: ["iteration:ready"],
+      summary: "Iteration plan ready",
+    }),
+  },
+  review: {
+    reviewIssue: async () => ({
+      labelsToAdd: ["reviewed"],
+      summary: "Review analyzed",
+    }),
+  },
+  prResponse: {
+    respondToPr: async () => ({
+      labelsToAdd: ["response-prepared"],
+      summary: "Response prepared",
+    }),
+  },
+});
 
 export const mockExampleNormalizedEvent =
   createMockFactory<ExampleNormalizedEvent>({

@@ -108,6 +108,7 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
             input: ({ context }: { context: Ctx }) => ({
               action: context.currentAction!,
               domain: context.domain,
+              services: context.services,
               prediction: context.prediction,
             }),
             onDone: {
@@ -275,6 +276,7 @@ export function createDomainMachine<
           input: {
             action: TAction;
             domain: TDomainContext;
+            services: Ctx["services"];
             prediction: Ctx["prediction"];
           };
         }) => {
@@ -295,7 +297,11 @@ export function createDomainMachine<
           if (input.prediction?.description) {
             console.info(`[PEV predict] ${input.prediction.description}`);
           }
-          return def.execute(input.action, input.domain);
+          return def.execute({
+            action: input.action,
+            ctx: input.domain,
+            services: input.services,
+          });
         },
       ),
       verifyAction: fromPromise(
@@ -384,6 +390,7 @@ export function createDomainMachine<
     initial: "routing",
     context: ({ input }) => ({
       domain: input.domain,
+      services: input.services,
       actionQueue: [] satisfies TAction[],
       currentAction: null,
       prediction: null,

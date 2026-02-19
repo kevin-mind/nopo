@@ -145,13 +145,25 @@ export interface VerifyArgs<TAction = unknown, TDomainContext = unknown> {
  * Definition for a single action type in the registry.
  * Domain machines provide these to describe their executable actions.
  */
+export interface ActionExecuteInput<
+  TAction = unknown,
+  TDomainContext = unknown,
+  TServices = unknown,
+> {
+  action: TAction;
+  ctx: TDomainContext;
+  services: TServices;
+}
+
 export interface ActionDefinition<TAction = unknown, TDomainContext = unknown> {
   /** Human-readable action description used by the runner logger */
   description?: string | ((action: TAction, context: TDomainContext) => string);
   /** Predict what this action will do (optional — defaults to no prediction) */
   predict?: (action: TAction, context: TDomainContext) => PredictResult;
   /** Execute the action's side effects */
-  execute: (action: TAction, context: TDomainContext) => Promise<unknown>;
+  execute: (
+    input: ActionExecuteInput<TAction, TDomainContext>,
+  ) => Promise<unknown>;
   /** Verify the action's effects after execution (optional — defaults to pass) */
   verify?: (args: VerifyArgs<TAction, TDomainContext>) => PevVerifyReturn;
 }
@@ -190,9 +202,13 @@ export interface ExternalRunnerContext {
 export interface RunnerMachineContext<
   TDomainContext = unknown,
   TAction = unknown,
+  TServices = unknown,
 > {
   /** Domain context — opaque to the runner, managed by domain machine */
   domain: TDomainContext;
+
+  /** Injected services — opaque to the runner, passed through to action execute */
+  services: TServices;
 
   /** Queue of actions to execute */
   actionQueue: TAction[];
@@ -267,11 +283,13 @@ export interface DomainMachineConfig<
 /**
  * Input provided when creating a PEV machine actor.
  */
-export interface PevMachineInput<TDomainContext> {
+export interface PevMachineInput<TDomainContext, TServices = unknown> {
   /** Initial domain context */
   domain: TDomainContext;
   /** Maximum transitions before exiting */
   maxCycles?: number;
   /** External runner context */
   runnerCtx: ExternalRunnerContext;
+  /** Injected services (passed through to action execute) */
+  services: TServices;
 }

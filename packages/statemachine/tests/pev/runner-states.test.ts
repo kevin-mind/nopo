@@ -101,6 +101,7 @@ function run(
       domain: ctx,
       maxCycles,
       runnerCtx: { token: "t", owner: "o", repo: "r" },
+      services: null,
     },
   });
   actor.start();
@@ -146,7 +147,7 @@ describe("Runner States", () => {
     const executionOrder: string[] = [];
     const registry = makeRegistry({
       step: {
-        execute: async (action) => {
+        execute: async ({ action }) => {
           executionOrder.push(action.label ?? "?");
           return { ok: true };
         },
@@ -245,7 +246,7 @@ describe("Runner States", () => {
     const executionOrder: string[] = [];
     const registry = makeRegistry({
       step: {
-        execute: async (action) => {
+        execute: async ({ action }) => {
           const label = action.label ?? "?";
           executionOrder.push(label);
           if (label === "B") throw new Error("B failed");

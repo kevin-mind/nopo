@@ -3,7 +3,11 @@ import { createActor, waitFor } from "xstate";
 import { exampleMachine } from "../../src/machines/example/machine.js";
 import type { ExampleContext } from "../../src/machines/example/context.js";
 import type { ExternalRunnerContext } from "../../src/core/pev/types.js";
-import { mockExampleContext, mockExampleIssue } from "./mock-factories.js";
+import {
+  mockExampleContext,
+  mockExampleIssue,
+  mockExampleServices,
+} from "./mock-factories.js";
 
 const RUNNER_CTX: ExternalRunnerContext = {
   token: "test-token",
@@ -12,32 +16,13 @@ const RUNNER_CTX: ExternalRunnerContext = {
 };
 
 async function run(domain: ExampleContext) {
-  const withServices: ExampleContext = {
-    ...domain,
-    services: {
-      ...domain.services,
-      iteration: domain.services?.iteration ?? {
-        iterateIssue: async () => ({
-          labelsToAdd: ["iteration:ready"],
-          summary: "iteration ready",
-        }),
-      },
-      review: domain.services?.review ?? {
-        reviewIssue: async () => ({
-          labelsToAdd: ["reviewed"],
-          summary: "reviewed",
-        }),
-      },
-      prResponse: domain.services?.prResponse ?? {
-        respondToPr: async () => ({
-          labelsToAdd: ["response-prepared"],
-          summary: "response prepared",
-        }),
-      },
-    },
-  };
   const actor = createActor(exampleMachine, {
-    input: { domain: withServices, maxCycles: 1, runnerCtx: RUNNER_CTX },
+    input: {
+      domain,
+      maxCycles: 1,
+      runnerCtx: RUNNER_CTX,
+      services: mockExampleServices(),
+    },
   });
   actor.start();
   return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });

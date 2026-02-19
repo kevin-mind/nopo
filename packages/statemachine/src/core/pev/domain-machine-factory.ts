@@ -60,15 +60,25 @@ interface MachineFactory<
   TRegistry = undefined,
   TActionOverride extends { type: string } | undefined = undefined,
   TFactoryEvent extends EventObject = EventObject,
+  TServices = unknown,
 > {
+  services<S>(): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    S
+  >;
+
   actions(): TRegistry;
-  actions<const TDefs extends TActionDefs<TDomain>>(
-    build: TRegistryBuilder<TDomain, TDefs>,
+  actions<const TDefs extends TActionDefs<TDomain, TServices>>(
+    build: TRegistryBuilder<TDomain, TDefs, TServices>,
   ): MachineFactory<
     TDomain,
     TActionRegistryFromDefs<TDefs>,
     TActionOverride,
-    TFactoryEvent
+    TFactoryEvent,
+    TServices
   >;
 
   guards():
@@ -81,22 +91,46 @@ interface MachineFactory<
     >,
   >(
     build: () => TGuards,
-  ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  >;
 
   states(): Record<string, unknown>;
   states(
     s: Record<string, unknown>,
-  ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  >;
   states(
     build: TRegistry extends undefined
       ? never
       : StatesBuilder<NonNullable<TRegistry>>,
-  ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  >;
 
   refreshContext(): RefreshContextFn<TDomain> | undefined;
   refreshContext(
     fn: RefreshContextFn<TDomain>,
-  ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  >;
 
   build<TEvent extends EventObject = TFactoryEvent>(
     opts:
@@ -133,27 +167,60 @@ export function createMachineFactory<
   TDomain,
   TActionOverride extends { type: string } | undefined = undefined,
   TFactoryEvent extends EventObject = EventObject,
->(): MachineFactory<TDomain, undefined, TActionOverride, TFactoryEvent> {
+  TServices = unknown,
+>(): MachineFactory<TDomain, undefined, TActionOverride, TFactoryEvent, TServices> {
   function buildFactory<TRegistry>(
     state: RuntimeFactoryState<TDomain, TRegistry, TActionOverride>,
-  ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent> {
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  > {
+    function services<S>(): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      S
+    > {
+      // Type-only method: narrows TServices for downstream .actions() calls.
+      // No runtime effect — just returns the same factory with a narrower type.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- type-level cast for services generic
+      return buildFactory(state) as unknown as MachineFactory<
+        TDomain,
+        TRegistry,
+        TActionOverride,
+        TFactoryEvent,
+        S
+      >;
+    }
+
     function actions(): TRegistry;
-    function actions<const TDefs extends TActionDefs<TDomain>>(
-      build: TRegistryBuilder<TDomain, TDefs>,
+    function actions<const TDefs extends TActionDefs<TDomain, TServices>>(
+      build: TRegistryBuilder<TDomain, TDefs, TServices>,
     ): MachineFactory<
       TDomain,
       TActionRegistryFromDefs<TDefs>,
       TActionOverride,
-      TFactoryEvent
+      TFactoryEvent,
+      TServices
     >;
-    function actions(build?: TRegistryBuilder<TDomain, TActionDefs<TDomain>>) {
+    function actions(
+      build?: TRegistryBuilder<TDomain, TActionDefs<TDomain, TServices>, TServices>,
+    ) {
       if (build === undefined) {
         return state.registry;
       }
-      const nextRegistry = createActionRegistry(build);
+      const nextRegistry = createActionRegistry<
+        TDomain,
+        TServices,
+        TActionDefs<TDomain, TServices>
+      >(build);
       const nextState: RuntimeFactoryState<
         TDomain,
-        TActionRegistryFromDefs<TActionDefs<TDomain>>,
+        TActionRegistryFromDefs<TActionDefs<TDomain, TServices>>,
         TActionOverride
       > = {
         ...state,
@@ -163,9 +230,9 @@ export function createMachineFactory<
         // States builders are registry-aware; clear when actions are replaced.
         domainStatesBuilder: undefined,
       };
-      return buildFactory<TActionRegistryFromDefs<TActionDefs<TDomain>>>(
-        nextState,
-      );
+      return buildFactory<
+        TActionRegistryFromDefs<TActionDefs<TDomain, TServices>>
+      >(nextState);
     }
 
     function guards():
@@ -178,7 +245,13 @@ export function createMachineFactory<
       >,
     >(
       build: () => TGuards,
-    ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+    ): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      TServices
+    >;
     function guards(
       build?: () => TGuardsMap<
         TDomain,
@@ -202,12 +275,24 @@ export function createMachineFactory<
     function states(): Record<string, unknown>;
     function states(
       s: Record<string, unknown>,
-    ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+    ): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      TServices
+    >;
     function states(
       build: TRegistry extends undefined
         ? never
         : StatesBuilder<NonNullable<TRegistry>>,
-    ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+    ): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      TServices
+    >;
     function states(
       s?: Record<string, unknown> | StatesBuilder<NonNullable<TRegistry>>,
     ) {
@@ -240,7 +325,13 @@ export function createMachineFactory<
     function refreshContext(): RefreshContextFn<TDomain> | undefined;
     function refreshContext(
       fn: RefreshContextFn<TDomain>,
-    ): MachineFactory<TDomain, TRegistry, TActionOverride, TFactoryEvent>;
+    ): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      TServices
+    >;
     function refreshContext(fn?: RefreshContextFn<TDomain>) {
       if (fn === undefined) {
         return state.refreshContext;
@@ -323,6 +414,7 @@ export function createMachineFactory<
     }
 
     return {
+      services,
       actions,
       guards,
       states,

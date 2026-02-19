@@ -10,10 +10,12 @@ import { createActor, waitFor } from "xstate";
 import { exampleMachine } from "../../src/machines/example/machine.js";
 import { type ExampleContext } from "../../src/machines/example/context.js";
 import type { ExternalRunnerContext } from "../../src/core/pev/types.js";
+import type { ExampleServices } from "../../src/machines/example/services.js";
 import {
   mockExampleContext,
   mockExampleIssue,
   mockExamplePR,
+  mockExampleServices,
 } from "./mock-factories.js";
 import type { IssueStateRepository } from "../../src/machines/example/context.js";
 
@@ -27,75 +29,19 @@ const RUNNER_CTX: ExternalRunnerContext = {
   repo: "test-repo",
 };
 
-async function runExampleMachine(domain: ExampleContext, maxCycles = 1) {
-  const triage =
-    domain.services?.triage ??
-    ({
-      triageIssue: async () => ({
-        labelsToAdd: ["triaged"],
-        summary: "Issue triaged",
-      }),
-    } satisfies NonNullable<ExampleContext["services"]>["triage"]);
-  const grooming =
-    domain.services?.grooming ??
-    ({
-      groomIssue: async (_input: {
-        issueNumber: number;
-        promptVars: {
-          ISSUE_NUMBER: string;
-          ISSUE_TITLE: string;
-          ISSUE_BODY: string;
-          ISSUE_COMMENTS: string;
-          ISSUE_LABELS: string;
-        };
-      }) => ({
-        labelsToAdd: ["groomed"],
-        decision: "ready" as const,
-        summary: "Issue groomed",
-        recommendedPhases: [
-          {
-            phase_number: 1,
-            title: "Implementation",
-            description: "Implement the feature",
-          },
-        ],
-      }),
-    } satisfies NonNullable<ExampleContext["services"]>["grooming"]);
-  const iteration =
-    domain.services?.iteration ??
-    ({
-      iterateIssue: async () => ({
-        labelsToAdd: ["iteration:ready"],
-        summary: "Iteration plan ready",
-      }),
-    } satisfies NonNullable<ExampleContext["services"]>["iteration"]);
-  const review =
-    domain.services?.review ??
-    ({
-      reviewIssue: async () => ({
-        labelsToAdd: ["reviewed"],
-        summary: "Review analyzed",
-      }),
-    } satisfies NonNullable<ExampleContext["services"]>["review"]);
-  const prResponse =
-    domain.services?.prResponse ??
-    ({
-      respondToPr: async () => ({
-        labelsToAdd: ["response-prepared"],
-        summary: "Response prepared",
-      }),
-    } satisfies NonNullable<ExampleContext["services"]>["prResponse"]);
-  domain.services = {
-    ...domain.services,
-    triage,
-    grooming,
-    iteration,
-    review,
-    prResponse,
-  };
+async function runExampleMachine(
+  domain: ExampleContext,
+  opts?: { maxCycles?: number; services?: Partial<ExampleServices> },
+) {
+  const services = mockExampleServices(opts?.services);
 
   const actor = createActor(exampleMachine, {
-    input: { domain, maxCycles, runnerCtx: RUNNER_CTX },
+    input: {
+      domain,
+      maxCycles: opts?.maxCycles ?? 1,
+      runnerCtx: RUNNER_CTX,
+      services,
+    },
   });
 
   actor.start();
@@ -129,6 +75,9 @@ describe("Example Machine — Triage", () => {
     const domain = mockExampleContext({
       trigger: "issue-triage",
       issue: mockExampleIssue({ labels: [] }),
+    });
+
+    const snap = await runExampleMachine(domain, {
       services: {
         triage: {
           triageIssue: async () => {
@@ -137,8 +86,6 @@ describe("Example Machine — Triage", () => {
         },
       },
     });
-
-    const snap = await runExampleMachine(domain);
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.error).toContain("triage service unavailable");
@@ -163,14 +110,6 @@ describe("Example Machine — Triage", () => {
       trigger: "issue-triage",
       issue: mockExampleIssue({ labels: [] }),
       triageOutput: null,
-      services: {
-        triage: {
-          triageIssue: async () => ({
-            labelsToAdd: ["triaged"],
-            summary: "ok",
-          }),
-        },
-      },
     });
     const repository: IssueStateRepository & { save: () => Promise<boolean> } =
       {
@@ -183,7 +122,16 @@ describe("Example Machine — Triage", () => {
       };
     domain.repository = repository;
 
-    const snap = await runExampleMachine(domain);
+    const snap = await runExampleMachine(domain, {
+      services: {
+        triage: {
+          triageIssue: async () => ({
+            labelsToAdd: ["triaged"],
+            summary: "ok",
+          }),
+        },
+      },
+    });
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.error).toContain("Verification failed");
@@ -792,7 +740,7 @@ describe("Example Machine — Max Cycles", () => {
       issue: mockExampleIssue({ labels: [] }),
     });
 
-    const snap = await runExampleMachine(domain, 2);
+    const snap = await runExampleMachine(domain, { maxCycles: 2 });
 
     expect(String(snap.value)).toBe("done");
     // 2 cycles × 4 triage actions = 8 completed

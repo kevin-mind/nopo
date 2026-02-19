@@ -17,7 +17,6 @@ import type {
   ExampleIterationOutput,
   ExamplePrResponseOutput,
   ExampleReviewOutput,
-  ExampleServices,
   ExampleTriageOutput,
 } from "./services.js";
 import {
@@ -194,7 +193,6 @@ export interface ExampleContext {
   iterationOutput?: ExampleIterationOutput | null;
   reviewOutput?: ExampleReviewOutput | null;
   prResponseOutput?: ExamplePrResponseOutput | null;
-  services?: ExampleServices;
   repository?: IssueStateRepository;
 }
 
@@ -736,7 +734,6 @@ export class ExampleContextLoader implements IssueStateRepository {
       iterationOutput: options.seed?.iterationOutput ?? null,
       reviewOutput: options.seed?.reviewOutput ?? null,
       prResponseOutput: options.seed?.prResponseOutput ?? null,
-      services: options.seed?.services,
       repository: this,
     };
   }

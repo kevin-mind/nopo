@@ -27488,6 +27488,7 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
             input: ({ context }) => ({
               action: context.currentAction,
               domain: context.domain,
+              services: context.services,
               prediction: context.prediction
             }),
             onDone: {
@@ -27639,7 +27640,11 @@ function createDomainMachine(config2) {
           if (input.prediction?.description) {
             console.info(`[PEV predict] ${input.prediction.description}`);
           }
-          return def.execute(input.action, input.domain);
+          return def.execute({
+            action: input.action,
+            ctx: input.domain,
+            services: input.services
+          });
         }
       ),
       verifyAction: fromPromise(
@@ -27703,6 +27708,7 @@ function createDomainMachine(config2) {
     initial: "routing",
     context: ({ input }) => ({
       domain: input.domain,
+      services: input.services,
       actionQueue: [],
       currentAction: null,
       prediction: null,
@@ -27743,6 +27749,9 @@ function createActionRegistry(build) {
 // packages/statemachine/src/core/pev/domain-machine-factory.ts
 function createMachineFactory() {
   function buildFactory(state) {
+    function services() {
+      return buildFactory(state);
+    }
     function actions(build2) {
       if (build2 === void 0) {
         return state.registry;
@@ -27756,9 +27765,7 @@ function createMachineFactory() {
         // States builders are registry-aware; clear when actions are replaced.
         domainStatesBuilder: void 0
       };
-      return buildFactory(
-        nextState
-      );
+      return buildFactory(nextState);
     }
     function guards(build2) {
       if (build2 === void 0) {
@@ -27829,6 +27836,7 @@ function createMachineFactory() {
       return createDomainMachine(machineConfig);
     }
     return {
+      services,
       actions,
       guards,
       states,
@@ -45556,7 +45564,7 @@ function updateStatusAction(createAction) {
         }
       ]
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       setIssueStatus(ctx, action.payload.status);
       return { ok: true };
     }
@@ -45565,7 +45573,7 @@ function updateStatusAction(createAction) {
 function appendHistoryAction(createAction) {
   return createAction({
     description: (action) => `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const repo = repositoryFor(ctx);
       if (repo.appendHistoryEntry) {
         repo.appendHistoryEntry({
@@ -45583,12 +45591,8 @@ function appendHistoryAction(createAction) {
 function runClaudeTriageAction(createAction) {
   return createAction({
     description: (action) => `Invoke triage analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const triageService = ctx.services?.triage;
-      if (!triageService) {
-        throw new Error("No triage service configured");
-      }
-      const output = await triageService.triageIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.triage.triageIssue({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars
       });
@@ -45620,7 +45624,7 @@ function applyTriageOutputAction(createAction) {
         ]
       };
     },
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const labelsToAdd = action.payload.labelsToAdd ?? ctx.triageOutput?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
         throw new Error("No triage labels available to apply");
@@ -45653,12 +45657,8 @@ function applyTriageOutputAction(createAction) {
 function runClaudeGroomingAction(createAction) {
   return createAction({
     description: (action) => `Invoke grooming analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const groomingService = ctx.services?.grooming;
-      if (!groomingService) {
-        throw new Error("No grooming service configured");
-      }
-      const output = await groomingService.groomIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.grooming.groomIssue({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars
       });
@@ -45689,7 +45689,7 @@ function applyGroomingOutputAction(createAction) {
         }
       ]
     }),
-    execute: async (_action, ctx) => {
+    execute: async ({ ctx }) => {
       const output = ctx.groomingOutput;
       if (!output) {
         throw new Error("No grooming output available to apply");
@@ -45712,7 +45712,7 @@ function reconcileSubIssuesAction(createAction) {
         }
       ]
     }),
-    execute: async (_action, ctx) => {
+    execute: async ({ ctx }) => {
       const output = ctx.groomingOutput;
       if (!output) {
         throw new Error("No grooming output to reconcile");
@@ -45758,12 +45758,8 @@ function reconcileSubIssuesAction(createAction) {
 function runClaudeIterationAction(createAction) {
   return createAction({
     description: (action) => `Invoke ${action.payload.mode} analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const iterationService = ctx.services?.iteration;
-      if (!iterationService) {
-        throw new Error("No iteration service configured");
-      }
-      const output = await iterationService.iterateIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.iteration.iterateIssue({
         issueNumber: action.payload.issueNumber,
         mode: action.payload.mode,
         promptVars: action.payload.promptVars
@@ -45795,7 +45791,7 @@ function applyIterationOutputAction(createAction) {
         }
       ]
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const output = ctx.iterationOutput;
       const labelsToAdd = action.payload.labelsToAdd ?? output?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
@@ -45839,12 +45835,8 @@ function applyIterationOutputAction(createAction) {
 function runClaudeReviewAction(createAction) {
   return createAction({
     description: (action) => `Invoke review analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const reviewService = ctx.services?.review;
-      if (!reviewService) {
-        throw new Error("No review service configured");
-      }
-      const output = await reviewService.reviewIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.review.reviewIssue({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars
       });
@@ -45870,7 +45862,7 @@ function applyReviewOutputAction(createAction) {
         }
       ]
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const labelsToAdd = action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
         throw new Error("No review labels available to apply");
@@ -45888,12 +45880,8 @@ function applyReviewOutputAction(createAction) {
 function runClaudePrResponseAction(createAction) {
   return createAction({
     description: (action) => `Invoke PR response analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const responseService = ctx.services?.prResponse;
-      if (!responseService) {
-        throw new Error("No PR response service configured");
-      }
-      const output = await responseService.respondToPr({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.prResponse.respondToPr({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars
       });
@@ -45919,7 +45907,7 @@ function applyPrResponseOutputAction(createAction) {
         }
       ]
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const labelsToAdd = action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
         throw new Error("No PR response labels available to apply");
@@ -45939,7 +45927,7 @@ function recordFailureAction(createAction) {
     description: (action) => `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
     // No predict: failures are updated in-memory only (not persisted until
     // a subsequent persist action), so external refresh won't see the change.
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
       const current = issue2.failures ?? 0;
       Object.assign(issue2, { failures: current + 1 });
@@ -45950,7 +45938,7 @@ function recordFailureAction(createAction) {
 function persistStateAction(createAction) {
   return createAction({
     description: (action) => `Persist issue #${action.payload.issueNumber} state (${action.payload.reason})`,
-    execute: async (_action, ctx) => {
+    execute: async ({ ctx }) => {
       const persisted = await persistIssueState(ctx);
       if (!persisted) {
         throw new Error("Failed to persist state");
@@ -45975,7 +45963,7 @@ function runOrchestrationAction(createAction) {
         ]
       };
     },
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       if (action.payload.initParentIfNeeded) {
         setIssueStatus(ctx, "In progress");
       }
@@ -45997,7 +45985,7 @@ function runOrchestrationAction(createAction) {
 function setupGitAction(createAction) {
   return createAction({
     description: () => "Configure git credentials for PAT-based push",
-    execute: async (action) => {
+    execute: async ({ action }) => {
       if (!isGitEnvironment()) {
         return { ok: true, skipped: true };
       }
@@ -46035,7 +46023,7 @@ function setupGitAction(createAction) {
 function prepareBranchAction(createAction) {
   return createAction({
     description: (action) => `Prepare branch "${action.payload.branchName}" for iteration`,
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       if (!isGitEnvironment()) {
         ctx.branchPrepResult = "clean";
         return { ok: true, skipped: true, branch: action.payload.branchName };
@@ -46119,7 +46107,7 @@ function prepareBranchAction(createAction) {
 function gitPushAction(createAction) {
   return createAction({
     description: (action) => `Push branch "${action.payload.branchName}" to origin`,
-    execute: async (action) => {
+    execute: async ({ action }) => {
       if (!isGitEnvironment()) {
         return { ok: true, skipped: true };
       }
@@ -46143,7 +46131,7 @@ function gitPushAction(createAction) {
 function stopAction(createAction) {
   return createAction({
     description: (action) => `Stop: ${action.payload.message}`,
-    execute: async () => ({ ok: true })
+    execute: async (_input) => ({ ok: true })
   });
 }
 
@@ -47413,7 +47401,6 @@ var ExampleContextLoader = class _ExampleContextLoader {
       iterationOutput: options.seed?.iterationOutput ?? null,
       reviewOutput: options.seed?.reviewOutput ?? null,
       prResponseOutput: options.seed?.prResponseOutput ?? null,
-      services: options.seed?.services,
       repository: this
     };
   }
@@ -47680,7 +47667,7 @@ var ExampleContextLoader = class _ExampleContextLoader {
 };
 
 // packages/statemachine/src/machines/example/machine.ts
-var exampleMachine = createMachineFactory().actions((createAction) => ({
+var exampleMachine = createMachineFactory().services().actions((createAction) => ({
   updateStatus: updateStatusAction(createAction),
   appendHistory: appendHistoryAction(createAction),
   runClaudeTriage: runClaudeTriageAction(createAction),
@@ -68517,8 +68504,7 @@ async function run() {
     botUsername: "nopo-bot",
     triageOutput: null
   };
-  domainContext.services = {
-    ...domainContext.services,
+  const services = {
     triage: createClaudeTriageService(token),
     grooming: createClaudeGroomingService(token),
     iteration: createClaudeIterationService(token),
@@ -68534,7 +68520,8 @@ async function run() {
         owner: ownerStr,
         repo: repoStr,
         projectNumber: projectNumber || void 0
-      }
+      },
+      services
     }
   });
   actor.subscribe((snapshot) => {

@@ -14,9 +14,16 @@ import type {
   IssueStateRepository,
 } from "../../src/machines/example/context.js";
 import type { TCreateActionForDomain } from "../../src/core/pev/action-registry.js";
-import { mockExampleContext, mockExampleIssue } from "./mock-factories.js";
+import type { ExampleServices } from "../../src/machines/example/services.js";
+import {
+  mockExampleContext,
+  mockExampleIssue,
+  mockExampleServices,
+} from "./mock-factories.js";
 
-const createAction: TCreateActionForDomain<ExampleContext> = (action) => action;
+const createAction: TCreateActionForDomain<ExampleContext, ExampleServices> = (
+  action,
+) => action;
 
 describe("example triage actions", () => {
   it("runClaudeTriage uses configured triage service", async () => {
@@ -27,14 +34,14 @@ describe("example triage actions", () => {
     const ctx: ExampleContext = mockExampleContext({
       issue: mockExampleIssue({ number: 42 }),
       triageOutput: null,
-      services: {
-        triage: { triageIssue },
-      },
+    });
+    const services = mockExampleServices({
+      triage: { triageIssue },
     });
     const actionDef = runClaudeTriageAction(createAction);
 
-    const result = await actionDef.execute(
-      {
+    const result = await actionDef.execute({
+      action: {
         type: "runClaudeTriage",
         payload: {
           issueNumber: 42,
@@ -47,7 +54,8 @@ describe("example triage actions", () => {
         },
       },
       ctx,
-    );
+      services,
+    });
 
     expect(triageIssue).toHaveBeenCalledOnce();
     expect(ctx.triageOutput).toEqual({
@@ -61,32 +69,6 @@ describe("example triage actions", () => {
         summary: "Classified as bug",
       },
     });
-  });
-
-  it("runClaudeTriage throws when triage service is missing", async () => {
-    const ctx: ExampleContext = mockExampleContext({
-      issue: mockExampleIssue({ number: 42 }),
-      services: undefined,
-    });
-    const actionDef = runClaudeTriageAction(createAction);
-
-    await expect(
-      actionDef.execute(
-        {
-          type: "runClaudeTriage",
-          payload: {
-            issueNumber: 42,
-            promptVars: {
-              ISSUE_NUMBER: "42",
-              ISSUE_TITLE: "Title",
-              ISSUE_BODY: "Body",
-              ISSUE_COMMENTS: "",
-            },
-          },
-        },
-        ctx,
-      ),
-    ).rejects.toThrow("No triage service configured");
   });
 
   it("applyTriageOutput consumes triage output and persists when save exists", async () => {
@@ -110,13 +92,14 @@ describe("example triage actions", () => {
     ctx.repository = repository;
     const actionDef = applyTriageOutputAction(createAction);
 
-    const result = await actionDef.execute(
-      {
+    const result = await actionDef.execute({
+      action: {
         type: "applyTriageOutput",
         payload: { issueNumber: 42 },
       },
       ctx,
-    );
+      services: mockExampleServices(),
+    });
 
     expect(ctx.issue.labels).toEqual(["triaged", "type:enhancement"]);
     expect(save).toHaveBeenCalledOnce();
@@ -135,14 +118,14 @@ describe("example grooming actions", () => {
     const ctx: ExampleContext = mockExampleContext({
       issue: mockExampleIssue({ number: 42 }),
       groomingOutput: null,
-      services: {
-        grooming: { groomIssue },
-      },
+    });
+    const services = mockExampleServices({
+      grooming: { groomIssue },
     });
     const actionDef = runClaudeGroomingAction(createAction);
 
-    const result = await actionDef.execute(
-      {
+    const result = await actionDef.execute({
+      action: {
         type: "runClaudeGrooming",
         payload: {
           issueNumber: 42,
@@ -156,7 +139,8 @@ describe("example grooming actions", () => {
         },
       },
       ctx,
-    );
+      services,
+    });
 
     expect(groomIssue).toHaveBeenCalledOnce();
     expect(ctx.groomingOutput).toEqual({
@@ -172,33 +156,6 @@ describe("example grooming actions", () => {
         summary: "Break into two implementation phases",
       },
     });
-  });
-
-  it("runClaudeGrooming throws when grooming service is missing", async () => {
-    const ctx: ExampleContext = mockExampleContext({
-      issue: mockExampleIssue({ number: 42 }),
-      services: undefined,
-    });
-    const actionDef = runClaudeGroomingAction(createAction);
-
-    await expect(
-      actionDef.execute(
-        {
-          type: "runClaudeGrooming",
-          payload: {
-            issueNumber: 42,
-            promptVars: {
-              ISSUE_NUMBER: "42",
-              ISSUE_TITLE: "Title",
-              ISSUE_BODY: "Body",
-              ISSUE_COMMENTS: "",
-              ISSUE_LABELS: "",
-            },
-          },
-        },
-        ctx,
-      ),
-    ).rejects.toThrow("No grooming service configured");
   });
 
   it("apply/reconcile grooming output updates labels, creates sub-issues, persists, and clears output", async () => {
@@ -251,20 +208,22 @@ describe("example grooming actions", () => {
     const applyDef = applyGroomingOutputAction(createAction);
     const reconcileDef = reconcileSubIssuesAction(createAction);
 
-    const applyResult = await applyDef.execute(
-      {
+    const applyResult = await applyDef.execute({
+      action: {
         type: "applyGroomingOutput",
         payload: { issueNumber: 42 },
       },
       ctx,
-    );
-    const reconcileResult = await reconcileDef.execute(
-      {
+      services: mockExampleServices(),
+    });
+    const reconcileResult = await reconcileDef.execute({
+      action: {
         type: "reconcileSubIssues",
         payload: { issueNumber: 42 },
       },
       ctx,
-    );
+      services: mockExampleServices(),
+    });
 
     expect(applyResult).toEqual({ ok: true, decision: "ready" });
     expect(reconcileResult).toEqual({ ok: true, decision: "ready" });
@@ -300,13 +259,14 @@ describe("example grooming actions", () => {
     ctx.repository = repository;
     const reconcileDef = reconcileSubIssuesAction(createAction);
 
-    const reconcileResult = await reconcileDef.execute(
-      {
+    const reconcileResult = await reconcileDef.execute({
+      action: {
         type: "reconcileSubIssues",
         payload: { issueNumber: 42 },
       },
       ctx,
-    );
+      services: mockExampleServices(),
+    });
 
     // Execute succeeds but hasSubIssues is still false
     expect(reconcileResult).toEqual({ ok: true, decision: "ready" });
@@ -345,14 +305,14 @@ describe("example iteration actions", () => {
     const ctx: ExampleContext = mockExampleContext({
       issue: mockExampleIssue({ number: 42 }),
       iterationOutput: null,
-      services: {
-        iteration: { iterateIssue },
-      },
+    });
+    const services = mockExampleServices({
+      iteration: { iterateIssue },
     });
     const actionDef = runClaudeIterationAction(createAction);
 
-    const result = await actionDef.execute(
-      {
+    const result = await actionDef.execute({
+      action: {
         type: "runClaudeIteration",
         payload: {
           issueNumber: 42,
@@ -365,11 +325,18 @@ describe("example iteration actions", () => {
             ISSUE_LABELS: "",
             CI_RESULT: "failure",
             REVIEW_DECISION: "none",
+            ITERATION: "0",
+            LAST_CI_RESULT: "none",
+            CONSECUTIVE_FAILURES: "0",
+            BRANCH_NAME: "main",
+            PR_CREATE_COMMAND: "",
+            AGENT_NOTES: "",
           },
         },
       },
       ctx,
-    );
+      services,
+    });
 
     expect(iterateIssue).toHaveBeenCalledOnce();
     expect(ctx.iterationOutput).toEqual({
@@ -406,13 +373,14 @@ describe("example iteration actions", () => {
     ctx.repository = repository;
     const actionDef = applyIterationOutputAction(createAction);
 
-    const result = await actionDef.execute(
-      {
+    const result = await actionDef.execute({
+      action: {
         type: "applyIterationOutput",
         payload: { issueNumber: 42 },
       },
       ctx,
-    );
+      services: mockExampleServices(),
+    });
 
     expect(result).toEqual({ ok: true });
     expect(ctx.issue.labels).toEqual(["iteration:ready"]);
@@ -435,13 +403,14 @@ describe("state persistence action", () => {
     ctx.repository = repository;
     const actionDef = persistStateAction(createAction);
 
-    const result = await actionDef.execute(
-      {
+    const result = await actionDef.execute({
+      action: {
         type: "persistState",
         payload: { issueNumber: 42, reason: "test" },
       },
       ctx,
-    );
+      services: mockExampleServices(),
+    });
 
     expect(result).toEqual({ ok: true });
     expect(save).toHaveBeenCalledOnce();

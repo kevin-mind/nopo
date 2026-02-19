@@ -71,6 +71,7 @@ function runMachine(registry: ActionRegistry<DemoAction, DemoCtx>) {
         repo: "r",
       },
       maxCycles: 10,
+      services: null,
     },
   });
 
@@ -251,7 +252,7 @@ describe("runner integration with prediction checks", () => {
             },
           ],
         }),
-        execute: async (_action, ctx) => {
+        execute: async ({ ctx }) => {
           ctx.issue.labels = [];
           return { ok: true };
         },
@@ -279,7 +280,7 @@ describe("runner integration with prediction checks", () => {
             },
           ],
         }),
-        execute: async (_action, ctx) => {
+        execute: async ({ ctx }) => {
           if (!ctx.issue.labels.includes("triaged"))
             ctx.issue.labels.push("triaged");
           return { ok: true };
@@ -334,7 +335,7 @@ describe("runner integration with prediction checks", () => {
             },
           ],
         }),
-        execute: async (_action, ctx) => {
+        execute: async ({ ctx }) => {
           if (!ctx.issue.labels.includes("triaged"))
             ctx.issue.labels.push("triaged");
           return { ok: true };
@@ -369,7 +370,7 @@ describe("runner integration with prediction checks", () => {
             },
           ],
         }),
-        execute: async (_action, ctx) => {
+        execute: async ({ ctx }) => {
           if (!ctx.issue.labels.includes("triaged"))
             ctx.issue.labels.push("triaged");
           return { ok: true };
@@ -396,7 +397,7 @@ describe("runner integration with prediction checks", () => {
             },
           ],
         }),
-        execute: async (_action, ctx) => {
+        execute: async ({ ctx }) => {
           if (!ctx.issue.labels.includes("triaged"))
             ctx.issue.labels.push("triaged");
           return { ok: true };

@@ -103,6 +103,7 @@ function runMachine(
       domain,
       maxCycles,
       runnerCtx: { token: "test", owner: "test", repo: "test" },
+      services: null,
     },
   });
 
@@ -309,7 +310,7 @@ describe("createDomainMachine", () => {
           description: "Will double the value",
           checks: [{ comparator: "eq", field: "value", expected: 1 }],
         }),
-        execute: async (_action, _ctx) => {
+        execute: async () => {
           return { doubled: true };
         },
         verify: () => ({ pass: true, message: "ok" }),
@@ -345,6 +346,7 @@ describe("createDomainMachine", () => {
         domain: { value: 1 },
         maxCycles: 10,
         runnerCtx: { token: "test", owner: "test", repo: "test" },
+        services: null,
       },
     });
 
@@ -370,7 +372,7 @@ describe("createDomainMachine", () => {
 
     const registry: ActionRegistry<TestAction, TestContext> = {
       captureCtx: {
-        execute: async (_action, domain) => {
+        execute: async ({ ctx: domain }) => {
           capturedDomain = domain;
           return { ok: true };
         },

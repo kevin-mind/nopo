@@ -22,7 +22,13 @@ import {
   repositoryFor,
   setIssueStatus,
 } from "./commands.js";
-import type { ExampleGroomingOutput, TriagePromptVars } from "./services.js";
+import type {
+  ExampleGroomingOutput,
+  ExampleServices,
+  TriagePromptVars,
+} from "./services.js";
+
+type ExampleCreateAction = TCreateActionForDomain<ExampleContext, ExampleServices>;
 
 const execAsync = promisify(execCb);
 
@@ -83,7 +89,6 @@ interface ReviewPromptVars extends TriagePromptVars {
 }
 
 /** Build full example action defs object from atomic action builders. */
-type ExampleCreateAction = TCreateActionForDomain<ExampleContext>;
 type ExampleProjectStatus = Exclude<
   ExampleContext["issue"]["projectStatus"],
   null
@@ -108,7 +113,7 @@ export function updateStatusAction(createAction: ExampleCreateAction) {
         },
       ],
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       setIssueStatus(ctx, action.payload.status);
       return { ok: true };
     },
@@ -123,7 +128,7 @@ export function appendHistoryAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const repo = repositoryFor(ctx);
       if (repo.appendHistoryEntry) {
         repo.appendHistoryEntry({
@@ -146,12 +151,8 @@ export function runClaudeTriageAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Invoke triage analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const triageService = ctx.services?.triage;
-      if (!triageService) {
-        throw new Error("No triage service configured");
-      }
-      const output = await triageService.triageIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.triage.triageIssue({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars,
       });
@@ -189,7 +190,7 @@ export function applyTriageOutputAction(createAction: ExampleCreateAction) {
         ],
       };
     },
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const labelsToAdd =
         action.payload.labelsToAdd ?? ctx.triageOutput?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
@@ -228,12 +229,8 @@ export function runClaudeGroomingAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Invoke grooming analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const groomingService = ctx.services?.grooming;
-      if (!groomingService) {
-        throw new Error("No grooming service configured");
-      }
-      const output = await groomingService.groomIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.grooming.groomIssue({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars,
       });
@@ -268,7 +265,7 @@ export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
         },
       ],
     }),
-    execute: async (_action, ctx) => {
+    execute: async ({ ctx }) => {
       const output = ctx.groomingOutput;
       if (!output) {
         throw new Error("No grooming output available to apply");
@@ -295,7 +292,7 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
         },
       ],
     }),
-    execute: async (_action, ctx) => {
+    execute: async ({ ctx }) => {
       const output = ctx.groomingOutput;
       if (!output) {
         throw new Error("No grooming output to reconcile");
@@ -351,12 +348,8 @@ export function runClaudeIterationAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Invoke ${action.payload.mode} analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const iterationService = ctx.services?.iteration;
-      if (!iterationService) {
-        throw new Error("No iteration service configured");
-      }
-      const output = await iterationService.iterateIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.iteration.iterateIssue({
         issueNumber: action.payload.issueNumber,
         mode: action.payload.mode,
         promptVars: action.payload.promptVars,
@@ -394,7 +387,7 @@ export function applyIterationOutputAction(createAction: ExampleCreateAction) {
         },
       ],
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const output = ctx.iterationOutput;
       const labelsToAdd = action.payload.labelsToAdd ?? output?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
@@ -449,12 +442,8 @@ export function runClaudeReviewAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Invoke review analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const reviewService = ctx.services?.review;
-      if (!reviewService) {
-        throw new Error("No review service configured");
-      }
-      const output = await reviewService.reviewIssue({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.review.reviewIssue({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars,
       });
@@ -486,7 +475,7 @@ export function applyReviewOutputAction(createAction: ExampleCreateAction) {
         },
       ],
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const labelsToAdd =
         action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
@@ -510,12 +499,8 @@ export function runClaudePrResponseAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Invoke PR response analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const responseService = ctx.services?.prResponse;
-      if (!responseService) {
-        throw new Error("No PR response service configured");
-      }
-      const output = await responseService.respondToPr({
+    execute: async ({ action, ctx, services }) => {
+      const output = await services.prResponse.respondToPr({
         issueNumber: action.payload.issueNumber,
         promptVars: action.payload.promptVars,
       });
@@ -551,7 +536,7 @@ export function applyPrResponseOutputAction(createAction: ExampleCreateAction) {
         },
       ],
     }),
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const labelsToAdd =
         action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
@@ -577,7 +562,7 @@ export function recordFailureAction(createAction: ExampleCreateAction) {
       `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
     // No predict: failures are updated in-memory only (not persisted until
     // a subsequent persist action), so external refresh won't see the change.
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       const issue =
         ctx.issue.number === action.payload.issueNumber
           ? ctx.issue
@@ -596,7 +581,7 @@ export function persistStateAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Persist issue #${action.payload.issueNumber} state (${action.payload.reason})`,
-    execute: async (_action, ctx) => {
+    execute: async ({ ctx }) => {
       const persisted = await persistIssueState(ctx);
       if (!persisted) {
         throw new Error("Failed to persist state");
@@ -627,7 +612,7 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
         ],
       };
     },
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       if (action.payload.initParentIfNeeded) {
         setIssueStatus(ctx, "In progress");
       }
@@ -651,7 +636,7 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
 export function setupGitAction(createAction: ExampleCreateAction) {
   return createAction<{ token: string }>({
     description: () => "Configure git credentials for PAT-based push",
-    execute: async (action) => {
+    execute: async ({ action }) => {
       if (!isGitEnvironment()) {
         return { ok: true, skipped: true };
       }
@@ -696,7 +681,7 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
   return createAction<{ branchName: string; baseBranch?: string }>({
     description: (action) =>
       `Prepare branch "${action.payload.branchName}" for iteration`,
-    execute: async (action, ctx) => {
+    execute: async ({ action, ctx }) => {
       if (!isGitEnvironment()) {
         ctx.branchPrepResult = "clean";
         return { ok: true, skipped: true, branch: action.payload.branchName };
@@ -806,7 +791,7 @@ export function gitPushAction(createAction: ExampleCreateAction) {
   return createAction<{ branchName: string; forceWithLease?: boolean }>({
     description: (action) =>
       `Push branch "${action.payload.branchName}" to origin`,
-    execute: async (action) => {
+    execute: async ({ action }) => {
       if (!isGitEnvironment()) {
         return { ok: true, skipped: true };
       }
@@ -834,7 +819,7 @@ export function gitPushAction(createAction: ExampleCreateAction) {
 export function stopAction(createAction: ExampleCreateAction) {
   return createAction<{ message: string }>({
     description: (action) => `Stop: ${action.payload.message}`,
-    execute: async () => ({ ok: true }),
+    execute: async (_input) => ({ ok: true }),
   });
 }
 

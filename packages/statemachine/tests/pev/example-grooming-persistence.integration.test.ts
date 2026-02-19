@@ -7,6 +7,7 @@ import { createClaudeGroomingService } from "../../src/machines/example/services
 import { exampleMachine } from "../../src/machines/example/machine.js";
 import {
   mockExampleNormalizedEvent,
+  mockExampleServices,
   mockIssueStateIssueData,
 } from "./mock-factories.js";
 
@@ -152,11 +153,6 @@ describe("grooming integration persistence flow", () => {
     const domain = loader.toContext();
     expect(domain).not.toBeNull();
     if (!domain) throw new Error("Expected loaded domain context");
-    domain.services = {
-      ...domain.services,
-      grooming: createClaudeGroomingService(),
-    };
-
     const actor = createActor(exampleMachine, {
       input: {
         domain,
@@ -166,6 +162,9 @@ describe("grooming integration persistence flow", () => {
           owner: "owner",
           repo: "repo",
         },
+        services: mockExampleServices({
+          grooming: createClaudeGroomingService(),
+        }),
       },
     });
     actor.start();
@@ -223,11 +222,6 @@ describe("grooming integration persistence flow", () => {
     const domain = loader.toContext();
     expect(domain).not.toBeNull();
     if (!domain) throw new Error("Expected loaded domain context");
-    domain.services = {
-      ...domain.services,
-      grooming: createClaudeGroomingService(),
-    };
-
     const actor = createActor(exampleMachine, {
       input: {
         domain,
@@ -237,6 +231,9 @@ describe("grooming integration persistence flow", () => {
           owner: "owner",
           repo: "repo",
         },
+        services: mockExampleServices({
+          grooming: createClaudeGroomingService(),
+        }),
       },
     });
     actor.start();

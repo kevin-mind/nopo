@@ -35,6 +35,7 @@ function withRunnerContext(
 ): RunnerMachineContext<ExampleContext, { type: string }> {
   return {
     domain,
+    services: null,
     actionQueue: [],
     currentAction: null,
     prediction: null,

@@ -7,6 +7,7 @@ import { createClaudeTriageService } from "../../src/machines/example/services.j
 import { exampleMachine } from "../../src/machines/example/machine.js";
 import {
   mockExampleNormalizedEvent,
+  mockExampleServices,
   mockIssueStateIssueData,
 } from "./mock-factories.js";
 
@@ -116,11 +117,6 @@ describe("triage integration persistence flow", () => {
     if (!domain) {
       throw new Error("Expected loaded domain context");
     }
-    domain.services = {
-      ...domain.services,
-      triage: createClaudeTriageService(),
-    };
-
     const actor = createActor(exampleMachine, {
       input: {
         domain,
@@ -130,6 +126,9 @@ describe("triage integration persistence flow", () => {
           owner: "owner",
           repo: "repo",
         },
+        services: mockExampleServices({
+          triage: createClaudeTriageService(),
+        }),
       },
     });
     actor.start();
@@ -207,11 +206,6 @@ describe("triage integration persistence flow", () => {
     if (!domain) {
       throw new Error("Expected loaded domain context");
     }
-    domain.services = {
-      ...domain.services,
-      triage: createClaudeTriageService(),
-    };
-
     const actor = createActor(exampleMachine, {
       input: {
         domain,
@@ -221,6 +215,9 @@ describe("triage integration persistence flow", () => {
           owner: "owner",
           repo: "repo",
         },
+        services: mockExampleServices({
+          triage: createClaudeTriageService(),
+        }),
       },
     });
     actor.start();
@@ -283,11 +280,6 @@ describe("triage integration persistence flow", () => {
     if (!domain) {
       throw new Error("Expected loaded domain context");
     }
-    domain.services = {
-      ...domain.services,
-      triage: createClaudeTriageService(),
-    };
-
     const actor = createActor(exampleMachine, {
       input: {
         domain,
@@ -297,6 +289,9 @@ describe("triage integration persistence flow", () => {
           owner: "owner",
           repo: "repo",
         },
+        services: mockExampleServices({
+          triage: createClaudeTriageService(),
+        }),
       },
     });
     actor.start();

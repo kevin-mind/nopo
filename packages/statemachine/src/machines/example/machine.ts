@@ -97,6 +97,7 @@ import {
 import { createExampleQueueAssigners } from "./states.js";
 import { ExampleContextLoader } from "./context.js";
 import type { ExampleMachineEvent } from "./events.js";
+import type { ExampleServices } from "./services.js";
 import { RUNNER_STATES } from "../../core/pev/runner-states.js";
 
 export const exampleMachine = createMachineFactory<
@@ -104,6 +105,7 @@ export const exampleMachine = createMachineFactory<
   ExampleAction,
   ExampleMachineEvent
 >()
+  .services<ExampleServices>()
   .actions((createAction) => ({
     updateStatus: updateStatusAction(createAction),
     appendHistory: appendHistoryAction(createAction),

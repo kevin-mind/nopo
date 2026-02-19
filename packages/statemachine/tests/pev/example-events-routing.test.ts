@@ -15,6 +15,7 @@ import { parseIssue, type OctokitLike } from "@more/issue-state";
 import {
   mockExampleContext,
   mockExampleIssue,
+  mockExampleServices,
   mockIssueStateIssueData,
 } from "./mock-factories.js";
 
@@ -76,7 +77,7 @@ beforeEach(() => {
 
 async function runDetect(domain: ExampleContext) {
   const actor = createActor(exampleMachine, {
-    input: { domain, maxCycles: 1, runnerCtx: RUNNER_CTX },
+    input: { domain, maxCycles: 1, runnerCtx: RUNNER_CTX, services: mockExampleServices() },
   });
   actor.start();
   return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });

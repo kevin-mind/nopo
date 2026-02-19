@@ -302,8 +302,7 @@ async function run(): Promise<void> {
     botUsername: "nopo-bot",
     triageOutput: null,
   };
-  domainContext.services = {
-    ...domainContext.services,
+  const services = {
     triage: createClaudeTriageService(token),
     grooming: createClaudeGroomingService(token),
     iteration: createClaudeIterationService(token),
@@ -321,6 +320,7 @@ async function run(): Promise<void> {
         repo: repoStr,
         projectNumber: projectNumber || undefined,
       },
+      services,
     },
   });
 

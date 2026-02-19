@@ -111,11 +111,11 @@ interface ExamplePrResponseService {
 }
 
 export interface ExampleServices {
-  triage?: ExampleTriageService;
-  grooming?: ExampleGroomingService;
-  iteration?: ExampleIterationService;
-  review?: ExampleReviewService;
-  prResponse?: ExamplePrResponseService;
+  triage: ExampleTriageService;
+  grooming: ExampleGroomingService;
+  iteration: ExampleIterationService;
+  review: ExampleReviewService;
+  prResponse: ExamplePrResponseService;
 }
 
 const ClaudeTriageOutputSchema = z.object({
