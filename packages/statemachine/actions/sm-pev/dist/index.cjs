@@ -66166,20 +66166,8 @@ function applyPrResponseOutputAction(createAction) {
 function recordFailureAction(createAction) {
   return createAction({
     description: (action) => `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
-    predict: (action, ctx) => {
-      const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue;
-      const current = issue2?.failures ?? 0;
-      return {
-        checks: [
-          {
-            comparator: "eq",
-            description: "Issue failures should be incremented",
-            field: "issue.failures",
-            expected: current + 1
-          }
-        ]
-      };
-    },
+    // No predict: failures are updated in-memory only (not persisted until
+    // a subsequent persist action), so external refresh won't see the change.
     execute: async (action, ctx) => {
       const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
       const current = issue2.failures ?? 0;
