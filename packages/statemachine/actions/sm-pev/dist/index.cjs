@@ -67468,6 +67468,79 @@ function setOutputs(outputs) {
 }
 
 // actions/sm-pev/index.ts
+function detectTrigger(ctx) {
+  const eventName = ctx.event_name;
+  const action = ctx.event?.action;
+  if (eventName === "workflow_dispatch") {
+    const override = ctx.event?.inputs?.trigger_type;
+    if (override) {
+      const valid = /* @__PURE__ */ new Set([
+        "issue-triage",
+        "issue-assigned",
+        "issue-edited",
+        "issue-closed",
+        "issue-comment",
+        "issue-orchestrate",
+        "issue-retry",
+        "issue-reset",
+        "issue-pivot",
+        "issue-groom",
+        "issue-groom-summary",
+        "workflow-run-completed",
+        "pr-review",
+        "pr-review-requested",
+        "pr-review-submitted",
+        "pr-review-approved",
+        "pr-response",
+        "pr-human-response",
+        "pr-push",
+        "pr-merged",
+        "merge-queue-entered",
+        "merge-queue-failed",
+        "deployed-stage",
+        "deployed-prod",
+        "deployed-stage-failed",
+        "deployed-prod-failed"
+      ]);
+      if (valid.has(override)) {
+        return override;
+      }
+    }
+    return "issue-triage";
+  }
+  if (eventName === "issues") {
+    if (action === "assigned") return "issue-assigned";
+    if (action === "edited") return "issue-edited";
+    if (action === "closed") return "issue-closed";
+    if (action === "opened") return "issue-triage";
+    return "issue-triage";
+  }
+  if (eventName === "issue_comment") {
+    const body = ctx.event?.comment?.body ?? "";
+    if (/\/(lfg|implement|continue)/.test(body)) return "issue-orchestrate";
+    if (/\/retry/.test(body)) return "issue-retry";
+    if (/\/reset/.test(body)) return "issue-reset";
+    if (/\/pivot/.test(body)) return "issue-pivot";
+    return "issue-comment";
+  }
+  if (eventName === "pull_request") {
+    if (action === "review_requested") return "pr-review-requested";
+    return "pr-push";
+  }
+  if (eventName === "pull_request_review") {
+    const state = ctx.event?.review?.state?.toLowerCase();
+    if (state === "approved") return "pr-review-approved";
+    if (state === "changes_requested") return "pr-review-submitted";
+    return "pr-review-submitted";
+  }
+  if (eventName === "pull_request_review_comment") {
+    return "pr-response";
+  }
+  if (eventName === "push") return "pr-push";
+  if (eventName === "workflow_run") return "workflow-run-completed";
+  if (eventName === "merge_group") return "merge-queue-entered";
+  return "issue-triage";
+}
 function asOctokitLike(octokit) {
   return octokit;
 }
@@ -67480,8 +67553,9 @@ async function run() {
   );
   const githubJsonStr = getRequiredInput("github_json");
   const githubJson = JSON.parse(githubJsonStr);
+  const trigger = detectTrigger(githubJson);
   core3.info(`PEV Machine starting (max_transitions=${maxTransitions})`);
-  core3.info(`Event: ${githubJson.event_name}`);
+  core3.info(`Event: ${githubJson.event_name}, Trigger: ${trigger}`);
   const issueData = githubJson.event?.issue;
   const [owner, repo] = (githubJson.repository ?? "unknown/unknown").split("/");
   const resourceNumberStr = githubJson.event?.inputs?.resource_number;
@@ -67490,7 +67564,7 @@ async function run() {
   const loader = new ExampleContextLoader();
   const loaded = await loader.load({
     octokit: asOctokitLike(octokit),
-    trigger: "issue-triage",
+    trigger,
     owner: owner ?? "unknown",
     repo: repo ?? "unknown",
     event: {
@@ -67503,7 +67577,7 @@ async function run() {
   });
   const loadedContext = loaded ? loader.toContext() : null;
   const domainContext = loadedContext ?? {
-    trigger: "issue-triage",
+    trigger,
     owner: owner ?? "unknown",
     repo: repo ?? "unknown",
     issue: {
