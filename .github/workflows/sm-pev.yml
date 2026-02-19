@@ -7,8 +7,8 @@ on:
         description: Issue number to process
         required: true
         type: string
-      max_transitions:
-        description: Maximum transitions per invocation
+      max_cycles:
+        description: Maximum queue cycles per invocation
         required: false
         type: number
         default: 1
@@ -33,7 +33,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
           github_json: ${{ toJson(github) }}
-          max_transitions: ${{ inputs.max_transitions || '1' }}
+          max_cycles: ${{ inputs.max_cycles || '1' }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER }}
