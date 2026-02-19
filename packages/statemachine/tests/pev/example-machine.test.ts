@@ -39,7 +39,7 @@ async function runExampleMachine(domain: ExampleContext, maxTransitions = 10) {
   const grooming =
     domain.services?.grooming ??
     ({
-      groomIssue: async (input: {
+      groomIssue: async (_input: {
         issueNumber: number;
         promptVars: {
           ISSUE_NUMBER: string;
