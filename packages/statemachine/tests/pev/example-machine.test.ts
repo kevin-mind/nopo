@@ -268,33 +268,42 @@ describe("Example Machine — Grooming", () => {
 
 describe("Example Machine — Iterate", () => {
   it("routes to iterate for sub-issues with bot assigned", async () => {
-    const parentIssue = mockExampleIssue({
-      number: 99,
-      projectStatus: "In progress",
-      assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
-      hasSubIssues: true,
-    });
-
-    const domain = mockExampleContext({
-      trigger: "issue-assigned",
-      issue: mockExampleIssue({
-        number: 100,
+    // Override GITHUB_ACTIONS so git actions use their fast (skipped) path in CI
+    const origGHA = process.env.GITHUB_ACTIONS;
+    process.env.GITHUB_ACTIONS = "";
+    try {
+      const parentIssue = mockExampleIssue({
+        number: 99,
+        projectStatus: "In progress",
         assignees: ["nopo-bot"],
         labels: ["triaged", "groomed"],
-      }),
-      parentIssue,
-    });
+        hasSubIssues: true,
+      });
 
-    // Cycle 1: prepare queue (setupGit + prepareBranch)
-    const snap = await runExampleMachine(domain);
+      const domain = mockExampleContext({
+        trigger: "issue-assigned",
+        issue: mockExampleIssue({
+          number: 100,
+          assignees: ["nopo-bot"],
+          labels: ["triaged", "groomed"],
+        }),
+        parentIssue,
+      });
 
-    expect(String(snap.value)).toBe("done");
-    const actionTypes = snap.context.completedActions.map((a) => a.action.type);
-    expect(actionTypes).toContain("setupGit");
-    expect(actionTypes).toContain("prepareBranch");
-    // branchPrepResult is set to "clean" — routing would continue to iterate on next cycle
-    expect(snap.context.domain.branchPrepResult).toBe("clean");
+      // Cycle 1: prepare queue (setupGit + prepareBranch)
+      const snap = await runExampleMachine(domain);
+
+      expect(String(snap.value)).toBe("done");
+      const actionTypes = snap.context.completedActions.map(
+        (a) => a.action.type,
+      );
+      expect(actionTypes).toContain("setupGit");
+      expect(actionTypes).toContain("prepareBranch");
+      // branchPrepResult is set to "clean" — routing would continue to iterate on next cycle
+      expect(snap.context.domain.branchPrepResult).toBe("clean");
+    } finally {
+      process.env.GITHUB_ACTIONS = origGHA;
+    }
   });
 
   it("records failure and re-enters iteration on first CI failure", async () => {
