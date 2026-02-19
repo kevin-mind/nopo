@@ -10751,7 +10751,7 @@ var require_mock_interceptor = __commonJS({
 var require_mock_client = __commonJS({
   "node_modules/.pnpm/undici@5.29.0/node_modules/undici/lib/mock/mock-client.js"(exports2, module2) {
     "use strict";
-    var { promisify } = require("util");
+    var { promisify: promisify2 } = require("util");
     var Client = require_client();
     var { buildMockDispatch } = require_mock_utils();
     var {
@@ -10791,7 +10791,7 @@ var require_mock_client = __commonJS({
         return new MockInterceptor(opts, this[kDispatches]);
       }
       async [kClose]() {
-        await promisify(this[kOriginalClose])();
+        await promisify2(this[kOriginalClose])();
         this[kConnected] = 0;
         this[kMockAgent][Symbols.kClients].delete(this[kOrigin]);
       }
@@ -10804,7 +10804,7 @@ var require_mock_client = __commonJS({
 var require_mock_pool = __commonJS({
   "node_modules/.pnpm/undici@5.29.0/node_modules/undici/lib/mock/mock-pool.js"(exports2, module2) {
     "use strict";
-    var { promisify } = require("util");
+    var { promisify: promisify2 } = require("util");
     var Pool = require_pool();
     var { buildMockDispatch } = require_mock_utils();
     var {
@@ -10844,7 +10844,7 @@ var require_mock_pool = __commonJS({
         return new MockInterceptor(opts, this[kDispatches]);
       }
       async [kClose]() {
-        await promisify(this[kOriginalClose])();
+        await promisify2(this[kOriginalClose])();
         this[kConnected] = 0;
         this[kMockAgent][Symbols.kClients].delete(this[kOrigin]);
       }
@@ -27240,7 +27240,7 @@ function waitFor(actorRef, predicate, options) {
 var RUNNER_STATES = {
   executingQueue: "executingQueue",
   runningAction: "runningAction",
-  transitionLimitReached: "transitionLimitReached",
+  queueComplete: "queueComplete",
   executionFailed: "executionFailed",
   verificationFailed: "verificationFailed",
   done: "done"
@@ -27458,11 +27458,7 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
       always: [
         {
           guard: "queueEmpty",
-          target: RUNNER_STATES.done
-        },
-        {
-          guard: "maxTransitionsReached",
-          target: RUNNER_STATES.transitionLimitReached
+          target: RUNNER_STATES.queueComplete
         },
         {
           target: RUNNER_STATES.runningAction,
@@ -27541,7 +27537,6 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
                       verified: event.output.verifyResult.pass
                     }
                   ],
-                  transitionCount: ({ context }) => context.transitionCount + 1,
                   currentAction: () => null,
                   prediction: () => null,
                   preActionSnapshot: () => null
@@ -27568,8 +27563,19 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
         }
       }
     },
-    [RUNNER_STATES.transitionLimitReached]: {
-      type: "final"
+    [RUNNER_STATES.queueComplete]: {
+      entry: assign({
+        cycleCount: ({ context }) => context.cycleCount + 1
+      }),
+      always: [
+        {
+          guard: "maxCyclesReached",
+          target: RUNNER_STATES.done
+        },
+        {
+          target: `#${configId}.routing`
+        }
+      ]
     },
     [RUNNER_STATES.executionFailed]: {
       type: "final"
@@ -27585,7 +27591,7 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
 function createDomainMachine(config2) {
   const runnerGuards = {
     queueEmpty: ({ context }) => context.actionQueue.length === 0,
-    maxTransitionsReached: ({ context }) => context.transitionCount >= context.maxTransitions
+    maxCyclesReached: ({ context }) => context.cycleCount >= context.maxCycles
   };
   const allGuards = {
     ...runnerGuards,
@@ -27704,8 +27710,8 @@ function createDomainMachine(config2) {
       executeResult: null,
       verifyResult: null,
       completedActions: [],
-      transitionCount: 0,
-      maxTransitions: input.maxTransitions ?? 1,
+      cycleCount: 0,
+      maxCycles: input.maxCycles ?? 1,
       error: null,
       runnerCtx: input.runnerCtx
     }),
@@ -27838,6 +27844,10 @@ function createMachineFactory() {
     refreshContext: void 0
   });
 }
+
+// packages/statemachine/src/machines/example/actions.ts
+var import_child_process = require("child_process");
+var import_util4 = require("util");
 
 // packages/issue-state/src/constants.ts
 var PARENT_STATUS = {
@@ -45494,6 +45504,2522 @@ async function persistIssueState(context) {
   return repository.save();
 }
 
+// packages/statemachine/src/machines/example/actions.ts
+var execAsync = (0, import_util4.promisify)(import_child_process.exec);
+function isGitEnvironment() {
+  return process.env.GITHUB_ACTIONS === "true";
+}
+function formatPhaseBody(phase) {
+  const lines = [`## Description
+
+${phase.description}`];
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    lines.push("\n## Affected Areas\n");
+    for (const area of phase.affected_areas) {
+      const parts = [`- \`${area.path}\``];
+      if (area.change_type) parts[0] += ` (${area.change_type})`;
+      if (area.description) parts.push(`  ${area.description}`);
+      lines.push(parts.join("\n"));
+    }
+  }
+  if (phase.todos && phase.todos.length > 0) {
+    lines.push("\n## Todos\n");
+    for (const todo of phase.todos) {
+      const suffix = todo.manual ? " *(manual)*" : "";
+      lines.push(`- [ ] ${todo.task}${suffix}`);
+    }
+  }
+  if (phase.depends_on && phase.depends_on.length > 0) {
+    lines.push(
+      `
+## Dependencies
+
+Depends on phases: ${phase.depends_on.join(", ")}`
+    );
+  }
+  return lines.join("\n");
+}
+function isOkResult(value) {
+  if (value == null || typeof value !== "object") return false;
+  return Reflect.get(value, "ok") === true;
+}
+function updateStatusAction(createAction) {
+  return createAction({
+    description: (action) => `Set issue #${action.payload.issueNumber} status to "${action.payload.status}"`,
+    predict: (action) => ({
+      checks: [
+        {
+          comparator: "eq",
+          description: "Issue project status should match requested status",
+          field: "issue.projectStatus",
+          expected: action.payload.status
+        }
+      ]
+    }),
+    execute: async (action, ctx) => {
+      setIssueStatus(ctx, action.payload.status);
+      return { ok: true };
+    }
+  });
+}
+function appendHistoryAction(createAction) {
+  return createAction({
+    description: (action) => `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
+    execute: async (action, ctx) => {
+      const repo = repositoryFor(ctx);
+      if (repo.appendHistoryEntry) {
+        repo.appendHistoryEntry({
+          phase: action.payload.phase ?? "generic",
+          message: action.payload.message,
+          timestamp: ctx.workflowStartedAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+          sha: ctx.ciCommitSha ?? void 0,
+          runLink: ctx.workflowRunUrl ?? void 0
+        });
+      }
+      return { ok: true };
+    }
+  });
+}
+function runClaudeTriageAction(createAction) {
+  return createAction({
+    description: (action) => `Invoke triage analysis for #${action.payload.issueNumber}`,
+    execute: async (action, ctx) => {
+      const triageService = ctx.services?.triage;
+      if (!triageService) {
+        throw new Error("No triage service configured");
+      }
+      const output = await triageService.triageIssue({
+        issueNumber: action.payload.issueNumber,
+        promptVars: action.payload.promptVars
+      });
+      ctx.triageOutput = output;
+      return {
+        ok: true,
+        output
+      };
+    }
+  });
+}
+function applyTriageOutputAction(createAction) {
+  return createAction({
+    description: (action) => `Apply triage output to #${action.payload.issueNumber}`,
+    predict: (action) => {
+      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
+      return {
+        checks: [
+          {
+            comparator: "all",
+            description: "All triage labels from apply payload should exist on issue.labels",
+            checks: labelsToAdd.map((label) => ({
+              comparator: "includes",
+              description: `Issue labels should include "${label}"`,
+              field: "issue.labels",
+              expected: label
+            }))
+          }
+        ]
+      };
+    },
+    execute: async (action, ctx) => {
+      const labelsToAdd = action.payload.labelsToAdd ?? ctx.triageOutput?.labelsToAdd;
+      if (!labelsToAdd || labelsToAdd.length === 0) {
+        throw new Error("No triage labels available to apply");
+      }
+      applyTriage(ctx, labelsToAdd);
+      const persisted = await persistIssueState(ctx);
+      if (!persisted) {
+        throw new Error("Failed to persist triage output");
+      }
+      ctx.triageOutput = null;
+      return { ok: true };
+    },
+    verify: (args) => {
+      const { action, executeResult, predictionEval, predictionDiffs } = args;
+      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
+      const executeSucceeded = isOkResult(executeResult);
+      if (!executeSucceeded) {
+        return {
+          message: "Triage output execute step did not return ok=true"
+        };
+      }
+      if (predictionEval.pass) return;
+      return {
+        message: `Missing triage labels after apply: ${labelsToAdd.join(", ")}`,
+        diffs: predictionDiffs
+      };
+    }
+  });
+}
+function runClaudeGroomingAction(createAction) {
+  return createAction({
+    description: (action) => `Invoke grooming analysis for #${action.payload.issueNumber}`,
+    execute: async (action, ctx) => {
+      const groomingService = ctx.services?.grooming;
+      if (!groomingService) {
+        throw new Error("No grooming service configured");
+      }
+      const output = await groomingService.groomIssue({
+        issueNumber: action.payload.issueNumber,
+        promptVars: action.payload.promptVars
+      });
+      ctx.groomingOutput = output;
+      return {
+        ok: true,
+        output
+      };
+    }
+  });
+}
+function applyGroomingOutputAction(createAction) {
+  return createAction({
+    description: (action) => `Apply grooming output to #${action.payload.issueNumber}`,
+    predict: (_action, ctx) => ({
+      checks: [
+        {
+          comparator: "all",
+          description: "All grooming labels should exist on issue after apply",
+          checks: (ctx.groomingOutput?.labelsToAdd ?? ["groomed"]).map(
+            (label) => ({
+              comparator: "includes",
+              description: `Issue labels should include "${label}"`,
+              field: "issue.labels",
+              expected: label
+            })
+          )
+        }
+      ]
+    }),
+    execute: async (_action, ctx) => {
+      const output = ctx.groomingOutput;
+      if (!output) {
+        throw new Error("No grooming output available to apply");
+      }
+      applyGrooming(ctx, output.labelsToAdd);
+      return { ok: true, decision: output.decision };
+    }
+  });
+}
+function reconcileSubIssuesAction(createAction) {
+  return createAction({
+    description: (action) => `Reconcile sub-issues for #${action.payload.issueNumber}`,
+    predict: () => ({
+      checks: [
+        {
+          comparator: "eq",
+          description: "Issue should have sub-issues after grooming",
+          field: "issue.hasSubIssues",
+          expected: true
+        }
+      ]
+    }),
+    execute: async (_action, ctx) => {
+      const output = ctx.groomingOutput;
+      if (!output) {
+        throw new Error("No grooming output to reconcile");
+      }
+      if (output.decision === "ready" && output.recommendedPhases) {
+        const repo = repositoryFor(ctx);
+        const existingNumbers = ctx.issue.subIssues.map((s) => s.number);
+        if (existingNumbers.length === 0 && repo.createSubIssue) {
+          for (const phase of output.recommendedPhases) {
+            const body = formatPhaseBody(phase);
+            await repo.createSubIssue({
+              title: `[Phase ${phase.phase_number}]: ${phase.title}`,
+              body
+            });
+          }
+        } else if (existingNumbers.length > 0) {
+          reconcileSubIssues(ctx, existingNumbers);
+        }
+      }
+      const persisted = await persistIssueState(ctx);
+      if (!persisted) {
+        throw new Error("Failed to persist grooming output");
+      }
+      ctx.groomingOutput = null;
+      return { ok: true, decision: output.decision };
+    },
+    verify: ({ executeResult, newCtx }) => {
+      if (!isOkResult(executeResult)) {
+        return {
+          message: "Reconcile sub-issues execute did not return ok=true"
+        };
+      }
+      const decision = executeResult.decision;
+      if (decision === "ready" && !newCtx.issue.hasSubIssues) {
+        return {
+          message: "Grooming decision was 'ready' but issue has no sub-issues after reconciliation"
+        };
+      }
+      return void 0;
+    }
+  });
+}
+function runClaudeIterationAction(createAction) {
+  return createAction({
+    description: (action) => `Invoke ${action.payload.mode} analysis for #${action.payload.issueNumber}`,
+    execute: async (action, ctx) => {
+      const iterationService = ctx.services?.iteration;
+      if (!iterationService) {
+        throw new Error("No iteration service configured");
+      }
+      const output = await iterationService.iterateIssue({
+        issueNumber: action.payload.issueNumber,
+        mode: action.payload.mode,
+        promptVars: action.payload.promptVars
+      });
+      ctx.iterationOutput = output;
+      return {
+        ok: true,
+        output
+      };
+    }
+  });
+}
+function applyIterationOutputAction(createAction) {
+  return createAction({
+    description: (action) => `Apply iteration output to #${action.payload.issueNumber}`,
+    predict: (action) => ({
+      checks: [
+        {
+          comparator: "all",
+          description: "All iteration labels from apply payload should exist on issue.labels",
+          checks: (action.payload.labelsToAdd ?? ["iteration:ready"]).map(
+            (label) => ({
+              comparator: "includes",
+              description: `Issue labels should include "${label}"`,
+              field: "issue.labels",
+              expected: label
+            })
+          )
+        }
+      ]
+    }),
+    execute: async (action, ctx) => {
+      const output = ctx.iterationOutput;
+      const labelsToAdd = action.payload.labelsToAdd ?? output?.labelsToAdd;
+      if (!labelsToAdd || labelsToAdd.length === 0) {
+        throw new Error("No iteration labels available to apply");
+      }
+      applyTriage(ctx, labelsToAdd);
+      const todosCompleted = output?.todosCompleted;
+      const shouldCheckTodos = (output?.status === "completed_todo" || output?.status === "all_done") && todosCompleted && todosCompleted.length > 0;
+      if (shouldCheckTodos) {
+        const issue2 = ctx.currentSubIssue ?? ctx.issue;
+        let body = issue2.body;
+        for (const todoText of todosCompleted) {
+          const updated = checkOffTodoInBody(body, todoText);
+          if (updated) body = updated;
+        }
+        issue2.body = body;
+      }
+      const persisted = await persistIssueState(ctx);
+      if (!persisted) {
+        throw new Error("Failed to persist iteration output");
+      }
+      ctx.iterationOutput = null;
+      return { ok: true };
+    },
+    verify: ({ action, executeResult, predictionEval, predictionDiffs }) => {
+      const labelsToAdd = action.payload.labelsToAdd ?? ["iteration:ready"];
+      const executeSucceeded = isOkResult(executeResult);
+      if (!executeSucceeded) {
+        return {
+          message: "Iteration output execute step did not return ok=true"
+        };
+      }
+      if (predictionEval.pass) return;
+      return {
+        message: `Missing iteration labels after apply: ${labelsToAdd.join(", ")}`,
+        diffs: predictionDiffs
+      };
+    }
+  });
+}
+function runClaudeReviewAction(createAction) {
+  return createAction({
+    description: (action) => `Invoke review analysis for #${action.payload.issueNumber}`,
+    execute: async (action, ctx) => {
+      const reviewService = ctx.services?.review;
+      if (!reviewService) {
+        throw new Error("No review service configured");
+      }
+      const output = await reviewService.reviewIssue({
+        issueNumber: action.payload.issueNumber,
+        promptVars: action.payload.promptVars
+      });
+      ctx.reviewOutput = output;
+      return { ok: true, output };
+    }
+  });
+}
+function applyReviewOutputAction(createAction) {
+  return createAction({
+    description: (action) => `Apply review output to #${action.payload.issueNumber}`,
+    predict: (action) => ({
+      checks: [
+        {
+          comparator: "all",
+          description: "All review labels from apply payload should exist on issue.labels",
+          checks: (action.payload.labelsToAdd ?? ["reviewed"]).map((label) => ({
+            comparator: "includes",
+            description: `Issue labels should include "${label}"`,
+            field: "issue.labels",
+            expected: label
+          }))
+        }
+      ]
+    }),
+    execute: async (action, ctx) => {
+      const labelsToAdd = action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
+      if (!labelsToAdd || labelsToAdd.length === 0) {
+        throw new Error("No review labels available to apply");
+      }
+      applyTriage(ctx, labelsToAdd);
+      const persisted = await persistIssueState(ctx);
+      if (!persisted) {
+        throw new Error("Failed to persist review output");
+      }
+      ctx.reviewOutput = null;
+      return { ok: true };
+    }
+  });
+}
+function runClaudePrResponseAction(createAction) {
+  return createAction({
+    description: (action) => `Invoke PR response analysis for #${action.payload.issueNumber}`,
+    execute: async (action, ctx) => {
+      const responseService = ctx.services?.prResponse;
+      if (!responseService) {
+        throw new Error("No PR response service configured");
+      }
+      const output = await responseService.respondToPr({
+        issueNumber: action.payload.issueNumber,
+        promptVars: action.payload.promptVars
+      });
+      ctx.prResponseOutput = output;
+      return { ok: true, output };
+    }
+  });
+}
+function applyPrResponseOutputAction(createAction) {
+  return createAction({
+    description: (action) => `Apply PR response output to #${action.payload.issueNumber}`,
+    predict: (action, ctx) => ({
+      checks: [
+        {
+          comparator: "all",
+          description: "All PR response labels should exist on issue after apply",
+          checks: (action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd ?? []).map((label) => ({
+            comparator: "includes",
+            description: `Issue labels should include "${label}"`,
+            field: "issue.labels",
+            expected: label
+          }))
+        }
+      ]
+    }),
+    execute: async (action, ctx) => {
+      const labelsToAdd = action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
+      if (!labelsToAdd || labelsToAdd.length === 0) {
+        throw new Error("No PR response labels available to apply");
+      }
+      applyTriage(ctx, labelsToAdd);
+      const persisted = await persistIssueState(ctx);
+      if (!persisted) {
+        throw new Error("Failed to persist PR response output");
+      }
+      ctx.prResponseOutput = null;
+      return { ok: true };
+    }
+  });
+}
+function recordFailureAction(createAction) {
+  return createAction({
+    description: (action) => `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
+    // No predict: failures are updated in-memory only (not persisted until
+    // a subsequent persist action), so external refresh won't see the change.
+    execute: async (action, ctx) => {
+      const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
+      const current = issue2.failures ?? 0;
+      Object.assign(issue2, { failures: current + 1 });
+      return { ok: true };
+    }
+  });
+}
+function persistStateAction(createAction) {
+  return createAction({
+    description: (action) => `Persist issue #${action.payload.issueNumber} state (${action.payload.reason})`,
+    execute: async (_action, ctx) => {
+      const persisted = await persistIssueState(ctx);
+      if (!persisted) {
+        throw new Error("Failed to persist state");
+      }
+      return { ok: true };
+    }
+  });
+}
+function runOrchestrationAction(createAction) {
+  return createAction({
+    description: (action) => `Run orchestration step for #${action.payload.issueNumber}`,
+    predict: (action) => {
+      if (!action.payload.initParentIfNeeded) return { checks: [] };
+      return {
+        checks: [
+          {
+            comparator: "eq",
+            description: "Parent issue status should be In progress after orchestration",
+            field: "issue.projectStatus",
+            expected: "In progress"
+          }
+        ]
+      };
+    },
+    execute: async (action, ctx) => {
+      if (action.payload.initParentIfNeeded) {
+        setIssueStatus(ctx, "In progress");
+      }
+      const persisted = await persistIssueState(ctx);
+      if (!persisted) {
+        throw new Error("Failed to persist orchestration step");
+      }
+      const firstSub = ctx.issue.subIssues.find(
+        (s) => s.projectStatus !== "Done" && s.state === "OPEN"
+      );
+      const repo = repositoryFor(ctx);
+      if (firstSub && repo.assignBotToSubIssue) {
+        await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
+      }
+      return { ok: true };
+    }
+  });
+}
+function setupGitAction(createAction) {
+  return createAction({
+    description: () => "Configure git credentials for PAT-based push",
+    execute: async (action) => {
+      if (!isGitEnvironment()) {
+        return { ok: true, skipped: true };
+      }
+      const { token } = action.payload;
+      await execAsync('git config user.name "nopo-bot"');
+      await execAsync(
+        'git config user.email "nopo-bot@users.noreply.github.com"'
+      );
+      await execAsync(
+        `git config url."https://x-access-token:${token}@github.com/".insteadOf "https://github.com/"`
+      );
+      const { stdout: userName } = await execAsync("git config user.name");
+      const { stdout: userEmail } = await execAsync("git config user.email");
+      return {
+        ok: true,
+        userName: userName.trim(),
+        userEmail: userEmail.trim()
+      };
+    },
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "setupGit execute did not return ok=true" };
+      }
+      const result = executeResult;
+      if (result.skipped) return void 0;
+      if (result.userName !== "nopo-bot") {
+        return {
+          message: `git user.name mismatch: expected "nopo-bot", got "${result.userName}"`
+        };
+      }
+      return void 0;
+    }
+  });
+}
+function prepareBranchAction(createAction) {
+  return createAction({
+    description: (action) => `Prepare branch "${action.payload.branchName}" for iteration`,
+    execute: async (action, ctx) => {
+      if (!isGitEnvironment()) {
+        ctx.branchPrepResult = "clean";
+        return { ok: true, skipped: true, branch: action.payload.branchName };
+      }
+      const { branchName, baseBranch = "main" } = action.payload;
+      await execAsync("git fetch origin");
+      let remoteBranchExists = false;
+      try {
+        await execAsync(`git rev-parse --verify origin/${branchName}`);
+        remoteBranchExists = true;
+      } catch {
+      }
+      if (remoteBranchExists) {
+        try {
+          await execAsync(`git checkout ${branchName}`);
+        } catch {
+          await execAsync(`git checkout -b ${branchName} origin/${branchName}`);
+        }
+      } else {
+        try {
+          await execAsync(`git checkout -b ${branchName} origin/${baseBranch}`);
+        } catch {
+          await execAsync(`git checkout ${branchName}`);
+          await execAsync(`git reset --hard origin/${baseBranch}`);
+        }
+      }
+      const { stdout: behindCount } = await execAsync(
+        `git rev-list --count HEAD..origin/${baseBranch}`
+      );
+      const behind = parseInt(behindCount.trim(), 10);
+      if (behind > 0) {
+        try {
+          await execAsync(`git rebase origin/${baseBranch}`);
+        } catch {
+          await execAsync("git rebase --abort");
+          ctx.branchPrepResult = "conflicts";
+          return {
+            ok: true,
+            branch: branchName,
+            result: "conflicts"
+          };
+        }
+        await execAsync(
+          `git push --force-with-lease origin HEAD:${branchName}`
+        );
+        ctx.branchPrepResult = "rebased";
+        const { stdout: currentBranch2 } = await execAsync(
+          "git branch --show-current"
+        );
+        return {
+          ok: true,
+          branch: currentBranch2.trim(),
+          result: "rebased"
+        };
+      }
+      ctx.branchPrepResult = "clean";
+      const { stdout: currentBranch } = await execAsync(
+        "git branch --show-current"
+      );
+      return {
+        ok: true,
+        branch: currentBranch.trim(),
+        result: "clean"
+      };
+    },
+    verify: ({ action, executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "prepareBranch execute did not return ok=true" };
+      }
+      const result = executeResult;
+      if (result.result === "conflicts") return void 0;
+      if (result.branch !== action.payload.branchName) {
+        return {
+          message: `Branch mismatch: expected "${action.payload.branchName}", got "${result.branch}"`
+        };
+      }
+      return void 0;
+    }
+  });
+}
+function gitPushAction(createAction) {
+  return createAction({
+    description: (action) => `Push branch "${action.payload.branchName}" to origin`,
+    execute: async (action) => {
+      if (!isGitEnvironment()) {
+        return { ok: true, skipped: true };
+      }
+      const { branchName, forceWithLease = true } = action.payload;
+      const forceFlag = forceWithLease ? " --force-with-lease" : "";
+      await execAsync(`git push${forceFlag} origin HEAD:${branchName}`);
+      const { stdout: localSha } = await execAsync("git rev-parse HEAD");
+      return {
+        ok: true,
+        sha: localSha.trim()
+      };
+    },
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "gitPush execute did not return ok=true" };
+      }
+      return void 0;
+    }
+  });
+}
+function stopAction(createAction) {
+  return createAction({
+    description: (action) => `Stop: ${action.payload.message}`,
+    execute: async () => ({ ok: true })
+  });
+}
+
+// packages/statemachine/src/machines/example/guards.ts
+function hasLabel(context, label) {
+  return context.issue.labels.some(
+    (l) => l.toLowerCase() === label.toLowerCase()
+  );
+}
+function triggeredBy(trigger) {
+  return ({ context }) => context.domain.trigger === trigger;
+}
+function needsTriage({ context }) {
+  if (context.domain.parentIssue !== null) return false;
+  return !hasLabel(context.domain, "triaged");
+}
+function canIterate({ context }) {
+  if (context.domain.parentIssue === null) return false;
+  const bot = context.domain.botUsername;
+  if (!context.domain.parentIssue.assignees.includes(bot)) return false;
+  return context.domain.issue.assignees.includes(bot);
+}
+function isInReview({ context }) {
+  return context.domain.issue.projectStatus === "In review";
+}
+function isAlreadyDone({ context }) {
+  return context.domain.issue.projectStatus === "Done" && context.domain.pr?.state === "MERGED";
+}
+function isBlocked({ context }) {
+  return context.domain.issue.projectStatus === "Blocked";
+}
+function isError({ context }) {
+  return context.domain.issue.projectStatus === "Error";
+}
+function botIsAssigned({ context }) {
+  return context.domain.issue.assignees.includes(context.domain.botUsername);
+}
+var triggeredByAssignment = triggeredBy("issue-assigned");
+var triggeredByEdit = triggeredBy("issue-edited");
+var triggeredByCI = triggeredBy("workflow-run-completed");
+var triggeredByReview = triggeredBy("pr-review-submitted");
+var triggeredByReviewRequest = triggeredBy("pr-review-requested");
+var triggeredByTriage = triggeredBy("issue-triage");
+var triggeredByComment = triggeredBy("issue-comment");
+var triggeredByOrchestrate = triggeredBy("issue-orchestrate");
+function triggeredByOrchestrateAndReady({ context }) {
+  return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
+}
+function triggeredByOrchestrateAndNeedsGrooming({
+  context
+}) {
+  return triggeredByOrchestrate({ context }) && needsGrooming({ context });
+}
+var triggeredByPRReview = triggeredBy("pr-review");
+function prReviewWithCIPassed({ context }) {
+  return triggeredByPRReview({ context }) && ciPassed({ context });
+}
+function prReviewWithCINotFailed({ context }) {
+  return triggeredByPRReview({ context }) && !ciFailed({ context });
+}
+var triggeredByPRResponse = triggeredBy("pr-response");
+var triggeredByPRHumanResponse = triggeredBy("pr-human-response");
+var triggeredByPRReviewApproved = triggeredBy("pr-review-approved");
+var triggeredByPRPush = triggeredBy("pr-push");
+var triggeredByReset = triggeredBy("issue-reset");
+var triggeredByRetry = triggeredBy("issue-retry");
+var triggeredByPivot = triggeredBy("issue-pivot");
+var triggeredByMergeQueueEntry = triggeredBy("merge-queue-entered");
+var triggeredByMergeQueueFailure = triggeredBy("merge-queue-failed");
+var triggeredByPRMerged = triggeredBy("pr-merged");
+var triggeredByDeployedStage = triggeredBy("deployed-stage");
+var triggeredByDeployedProd = triggeredBy("deployed-prod");
+var triggeredByDeployedStageFailure = triggeredBy("deployed-stage-failed");
+var triggeredByDeployedProdFailure = triggeredBy("deployed-prod-failed");
+var triggeredByGroom = triggeredBy("issue-groom");
+var triggeredByGroomSummary = triggeredBy("issue-groom-summary");
+function ciPassed({ context }) {
+  return context.domain.ciResult === "success";
+}
+function ciFailed({ context }) {
+  return context.domain.ciResult === "failure";
+}
+function reviewApproved({ context }) {
+  return context.domain.reviewDecision === "APPROVED";
+}
+function reviewRequestedChanges({ context }) {
+  return context.domain.reviewDecision === "CHANGES_REQUESTED";
+}
+function reviewCommented({ context }) {
+  return context.domain.reviewDecision === "COMMENTED";
+}
+function needsGrooming({ context }) {
+  if (context.domain.parentIssue !== null) return false;
+  const hasTriaged = hasLabel(context.domain, "triaged");
+  const hasGroomed = hasLabel(context.domain, "groomed");
+  return hasTriaged && !hasGroomed;
+}
+function hasSubIssues({ context }) {
+  return context.domain.parentIssue === null && context.domain.issue.hasSubIssues;
+}
+function currentPhaseInReview({ context }) {
+  if (!hasSubIssues({ context })) return false;
+  return context.domain.currentSubIssue?.projectStatus === "In review";
+}
+function allPhasesDone({ context }) {
+  if (!hasLabel(context.domain, "groomed")) return false;
+  if (!hasSubIssues({ context })) return false;
+  if (context.domain.issue.subIssues.length === 0) return false;
+  return context.domain.issue.subIssues.every(
+    (subIssue) => subIssue.projectStatus === "Done" || subIssue.state === "CLOSED"
+  );
+}
+function todosDone({ context }) {
+  const issue2 = context.domain.currentSubIssue ?? context.domain.issue;
+  const stats = parseTodoStatsInSection(issue2.body, "Todos");
+  return stats.uncheckedNonManual === 0;
+}
+function readyForReview({ context }) {
+  return ciPassed({ context }) && todosDone({ context });
+}
+function triggeredByCIAndReadyForReview({ context }) {
+  return triggeredByCI({ context }) && readyForReview({ context });
+}
+function triggeredByCIAndShouldContinue({ context }) {
+  return triggeredByCI({ context }) && ciFailed({ context });
+}
+function triggeredByCIAndShouldBlock({ context }) {
+  return triggeredByCI({ context }) && maxFailuresReached({ context });
+}
+function triggeredByReviewAndApproved({ context }) {
+  return triggeredByReview({ context }) && reviewApproved({ context });
+}
+function triggeredByReviewAndChanges({ context }) {
+  return triggeredByReview({ context }) && reviewRequestedChanges({ context });
+}
+function triggeredByReviewAndCommented({ context }) {
+  return triggeredByReview({ context }) && reviewCommented({ context });
+}
+function maxFailuresReached({ context }) {
+  const failures = context.domain.issue.failures ?? 0;
+  const max = context.domain.maxRetries ?? 3;
+  return failures >= max;
+}
+function isSubIssue({ context }) {
+  return context.domain.parentIssue !== null;
+}
+function isInvalidIteration({ context }) {
+  if (context.domain.parentIssue !== null) return false;
+  if (!hasLabel(context.domain, "groomed")) return false;
+  if (context.domain.issue.projectStatus !== "In progress") return false;
+  return !context.domain.issue.hasSubIssues;
+}
+function needsSubIssues(_guardContext) {
+  return false;
+}
+function branchPrepClean({ context }) {
+  return context.domain.branchPrepResult === "clean";
+}
+function branchPrepRebased({ context }) {
+  return context.domain.branchPrepResult === "rebased";
+}
+function branchPrepConflicts({ context }) {
+  return context.domain.branchPrepResult === "conflicts";
+}
+
+// packages/statemachine/src/machines/example/states.ts
+function buildTriageQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Triaging issue",
+      phase: "triage"
+    }),
+    registry2.runClaudeTriage.create({
+      issueNumber,
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: context.domain.issue.title,
+        ISSUE_BODY: context.domain.issue.body,
+        ISSUE_COMMENTS: context.domain.issue.comments.join("\n")
+      }
+    }),
+    registry2.applyTriageOutput.create({
+      issueNumber
+    }),
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "In progress"
+    })
+  ];
+}
+function buildGroomQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Grooming issue",
+      phase: "groom"
+    }),
+    registry2.runClaudeGrooming.create({
+      issueNumber,
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: context.domain.issue.title,
+        ISSUE_BODY: context.domain.issue.body,
+        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
+        ISSUE_LABELS: context.domain.issue.labels.join(", ")
+      }
+    }),
+    registry2.applyGroomingOutput.create({
+      issueNumber
+    }),
+    registry2.reconcileSubIssues.create({
+      issueNumber
+    })
+  ];
+}
+function buildPrepareQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const branchName = context.domain.branch ?? `claude/issue/${issueNumber}`;
+  return [
+    registry2.setupGit.create({
+      token: context.runnerCtx?.token ?? ""
+    }),
+    registry2.prepareBranch.create({
+      branchName
+    })
+  ];
+}
+function buildIterateQueue(context, registry2, mode = "iterate") {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const prelude = [];
+  if (context.domain.ciResult === "failure") {
+    prelude.push(
+      registry2.recordFailure.create({
+        issueNumber,
+        failureType: "ci"
+      }),
+      registry2.appendHistory.create({
+        issueNumber,
+        message: "CI failed, returning to iteration",
+        phase: "iterate"
+      })
+    );
+  }
+  if (context.domain.reviewDecision === "CHANGES_REQUESTED") {
+    prelude.push(
+      registry2.appendHistory.create({
+        issueNumber,
+        message: "Review requested changes, returning to iteration",
+        phase: "review"
+      })
+    );
+  }
+  return [
+    ...prelude,
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "In progress"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: mode === "retry" ? "Fixing CI" : "Starting iteration"
+    }),
+    registry2.runClaudeIteration.create({
+      issueNumber,
+      mode,
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: context.domain.issue.title,
+        ISSUE_BODY: context.domain.issue.body,
+        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
+        ISSUE_LABELS: context.domain.issue.labels.join(", "),
+        CI_RESULT: context.domain.ciResult ?? "none",
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        ITERATION: String(context.domain.issue.iteration ?? 0),
+        LAST_CI_RESULT: context.domain.ciResult ?? "none",
+        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
+        PR_CREATE_COMMAND: [
+          `gh pr create --draft`,
+          `--title "fix: implement #${issueNumber}"`,
+          `--body "Fixes #${issueNumber}"`,
+          `--base main`,
+          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`
+        ].join(" \\\n  "),
+        AGENT_NOTES: ""
+      }
+    }),
+    registry2.applyIterationOutput.create({
+      issueNumber
+    })
+  ];
+}
+function buildIterateFixQueue(context, registry2) {
+  return buildIterateQueue(context, registry2, "retry");
+}
+function buildTransitionToReviewQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "In review"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "CI passed, transitioning to review",
+      phase: "review"
+    })
+  ];
+}
+function buildReviewQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const prelude = context.domain.reviewDecision === "COMMENTED" ? [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Review commented, staying in review",
+      phase: "review"
+    })
+  ] : [];
+  return [
+    ...prelude,
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "In review"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Requesting review"
+    })
+  ];
+}
+function buildAwaitingMergeQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Review approved, awaiting merge",
+      phase: "review"
+    })
+  ];
+}
+function buildMergeQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const queue = [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Done"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "PR merged, issue marked done",
+      phase: "review"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "merge-complete"
+    })
+  ];
+  const needsOrchestration = context.domain.parentIssue !== null || context.domain.issue.hasSubIssues;
+  if (needsOrchestration) {
+    const parentNumber = context.domain.parentIssue?.number ?? context.domain.issue.number;
+    queue.push(
+      registry2.runOrchestration.create({
+        issueNumber: parentNumber,
+        initParentIfNeeded: false
+      }),
+      registry2.appendHistory.create({
+        issueNumber: parentNumber,
+        message: "Orchestration command processed"
+      })
+    );
+  }
+  return queue;
+}
+function buildDeployedStageQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Deployment to stage succeeded"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "deploy-stage-success"
+    })
+  ];
+}
+function buildDeployedProdQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Done"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Deployment to production succeeded"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "deploy-prod-success"
+    })
+  ];
+}
+function buildDeployedStageFailureQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Error"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Deployment to stage failed"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "deploy-stage-failure"
+    })
+  ];
+}
+function buildDeployedProdFailureQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Error"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Deployment to production failed"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "deploy-prod-failure"
+    })
+  ];
+}
+function buildPivotQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Blocked"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Pivot requested, blocking current path for replanning"
+    })
+  ];
+}
+function buildResetQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Backlog"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Issue reset to backlog"
+    })
+  ];
+}
+function buildRetryQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Retry requested, resuming iteration",
+      phase: "iterate"
+    }),
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "In progress"
+    }),
+    registry2.runClaudeIteration.create({
+      issueNumber,
+      mode: "retry",
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: context.domain.issue.title,
+        ISSUE_BODY: context.domain.issue.body,
+        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
+        ISSUE_LABELS: context.domain.issue.labels.join(", "),
+        CI_RESULT: context.domain.ciResult ?? "none",
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        ITERATION: String(context.domain.issue.iteration ?? 0),
+        LAST_CI_RESULT: context.domain.ciResult ?? "none",
+        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
+        PR_CREATE_COMMAND: [
+          `gh pr create --draft`,
+          `--title "fix: implement #${issueNumber}"`,
+          `--body "Fixes #${issueNumber}"`,
+          `--base main`,
+          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`
+        ].join(" \\\n  "),
+        AGENT_NOTES: ""
+      }
+    }),
+    registry2.applyIterationOutput.create({
+      issueNumber
+    })
+  ];
+}
+function buildCommentQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  const suffix = context.domain.commentContextDescription ? ` (${context.domain.commentContextDescription})` : "";
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: `Issue comment trigger received${suffix}`
+    })
+  ];
+}
+function buildPrReviewQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.runClaudeReview.create({
+      issueNumber,
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: context.domain.issue.title,
+        ISSUE_BODY: context.domain.issue.body,
+        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        REVIEWER: "unknown"
+      }
+    }),
+    registry2.applyReviewOutput.create({
+      issueNumber
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "PR review workflow requested",
+      phase: "review"
+    })
+  ];
+}
+function buildPrRespondingQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.runClaudePrResponse.create({
+      issueNumber,
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: context.domain.issue.title,
+        ISSUE_BODY: context.domain.issue.body,
+        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        REVIEWER: "unknown"
+      }
+    }),
+    registry2.applyPrResponseOutput.create({
+      issueNumber
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Prepared automated PR response",
+      phase: "review"
+    })
+  ];
+}
+function buildPrRespondingHumanQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Human PR response required",
+      phase: "review"
+    })
+  ];
+}
+function buildPrPushQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "In progress"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "PR updated by push; awaiting CI and review loop",
+      phase: "iterate"
+    })
+  ];
+}
+function buildInitializingQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.runOrchestration.create({
+      issueNumber,
+      initParentIfNeeded: true
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Initializing"
+    })
+  ];
+}
+function buildOrchestrateQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  const status = context.domain.issue.projectStatus;
+  const initParentIfNeeded = status === null || status === "Backlog";
+  return [
+    registry2.runOrchestration.create({
+      issueNumber,
+      initParentIfNeeded
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Orchestration command processed"
+    })
+  ];
+}
+function buildOrchestrationWaitingQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Current phase is in review; waiting for merge before advancing",
+      phase: "review"
+    })
+  ];
+}
+function buildOrchestrationCompleteQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Done"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "All sub-issue phases are complete",
+      phase: "review"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "orchestration-complete"
+    })
+  ];
+}
+function buildMergeQueueEntryQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Issue entered merge queue",
+      phase: "review"
+    })
+  ];
+}
+function buildBlockQueue(context, registry2) {
+  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const failures = (context.domain.currentSubIssue ?? context.domain.issue).failures ?? 0;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Blocked"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: `Blocked: Max failures reached (${failures})`,
+      phase: "iterate"
+    })
+  ];
+}
+function buildMergeQueueFailureQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  return [
+    registry2.updateStatus.create({
+      issueNumber,
+      status: "Error"
+    }),
+    registry2.appendHistory.create({
+      issueNumber,
+      message: "Merge queue failed",
+      phase: "review"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "merge-queue-failure"
+    })
+  ];
+}
+function buildActionFailureQueue(context, registry2) {
+  const issueNumber = context.domain.issue.number;
+  const message = context.error ? `Action execution failed: ${context.error}` : "Action execution failed";
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message
+    })
+  ];
+}
+function createExampleQueueAssigners(registry2) {
+  const assignPrepareQueue = assign({
+    actionQueue: ({ context }) => buildPrepareQueue(context, registry2)
+  });
+  const assignTriageQueue = assign({
+    actionQueue: ({ context }) => buildTriageQueue(context, registry2)
+  });
+  const assignIterateQueue = assign({
+    actionQueue: ({ context }) => buildIterateQueue(context, registry2)
+  });
+  const assignIterateFixQueue = assign({
+    actionQueue: ({ context }) => buildIterateFixQueue(context, registry2)
+  });
+  const assignTransitionToReviewQueue = assign({
+    actionQueue: ({ context }) => buildTransitionToReviewQueue(context, registry2)
+  });
+  const assignReviewQueue = assign({
+    actionQueue: ({ context }) => buildReviewQueue(context, registry2)
+  });
+  const assignGroomQueue = assign({
+    actionQueue: ({ context }) => buildGroomQueue(context, registry2)
+  });
+  const assignAwaitingMergeQueue = assign({
+    actionQueue: ({ context }) => buildAwaitingMergeQueue(context, registry2)
+  });
+  const assignMergeQueue = assign({
+    actionQueue: ({ context }) => buildMergeQueue(context, registry2)
+  });
+  const assignDeployedStageQueue = assign({
+    actionQueue: ({ context }) => buildDeployedStageQueue(context, registry2)
+  });
+  const assignDeployedProdQueue = assign({
+    actionQueue: ({ context }) => buildDeployedProdQueue(context, registry2)
+  });
+  const assignDeployedStageFailureQueue = assign({
+    actionQueue: ({ context }) => buildDeployedStageFailureQueue(context, registry2)
+  });
+  const assignDeployedProdFailureQueue = assign({
+    actionQueue: ({ context }) => buildDeployedProdFailureQueue(context, registry2)
+  });
+  const assignPivotQueue = assign({
+    actionQueue: ({ context }) => buildPivotQueue(context, registry2)
+  });
+  const assignResetQueue = assign({
+    actionQueue: ({ context }) => buildResetQueue(context, registry2)
+  });
+  const assignRetryQueue = assign({
+    actionQueue: ({ context }) => buildRetryQueue(context, registry2)
+  });
+  const assignCommentQueue = assign({
+    actionQueue: ({ context }) => buildCommentQueue(context, registry2)
+  });
+  const assignPrReviewQueue = assign({
+    actionQueue: ({ context }) => buildPrReviewQueue(context, registry2)
+  });
+  const assignPrRespondingQueue = assign({
+    actionQueue: ({ context }) => buildPrRespondingQueue(context, registry2)
+  });
+  const assignPrRespondingHumanQueue = assign({
+    actionQueue: ({ context }) => buildPrRespondingHumanQueue(context, registry2)
+  });
+  const assignPrPushQueue = assign({
+    actionQueue: ({ context }) => buildPrPushQueue(context, registry2)
+  });
+  const assignInitializingQueue = assign({
+    actionQueue: ({ context }) => buildInitializingQueue(context, registry2)
+  });
+  const assignOrchestrateQueue = assign({
+    actionQueue: ({ context }) => buildOrchestrateQueue(context, registry2)
+  });
+  const assignOrchestrationWaitingQueue = assign({
+    actionQueue: ({ context }) => buildOrchestrationWaitingQueue(context, registry2)
+  });
+  const assignOrchestrationCompleteQueue = assign({
+    actionQueue: ({ context }) => buildOrchestrationCompleteQueue(context, registry2)
+  });
+  const assignMergeQueueEntryQueue = assign({
+    actionQueue: ({ context }) => buildMergeQueueEntryQueue(context, registry2)
+  });
+  const assignBlockQueue = assign({
+    actionQueue: ({ context }) => buildBlockQueue(context, registry2)
+  });
+  const assignMergeQueueFailureQueue = assign({
+    actionQueue: ({ context }) => buildMergeQueueFailureQueue(context, registry2)
+  });
+  const assignActionFailureQueue = assign({
+    actionQueue: ({ context }) => buildActionFailureQueue(context, registry2)
+  });
+  return {
+    assignPrepareQueue,
+    assignBlockQueue,
+    assignInitializingQueue,
+    assignIterateFixQueue,
+    assignTransitionToReviewQueue,
+    assignTriageQueue,
+    assignIterateQueue,
+    assignReviewQueue,
+    assignGroomQueue,
+    assignAwaitingMergeQueue,
+    assignMergeQueue,
+    assignDeployedStageQueue,
+    assignDeployedProdQueue,
+    assignDeployedStageFailureQueue,
+    assignDeployedProdFailureQueue,
+    assignPivotQueue,
+    assignResetQueue,
+    assignRetryQueue,
+    assignCommentQueue,
+    assignPrReviewQueue,
+    assignPrRespondingQueue,
+    assignPrRespondingHumanQueue,
+    assignPrPushQueue,
+    assignOrchestrateQueue,
+    assignOrchestrationWaitingQueue,
+    assignOrchestrationCompleteQueue,
+    assignMergeQueueEntryQueue,
+    assignMergeQueueFailureQueue,
+    assignActionFailureQueue
+  };
+}
+
+// packages/statemachine/src/machines/example/context.ts
+var ExampleProjectStatusSchema = external_exports.union([
+  external_exports.null(),
+  external_exports.literal("Backlog"),
+  external_exports.literal("In progress"),
+  external_exports.literal("In review"),
+  external_exports.literal("Blocked"),
+  external_exports.literal("Done"),
+  external_exports.literal("Error")
+]);
+var ExampleSubIssueSchema = external_exports.object({
+  number: external_exports.number().int(),
+  projectStatus: ExampleProjectStatusSchema,
+  state: external_exports.string()
+});
+var ExampleIssueSchema = external_exports.object({
+  number: external_exports.number().int(),
+  title: external_exports.string(),
+  body: external_exports.string(),
+  comments: external_exports.array(external_exports.string()),
+  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("CLOSED")]),
+  projectStatus: ExampleProjectStatusSchema,
+  labels: external_exports.array(external_exports.string()),
+  assignees: external_exports.array(external_exports.string()),
+  hasSubIssues: external_exports.boolean(),
+  subIssues: external_exports.array(ExampleSubIssueSchema),
+  /** Iteration counter from GitHub Project field (default 0) */
+  iteration: external_exports.number().int().min(0).optional().default(0),
+  /** CI failure count for circuit breaker (default 0) */
+  failures: external_exports.number().int().min(0).optional().default(0)
+});
+var ExamplePRSchema = external_exports.object({
+  number: external_exports.number().int(),
+  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("MERGED"), external_exports.literal("CLOSED")]),
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  headRef: external_exports.string(),
+  baseRef: external_exports.string(),
+  labels: external_exports.array(external_exports.string()),
+  reviews: external_exports.array(external_exports.unknown())
+});
+var LinkedPRForExtractorSchema = external_exports.object({
+  number: external_exports.number().int(),
+  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("MERGED"), external_exports.literal("CLOSED")]),
+  isDraft: external_exports.boolean(),
+  title: external_exports.string(),
+  headRef: external_exports.string(),
+  baseRef: external_exports.string(),
+  ciStatus: external_exports.union([
+    external_exports.literal("SUCCESS"),
+    external_exports.literal("FAILURE"),
+    external_exports.literal("ERROR"),
+    external_exports.literal("PENDING"),
+    external_exports.literal("EXPECTED")
+  ]).nullable().optional(),
+  reviewDecision: external_exports.union([
+    external_exports.literal("APPROVED"),
+    external_exports.literal("CHANGES_REQUESTED"),
+    external_exports.literal("REVIEW_REQUIRED")
+  ]).nullable().optional(),
+  labels: external_exports.array(external_exports.string()),
+  reviews: external_exports.array(
+    external_exports.object({
+      state: external_exports.string(),
+      author: external_exports.string(),
+      body: external_exports.string()
+    })
+  )
+});
+var ExampleIssuePatchSchema = external_exports.object({
+  title: external_exports.string().optional(),
+  body: external_exports.string().optional(),
+  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("CLOSED")]).optional(),
+  projectStatus: ExampleProjectStatusSchema.optional(),
+  labels: external_exports.array(external_exports.string()).optional(),
+  assignees: external_exports.array(external_exports.string()).optional(),
+  hasSubIssues: external_exports.boolean().optional(),
+  subIssues: external_exports.array(ExampleSubIssueSchema).optional()
+});
+var DEFAULT_BOT_USERNAME2 = "nopo-bot";
+function normalizeProjectStatus(value) {
+  return value === "Ready" ? "In progress" : value;
+}
+var extractLinkedPr = createExtractor(
+  external_exports.union([LinkedPRForExtractorSchema, external_exports.null()]),
+  (data) => {
+    if (data.issue.pr) return data.issue.pr;
+    if (data.parentIssue !== null) return null;
+    const currentSubIssue = data.issue.subIssues.find(
+      (subIssue) => subIssue.projectStatus !== "Done" && subIssue.state === "OPEN"
+    );
+    if (!currentSubIssue) return null;
+    return data.issue.subIssues.find(
+      (subIssue) => subIssue.number === currentSubIssue.number
+    )?.pr ?? null;
+  }
+);
+function ciResultFromLinkedPr(linkedPr) {
+  switch (linkedPr?.ciStatus) {
+    case "SUCCESS":
+      return "success";
+    case "FAILURE":
+    case "ERROR":
+      return "failure";
+    default:
+      return null;
+  }
+}
+function reviewDecisionFromLinkedPr(linkedPr) {
+  switch (linkedPr?.reviewDecision) {
+    case "APPROVED":
+      return "APPROVED";
+    case "CHANGES_REQUESTED":
+      return "CHANGES_REQUESTED";
+    case "REVIEW_REQUIRED":
+      return "COMMENTED";
+    default:
+      return null;
+  }
+}
+var extractIssue = createExtractor(ExampleIssueSchema, (data) => ({
+  number: data.issue.number,
+  title: data.issue.title,
+  body: serializeMarkdown(data.issue.bodyAst),
+  comments: data.issue.comments.map((comment) => comment.body),
+  state: data.issue.state,
+  projectStatus: normalizeProjectStatus(data.issue.projectStatus),
+  labels: data.issue.labels,
+  assignees: data.issue.assignees,
+  hasSubIssues: data.issue.hasSubIssues,
+  subIssues: data.issue.subIssues.map((subIssue) => ({
+    number: subIssue.number,
+    projectStatus: normalizeProjectStatus(subIssue.projectStatus),
+    state: subIssue.state
+  })),
+  iteration: data.issue.iteration,
+  failures: data.issue.failures
+}));
+var extractParentIssue = createExtractor(
+  external_exports.union([ExampleIssueSchema, external_exports.null()]),
+  (data) => {
+    if (data.parentIssue === null) return null;
+    return {
+      number: data.parentIssue.number,
+      title: data.parentIssue.title,
+      body: serializeMarkdown(data.parentIssue.bodyAst),
+      comments: data.parentIssue.comments.map((comment) => comment.body),
+      state: data.parentIssue.state,
+      projectStatus: normalizeProjectStatus(data.parentIssue.projectStatus),
+      labels: data.parentIssue.labels,
+      assignees: data.parentIssue.assignees,
+      hasSubIssues: data.parentIssue.hasSubIssues,
+      subIssues: data.parentIssue.subIssues.map((subIssue) => ({
+        number: subIssue.number,
+        projectStatus: normalizeProjectStatus(subIssue.projectStatus),
+        state: subIssue.state
+      }))
+    };
+  }
+);
+var extractCurrentSubIssue = createExtractor(
+  external_exports.union([ExampleIssueSchema, external_exports.null()]),
+  (data) => {
+    if (data.parentIssue !== null) {
+      return extractIssue(data);
+    }
+    const current = data.issue.subIssues.find(
+      (subIssue) => subIssue.projectStatus !== "Done" && subIssue.state === "OPEN"
+    );
+    if (!current) return null;
+    return {
+      number: current.number,
+      title: current.title,
+      body: serializeMarkdown(current.bodyAst),
+      comments: [],
+      state: current.state,
+      projectStatus: normalizeProjectStatus(current.projectStatus),
+      labels: current.labels,
+      assignees: current.assignees,
+      hasSubIssues: false,
+      subIssues: []
+    };
+  }
+);
+var extractPr = createExtractor(
+  external_exports.union([ExamplePRSchema, external_exports.null()]),
+  (data) => {
+    const linkedPr = extractLinkedPr(data);
+    if (!linkedPr) return null;
+    return {
+      number: linkedPr.number,
+      state: linkedPr.state,
+      isDraft: linkedPr.isDraft,
+      title: linkedPr.title,
+      headRef: linkedPr.headRef,
+      baseRef: linkedPr.baseRef,
+      labels: linkedPr.labels,
+      reviews: linkedPr.reviews
+    };
+  }
+);
+var ExampleCIResultSchema = external_exports.union([
+  external_exports.literal("success"),
+  external_exports.literal("failure"),
+  external_exports.literal("cancelled"),
+  external_exports.literal("skipped")
+]);
+var ExampleReviewDecisionSchema = external_exports.union([
+  external_exports.literal("APPROVED"),
+  external_exports.literal("CHANGES_REQUESTED"),
+  external_exports.literal("COMMENTED")
+]);
+var mutateIssueProjectStatus = createMutator(
+  external_exports.object({ projectStatus: ExampleProjectStatusSchema }),
+  (input, data) => ({
+    ...data,
+    issue: {
+      ...data.issue,
+      projectStatus: input.projectStatus === "In progress" ? "Ready" : input.projectStatus
+    }
+  })
+);
+function linkedPrFromExamplePr(value) {
+  if (value === null) return null;
+  const reviews = value.reviews.flatMap((review) => {
+    if (typeof review !== "object" || review === null) return [];
+    const state = Reflect.get(review, "state");
+    const author = Reflect.get(review, "author");
+    const body = Reflect.get(review, "body");
+    if (typeof state !== "string" || typeof author !== "string" || typeof body !== "string") {
+      return [];
+    }
+    return [{ state, author, body }];
+  });
+  return {
+    number: value.number,
+    state: value.state,
+    isDraft: value.isDraft,
+    title: value.title,
+    headRef: value.headRef,
+    baseRef: value.baseRef,
+    labels: value.labels,
+    reviews
+  };
+}
+var mutateIssue = createMutator(
+  ExampleIssuePatchSchema,
+  (issuePatch, state) => {
+    const projectStatusData = issuePatch.projectStatus ? mutateIssueProjectStatus(
+      { projectStatus: issuePatch.projectStatus },
+      state
+    ) : state;
+    const projectStatus = projectStatusData.issue.projectStatus;
+    const nextIssue = {
+      ...state.issue,
+      title: issuePatch.title ?? state.issue.title,
+      bodyAst: issuePatch.body === void 0 ? state.issue.bodyAst : parseMarkdown(issuePatch.body),
+      state: issuePatch.state ?? state.issue.state,
+      projectStatus,
+      labels: issuePatch.labels ?? state.issue.labels,
+      assignees: issuePatch.assignees ?? state.issue.assignees,
+      hasSubIssues: issuePatch.hasSubIssues ?? state.issue.hasSubIssues,
+      subIssues: issuePatch.subIssues === void 0 ? state.issue.subIssues : issuePatch.subIssues.map((subIssue) => {
+        const existing = state.issue.subIssues.find(
+          (candidate) => candidate.number === subIssue.number
+        );
+        return {
+          number: subIssue.number,
+          title: existing?.title ?? `Sub-issue #${subIssue.number}`,
+          state: subIssue.state === "OPEN" ? "OPEN" : "CLOSED",
+          bodyAst: existing?.bodyAst ?? parseMarkdown(""),
+          projectStatus: subIssue.projectStatus === "In progress" ? "Ready" : subIssue.projectStatus,
+          assignees: existing?.assignees ?? [],
+          labels: existing?.labels ?? [],
+          branch: existing?.branch ?? null,
+          pr: existing?.pr ?? null
+        };
+      })
+    };
+    return { ...state, issue: nextIssue };
+  }
+);
+var mutatePr = createMutator(
+  external_exports.union([ExamplePRSchema, external_exports.null()]),
+  (pr, state) => ({
+    ...state,
+    issue: {
+      ...state.issue,
+      pr: linkedPrFromExamplePr(pr)
+    }
+  })
+);
+var mutateBranch = createMutator(external_exports.string().nullable(), (branch, state) => ({
+  ...state,
+  issue: { ...state.issue, branch }
+}));
+var ExampleContextLoader = class _ExampleContextLoader {
+  state = null;
+  remoteUpdate = null;
+  options = null;
+  contextOverlay = {};
+  static isOctokitLike(value) {
+    if (typeof value !== "object" || value === null) return false;
+    if (!("graphql" in value) || !("rest" in value)) return false;
+    return true;
+  }
+  static resolveOctokit(runnerCtx) {
+    const value = Reflect.get(runnerCtx, "octokit");
+    return _ExampleContextLoader.isOctokitLike(value) ? value : null;
+  }
+  static async refreshFromRunnerContext(runnerCtx, current) {
+    const octokit = _ExampleContextLoader.resolveOctokit(runnerCtx);
+    if (octokit === null) {
+      if (current.repository instanceof _ExampleContextLoader) {
+        const refreshedFromRepository = current.repository.toContext({
+          seed: current
+        });
+        if (refreshedFromRepository) return refreshedFromRepository;
+      }
+      return current;
+    }
+    const loader = new _ExampleContextLoader();
+    const loaded = await loader.load({
+      octokit,
+      projectNumber: typeof runnerCtx.projectNumber === "number" ? runnerCtx.projectNumber : void 0,
+      trigger: current.trigger,
+      owner: current.owner,
+      repo: current.repo,
+      event: {
+        type: "refresh",
+        owner: current.owner,
+        repo: current.repo,
+        issueNumber: current.issue.number,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        ...current.ciResult ? { result: current.ciResult } : {},
+        ...current.ciRunUrl ? { runUrl: current.ciRunUrl } : {},
+        ...current.ciCommitSha ? { headSha: current.ciCommitSha } : {},
+        ...current.reviewDecision ? { decision: current.reviewDecision } : {}
+      },
+      botUsername: current.botUsername,
+      commentContextType: current.commentContextType,
+      commentContextDescription: current.commentContextDescription,
+      branch: current.branch,
+      ciRunUrl: current.ciRunUrl,
+      workflowStartedAt: current.workflowStartedAt,
+      workflowRunUrl: current.workflowRunUrl,
+      seed: current
+    });
+    if (!loaded) return current;
+    const next = loader.toContext();
+    return next ?? current;
+  }
+  requireState() {
+    if (this.state === null) {
+      throw new Error("Context state is not loaded. Call load() first.");
+    }
+    return this.state;
+  }
+  requireOptions() {
+    if (this.options === null) {
+      throw new Error("Context options are not set. Call load() first.");
+    }
+    return this.options;
+  }
+  extractIssue(state = this.requireState()) {
+    return extractIssue(state);
+  }
+  extractParentIssue(state = this.requireState()) {
+    return extractParentIssue(state);
+  }
+  extractCurrentSubIssue(state = this.requireState()) {
+    return extractCurrentSubIssue(state);
+  }
+  extractLinkedPr(state = this.requireState()) {
+    return extractLinkedPr(state);
+  }
+  extractPr(state = this.requireState()) {
+    return extractPr(state);
+  }
+  extractCommentContext(options) {
+    return {
+      commentContextType: options.commentContextType ?? options.seed?.commentContextType ?? null,
+      commentContextDescription: options.commentContextDescription ?? options.seed?.commentContextDescription ?? null
+    };
+  }
+  extractWorkflowContext(options) {
+    return {
+      ciRunUrl: options.ciRunUrl ?? options.event.runUrl ?? null,
+      ciCommitSha: options.event.headSha ?? options.seed?.ciCommitSha ?? null,
+      workflowStartedAt: options.workflowStartedAt ?? options.seed?.workflowStartedAt ?? options.event.timestamp,
+      workflowRunUrl: options.workflowRunUrl ?? options.seed?.workflowRunUrl ?? null
+    };
+  }
+  extractBranch(state, options) {
+    const currentSubIssue = this.extractCurrentSubIssue(state);
+    const currentSubIssueBranch = currentSubIssue === null ? null : state.issue.subIssues.find(
+      (subIssue) => subIssue.number === currentSubIssue.number
+    )?.branch ?? null;
+    return options.branch ?? currentSubIssueBranch ?? state.issue.branch ?? options.seed?.branch ?? null;
+  }
+  extractRuntimeContext(options, state) {
+    const ciParsed = ExampleCIResultSchema.safeParse(options.event.result);
+    const reviewParsed = ExampleReviewDecisionSchema.safeParse(
+      options.event.decision
+    );
+    const ciFromEvent = ciParsed.success ? ciParsed.data : null;
+    const reviewFromEvent = reviewParsed.success ? reviewParsed.data : null;
+    const linkedPr = this.extractLinkedPr(state);
+    return {
+      ciResult: ciFromEvent ?? ciResultFromLinkedPr(linkedPr) ?? options.seed?.ciResult ?? null,
+      reviewDecision: reviewFromEvent ?? reviewDecisionFromLinkedPr(linkedPr) ?? options.seed?.reviewDecision ?? null,
+      botUsername: options.botUsername ?? options.seed?.botUsername ?? DEFAULT_BOT_USERNAME2
+    };
+  }
+  buildContext(state, options) {
+    const issue2 = this.extractIssue(state);
+    const parentIssue = this.extractParentIssue(state);
+    const currentSubIssue = this.extractCurrentSubIssue(state);
+    const pr = this.extractPr(state);
+    const commentContext = this.extractCommentContext(options);
+    const workflowContext = this.extractWorkflowContext(options);
+    const branch = this.extractBranch(state, options);
+    const runtime = this.extractRuntimeContext(options, state);
+    return {
+      trigger: options.trigger,
+      owner: options.owner,
+      repo: options.repo,
+      issue: issue2,
+      parentIssue,
+      currentSubIssue,
+      pr: pr ?? options.seed?.pr ?? null,
+      hasPR: Boolean(pr ?? options.seed?.pr),
+      ciResult: runtime.ciResult,
+      reviewDecision: runtime.reviewDecision,
+      commentContextType: commentContext.commentContextType,
+      commentContextDescription: commentContext.commentContextDescription,
+      ciRunUrl: workflowContext.ciRunUrl,
+      ciCommitSha: workflowContext.ciCommitSha,
+      workflowStartedAt: workflowContext.workflowStartedAt,
+      workflowRunUrl: workflowContext.workflowRunUrl,
+      branch,
+      hasBranch: Boolean(branch),
+      botUsername: runtime.botUsername,
+      branchPrepResult: options.seed?.branchPrepResult ?? null,
+      triageOutput: options.seed?.triageOutput ?? null,
+      groomingOutput: options.seed?.groomingOutput ?? null,
+      iterationOutput: options.seed?.iterationOutput ?? null,
+      reviewOutput: options.seed?.reviewOutput ?? null,
+      prResponseOutput: options.seed?.prResponseOutput ?? null,
+      services: options.seed?.services,
+      repository: this
+    };
+  }
+  applyContextPatch(state, updates) {
+    let nextState = state;
+    if (updates.issue !== void 0) {
+      nextState = mutateIssue(updates.issue, nextState);
+    }
+    if (updates.pr !== void 0) {
+      nextState = mutatePr(updates.pr, nextState);
+    }
+    if (updates.branch !== void 0) {
+      nextState = mutateBranch(updates.branch, nextState);
+    }
+    return nextState;
+  }
+  async load(options) {
+    const issueNumber = Number.isFinite(options.event.issueNumber) ? options.event.issueNumber : 0;
+    if (issueNumber <= 0) {
+      this.state = null;
+      this.remoteUpdate = null;
+      this.options = options;
+      this.contextOverlay = {};
+      return false;
+    }
+    const parseOptions = {
+      octokit: options.octokit,
+      projectNumber: options.projectNumber ?? 0,
+      botUsername: options.botUsername ?? options.seed?.botUsername ?? DEFAULT_BOT_USERNAME2,
+      fetchPRs: true,
+      fetchParent: true
+    };
+    try {
+      const parsedResult = await parseIssue(
+        options.owner,
+        options.repo,
+        issueNumber,
+        parseOptions
+      );
+      this.state = {
+        owner: parsedResult.data.owner,
+        repo: parsedResult.data.repo,
+        issue: parsedResult.data.issue,
+        parentIssue: parsedResult.data.parentIssue
+      };
+      this.remoteUpdate = parsedResult.update;
+      this.options = options;
+      this.contextOverlay = {};
+      return true;
+    } catch {
+      this.state = null;
+      this.remoteUpdate = null;
+      this.options = options;
+      this.contextOverlay = {};
+      return false;
+    }
+  }
+  getState() {
+    return this.state;
+  }
+  toContext(overrides = {}) {
+    if (this.state === null || this.options === null) return null;
+    const mergedOptions = {
+      ...this.options,
+      ...overrides,
+      event: overrides.event ?? this.options.event,
+      seed: { ...this.options.seed ?? {}, ...overrides.seed ?? {} }
+    };
+    const context = this.buildContext(this.state, mergedOptions);
+    return {
+      ...context,
+      ...this.contextOverlay,
+      issue: this.contextOverlay.issue ? { ...context.issue, ...this.contextOverlay.issue } : context.issue,
+      pr: this.contextOverlay.pr === void 0 ? context.pr : this.contextOverlay.pr,
+      hasPR: Boolean(
+        this.contextOverlay.pr === void 0 ? context.pr : this.contextOverlay.pr
+      ),
+      branch: this.contextOverlay.branch === void 0 ? context.branch : this.contextOverlay.branch,
+      hasBranch: Boolean(
+        this.contextOverlay.branch === void 0 ? context.branch : this.contextOverlay.branch
+      ),
+      repository: this
+    };
+  }
+  toState(updates) {
+    if (this.state === null) return null;
+    this.state = this.applyContextPatch(this.state, updates);
+    this.contextOverlay = { ...this.contextOverlay, ...updates };
+    return this.state;
+  }
+  updateIssue(issue2) {
+    return this.toState({ issue: issue2 });
+  }
+  updatePr(pr) {
+    return this.toState({ pr });
+  }
+  updateBranch(branch) {
+    return this.toState({ branch });
+  }
+  setIssueStatus(status) {
+    this.updateIssue({ projectStatus: status });
+  }
+  updateBody(body) {
+    this.updateIssue({ body });
+  }
+  appendHistoryEntry(entry) {
+    const state = this.requireState();
+    const ast = state.issue.bodyAst;
+    const children = ast.children;
+    let headingIdx = -1;
+    for (let i = 0; i < children.length; i++) {
+      const node2 = children[i];
+      if (node2.type === "heading" && node2.depth === 2 && node2.children?.[0]?.type === "text" && node2.children[0].value === "Iteration History") {
+        headingIdx = i;
+        break;
+      }
+    }
+    const ts = entry.timestamp ?? (/* @__PURE__ */ new Date()).toISOString();
+    let timeCell = "-";
+    try {
+      const d = new Date(ts);
+      if (!isNaN(d.getTime())) {
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec"
+        ];
+        timeCell = `${months[d.getUTCMonth()]} ${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+      }
+    } catch {
+    }
+    let iteration = 1;
+    if (headingIdx !== -1) {
+      const tableNode = children[headingIdx + 1];
+      if (tableNode?.type === "table" && tableNode.children) {
+        iteration = tableNode.children.length;
+      }
+    }
+    const cell = (text5) => ({
+      type: "tableCell",
+      children: [{ type: "text", value: text5 }]
+    });
+    const newRow = {
+      type: "tableRow",
+      children: [
+        cell(timeCell),
+        cell(String(iteration)),
+        cell(entry.phase),
+        cell(entry.message),
+        cell(entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-"),
+        cell(entry.runLink ?? "-")
+      ]
+    };
+    if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
+      const table = children[headingIdx + 1];
+      table.children.push(newRow);
+    } else {
+      const headerRow = {
+        type: "tableRow",
+        children: [
+          cell("Time"),
+          cell("#"),
+          cell("Phase"),
+          cell("Action"),
+          cell("SHA"),
+          cell("Run")
+        ]
+      };
+      const table = {
+        type: "table",
+        align: [null, null, null, null, null, null],
+        children: [headerRow, newRow]
+      };
+      const heading2 = {
+        type: "heading",
+        depth: 2,
+        children: [{ type: "text", value: "Iteration History" }]
+      };
+      children.push(heading2);
+      children.push(table);
+    }
+  }
+  addIssueLabels(labels) {
+    const state = this.requireState();
+    const current = extractIssue(state).labels;
+    const merged = [.../* @__PURE__ */ new Set([...current, ...labels])];
+    this.updateIssue({ labels: merged });
+  }
+  reconcileSubIssues(subIssueNumbers) {
+    const state = this.requireState();
+    const current = extractIssue(state);
+    const byNumber = new Map(
+      current.subIssues.map((subIssue) => [subIssue.number, subIssue])
+    );
+    const nextSubIssues = subIssueNumbers.map((number3) => {
+      const existing = byNumber.get(number3);
+      return {
+        number: number3,
+        projectStatus: existing?.projectStatus ?? "Backlog",
+        state: existing?.state ?? "OPEN"
+      };
+    });
+    this.updateIssue({
+      hasSubIssues: nextSubIssues.length > 0,
+      subIssues: nextSubIssues
+    });
+  }
+  async createSubIssue(input) {
+    const options = this.requireOptions();
+    const state = this.requireState();
+    const parentIssue = extractIssue(state);
+    const result = await addSubIssueToParent(
+      options.owner,
+      options.repo,
+      parentIssue.number,
+      {
+        title: input.title,
+        body: input.body,
+        labels: input.labels
+      },
+      {
+        octokit: options.octokit,
+        projectNumber: options.projectNumber,
+        projectStatus: "Ready"
+      }
+    );
+    const current = extractIssue(state);
+    this.updateIssue({
+      hasSubIssues: true,
+      subIssues: [
+        ...current.subIssues,
+        {
+          number: result.issueNumber,
+          projectStatus: "Backlog",
+          state: "OPEN"
+        }
+      ]
+    });
+    return { issueNumber: result.issueNumber };
+  }
+  async assignBotToSubIssue(subIssueNumber, botUsername) {
+    const options = this.requireOptions();
+    await options.octokit.rest.issues.addAssignees({
+      owner: options.owner,
+      repo: options.repo,
+      issue_number: subIssueNumber,
+      assignees: [botUsername]
+    });
+  }
+  async save() {
+    if (this.state === null || this.remoteUpdate === null) return false;
+    await this.remoteUpdate(this.state);
+    return true;
+  }
+};
+
+// packages/statemachine/src/machines/example/machine.ts
+var exampleMachine = createMachineFactory().actions((createAction) => ({
+  updateStatus: updateStatusAction(createAction),
+  appendHistory: appendHistoryAction(createAction),
+  runClaudeTriage: runClaudeTriageAction(createAction),
+  applyTriageOutput: applyTriageOutputAction(createAction),
+  runClaudeGrooming: runClaudeGroomingAction(createAction),
+  applyGroomingOutput: applyGroomingOutputAction(createAction),
+  reconcileSubIssues: reconcileSubIssuesAction(createAction),
+  runClaudeIteration: runClaudeIterationAction(createAction),
+  applyIterationOutput: applyIterationOutputAction(createAction),
+  runClaudeReview: runClaudeReviewAction(createAction),
+  applyReviewOutput: applyReviewOutputAction(createAction),
+  runClaudePrResponse: runClaudePrResponseAction(createAction),
+  applyPrResponseOutput: applyPrResponseOutputAction(createAction),
+  runOrchestration: runOrchestrationAction(createAction),
+  recordFailure: recordFailureAction(createAction),
+  persistState: persistStateAction(createAction),
+  setupGit: setupGitAction(createAction),
+  prepareBranch: prepareBranchAction(createAction),
+  gitPush: gitPushAction(createAction),
+  stop: stopAction(createAction)
+})).guards(() => ({
+  needsTriage,
+  canIterate,
+  isInReview,
+  isAlreadyDone,
+  isBlocked,
+  isError,
+  botIsAssigned,
+  triggeredByAssignment,
+  triggeredByEdit,
+  triggeredByCI,
+  triggeredByReview,
+  triggeredByReviewRequest,
+  triggeredByTriage,
+  triggeredByComment,
+  triggeredByOrchestrate,
+  triggeredByOrchestrateAndReady,
+  triggeredByOrchestrateAndNeedsGrooming,
+  triggeredByPRReview,
+  triggeredByPRResponse,
+  triggeredByPRHumanResponse,
+  triggeredByPRReviewApproved,
+  triggeredByPRPush,
+  triggeredByReset,
+  triggeredByRetry,
+  triggeredByPivot,
+  triggeredByMergeQueueEntry,
+  triggeredByMergeQueueFailure,
+  triggeredByPRMerged,
+  triggeredByDeployedStage,
+  triggeredByDeployedProd,
+  triggeredByDeployedStageFailure,
+  triggeredByDeployedProdFailure,
+  triggeredByGroom,
+  triggeredByGroomSummary,
+  ciPassed,
+  ciFailed,
+  reviewApproved,
+  reviewRequestedChanges,
+  reviewCommented,
+  needsGrooming,
+  needsSubIssues,
+  hasSubIssues,
+  currentPhaseInReview,
+  allPhasesDone,
+  maxFailuresReached,
+  isSubIssue,
+  isInvalidIteration,
+  todosDone,
+  readyForReview,
+  triggeredByCIAndReadyForReview,
+  triggeredByCIAndShouldContinue,
+  triggeredByCIAndShouldBlock,
+  triggeredByReviewAndApproved,
+  triggeredByReviewAndChanges,
+  triggeredByReviewAndCommented,
+  prReviewWithCIPassed,
+  prReviewWithCINotFailed,
+  branchPrepClean,
+  branchPrepRebased,
+  branchPrepConflicts
+})).states(({ registry: registry2 }) => {
+  const queue = createExampleQueueAssigners(registry2);
+  return {
+    routing: {
+      always: [
+        // ARC 1-4
+        { target: "resetting", guard: "triggeredByReset" },
+        { target: "retrying", guard: "triggeredByRetry" },
+        { target: "pivoting", guard: "triggeredByPivot" },
+        { target: "orchestrationComplete", guard: "allPhasesDone" },
+        // ARC 5-7
+        { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
+        { target: "alreadyBlocked", guard: "isBlocked" },
+        { target: "error", guard: "isError" },
+        // ARC 8-14
+        {
+          target: "mergeQueueLogging",
+          guard: "triggeredByMergeQueueEntry"
+        },
+        {
+          target: "mergeQueueFailureLogging",
+          guard: "triggeredByMergeQueueFailure"
+        },
+        { target: "processingMerge", guard: "triggeredByPRMerged" },
+        {
+          target: "processingDeployedStage",
+          guard: "triggeredByDeployedStage"
+        },
+        {
+          target: "processingDeployedProd",
+          guard: "triggeredByDeployedProd"
+        },
+        {
+          target: "processingDeployedStageFailure",
+          guard: "triggeredByDeployedStageFailure"
+        },
+        {
+          target: "processingDeployedProdFailure",
+          guard: "triggeredByDeployedProdFailure"
+        },
+        // ARC 15-17
+        { target: "triaging", guard: "triggeredByTriage" },
+        { target: "commenting", guard: "triggeredByComment" },
+        {
+          target: "grooming",
+          guard: "triggeredByOrchestrateAndNeedsGrooming"
+        },
+        {
+          target: "orchestrating",
+          guard: "triggeredByOrchestrateAndReady"
+        },
+        { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
+        // ARC 18-22
+        {
+          target: "prReviewing",
+          guard: "prReviewWithCIPassed"
+        },
+        {
+          target: "prReviewAssigned",
+          guard: "prReviewWithCINotFailed"
+        },
+        { target: "prReviewSkipped", guard: "triggeredByPRReview" },
+        { target: "prResponding", guard: "triggeredByPRResponse" },
+        {
+          target: "prRespondingHuman",
+          guard: "triggeredByPRHumanResponse"
+        },
+        // ARC 23-24
+        { target: "awaitingMerge", guard: "triggeredByPRReviewApproved" },
+        { target: "prPush", guard: "triggeredByPRPush" },
+        // ARC 25-28 (CI direct; 27 before 26 so max-failures blocks first)
+        {
+          target: "transitioningToReview",
+          guard: "triggeredByCIAndReadyForReview"
+        },
+        { target: "blocking", guard: "triggeredByCIAndShouldBlock" },
+        { target: "iteratingFix", guard: "triggeredByCIAndShouldContinue" },
+        { target: "processingCI", guard: "triggeredByCI" },
+        // ARC 29-32 (review direct)
+        { target: "awaitingMerge", guard: "triggeredByReviewAndApproved" },
+        { target: "iteratingFix", guard: "triggeredByReviewAndChanges" },
+        { target: "reviewing", guard: "triggeredByReviewAndCommented" },
+        { target: "reviewing", guard: "triggeredByReview" },
+        // Branch prep results (after preparing queue completes)
+        { target: "iterating", guard: "branchPrepClean" },
+        { target: "branchRebased", guard: "branchPrepRebased" },
+        { target: "blocking", guard: "branchPrepConflicts" },
+        // ARC 33-35
+        { target: "triaging", guard: "needsTriage" },
+        { target: "preparing", guard: "canIterate" },
+        { target: "subIssueIdle", guard: "isSubIssue" },
+        // ARC 36-38
+        { target: "grooming", guard: "triggeredByGroom" },
+        { target: "grooming", guard: "triggeredByGroomSummary" },
+        { target: "grooming", guard: "needsGrooming" },
+        { target: "initializing", guard: "needsSubIssues" },
+        { target: "orchestrating", guard: "hasSubIssues" },
+        // ARC 41-43
+        { target: "reviewing", guard: "isInReview" },
+        { target: "transitioningToReview", guard: "readyForReview" },
+        { target: "invalidIteration", guard: "isInvalidIteration" },
+        { target: "idle" }
+      ]
+    },
+    triaging: {
+      entry: queue.assignTriageQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    preparing: {
+      entry: queue.assignPrepareQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    iterating: {
+      entry: [
+        assign({
+          domain: ({ context }) => ({
+            ...context.domain,
+            branchPrepResult: null
+          })
+        }),
+        queue.assignIterateQueue
+      ],
+      always: RUNNER_STATES.executingQueue
+    },
+    iteratingFix: {
+      entry: [
+        assign({
+          domain: ({ context }) => ({
+            ...context.domain,
+            branchPrepResult: null
+          })
+        }),
+        queue.assignIterateFixQueue
+      ],
+      always: RUNNER_STATES.executingQueue
+    },
+    transitioningToReview: {
+      entry: queue.assignTransitionToReviewQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    reviewing: {
+      entry: queue.assignReviewQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    grooming: {
+      entry: queue.assignGroomQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    initializing: {
+      entry: queue.assignInitializingQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    pivoting: {
+      entry: queue.assignPivotQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    resetting: {
+      entry: queue.assignResetQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    retrying: {
+      entry: queue.assignRetryQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    commenting: {
+      entry: queue.assignCommentQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    prReviewing: {
+      entry: queue.assignPrReviewQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    prReviewSkipped: { type: "final" },
+    prReviewAssigned: { type: "final" },
+    prResponding: {
+      entry: queue.assignPrRespondingQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    prRespondingHuman: {
+      entry: queue.assignPrRespondingHumanQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    prPush: {
+      entry: queue.assignPrPushQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    orchestrating: {
+      entry: queue.assignOrchestrateQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    orchestrationWaiting: {
+      entry: queue.assignOrchestrationWaitingQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    orchestrationComplete: {
+      entry: queue.assignOrchestrationCompleteQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    mergeQueueLogging: {
+      entry: queue.assignMergeQueueEntryQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    mergeQueueFailureLogging: {
+      entry: queue.assignMergeQueueFailureQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    actionFailure: {
+      entry: queue.assignActionFailureQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    processingDeployedStage: {
+      entry: queue.assignDeployedStageQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    processingDeployedProd: {
+      entry: queue.assignDeployedProdQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    processingDeployedStageFailure: {
+      entry: queue.assignDeployedStageFailureQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    processingDeployedProdFailure: {
+      entry: queue.assignDeployedProdFailureQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    processingCI: {
+      always: [
+        { target: "transitioningToReview", guard: "readyForReview" },
+        { target: "reviewing", guard: "ciPassed" },
+        { target: "blocking", guard: "maxFailuresReached" },
+        { target: "iteratingFix", guard: "ciFailed" },
+        { target: "iterating" }
+      ]
+    },
+    awaitingMerge: {
+      entry: queue.assignAwaitingMergeQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    processingMerge: {
+      entry: queue.assignMergeQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    blocking: {
+      entry: queue.assignBlockQueue,
+      always: RUNNER_STATES.executingQueue
+    },
+    branchRebased: { type: "final" },
+    idle: { type: "final" },
+    subIssueIdle: { type: "final" },
+    invalidIteration: { type: "final" },
+    alreadyBlocked: { type: "final" },
+    error: { type: "final" }
+  };
+}).refreshContext(ExampleContextLoader.refreshFromRunnerContext).build({
+  id: "example"
+});
+
 // packages/claude/src/executor.ts
 var core = __toESM(require_core(), 1);
 var exec = __toESM(require_exec(), 1);
@@ -45503,7 +48029,7 @@ var fs2 = __toESM(require("fs"), 1);
 var import_path = require("path");
 var import_url = require("url");
 var import_events = require("events");
-var import_child_process = require("child_process");
+var import_child_process2 = require("child_process");
 var import_readline = require("readline");
 var fs = __toESM(require("fs"), 1);
 var import_promises = require("fs/promises");
@@ -52732,7 +55258,7 @@ var ProcessTransport = class {
   spawnLocalProcess(spawnOptions) {
     const { command, args, cwd: cwd2, env, signal } = spawnOptions;
     const stderrMode = env.DEBUG_CLAUDE_AGENT_SDK || this.options.stderr ? "pipe" : "ignore";
-    const childProcess = (0, import_child_process.spawn)(command, args, {
+    const childProcess = (0, import_child_process2.spawn)(command, args, {
       cwd: cwd2,
       stdio: ["pipe", "pipe", stderrMode],
       signal,
@@ -65783,2317 +68309,6 @@ function createClaudePrResponseService(codeToken) {
   };
 }
 
-// packages/statemachine/src/machines/example/actions.ts
-function formatPhaseBody(phase) {
-  const lines = [`## Description
-
-${phase.description}`];
-  if (phase.affected_areas && phase.affected_areas.length > 0) {
-    lines.push("\n## Affected Areas\n");
-    for (const area of phase.affected_areas) {
-      const parts = [`- \`${area.path}\``];
-      if (area.change_type) parts[0] += ` (${area.change_type})`;
-      if (area.description) parts.push(`  ${area.description}`);
-      lines.push(parts.join("\n"));
-    }
-  }
-  if (phase.todos && phase.todos.length > 0) {
-    lines.push("\n## Todos\n");
-    for (const todo of phase.todos) {
-      const suffix = todo.manual ? " *(manual)*" : "";
-      lines.push(`- [ ] ${todo.task}${suffix}`);
-    }
-  }
-  if (phase.depends_on && phase.depends_on.length > 0) {
-    lines.push(
-      `
-## Dependencies
-
-Depends on phases: ${phase.depends_on.join(", ")}`
-    );
-  }
-  return lines.join("\n");
-}
-function isOkResult(value) {
-  if (value == null || typeof value !== "object") return false;
-  return Reflect.get(value, "ok") === true;
-}
-function updateStatusAction(createAction) {
-  return createAction({
-    description: (action) => `Set issue #${action.payload.issueNumber} status to "${action.payload.status}"`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "eq",
-          description: "Issue project status should match requested status",
-          field: "issue.projectStatus",
-          expected: action.payload.status
-        }
-      ]
-    }),
-    execute: async (action, ctx) => {
-      setIssueStatus(ctx, action.payload.status);
-      return { ok: true };
-    }
-  });
-}
-function appendHistoryAction(createAction) {
-  return createAction({
-    description: (action) => `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
-    execute: async (action, ctx) => {
-      const repo = repositoryFor(ctx);
-      if (repo.appendHistoryEntry) {
-        repo.appendHistoryEntry({
-          phase: action.payload.phase ?? "generic",
-          message: action.payload.message,
-          timestamp: ctx.workflowStartedAt ?? (/* @__PURE__ */ new Date()).toISOString(),
-          sha: ctx.ciCommitSha ?? void 0,
-          runLink: ctx.workflowRunUrl ?? void 0
-        });
-      }
-      return { ok: true };
-    }
-  });
-}
-function runClaudeTriageAction(createAction) {
-  return createAction({
-    description: (action) => `Invoke triage analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const triageService = ctx.services?.triage;
-      if (!triageService) {
-        throw new Error("No triage service configured");
-      }
-      const output = await triageService.triageIssue({
-        issueNumber: action.payload.issueNumber,
-        promptVars: action.payload.promptVars
-      });
-      ctx.triageOutput = output;
-      return {
-        ok: true,
-        output
-      };
-    }
-  });
-}
-function applyTriageOutputAction(createAction) {
-  return createAction({
-    description: (action) => `Apply triage output to #${action.payload.issueNumber}`,
-    predict: (action) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
-      return {
-        checks: [
-          {
-            comparator: "all",
-            description: "All triage labels from apply payload should exist on issue.labels",
-            checks: labelsToAdd.map((label) => ({
-              comparator: "includes",
-              description: `Issue labels should include "${label}"`,
-              field: "issue.labels",
-              expected: label
-            }))
-          }
-        ]
-      };
-    },
-    execute: async (action, ctx) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ctx.triageOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No triage labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist triage output");
-      }
-      ctx.triageOutput = null;
-      return { ok: true };
-    },
-    verify: (args) => {
-      const { action, executeResult, predictionEval, predictionDiffs } = args;
-      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
-      const executeSucceeded = isOkResult(executeResult);
-      if (!executeSucceeded) {
-        return {
-          message: "Triage output execute step did not return ok=true"
-        };
-      }
-      if (predictionEval.pass) return;
-      return {
-        message: `Missing triage labels after apply: ${labelsToAdd.join(", ")}`,
-        diffs: predictionDiffs
-      };
-    }
-  });
-}
-function runClaudeGroomingAction(createAction) {
-  return createAction({
-    description: (action) => `Invoke grooming analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const groomingService = ctx.services?.grooming;
-      if (!groomingService) {
-        throw new Error("No grooming service configured");
-      }
-      const output = await groomingService.groomIssue({
-        issueNumber: action.payload.issueNumber,
-        promptVars: action.payload.promptVars
-      });
-      ctx.groomingOutput = output;
-      return {
-        ok: true,
-        output
-      };
-    }
-  });
-}
-function applyGroomingOutputAction(createAction) {
-  return createAction({
-    description: (action) => `Apply grooming output to #${action.payload.issueNumber}`,
-    predict: (_action, ctx) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All grooming labels should exist on issue after apply",
-          checks: (ctx.groomingOutput?.labelsToAdd ?? ["groomed"]).map(
-            (label) => ({
-              comparator: "includes",
-              description: `Issue labels should include "${label}"`,
-              field: "issue.labels",
-              expected: label
-            })
-          )
-        }
-      ]
-    }),
-    execute: async (_action, ctx) => {
-      const output = ctx.groomingOutput;
-      if (!output) {
-        throw new Error("No grooming output available to apply");
-      }
-      applyGrooming(ctx, output.labelsToAdd);
-      return { ok: true, decision: output.decision };
-    }
-  });
-}
-function reconcileSubIssuesAction(createAction) {
-  return createAction({
-    description: (action) => `Reconcile sub-issues for #${action.payload.issueNumber}`,
-    predict: () => ({
-      checks: [
-        {
-          comparator: "eq",
-          description: "Issue should have sub-issues after grooming",
-          field: "issue.hasSubIssues",
-          expected: true
-        }
-      ]
-    }),
-    execute: async (_action, ctx) => {
-      const output = ctx.groomingOutput;
-      if (!output) {
-        throw new Error("No grooming output to reconcile");
-      }
-      if (output.decision === "ready" && output.recommendedPhases) {
-        const repo = repositoryFor(ctx);
-        const existingNumbers = ctx.issue.subIssues.map((s) => s.number);
-        if (existingNumbers.length === 0 && repo.createSubIssue) {
-          for (const phase of output.recommendedPhases) {
-            const body = formatPhaseBody(phase);
-            await repo.createSubIssue({
-              title: `[Phase ${phase.phase_number}]: ${phase.title}`,
-              body
-            });
-          }
-        } else if (existingNumbers.length > 0) {
-          reconcileSubIssues(ctx, existingNumbers);
-        }
-      }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist grooming output");
-      }
-      ctx.groomingOutput = null;
-      return { ok: true, decision: output.decision };
-    },
-    verify: ({ executeResult, newCtx }) => {
-      if (!isOkResult(executeResult)) {
-        return {
-          message: "Reconcile sub-issues execute did not return ok=true"
-        };
-      }
-      const decision = executeResult.decision;
-      if (decision === "ready" && !newCtx.issue.hasSubIssues) {
-        return {
-          message: "Grooming decision was 'ready' but issue has no sub-issues after reconciliation"
-        };
-      }
-      return void 0;
-    }
-  });
-}
-function runClaudeIterationAction(createAction) {
-  return createAction({
-    description: (action) => `Invoke ${action.payload.mode} analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const iterationService = ctx.services?.iteration;
-      if (!iterationService) {
-        throw new Error("No iteration service configured");
-      }
-      const output = await iterationService.iterateIssue({
-        issueNumber: action.payload.issueNumber,
-        mode: action.payload.mode,
-        promptVars: action.payload.promptVars
-      });
-      ctx.iterationOutput = output;
-      return {
-        ok: true,
-        output
-      };
-    }
-  });
-}
-function applyIterationOutputAction(createAction) {
-  return createAction({
-    description: (action) => `Apply iteration output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All iteration labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["iteration:ready"]).map(
-            (label) => ({
-              comparator: "includes",
-              description: `Issue labels should include "${label}"`,
-              field: "issue.labels",
-              expected: label
-            })
-          )
-        }
-      ]
-    }),
-    execute: async (action, ctx) => {
-      const output = ctx.iterationOutput;
-      const labelsToAdd = action.payload.labelsToAdd ?? output?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No iteration labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const todosCompleted = output?.todosCompleted;
-      const shouldCheckTodos = (output?.status === "completed_todo" || output?.status === "all_done") && todosCompleted && todosCompleted.length > 0;
-      if (shouldCheckTodos) {
-        const issue2 = ctx.currentSubIssue ?? ctx.issue;
-        let body = issue2.body;
-        for (const todoText of todosCompleted) {
-          const updated = checkOffTodoInBody(body, todoText);
-          if (updated) body = updated;
-        }
-        issue2.body = body;
-      }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist iteration output");
-      }
-      ctx.iterationOutput = null;
-      return { ok: true };
-    },
-    verify: ({ action, executeResult, predictionEval, predictionDiffs }) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["iteration:ready"];
-      const executeSucceeded = isOkResult(executeResult);
-      if (!executeSucceeded) {
-        return {
-          message: "Iteration output execute step did not return ok=true"
-        };
-      }
-      if (predictionEval.pass) return;
-      return {
-        message: `Missing iteration labels after apply: ${labelsToAdd.join(", ")}`,
-        diffs: predictionDiffs
-      };
-    }
-  });
-}
-function runClaudeReviewAction(createAction) {
-  return createAction({
-    description: (action) => `Invoke review analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const reviewService = ctx.services?.review;
-      if (!reviewService) {
-        throw new Error("No review service configured");
-      }
-      const output = await reviewService.reviewIssue({
-        issueNumber: action.payload.issueNumber,
-        promptVars: action.payload.promptVars
-      });
-      ctx.reviewOutput = output;
-      return { ok: true, output };
-    }
-  });
-}
-function applyReviewOutputAction(createAction) {
-  return createAction({
-    description: (action) => `Apply review output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All review labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["reviewed"]).map((label) => ({
-            comparator: "includes",
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label
-          }))
-        }
-      ]
-    }),
-    execute: async (action, ctx) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No review labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist review output");
-      }
-      ctx.reviewOutput = null;
-      return { ok: true };
-    }
-  });
-}
-function runClaudePrResponseAction(createAction) {
-  return createAction({
-    description: (action) => `Invoke PR response analysis for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const responseService = ctx.services?.prResponse;
-      if (!responseService) {
-        throw new Error("No PR response service configured");
-      }
-      const output = await responseService.respondToPr({
-        issueNumber: action.payload.issueNumber,
-        promptVars: action.payload.promptVars
-      });
-      ctx.prResponseOutput = output;
-      return { ok: true, output };
-    }
-  });
-}
-function applyPrResponseOutputAction(createAction) {
-  return createAction({
-    description: (action) => `Apply PR response output to #${action.payload.issueNumber}`,
-    predict: (action, ctx) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All PR response labels should exist on issue after apply",
-          checks: (action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd ?? []).map((label) => ({
-            comparator: "includes",
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label
-          }))
-        }
-      ]
-    }),
-    execute: async (action, ctx) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No PR response labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist PR response output");
-      }
-      ctx.prResponseOutput = null;
-      return { ok: true };
-    }
-  });
-}
-function recordFailureAction(createAction) {
-  return createAction({
-    description: (action) => `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
-    // No predict: failures are updated in-memory only (not persisted until
-    // a subsequent persist action), so external refresh won't see the change.
-    execute: async (action, ctx) => {
-      const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
-      const current = issue2.failures ?? 0;
-      Object.assign(issue2, { failures: current + 1 });
-      return { ok: true };
-    }
-  });
-}
-function persistStateAction(createAction) {
-  return createAction({
-    description: (action) => `Persist issue #${action.payload.issueNumber} state (${action.payload.reason})`,
-    execute: async (_action, ctx) => {
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist state");
-      }
-      return { ok: true };
-    }
-  });
-}
-function runOrchestrationAction(createAction) {
-  return createAction({
-    description: (action) => `Run orchestration step for #${action.payload.issueNumber}`,
-    predict: (action) => {
-      if (!action.payload.initParentIfNeeded) return { checks: [] };
-      return {
-        checks: [
-          {
-            comparator: "eq",
-            description: "Parent issue status should be In progress after orchestration",
-            field: "issue.projectStatus",
-            expected: "In progress"
-          }
-        ]
-      };
-    },
-    execute: async (action, ctx) => {
-      if (action.payload.initParentIfNeeded) {
-        setIssueStatus(ctx, "In progress");
-      }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist orchestration step");
-      }
-      const firstSub = ctx.issue.subIssues.find(
-        (s) => s.projectStatus !== "Done" && s.state === "OPEN"
-      );
-      const repo = repositoryFor(ctx);
-      if (firstSub && repo.assignBotToSubIssue) {
-        await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
-      }
-      return { ok: true };
-    }
-  });
-}
-function stopAction(createAction) {
-  return createAction({
-    description: (action) => `Stop: ${action.payload.message}`,
-    execute: async () => ({ ok: true })
-  });
-}
-
-// packages/statemachine/src/machines/example/guards.ts
-function hasLabel(context, label) {
-  return context.issue.labels.some(
-    (l) => l.toLowerCase() === label.toLowerCase()
-  );
-}
-function triggeredBy(trigger) {
-  return ({ context }) => context.domain.trigger === trigger;
-}
-function needsTriage({ context }) {
-  if (context.domain.parentIssue !== null) return false;
-  return !hasLabel(context.domain, "triaged");
-}
-function canIterate({ context }) {
-  if (context.domain.parentIssue === null) return false;
-  const bot = context.domain.botUsername;
-  if (!context.domain.parentIssue.assignees.includes(bot)) return false;
-  return context.domain.issue.assignees.includes(bot);
-}
-function isInReview({ context }) {
-  return context.domain.issue.projectStatus === "In review";
-}
-function isAlreadyDone({ context }) {
-  return context.domain.issue.projectStatus === "Done" && context.domain.pr?.state === "MERGED";
-}
-function isBlocked({ context }) {
-  return context.domain.issue.projectStatus === "Blocked";
-}
-function isError({ context }) {
-  return context.domain.issue.projectStatus === "Error";
-}
-function botIsAssigned({ context }) {
-  return context.domain.issue.assignees.includes(context.domain.botUsername);
-}
-var triggeredByAssignment = triggeredBy("issue-assigned");
-var triggeredByEdit = triggeredBy("issue-edited");
-var triggeredByCI = triggeredBy("workflow-run-completed");
-var triggeredByReview = triggeredBy("pr-review-submitted");
-var triggeredByReviewRequest = triggeredBy("pr-review-requested");
-var triggeredByTriage = triggeredBy("issue-triage");
-var triggeredByComment = triggeredBy("issue-comment");
-var triggeredByOrchestrate = triggeredBy("issue-orchestrate");
-function triggeredByOrchestrateAndReady({ context }) {
-  return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
-}
-function triggeredByOrchestrateAndNeedsGrooming({
-  context
-}) {
-  return triggeredByOrchestrate({ context }) && needsGrooming({ context });
-}
-var triggeredByPRReview = triggeredBy("pr-review");
-function prReviewWithCIPassed({ context }) {
-  return triggeredByPRReview({ context }) && ciPassed({ context });
-}
-function prReviewWithCINotFailed({ context }) {
-  return triggeredByPRReview({ context }) && !ciFailed({ context });
-}
-var triggeredByPRResponse = triggeredBy("pr-response");
-var triggeredByPRHumanResponse = triggeredBy("pr-human-response");
-var triggeredByPRReviewApproved = triggeredBy("pr-review-approved");
-var triggeredByPRPush = triggeredBy("pr-push");
-var triggeredByReset = triggeredBy("issue-reset");
-var triggeredByRetry = triggeredBy("issue-retry");
-var triggeredByPivot = triggeredBy("issue-pivot");
-var triggeredByMergeQueueEntry = triggeredBy("merge-queue-entered");
-var triggeredByMergeQueueFailure = triggeredBy("merge-queue-failed");
-var triggeredByPRMerged = triggeredBy("pr-merged");
-var triggeredByDeployedStage = triggeredBy("deployed-stage");
-var triggeredByDeployedProd = triggeredBy("deployed-prod");
-var triggeredByDeployedStageFailure = triggeredBy("deployed-stage-failed");
-var triggeredByDeployedProdFailure = triggeredBy("deployed-prod-failed");
-var triggeredByGroom = triggeredBy("issue-groom");
-var triggeredByGroomSummary = triggeredBy("issue-groom-summary");
-function ciPassed({ context }) {
-  return context.domain.ciResult === "success";
-}
-function ciFailed({ context }) {
-  return context.domain.ciResult === "failure";
-}
-function reviewApproved({ context }) {
-  return context.domain.reviewDecision === "APPROVED";
-}
-function reviewRequestedChanges({ context }) {
-  return context.domain.reviewDecision === "CHANGES_REQUESTED";
-}
-function reviewCommented({ context }) {
-  return context.domain.reviewDecision === "COMMENTED";
-}
-function needsGrooming({ context }) {
-  if (context.domain.parentIssue !== null) return false;
-  const hasTriaged = hasLabel(context.domain, "triaged");
-  const hasGroomed = hasLabel(context.domain, "groomed");
-  return hasTriaged && !hasGroomed;
-}
-function hasSubIssues({ context }) {
-  return context.domain.parentIssue === null && context.domain.issue.hasSubIssues;
-}
-function currentPhaseInReview({ context }) {
-  if (!hasSubIssues({ context })) return false;
-  return context.domain.currentSubIssue?.projectStatus === "In review";
-}
-function allPhasesDone({ context }) {
-  if (!hasLabel(context.domain, "groomed")) return false;
-  if (!hasSubIssues({ context })) return false;
-  if (context.domain.issue.subIssues.length === 0) return false;
-  return context.domain.issue.subIssues.every(
-    (subIssue) => subIssue.projectStatus === "Done" || subIssue.state === "CLOSED"
-  );
-}
-function todosDone({ context }) {
-  const issue2 = context.domain.currentSubIssue ?? context.domain.issue;
-  const stats = parseTodoStatsInSection(issue2.body, "Todos");
-  return stats.uncheckedNonManual === 0;
-}
-function readyForReview({ context }) {
-  return ciPassed({ context }) && todosDone({ context });
-}
-function triggeredByCIAndReadyForReview({ context }) {
-  return triggeredByCI({ context }) && readyForReview({ context });
-}
-function triggeredByCIAndShouldContinue({ context }) {
-  return triggeredByCI({ context }) && ciFailed({ context });
-}
-function triggeredByCIAndShouldBlock({ context }) {
-  return triggeredByCI({ context }) && maxFailuresReached({ context });
-}
-function triggeredByReviewAndApproved({ context }) {
-  return triggeredByReview({ context }) && reviewApproved({ context });
-}
-function triggeredByReviewAndChanges({ context }) {
-  return triggeredByReview({ context }) && reviewRequestedChanges({ context });
-}
-function triggeredByReviewAndCommented({ context }) {
-  return triggeredByReview({ context }) && reviewCommented({ context });
-}
-function maxFailuresReached({ context }) {
-  const failures = context.domain.issue.failures ?? 0;
-  const max = context.domain.maxRetries ?? 3;
-  return failures >= max;
-}
-function isSubIssue({ context }) {
-  return context.domain.parentIssue !== null;
-}
-function isInvalidIteration({ context }) {
-  if (context.domain.parentIssue !== null) return false;
-  if (!hasLabel(context.domain, "groomed")) return false;
-  if (context.domain.issue.projectStatus !== "In progress") return false;
-  return !context.domain.issue.hasSubIssues;
-}
-function needsSubIssues(_guardContext) {
-  return false;
-}
-
-// packages/statemachine/src/machines/example/states.ts
-function buildTriageQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Triaging issue",
-      phase: "triage"
-    }),
-    registry2.runClaudeTriage.create({
-      issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n")
-      }
-    }),
-    registry2.applyTriageOutput.create({
-      issueNumber
-    }),
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "In progress"
-    })
-  ];
-}
-function buildGroomQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Grooming issue",
-      phase: "groom"
-    }),
-    registry2.runClaudeGrooming.create({
-      issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        ISSUE_LABELS: context.domain.issue.labels.join(", ")
-      }
-    }),
-    registry2.applyGroomingOutput.create({
-      issueNumber
-    }),
-    registry2.reconcileSubIssues.create({
-      issueNumber
-    })
-  ];
-}
-function buildIterateQueue(context, registry2, mode = "iterate") {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const prelude = [];
-  if (context.domain.ciResult === "failure") {
-    prelude.push(
-      registry2.recordFailure.create({
-        issueNumber,
-        failureType: "ci"
-      }),
-      registry2.appendHistory.create({
-        issueNumber,
-        message: "CI failed, returning to iteration",
-        phase: "iterate"
-      })
-    );
-  }
-  if (context.domain.reviewDecision === "CHANGES_REQUESTED") {
-    prelude.push(
-      registry2.appendHistory.create({
-        issueNumber,
-        message: "Review requested changes, returning to iteration",
-        phase: "review"
-      })
-    );
-  }
-  return [
-    ...prelude,
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "In progress"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: mode === "retry" ? "Fixing CI" : "Starting iteration"
-    }),
-    registry2.runClaudeIteration.create({
-      issueNumber,
-      mode,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        ISSUE_LABELS: context.domain.issue.labels.join(", "),
-        CI_RESULT: context.domain.ciResult ?? "none",
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(context.domain.issue.iteration ?? 0),
-        LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
-        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
-        PR_CREATE_COMMAND: [
-          `gh pr create --draft`,
-          `--title "fix: implement #${issueNumber}"`,
-          `--body "Fixes #${issueNumber}"`,
-          `--base main`,
-          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`
-        ].join(" \\\n  "),
-        AGENT_NOTES: ""
-      }
-    }),
-    registry2.applyIterationOutput.create({
-      issueNumber
-    })
-  ];
-}
-function buildIterateFixQueue(context, registry2) {
-  return buildIterateQueue(context, registry2, "retry");
-}
-function buildTransitionToReviewQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "In review"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "CI passed, transitioning to review",
-      phase: "review"
-    })
-  ];
-}
-function buildReviewQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const prelude = context.domain.reviewDecision === "COMMENTED" ? [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Review commented, staying in review",
-      phase: "review"
-    })
-  ] : [];
-  return [
-    ...prelude,
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "In review"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Requesting review"
-    })
-  ];
-}
-function buildAwaitingMergeQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Review approved, awaiting merge",
-      phase: "review"
-    })
-  ];
-}
-function buildMergeQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const queue = [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Done"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "PR merged, issue marked done",
-      phase: "review"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "merge-complete"
-    })
-  ];
-  const needsOrchestration = context.domain.parentIssue !== null || context.domain.issue.hasSubIssues;
-  if (needsOrchestration) {
-    const parentNumber = context.domain.parentIssue?.number ?? context.domain.issue.number;
-    queue.push(
-      registry2.runOrchestration.create({
-        issueNumber: parentNumber,
-        initParentIfNeeded: false
-      }),
-      registry2.appendHistory.create({
-        issueNumber: parentNumber,
-        message: "Orchestration command processed"
-      })
-    );
-  }
-  return queue;
-}
-function buildDeployedStageQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to stage succeeded"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-stage-success"
-    })
-  ];
-}
-function buildDeployedProdQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Done"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to production succeeded"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-prod-success"
-    })
-  ];
-}
-function buildDeployedStageFailureQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Error"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to stage failed"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-stage-failure"
-    })
-  ];
-}
-function buildDeployedProdFailureQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Error"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to production failed"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-prod-failure"
-    })
-  ];
-}
-function buildPivotQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Blocked"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Pivot requested, blocking current path for replanning"
-    })
-  ];
-}
-function buildResetQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Backlog"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Issue reset to backlog"
-    })
-  ];
-}
-function buildRetryQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Retry requested, resuming iteration",
-      phase: "iterate"
-    }),
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "In progress"
-    }),
-    registry2.runClaudeIteration.create({
-      issueNumber,
-      mode: "retry",
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        ISSUE_LABELS: context.domain.issue.labels.join(", "),
-        CI_RESULT: context.domain.ciResult ?? "none",
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(context.domain.issue.iteration ?? 0),
-        LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
-        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
-        PR_CREATE_COMMAND: [
-          `gh pr create --draft`,
-          `--title "fix: implement #${issueNumber}"`,
-          `--body "Fixes #${issueNumber}"`,
-          `--base main`,
-          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`
-        ].join(" \\\n  "),
-        AGENT_NOTES: ""
-      }
-    }),
-    registry2.applyIterationOutput.create({
-      issueNumber
-    })
-  ];
-}
-function buildCommentQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  const suffix = context.domain.commentContextDescription ? ` (${context.domain.commentContextDescription})` : "";
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: `Issue comment trigger received${suffix}`
-    })
-  ];
-}
-function buildPrReviewQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.runClaudeReview.create({
-      issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown"
-      }
-    }),
-    registry2.applyReviewOutput.create({
-      issueNumber
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "PR review workflow requested",
-      phase: "review"
-    })
-  ];
-}
-function buildPrRespondingQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.runClaudePrResponse.create({
-      issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown"
-      }
-    }),
-    registry2.applyPrResponseOutput.create({
-      issueNumber
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Prepared automated PR response",
-      phase: "review"
-    })
-  ];
-}
-function buildPrRespondingHumanQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Human PR response required",
-      phase: "review"
-    })
-  ];
-}
-function buildPrPushQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "In progress"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "PR updated by push; awaiting CI and review loop",
-      phase: "iterate"
-    })
-  ];
-}
-function buildInitializingQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.runOrchestration.create({
-      issueNumber,
-      initParentIfNeeded: true
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Initializing"
-    })
-  ];
-}
-function buildOrchestrateQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  const status = context.domain.issue.projectStatus;
-  const initParentIfNeeded = status === null || status === "Backlog";
-  return [
-    registry2.runOrchestration.create({
-      issueNumber,
-      initParentIfNeeded
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Orchestration command processed"
-    })
-  ];
-}
-function buildOrchestrationWaitingQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Current phase is in review; waiting for merge before advancing",
-      phase: "review"
-    })
-  ];
-}
-function buildOrchestrationCompleteQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Done"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "All sub-issue phases are complete",
-      phase: "review"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "orchestration-complete"
-    })
-  ];
-}
-function buildMergeQueueEntryQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Issue entered merge queue",
-      phase: "review"
-    })
-  ];
-}
-function buildBlockQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const failures = (context.domain.currentSubIssue ?? context.domain.issue).failures ?? 0;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Blocked"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: `Blocked: Max failures reached (${failures})`,
-      phase: "iterate"
-    })
-  ];
-}
-function buildMergeQueueFailureQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.updateStatus.create({
-      issueNumber,
-      status: "Error"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Merge queue failed",
-      phase: "review"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "merge-queue-failure"
-    })
-  ];
-}
-function buildActionFailureQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  const message = context.error ? `Action execution failed: ${context.error}` : "Action execution failed";
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message
-    })
-  ];
-}
-function createExampleQueueAssigners(registry2) {
-  const assignTriageQueue = assign({
-    actionQueue: ({ context }) => buildTriageQueue(context, registry2)
-  });
-  const assignIterateQueue = assign({
-    actionQueue: ({ context }) => buildIterateQueue(context, registry2)
-  });
-  const assignIterateFixQueue = assign({
-    actionQueue: ({ context }) => buildIterateFixQueue(context, registry2)
-  });
-  const assignTransitionToReviewQueue = assign({
-    actionQueue: ({ context }) => buildTransitionToReviewQueue(context, registry2)
-  });
-  const assignReviewQueue = assign({
-    actionQueue: ({ context }) => buildReviewQueue(context, registry2)
-  });
-  const assignGroomQueue = assign({
-    actionQueue: ({ context }) => buildGroomQueue(context, registry2)
-  });
-  const assignAwaitingMergeQueue = assign({
-    actionQueue: ({ context }) => buildAwaitingMergeQueue(context, registry2)
-  });
-  const assignMergeQueue = assign({
-    actionQueue: ({ context }) => buildMergeQueue(context, registry2)
-  });
-  const assignDeployedStageQueue = assign({
-    actionQueue: ({ context }) => buildDeployedStageQueue(context, registry2)
-  });
-  const assignDeployedProdQueue = assign({
-    actionQueue: ({ context }) => buildDeployedProdQueue(context, registry2)
-  });
-  const assignDeployedStageFailureQueue = assign({
-    actionQueue: ({ context }) => buildDeployedStageFailureQueue(context, registry2)
-  });
-  const assignDeployedProdFailureQueue = assign({
-    actionQueue: ({ context }) => buildDeployedProdFailureQueue(context, registry2)
-  });
-  const assignPivotQueue = assign({
-    actionQueue: ({ context }) => buildPivotQueue(context, registry2)
-  });
-  const assignResetQueue = assign({
-    actionQueue: ({ context }) => buildResetQueue(context, registry2)
-  });
-  const assignRetryQueue = assign({
-    actionQueue: ({ context }) => buildRetryQueue(context, registry2)
-  });
-  const assignCommentQueue = assign({
-    actionQueue: ({ context }) => buildCommentQueue(context, registry2)
-  });
-  const assignPrReviewQueue = assign({
-    actionQueue: ({ context }) => buildPrReviewQueue(context, registry2)
-  });
-  const assignPrRespondingQueue = assign({
-    actionQueue: ({ context }) => buildPrRespondingQueue(context, registry2)
-  });
-  const assignPrRespondingHumanQueue = assign({
-    actionQueue: ({ context }) => buildPrRespondingHumanQueue(context, registry2)
-  });
-  const assignPrPushQueue = assign({
-    actionQueue: ({ context }) => buildPrPushQueue(context, registry2)
-  });
-  const assignInitializingQueue = assign({
-    actionQueue: ({ context }) => buildInitializingQueue(context, registry2)
-  });
-  const assignOrchestrateQueue = assign({
-    actionQueue: ({ context }) => buildOrchestrateQueue(context, registry2)
-  });
-  const assignOrchestrationWaitingQueue = assign({
-    actionQueue: ({ context }) => buildOrchestrationWaitingQueue(context, registry2)
-  });
-  const assignOrchestrationCompleteQueue = assign({
-    actionQueue: ({ context }) => buildOrchestrationCompleteQueue(context, registry2)
-  });
-  const assignMergeQueueEntryQueue = assign({
-    actionQueue: ({ context }) => buildMergeQueueEntryQueue(context, registry2)
-  });
-  const assignBlockQueue = assign({
-    actionQueue: ({ context }) => buildBlockQueue(context, registry2)
-  });
-  const assignMergeQueueFailureQueue = assign({
-    actionQueue: ({ context }) => buildMergeQueueFailureQueue(context, registry2)
-  });
-  const assignActionFailureQueue = assign({
-    actionQueue: ({ context }) => buildActionFailureQueue(context, registry2)
-  });
-  return {
-    assignBlockQueue,
-    assignInitializingQueue,
-    assignIterateFixQueue,
-    assignTransitionToReviewQueue,
-    assignTriageQueue,
-    assignIterateQueue,
-    assignReviewQueue,
-    assignGroomQueue,
-    assignAwaitingMergeQueue,
-    assignMergeQueue,
-    assignDeployedStageQueue,
-    assignDeployedProdQueue,
-    assignDeployedStageFailureQueue,
-    assignDeployedProdFailureQueue,
-    assignPivotQueue,
-    assignResetQueue,
-    assignRetryQueue,
-    assignCommentQueue,
-    assignPrReviewQueue,
-    assignPrRespondingQueue,
-    assignPrRespondingHumanQueue,
-    assignPrPushQueue,
-    assignOrchestrateQueue,
-    assignOrchestrationWaitingQueue,
-    assignOrchestrationCompleteQueue,
-    assignMergeQueueEntryQueue,
-    assignMergeQueueFailureQueue,
-    assignActionFailureQueue
-  };
-}
-
-// packages/statemachine/src/machines/example/context.ts
-var ExampleProjectStatusSchema = external_exports.union([
-  external_exports.null(),
-  external_exports.literal("Backlog"),
-  external_exports.literal("In progress"),
-  external_exports.literal("In review"),
-  external_exports.literal("Blocked"),
-  external_exports.literal("Done"),
-  external_exports.literal("Error")
-]);
-var ExampleSubIssueSchema = external_exports.object({
-  number: external_exports.number().int(),
-  projectStatus: ExampleProjectStatusSchema,
-  state: external_exports.string()
-});
-var ExampleIssueSchema = external_exports.object({
-  number: external_exports.number().int(),
-  title: external_exports.string(),
-  body: external_exports.string(),
-  comments: external_exports.array(external_exports.string()),
-  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("CLOSED")]),
-  projectStatus: ExampleProjectStatusSchema,
-  labels: external_exports.array(external_exports.string()),
-  assignees: external_exports.array(external_exports.string()),
-  hasSubIssues: external_exports.boolean(),
-  subIssues: external_exports.array(ExampleSubIssueSchema),
-  /** Iteration counter from GitHub Project field (default 0) */
-  iteration: external_exports.number().int().min(0).optional().default(0),
-  /** CI failure count for circuit breaker (default 0) */
-  failures: external_exports.number().int().min(0).optional().default(0)
-});
-var ExamplePRSchema = external_exports.object({
-  number: external_exports.number().int(),
-  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("MERGED"), external_exports.literal("CLOSED")]),
-  isDraft: external_exports.boolean(),
-  title: external_exports.string(),
-  headRef: external_exports.string(),
-  baseRef: external_exports.string(),
-  labels: external_exports.array(external_exports.string()),
-  reviews: external_exports.array(external_exports.unknown())
-});
-var LinkedPRForExtractorSchema = external_exports.object({
-  number: external_exports.number().int(),
-  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("MERGED"), external_exports.literal("CLOSED")]),
-  isDraft: external_exports.boolean(),
-  title: external_exports.string(),
-  headRef: external_exports.string(),
-  baseRef: external_exports.string(),
-  ciStatus: external_exports.union([
-    external_exports.literal("SUCCESS"),
-    external_exports.literal("FAILURE"),
-    external_exports.literal("ERROR"),
-    external_exports.literal("PENDING"),
-    external_exports.literal("EXPECTED")
-  ]).nullable().optional(),
-  reviewDecision: external_exports.union([
-    external_exports.literal("APPROVED"),
-    external_exports.literal("CHANGES_REQUESTED"),
-    external_exports.literal("REVIEW_REQUIRED")
-  ]).nullable().optional(),
-  labels: external_exports.array(external_exports.string()),
-  reviews: external_exports.array(
-    external_exports.object({
-      state: external_exports.string(),
-      author: external_exports.string(),
-      body: external_exports.string()
-    })
-  )
-});
-var ExampleIssuePatchSchema = external_exports.object({
-  title: external_exports.string().optional(),
-  body: external_exports.string().optional(),
-  state: external_exports.union([external_exports.literal("OPEN"), external_exports.literal("CLOSED")]).optional(),
-  projectStatus: ExampleProjectStatusSchema.optional(),
-  labels: external_exports.array(external_exports.string()).optional(),
-  assignees: external_exports.array(external_exports.string()).optional(),
-  hasSubIssues: external_exports.boolean().optional(),
-  subIssues: external_exports.array(ExampleSubIssueSchema).optional()
-});
-var DEFAULT_BOT_USERNAME2 = "nopo-bot";
-function normalizeProjectStatus(value) {
-  return value === "Ready" ? "In progress" : value;
-}
-var extractLinkedPr = createExtractor(
-  external_exports.union([LinkedPRForExtractorSchema, external_exports.null()]),
-  (data) => {
-    if (data.issue.pr) return data.issue.pr;
-    if (data.parentIssue !== null) return null;
-    const currentSubIssue = data.issue.subIssues.find(
-      (subIssue) => subIssue.projectStatus !== "Done" && subIssue.state === "OPEN"
-    );
-    if (!currentSubIssue) return null;
-    return data.issue.subIssues.find(
-      (subIssue) => subIssue.number === currentSubIssue.number
-    )?.pr ?? null;
-  }
-);
-function ciResultFromLinkedPr(linkedPr) {
-  switch (linkedPr?.ciStatus) {
-    case "SUCCESS":
-      return "success";
-    case "FAILURE":
-    case "ERROR":
-      return "failure";
-    default:
-      return null;
-  }
-}
-function reviewDecisionFromLinkedPr(linkedPr) {
-  switch (linkedPr?.reviewDecision) {
-    case "APPROVED":
-      return "APPROVED";
-    case "CHANGES_REQUESTED":
-      return "CHANGES_REQUESTED";
-    case "REVIEW_REQUIRED":
-      return "COMMENTED";
-    default:
-      return null;
-  }
-}
-var extractIssue = createExtractor(ExampleIssueSchema, (data) => ({
-  number: data.issue.number,
-  title: data.issue.title,
-  body: serializeMarkdown(data.issue.bodyAst),
-  comments: data.issue.comments.map((comment) => comment.body),
-  state: data.issue.state,
-  projectStatus: normalizeProjectStatus(data.issue.projectStatus),
-  labels: data.issue.labels,
-  assignees: data.issue.assignees,
-  hasSubIssues: data.issue.hasSubIssues,
-  subIssues: data.issue.subIssues.map((subIssue) => ({
-    number: subIssue.number,
-    projectStatus: normalizeProjectStatus(subIssue.projectStatus),
-    state: subIssue.state
-  })),
-  iteration: data.issue.iteration,
-  failures: data.issue.failures
-}));
-var extractParentIssue = createExtractor(
-  external_exports.union([ExampleIssueSchema, external_exports.null()]),
-  (data) => {
-    if (data.parentIssue === null) return null;
-    return {
-      number: data.parentIssue.number,
-      title: data.parentIssue.title,
-      body: serializeMarkdown(data.parentIssue.bodyAst),
-      comments: data.parentIssue.comments.map((comment) => comment.body),
-      state: data.parentIssue.state,
-      projectStatus: normalizeProjectStatus(data.parentIssue.projectStatus),
-      labels: data.parentIssue.labels,
-      assignees: data.parentIssue.assignees,
-      hasSubIssues: data.parentIssue.hasSubIssues,
-      subIssues: data.parentIssue.subIssues.map((subIssue) => ({
-        number: subIssue.number,
-        projectStatus: normalizeProjectStatus(subIssue.projectStatus),
-        state: subIssue.state
-      }))
-    };
-  }
-);
-var extractCurrentSubIssue = createExtractor(
-  external_exports.union([ExampleIssueSchema, external_exports.null()]),
-  (data) => {
-    if (data.parentIssue !== null) {
-      return extractIssue(data);
-    }
-    const current = data.issue.subIssues.find(
-      (subIssue) => subIssue.projectStatus !== "Done" && subIssue.state === "OPEN"
-    );
-    if (!current) return null;
-    return {
-      number: current.number,
-      title: current.title,
-      body: serializeMarkdown(current.bodyAst),
-      comments: [],
-      state: current.state,
-      projectStatus: normalizeProjectStatus(current.projectStatus),
-      labels: current.labels,
-      assignees: current.assignees,
-      hasSubIssues: false,
-      subIssues: []
-    };
-  }
-);
-var extractPr = createExtractor(
-  external_exports.union([ExamplePRSchema, external_exports.null()]),
-  (data) => {
-    const linkedPr = extractLinkedPr(data);
-    if (!linkedPr) return null;
-    return {
-      number: linkedPr.number,
-      state: linkedPr.state,
-      isDraft: linkedPr.isDraft,
-      title: linkedPr.title,
-      headRef: linkedPr.headRef,
-      baseRef: linkedPr.baseRef,
-      labels: linkedPr.labels,
-      reviews: linkedPr.reviews
-    };
-  }
-);
-var ExampleCIResultSchema = external_exports.union([
-  external_exports.literal("success"),
-  external_exports.literal("failure"),
-  external_exports.literal("cancelled"),
-  external_exports.literal("skipped")
-]);
-var ExampleReviewDecisionSchema = external_exports.union([
-  external_exports.literal("APPROVED"),
-  external_exports.literal("CHANGES_REQUESTED"),
-  external_exports.literal("COMMENTED")
-]);
-var mutateIssueProjectStatus = createMutator(
-  external_exports.object({ projectStatus: ExampleProjectStatusSchema }),
-  (input, data) => ({
-    ...data,
-    issue: {
-      ...data.issue,
-      projectStatus: input.projectStatus === "In progress" ? "Ready" : input.projectStatus
-    }
-  })
-);
-function linkedPrFromExamplePr(value) {
-  if (value === null) return null;
-  const reviews = value.reviews.flatMap((review) => {
-    if (typeof review !== "object" || review === null) return [];
-    const state = Reflect.get(review, "state");
-    const author = Reflect.get(review, "author");
-    const body = Reflect.get(review, "body");
-    if (typeof state !== "string" || typeof author !== "string" || typeof body !== "string") {
-      return [];
-    }
-    return [{ state, author, body }];
-  });
-  return {
-    number: value.number,
-    state: value.state,
-    isDraft: value.isDraft,
-    title: value.title,
-    headRef: value.headRef,
-    baseRef: value.baseRef,
-    labels: value.labels,
-    reviews
-  };
-}
-var mutateIssue = createMutator(
-  ExampleIssuePatchSchema,
-  (issuePatch, state) => {
-    const projectStatusData = issuePatch.projectStatus ? mutateIssueProjectStatus(
-      { projectStatus: issuePatch.projectStatus },
-      state
-    ) : state;
-    const projectStatus = projectStatusData.issue.projectStatus;
-    const nextIssue = {
-      ...state.issue,
-      title: issuePatch.title ?? state.issue.title,
-      bodyAst: issuePatch.body === void 0 ? state.issue.bodyAst : parseMarkdown(issuePatch.body),
-      state: issuePatch.state ?? state.issue.state,
-      projectStatus,
-      labels: issuePatch.labels ?? state.issue.labels,
-      assignees: issuePatch.assignees ?? state.issue.assignees,
-      hasSubIssues: issuePatch.hasSubIssues ?? state.issue.hasSubIssues,
-      subIssues: issuePatch.subIssues === void 0 ? state.issue.subIssues : issuePatch.subIssues.map((subIssue) => {
-        const existing = state.issue.subIssues.find(
-          (candidate) => candidate.number === subIssue.number
-        );
-        return {
-          number: subIssue.number,
-          title: existing?.title ?? `Sub-issue #${subIssue.number}`,
-          state: subIssue.state === "OPEN" ? "OPEN" : "CLOSED",
-          bodyAst: existing?.bodyAst ?? parseMarkdown(""),
-          projectStatus: subIssue.projectStatus === "In progress" ? "Ready" : subIssue.projectStatus,
-          assignees: existing?.assignees ?? [],
-          labels: existing?.labels ?? [],
-          branch: existing?.branch ?? null,
-          pr: existing?.pr ?? null
-        };
-      })
-    };
-    return { ...state, issue: nextIssue };
-  }
-);
-var mutatePr = createMutator(
-  external_exports.union([ExamplePRSchema, external_exports.null()]),
-  (pr, state) => ({
-    ...state,
-    issue: {
-      ...state.issue,
-      pr: linkedPrFromExamplePr(pr)
-    }
-  })
-);
-var mutateBranch = createMutator(external_exports.string().nullable(), (branch, state) => ({
-  ...state,
-  issue: { ...state.issue, branch }
-}));
-var ExampleContextLoader = class _ExampleContextLoader {
-  state = null;
-  remoteUpdate = null;
-  options = null;
-  contextOverlay = {};
-  static isOctokitLike(value) {
-    if (typeof value !== "object" || value === null) return false;
-    if (!("graphql" in value) || !("rest" in value)) return false;
-    return true;
-  }
-  static resolveOctokit(runnerCtx) {
-    const value = Reflect.get(runnerCtx, "octokit");
-    return _ExampleContextLoader.isOctokitLike(value) ? value : null;
-  }
-  static async refreshFromRunnerContext(runnerCtx, current) {
-    const octokit = _ExampleContextLoader.resolveOctokit(runnerCtx);
-    if (octokit === null) {
-      if (current.repository instanceof _ExampleContextLoader) {
-        const refreshedFromRepository = current.repository.toContext({
-          seed: current
-        });
-        if (refreshedFromRepository) return refreshedFromRepository;
-      }
-      return current;
-    }
-    const loader = new _ExampleContextLoader();
-    const loaded = await loader.load({
-      octokit,
-      projectNumber: typeof runnerCtx.projectNumber === "number" ? runnerCtx.projectNumber : void 0,
-      trigger: current.trigger,
-      owner: current.owner,
-      repo: current.repo,
-      event: {
-        type: "refresh",
-        owner: current.owner,
-        repo: current.repo,
-        issueNumber: current.issue.number,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        ...current.ciResult ? { result: current.ciResult } : {},
-        ...current.ciRunUrl ? { runUrl: current.ciRunUrl } : {},
-        ...current.ciCommitSha ? { headSha: current.ciCommitSha } : {},
-        ...current.reviewDecision ? { decision: current.reviewDecision } : {}
-      },
-      botUsername: current.botUsername,
-      commentContextType: current.commentContextType,
-      commentContextDescription: current.commentContextDescription,
-      branch: current.branch,
-      ciRunUrl: current.ciRunUrl,
-      workflowStartedAt: current.workflowStartedAt,
-      workflowRunUrl: current.workflowRunUrl,
-      seed: current
-    });
-    if (!loaded) return current;
-    const next = loader.toContext();
-    return next ?? current;
-  }
-  requireState() {
-    if (this.state === null) {
-      throw new Error("Context state is not loaded. Call load() first.");
-    }
-    return this.state;
-  }
-  requireOptions() {
-    if (this.options === null) {
-      throw new Error("Context options are not set. Call load() first.");
-    }
-    return this.options;
-  }
-  extractIssue(state = this.requireState()) {
-    return extractIssue(state);
-  }
-  extractParentIssue(state = this.requireState()) {
-    return extractParentIssue(state);
-  }
-  extractCurrentSubIssue(state = this.requireState()) {
-    return extractCurrentSubIssue(state);
-  }
-  extractLinkedPr(state = this.requireState()) {
-    return extractLinkedPr(state);
-  }
-  extractPr(state = this.requireState()) {
-    return extractPr(state);
-  }
-  extractCommentContext(options) {
-    return {
-      commentContextType: options.commentContextType ?? options.seed?.commentContextType ?? null,
-      commentContextDescription: options.commentContextDescription ?? options.seed?.commentContextDescription ?? null
-    };
-  }
-  extractWorkflowContext(options) {
-    return {
-      ciRunUrl: options.ciRunUrl ?? options.event.runUrl ?? null,
-      ciCommitSha: options.event.headSha ?? options.seed?.ciCommitSha ?? null,
-      workflowStartedAt: options.workflowStartedAt ?? options.seed?.workflowStartedAt ?? options.event.timestamp,
-      workflowRunUrl: options.workflowRunUrl ?? options.seed?.workflowRunUrl ?? null
-    };
-  }
-  extractBranch(state, options) {
-    const currentSubIssue = this.extractCurrentSubIssue(state);
-    const currentSubIssueBranch = currentSubIssue === null ? null : state.issue.subIssues.find(
-      (subIssue) => subIssue.number === currentSubIssue.number
-    )?.branch ?? null;
-    return options.branch ?? currentSubIssueBranch ?? state.issue.branch ?? options.seed?.branch ?? null;
-  }
-  extractRuntimeContext(options, state) {
-    const ciParsed = ExampleCIResultSchema.safeParse(options.event.result);
-    const reviewParsed = ExampleReviewDecisionSchema.safeParse(
-      options.event.decision
-    );
-    const ciFromEvent = ciParsed.success ? ciParsed.data : null;
-    const reviewFromEvent = reviewParsed.success ? reviewParsed.data : null;
-    const linkedPr = this.extractLinkedPr(state);
-    return {
-      ciResult: ciFromEvent ?? ciResultFromLinkedPr(linkedPr) ?? options.seed?.ciResult ?? null,
-      reviewDecision: reviewFromEvent ?? reviewDecisionFromLinkedPr(linkedPr) ?? options.seed?.reviewDecision ?? null,
-      botUsername: options.botUsername ?? options.seed?.botUsername ?? DEFAULT_BOT_USERNAME2
-    };
-  }
-  buildContext(state, options) {
-    const issue2 = this.extractIssue(state);
-    const parentIssue = this.extractParentIssue(state);
-    const currentSubIssue = this.extractCurrentSubIssue(state);
-    const pr = this.extractPr(state);
-    const commentContext = this.extractCommentContext(options);
-    const workflowContext = this.extractWorkflowContext(options);
-    const branch = this.extractBranch(state, options);
-    const runtime = this.extractRuntimeContext(options, state);
-    return {
-      trigger: options.trigger,
-      owner: options.owner,
-      repo: options.repo,
-      issue: issue2,
-      parentIssue,
-      currentSubIssue,
-      pr: pr ?? options.seed?.pr ?? null,
-      hasPR: Boolean(pr ?? options.seed?.pr),
-      ciResult: runtime.ciResult,
-      reviewDecision: runtime.reviewDecision,
-      commentContextType: commentContext.commentContextType,
-      commentContextDescription: commentContext.commentContextDescription,
-      ciRunUrl: workflowContext.ciRunUrl,
-      ciCommitSha: workflowContext.ciCommitSha,
-      workflowStartedAt: workflowContext.workflowStartedAt,
-      workflowRunUrl: workflowContext.workflowRunUrl,
-      branch,
-      hasBranch: Boolean(branch),
-      botUsername: runtime.botUsername,
-      triageOutput: options.seed?.triageOutput ?? null,
-      groomingOutput: options.seed?.groomingOutput ?? null,
-      iterationOutput: options.seed?.iterationOutput ?? null,
-      reviewOutput: options.seed?.reviewOutput ?? null,
-      prResponseOutput: options.seed?.prResponseOutput ?? null,
-      services: options.seed?.services,
-      repository: this
-    };
-  }
-  applyContextPatch(state, updates) {
-    let nextState = state;
-    if (updates.issue !== void 0) {
-      nextState = mutateIssue(updates.issue, nextState);
-    }
-    if (updates.pr !== void 0) {
-      nextState = mutatePr(updates.pr, nextState);
-    }
-    if (updates.branch !== void 0) {
-      nextState = mutateBranch(updates.branch, nextState);
-    }
-    return nextState;
-  }
-  async load(options) {
-    const issueNumber = Number.isFinite(options.event.issueNumber) ? options.event.issueNumber : 0;
-    if (issueNumber <= 0) {
-      this.state = null;
-      this.remoteUpdate = null;
-      this.options = options;
-      this.contextOverlay = {};
-      return false;
-    }
-    const parseOptions = {
-      octokit: options.octokit,
-      projectNumber: options.projectNumber ?? 0,
-      botUsername: options.botUsername ?? options.seed?.botUsername ?? DEFAULT_BOT_USERNAME2,
-      fetchPRs: true,
-      fetchParent: true
-    };
-    try {
-      const parsedResult = await parseIssue(
-        options.owner,
-        options.repo,
-        issueNumber,
-        parseOptions
-      );
-      this.state = {
-        owner: parsedResult.data.owner,
-        repo: parsedResult.data.repo,
-        issue: parsedResult.data.issue,
-        parentIssue: parsedResult.data.parentIssue
-      };
-      this.remoteUpdate = parsedResult.update;
-      this.options = options;
-      this.contextOverlay = {};
-      return true;
-    } catch {
-      this.state = null;
-      this.remoteUpdate = null;
-      this.options = options;
-      this.contextOverlay = {};
-      return false;
-    }
-  }
-  getState() {
-    return this.state;
-  }
-  toContext(overrides = {}) {
-    if (this.state === null || this.options === null) return null;
-    const mergedOptions = {
-      ...this.options,
-      ...overrides,
-      event: overrides.event ?? this.options.event,
-      seed: { ...this.options.seed ?? {}, ...overrides.seed ?? {} }
-    };
-    const context = this.buildContext(this.state, mergedOptions);
-    return {
-      ...context,
-      ...this.contextOverlay,
-      issue: this.contextOverlay.issue ? { ...context.issue, ...this.contextOverlay.issue } : context.issue,
-      pr: this.contextOverlay.pr === void 0 ? context.pr : this.contextOverlay.pr,
-      hasPR: Boolean(
-        this.contextOverlay.pr === void 0 ? context.pr : this.contextOverlay.pr
-      ),
-      branch: this.contextOverlay.branch === void 0 ? context.branch : this.contextOverlay.branch,
-      hasBranch: Boolean(
-        this.contextOverlay.branch === void 0 ? context.branch : this.contextOverlay.branch
-      ),
-      repository: this
-    };
-  }
-  toState(updates) {
-    if (this.state === null) return null;
-    this.state = this.applyContextPatch(this.state, updates);
-    this.contextOverlay = { ...this.contextOverlay, ...updates };
-    return this.state;
-  }
-  updateIssue(issue2) {
-    return this.toState({ issue: issue2 });
-  }
-  updatePr(pr) {
-    return this.toState({ pr });
-  }
-  updateBranch(branch) {
-    return this.toState({ branch });
-  }
-  setIssueStatus(status) {
-    this.updateIssue({ projectStatus: status });
-  }
-  updateBody(body) {
-    this.updateIssue({ body });
-  }
-  appendHistoryEntry(entry) {
-    const state = this.requireState();
-    const ast = state.issue.bodyAst;
-    const children = ast.children;
-    let headingIdx = -1;
-    for (let i = 0; i < children.length; i++) {
-      const node2 = children[i];
-      if (node2.type === "heading" && node2.depth === 2 && node2.children?.[0]?.type === "text" && node2.children[0].value === "Iteration History") {
-        headingIdx = i;
-        break;
-      }
-    }
-    const ts = entry.timestamp ?? (/* @__PURE__ */ new Date()).toISOString();
-    let timeCell = "-";
-    try {
-      const d = new Date(ts);
-      if (!isNaN(d.getTime())) {
-        const months = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec"
-        ];
-        timeCell = `${months[d.getUTCMonth()]} ${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-      }
-    } catch {
-    }
-    let iteration = 1;
-    if (headingIdx !== -1) {
-      const tableNode = children[headingIdx + 1];
-      if (tableNode?.type === "table" && tableNode.children) {
-        iteration = tableNode.children.length;
-      }
-    }
-    const cell = (text5) => ({
-      type: "tableCell",
-      children: [{ type: "text", value: text5 }]
-    });
-    const newRow = {
-      type: "tableRow",
-      children: [
-        cell(timeCell),
-        cell(String(iteration)),
-        cell(entry.phase),
-        cell(entry.message),
-        cell(entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-"),
-        cell(entry.runLink ?? "-")
-      ]
-    };
-    if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
-      const table = children[headingIdx + 1];
-      table.children.push(newRow);
-    } else {
-      const headerRow = {
-        type: "tableRow",
-        children: [
-          cell("Time"),
-          cell("#"),
-          cell("Phase"),
-          cell("Action"),
-          cell("SHA"),
-          cell("Run")
-        ]
-      };
-      const table = {
-        type: "table",
-        align: [null, null, null, null, null, null],
-        children: [headerRow, newRow]
-      };
-      const heading2 = {
-        type: "heading",
-        depth: 2,
-        children: [{ type: "text", value: "Iteration History" }]
-      };
-      children.push(heading2);
-      children.push(table);
-    }
-  }
-  addIssueLabels(labels) {
-    const state = this.requireState();
-    const current = extractIssue(state).labels;
-    const merged = [.../* @__PURE__ */ new Set([...current, ...labels])];
-    this.updateIssue({ labels: merged });
-  }
-  reconcileSubIssues(subIssueNumbers) {
-    const state = this.requireState();
-    const current = extractIssue(state);
-    const byNumber = new Map(
-      current.subIssues.map((subIssue) => [subIssue.number, subIssue])
-    );
-    const nextSubIssues = subIssueNumbers.map((number3) => {
-      const existing = byNumber.get(number3);
-      return {
-        number: number3,
-        projectStatus: existing?.projectStatus ?? "Backlog",
-        state: existing?.state ?? "OPEN"
-      };
-    });
-    this.updateIssue({
-      hasSubIssues: nextSubIssues.length > 0,
-      subIssues: nextSubIssues
-    });
-  }
-  async createSubIssue(input) {
-    const options = this.requireOptions();
-    const state = this.requireState();
-    const parentIssue = extractIssue(state);
-    const result = await addSubIssueToParent(
-      options.owner,
-      options.repo,
-      parentIssue.number,
-      {
-        title: input.title,
-        body: input.body,
-        labels: input.labels
-      },
-      {
-        octokit: options.octokit,
-        projectNumber: options.projectNumber,
-        projectStatus: "Ready"
-      }
-    );
-    const current = extractIssue(state);
-    this.updateIssue({
-      hasSubIssues: true,
-      subIssues: [
-        ...current.subIssues,
-        {
-          number: result.issueNumber,
-          projectStatus: "Backlog",
-          state: "OPEN"
-        }
-      ]
-    });
-    return { issueNumber: result.issueNumber };
-  }
-  async assignBotToSubIssue(subIssueNumber, botUsername) {
-    const options = this.requireOptions();
-    await options.octokit.rest.issues.addAssignees({
-      owner: options.owner,
-      repo: options.repo,
-      issue_number: subIssueNumber,
-      assignees: [botUsername]
-    });
-  }
-  async save() {
-    if (this.state === null || this.remoteUpdate === null) return false;
-    await this.remoteUpdate(this.state);
-    return true;
-  }
-};
-
-// packages/statemachine/src/machines/example/machine.ts
-var exampleMachine = createMachineFactory().actions((createAction) => ({
-  updateStatus: updateStatusAction(createAction),
-  appendHistory: appendHistoryAction(createAction),
-  runClaudeTriage: runClaudeTriageAction(createAction),
-  applyTriageOutput: applyTriageOutputAction(createAction),
-  runClaudeGrooming: runClaudeGroomingAction(createAction),
-  applyGroomingOutput: applyGroomingOutputAction(createAction),
-  reconcileSubIssues: reconcileSubIssuesAction(createAction),
-  runClaudeIteration: runClaudeIterationAction(createAction),
-  applyIterationOutput: applyIterationOutputAction(createAction),
-  runClaudeReview: runClaudeReviewAction(createAction),
-  applyReviewOutput: applyReviewOutputAction(createAction),
-  runClaudePrResponse: runClaudePrResponseAction(createAction),
-  applyPrResponseOutput: applyPrResponseOutputAction(createAction),
-  runOrchestration: runOrchestrationAction(createAction),
-  recordFailure: recordFailureAction(createAction),
-  persistState: persistStateAction(createAction),
-  stop: stopAction(createAction)
-})).guards(() => ({
-  needsTriage,
-  canIterate,
-  isInReview,
-  isAlreadyDone,
-  isBlocked,
-  isError,
-  botIsAssigned,
-  triggeredByAssignment,
-  triggeredByEdit,
-  triggeredByCI,
-  triggeredByReview,
-  triggeredByReviewRequest,
-  triggeredByTriage,
-  triggeredByComment,
-  triggeredByOrchestrate,
-  triggeredByOrchestrateAndReady,
-  triggeredByOrchestrateAndNeedsGrooming,
-  triggeredByPRReview,
-  triggeredByPRResponse,
-  triggeredByPRHumanResponse,
-  triggeredByPRReviewApproved,
-  triggeredByPRPush,
-  triggeredByReset,
-  triggeredByRetry,
-  triggeredByPivot,
-  triggeredByMergeQueueEntry,
-  triggeredByMergeQueueFailure,
-  triggeredByPRMerged,
-  triggeredByDeployedStage,
-  triggeredByDeployedProd,
-  triggeredByDeployedStageFailure,
-  triggeredByDeployedProdFailure,
-  triggeredByGroom,
-  triggeredByGroomSummary,
-  ciPassed,
-  ciFailed,
-  reviewApproved,
-  reviewRequestedChanges,
-  reviewCommented,
-  needsGrooming,
-  needsSubIssues,
-  hasSubIssues,
-  currentPhaseInReview,
-  allPhasesDone,
-  maxFailuresReached,
-  isSubIssue,
-  isInvalidIteration,
-  todosDone,
-  readyForReview,
-  triggeredByCIAndReadyForReview,
-  triggeredByCIAndShouldContinue,
-  triggeredByCIAndShouldBlock,
-  triggeredByReviewAndApproved,
-  triggeredByReviewAndChanges,
-  triggeredByReviewAndCommented,
-  prReviewWithCIPassed,
-  prReviewWithCINotFailed
-})).states(({ registry: registry2 }) => {
-  const queue = createExampleQueueAssigners(registry2);
-  return {
-    routing: {
-      on: {
-        DETECT: [
-          // ARC 1-4
-          { target: "resetting", guard: "triggeredByReset" },
-          { target: "retrying", guard: "triggeredByRetry" },
-          { target: "pivoting", guard: "triggeredByPivot" },
-          { target: "orchestrationComplete", guard: "allPhasesDone" },
-          // ARC 5-7
-          { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
-          { target: "alreadyBlocked", guard: "isBlocked" },
-          { target: "error", guard: "isError" },
-          // ARC 8-14
-          {
-            target: "mergeQueueLogging",
-            guard: "triggeredByMergeQueueEntry"
-          },
-          {
-            target: "mergeQueueFailureLogging",
-            guard: "triggeredByMergeQueueFailure"
-          },
-          { target: "processingMerge", guard: "triggeredByPRMerged" },
-          {
-            target: "processingDeployedStage",
-            guard: "triggeredByDeployedStage"
-          },
-          {
-            target: "processingDeployedProd",
-            guard: "triggeredByDeployedProd"
-          },
-          {
-            target: "processingDeployedStageFailure",
-            guard: "triggeredByDeployedStageFailure"
-          },
-          {
-            target: "processingDeployedProdFailure",
-            guard: "triggeredByDeployedProdFailure"
-          },
-          // ARC 15-17
-          { target: "triaging", guard: "triggeredByTriage" },
-          { target: "commenting", guard: "triggeredByComment" },
-          {
-            target: "grooming",
-            guard: "triggeredByOrchestrateAndNeedsGrooming"
-          },
-          {
-            target: "orchestrating",
-            guard: "triggeredByOrchestrateAndReady"
-          },
-          { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
-          // ARC 18-22
-          {
-            target: "prReviewing",
-            guard: "prReviewWithCIPassed"
-          },
-          {
-            target: "prReviewAssigned",
-            guard: "prReviewWithCINotFailed"
-          },
-          { target: "prReviewSkipped", guard: "triggeredByPRReview" },
-          { target: "prResponding", guard: "triggeredByPRResponse" },
-          {
-            target: "prRespondingHuman",
-            guard: "triggeredByPRHumanResponse"
-          },
-          // ARC 23-24
-          { target: "awaitingMerge", guard: "triggeredByPRReviewApproved" },
-          { target: "prPush", guard: "triggeredByPRPush" },
-          // ARC 25-28 (CI direct; 27 before 26 so max-failures blocks first)
-          {
-            target: "transitioningToReview",
-            guard: "triggeredByCIAndReadyForReview"
-          },
-          { target: "blocking", guard: "triggeredByCIAndShouldBlock" },
-          { target: "iteratingFix", guard: "triggeredByCIAndShouldContinue" },
-          { target: "processingCI", guard: "triggeredByCI" },
-          // ARC 29-32 (review direct)
-          { target: "awaitingMerge", guard: "triggeredByReviewAndApproved" },
-          { target: "iteratingFix", guard: "triggeredByReviewAndChanges" },
-          { target: "reviewing", guard: "triggeredByReviewAndCommented" },
-          { target: "reviewing", guard: "triggeredByReview" },
-          // ARC 33-35
-          { target: "triaging", guard: "needsTriage" },
-          { target: "iterating", guard: "canIterate" },
-          { target: "subIssueIdle", guard: "isSubIssue" },
-          // ARC 36-38
-          { target: "grooming", guard: "triggeredByGroom" },
-          { target: "grooming", guard: "triggeredByGroomSummary" },
-          { target: "grooming", guard: "needsGrooming" },
-          { target: "initializing", guard: "needsSubIssues" },
-          { target: "orchestrating", guard: "hasSubIssues" },
-          // ARC 41-43
-          { target: "reviewing", guard: "isInReview" },
-          { target: "transitioningToReview", guard: "readyForReview" },
-          { target: "invalidIteration", guard: "isInvalidIteration" },
-          { target: "idle" }
-        ]
-      }
-    },
-    triaging: {
-      entry: queue.assignTriageQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    iterating: {
-      entry: queue.assignIterateQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    iteratingFix: {
-      entry: queue.assignIterateFixQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    transitioningToReview: {
-      entry: queue.assignTransitionToReviewQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    reviewing: {
-      entry: queue.assignReviewQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    grooming: {
-      entry: queue.assignGroomQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    initializing: {
-      entry: queue.assignInitializingQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    pivoting: {
-      entry: queue.assignPivotQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    resetting: {
-      entry: queue.assignResetQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    retrying: {
-      entry: queue.assignRetryQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    commenting: {
-      entry: queue.assignCommentQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    prReviewing: {
-      entry: queue.assignPrReviewQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    prReviewSkipped: { type: "final" },
-    prReviewAssigned: { type: "final" },
-    prResponding: {
-      entry: queue.assignPrRespondingQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    prRespondingHuman: {
-      entry: queue.assignPrRespondingHumanQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    prPush: {
-      entry: queue.assignPrPushQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    orchestrating: {
-      entry: queue.assignOrchestrateQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    orchestrationWaiting: {
-      entry: queue.assignOrchestrationWaitingQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    orchestrationComplete: {
-      entry: queue.assignOrchestrationCompleteQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    mergeQueueLogging: {
-      entry: queue.assignMergeQueueEntryQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    mergeQueueFailureLogging: {
-      entry: queue.assignMergeQueueFailureQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    actionFailure: {
-      entry: queue.assignActionFailureQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    processingDeployedStage: {
-      entry: queue.assignDeployedStageQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    processingDeployedProd: {
-      entry: queue.assignDeployedProdQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    processingDeployedStageFailure: {
-      entry: queue.assignDeployedStageFailureQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    processingDeployedProdFailure: {
-      entry: queue.assignDeployedProdFailureQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    processingCI: {
-      always: [
-        { target: "transitioningToReview", guard: "readyForReview" },
-        { target: "reviewing", guard: "ciPassed" },
-        { target: "blocking", guard: "maxFailuresReached" },
-        { target: "iteratingFix", guard: "ciFailed" },
-        { target: "iterating" }
-      ]
-    },
-    awaitingMerge: {
-      entry: queue.assignAwaitingMergeQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    processingMerge: {
-      entry: queue.assignMergeQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    blocking: {
-      entry: queue.assignBlockQueue,
-      always: RUNNER_STATES.executingQueue
-    },
-    idle: { type: "final" },
-    subIssueIdle: { type: "final" },
-    invalidIteration: { type: "final" },
-    alreadyBlocked: { type: "final" },
-    error: { type: "final" }
-  };
-}).refreshContext(ExampleContextLoader.refreshFromRunnerContext).build({
-  id: "example"
-});
-
 // packages/statemachine/src/core/action-utils.ts
 var core2 = __toESM(require_core(), 1);
 var exec3 = __toESM(require_exec(), 1);
@@ -68192,10 +68407,7 @@ function asOctokitLike(octokit) {
 async function run() {
   const token = getRequiredInput("github_token");
   const reviewerToken = getOptionalInput("reviewer_token") || token;
-  const maxTransitions = parseInt(
-    getOptionalInput("max_transitions") || "1",
-    10
-  );
+  const maxCycles = parseInt(getOptionalInput("max_cycles") || "1", 10);
   const projectNumber = parseInt(getOptionalInput("project_number") || "0", 10);
   const githubJsonStr = getRequiredInput("github_json");
   const githubJson = JSON.parse(githubJsonStr);
@@ -68206,7 +68418,7 @@ async function run() {
     );
     return;
   }
-  core3.info(`PEV Machine starting (max_transitions=${maxTransitions})`);
+  core3.info(`PEV Machine starting (max_cycles=${maxCycles})`);
   core3.info(`Event: ${githubJson.event_name}, Trigger: ${trigger}`);
   const issueData = githubJson.event?.issue;
   const [owner, repo] = (githubJson.repository ?? "unknown/unknown").split("/");
@@ -68316,7 +68528,7 @@ async function run() {
   const actor = createActor(exampleMachine, {
     input: {
       domain: domainContext,
-      maxTransitions,
+      maxCycles,
       runnerCtx: {
         token,
         owner: ownerStr,
@@ -68330,10 +68542,9 @@ async function run() {
     const ctx2 = snapshot.context;
     core3.info(`[state] ${state}`);
     core3.info(`[queue] ${ctx2.actionQueue.length} actions remaining`);
-    core3.info(`[transitions] ${ctx2.transitionCount}/${ctx2.maxTransitions}`);
+    core3.info(`[cycles] ${ctx2.cycleCount}/${ctx2.maxCycles}`);
   });
   actor.start();
-  actor.send({ type: "DETECT" });
   const finalSnapshot = await waitFor(actor, (s) => s.status === "done", {
     timeout: 6e5
     // 10 minutes

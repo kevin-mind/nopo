@@ -76,10 +76,9 @@ beforeEach(() => {
 
 async function runDetect(domain: ExampleContext) {
   const actor = createActor(exampleMachine, {
-    input: { domain, maxTransitions: 10, runnerCtx: RUNNER_CTX },
+    input: { domain, maxCycles: 1, runnerCtx: RUNNER_CTX },
   });
   actor.start();
-  actor.send({ type: "DETECT" });
   return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
 }
 

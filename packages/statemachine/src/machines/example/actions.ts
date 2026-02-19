@@ -5,6 +5,8 @@
  * No imports from machines/issues or machines/discussions.
  */
 
+import { exec as execCb } from "child_process";
+import { promisify } from "util";
 import type {
   TCreateActionForDomain,
   TActionRegistryFromDefs,
@@ -20,10 +22,14 @@ import {
   repositoryFor,
   setIssueStatus,
 } from "./commands.js";
-import {
-  type ExampleGroomingOutput,
-  type TriagePromptVars,
-} from "./services.js";
+import type { ExampleGroomingOutput, TriagePromptVars } from "./services.js";
+
+const execAsync = promisify(execCb);
+
+/** Returns true when running inside GitHub Actions (git ops only make sense there). */
+function isGitEnvironment(): boolean {
+  return process.env.GITHUB_ACTIONS === "true";
+}
 
 type RecommendedPhase = NonNullable<
   ExampleGroomingOutput["recommendedPhases"]
@@ -642,6 +648,189 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
   });
 }
 
+export function setupGitAction(createAction: ExampleCreateAction) {
+  return createAction<{ token: string }>({
+    description: () => "Configure git credentials for PAT-based push",
+    execute: async (action) => {
+      if (!isGitEnvironment()) {
+        return { ok: true, skipped: true };
+      }
+      const { token } = action.payload;
+      await execAsync('git config user.name "nopo-bot"');
+      await execAsync(
+        'git config user.email "nopo-bot@users.noreply.github.com"',
+      );
+      await execAsync(
+        `git config url."https://x-access-token:${token}@github.com/".insteadOf "https://github.com/"`,
+      );
+      // Verify by reading back
+      const { stdout: userName } = await execAsync("git config user.name");
+      const { stdout: userEmail } = await execAsync("git config user.email");
+      return {
+        ok: true,
+        userName: userName.trim(),
+        userEmail: userEmail.trim(),
+      };
+    },
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "setupGit execute did not return ok=true" };
+      }
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- runtime output check
+      const result = executeResult as {
+        skipped?: boolean;
+        userName?: string;
+      };
+      if (result.skipped) return undefined;
+      if (result.userName !== "nopo-bot") {
+        return {
+          message: `git user.name mismatch: expected "nopo-bot", got "${result.userName}"`,
+        };
+      }
+      return undefined;
+    },
+  });
+}
+
+export function prepareBranchAction(createAction: ExampleCreateAction) {
+  return createAction<{ branchName: string; baseBranch?: string }>({
+    description: (action) =>
+      `Prepare branch "${action.payload.branchName}" for iteration`,
+    execute: async (action, ctx) => {
+      if (!isGitEnvironment()) {
+        ctx.branchPrepResult = "clean";
+        return { ok: true, skipped: true, branch: action.payload.branchName };
+      }
+      const { branchName, baseBranch = "main" } = action.payload;
+
+      // Fetch all refs
+      await execAsync("git fetch origin");
+
+      // Check if remote branch exists
+      let remoteBranchExists = false;
+      try {
+        await execAsync(`git rev-parse --verify origin/${branchName}`);
+        remoteBranchExists = true;
+      } catch {
+        // Branch doesn't exist remotely
+      }
+
+      if (remoteBranchExists) {
+        // Checkout existing branch
+        try {
+          await execAsync(`git checkout ${branchName}`);
+        } catch {
+          // Local branch doesn't exist, create from remote
+          await execAsync(`git checkout -b ${branchName} origin/${branchName}`);
+        }
+      } else {
+        // Create new branch from base
+        try {
+          await execAsync(`git checkout -b ${branchName} origin/${baseBranch}`);
+        } catch {
+          // Branch might already exist locally
+          await execAsync(`git checkout ${branchName}`);
+          await execAsync(`git reset --hard origin/${baseBranch}`);
+        }
+      }
+
+      // Check if behind main and rebase if needed
+      const { stdout: behindCount } = await execAsync(
+        `git rev-list --count HEAD..origin/${baseBranch}`,
+      );
+      const behind = parseInt(behindCount.trim(), 10);
+
+      if (behind > 0) {
+        try {
+          await execAsync(`git rebase origin/${baseBranch}`);
+        } catch {
+          // Abort rebase on conflict
+          await execAsync("git rebase --abort");
+          ctx.branchPrepResult = "conflicts";
+          return {
+            ok: true,
+            branch: branchName,
+            result: "conflicts" as const,
+          };
+        }
+
+        // Rebase succeeded — force push the rebased branch
+        await execAsync(
+          `git push --force-with-lease origin HEAD:${branchName}`,
+        );
+        ctx.branchPrepResult = "rebased";
+
+        // Read back current branch
+        const { stdout: currentBranch } = await execAsync(
+          "git branch --show-current",
+        );
+        return {
+          ok: true,
+          branch: currentBranch.trim(),
+          result: "rebased" as const,
+        };
+      }
+
+      ctx.branchPrepResult = "clean";
+
+      // Read back current branch
+      const { stdout: currentBranch } = await execAsync(
+        "git branch --show-current",
+      );
+
+      return {
+        ok: true,
+        branch: currentBranch.trim(),
+        result: "clean" as const,
+      };
+    },
+    verify: ({ action, executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "prepareBranch execute did not return ok=true" };
+      }
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- runtime output check
+      const result = executeResult as { branch?: string; result?: string };
+      // Conflicts are a valid outcome — the machine handles routing
+      if (result.result === "conflicts") return undefined;
+      if (result.branch !== action.payload.branchName) {
+        return {
+          message: `Branch mismatch: expected "${action.payload.branchName}", got "${result.branch}"`,
+        };
+      }
+      return undefined;
+    },
+  });
+}
+
+export function gitPushAction(createAction: ExampleCreateAction) {
+  return createAction<{ branchName: string; forceWithLease?: boolean }>({
+    description: (action) =>
+      `Push branch "${action.payload.branchName}" to origin`,
+    execute: async (action) => {
+      if (!isGitEnvironment()) {
+        return { ok: true, skipped: true };
+      }
+      const { branchName, forceWithLease = true } = action.payload;
+      const forceFlag = forceWithLease ? " --force-with-lease" : "";
+      await execAsync(`git push${forceFlag} origin HEAD:${branchName}`);
+
+      // Read back local HEAD sha
+      const { stdout: localSha } = await execAsync("git rev-parse HEAD");
+
+      return {
+        ok: true,
+        sha: localSha.trim(),
+      };
+    },
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "gitPush execute did not return ok=true" };
+      }
+      return undefined;
+    },
+  });
+}
+
 export function stopAction(createAction: ExampleCreateAction) {
   return createAction<{ message: string }>({
     description: (action) => `Stop: ${action.payload.message}`,
@@ -666,6 +855,9 @@ export type ExampleRegistry = TActionRegistryFromDefs<{
   runOrchestration: ReturnType<typeof runOrchestrationAction>;
   recordFailure: ReturnType<typeof recordFailureAction>;
   persistState: ReturnType<typeof persistStateAction>;
+  setupGit: ReturnType<typeof setupGitAction>;
+  prepareBranch: ReturnType<typeof prepareBranchAction>;
+  gitPush: ReturnType<typeof gitPushAction>;
   stop: ReturnType<typeof stopAction>;
 }>;
 export type ExampleAction = ActionFromRegistry<ExampleRegistry>;

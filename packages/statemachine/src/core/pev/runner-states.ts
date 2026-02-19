@@ -18,7 +18,7 @@
 export const RUNNER_STATES = {
   executingQueue: "executingQueue",
   runningAction: "runningAction",
-  transitionLimitReached: "transitionLimitReached",
+  queueComplete: "queueComplete",
   executionFailed: "executionFailed",
   verificationFailed: "verificationFailed",
   done: "done",

@@ -160,7 +160,7 @@ describe("grooming integration persistence flow", () => {
     const actor = createActor(exampleMachine, {
       input: {
         domain,
-        maxTransitions: 20,
+        maxCycles: 1,
         runnerCtx: {
           token: "token",
           owner: "owner",
@@ -169,7 +169,6 @@ describe("grooming integration persistence flow", () => {
       },
     });
     actor.start();
-    actor.send({ type: "DETECT" });
     const snap = await waitFor(actor, (s) => s.status === "done", {
       timeout: 5000,
     });
@@ -232,7 +231,7 @@ describe("grooming integration persistence flow", () => {
     const actor = createActor(exampleMachine, {
       input: {
         domain,
-        maxTransitions: 20,
+        maxCycles: 1,
         runnerCtx: {
           token: "token",
           owner: "owner",
@@ -241,7 +240,6 @@ describe("grooming integration persistence flow", () => {
       },
     });
     actor.start();
-    actor.send({ type: "DETECT" });
     const snap = await waitFor(actor, (s) => s.status === "done", {
       timeout: 5000,
     });

@@ -187,6 +187,8 @@ export interface ExampleContext {
   botUsername: string;
   /** Max CI failures before blocking (circuit breaker). Default 3. */
   maxRetries?: number;
+  /** Result of branch preparation: clean (no rebase), rebased (force-pushed), or conflicts. */
+  branchPrepResult?: "clean" | "rebased" | "conflicts" | null;
   triageOutput?: ExampleTriageOutput | null;
   groomingOutput?: ExampleGroomingOutput | null;
   iterationOutput?: ExampleIterationOutput | null;
@@ -728,6 +730,7 @@ export class ExampleContextLoader implements IssueStateRepository {
       branch,
       hasBranch: Boolean(branch),
       botUsername: runtime.botUsername,
+      branchPrepResult: options.seed?.branchPrepResult ?? null,
       triageOutput: options.seed?.triageOutput ?? null,
       groomingOutput: options.seed?.groomingOutput ?? null,
       iterationOutput: options.seed?.iterationOutput ?? null,

@@ -20,6 +20,8 @@ run-name: >-
   }}
 
 # PEV-based automation: sm-pev runs predict-execute-verify in a single invocation.
+# The sm-context job resolves the issue number first so the pev job gets a single
+# concurrency group per issue, regardless of which event type triggered the workflow.
 
 'on':
   # push events only trigger CI; state machine reacts to CI completion via workflow_run
@@ -87,11 +89,30 @@ defaults:
     shell: bash
 
 jobs:
+  sm-context:
+    runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.context.outputs.issue_number }}
+      trigger: ${{ steps.context.outputs.trigger }}
+      cancel_in_progress: ${{ steps.context.outputs.cancel_in_progress }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          sparse-checkout: .github/actions/sm-context
+      - uses: ./.github/actions/sm-context
+        id: context
+        with:
+          github_json: ${{ toJson(github) }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+
   pev:
+    needs: sm-context
+    if: needs.sm-context.outputs.issue_number != '0' && needs.sm-context.outputs.trigger != ''
     runs-on: ubuntu-latest
     concurrency:
-      group: pev-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.discussion.number || github.event.inputs.resource_number || github.run_id }}
-      cancel-in-progress: false
+      group: pev-issue-${{ needs.sm-context.outputs.issue_number }}
+      cancel-in-progress: ${{ needs.sm-context.outputs.cancel_in_progress == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,7 +130,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
           github_json: ${{ toJson(github) }}
-          max_transitions: "5"
+          max_cycles: "5"
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
           project_number: ${{ vars.PROJECT_NUMBER }}

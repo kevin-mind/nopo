@@ -213,9 +213,9 @@ export interface RunnerMachineContext<
     verified: boolean;
   }>;
   /** Number of actions executed so far */
-  transitionCount: number;
+  cycleCount: number;
   /** Maximum actions to execute before exiting */
-  maxTransitions: number;
+  maxCycles: number;
   /** Error message if execution fails */
   error: string | null;
 
@@ -271,7 +271,7 @@ export interface PevMachineInput<TDomainContext> {
   /** Initial domain context */
   domain: TDomainContext;
   /** Maximum transitions before exiting */
-  maxTransitions?: number;
+  maxCycles?: number;
   /** External runner context */
   runnerCtx: ExternalRunnerContext;
 }

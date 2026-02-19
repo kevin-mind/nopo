@@ -28,7 +28,7 @@ interface Act {
   label?: string;
 }
 
-type Evt = { type: "START" } & EventObject;
+type Evt = EventObject;
 
 // ============================================================================
 // Helpers
@@ -72,15 +72,21 @@ function makeMachine(
     refreshContext: refreshFn
       ? async (_rc, current) => refreshFn(current)
       : async (_rc, current) => current,
-    guards: {},
+    guards: {
+      firstCycle: ({ context }) => context.cycleCount === 0,
+    },
     domainStates: {
       routing: {
-        on: { START: { target: "queueing" } },
+        always: [
+          { target: "queueing", guard: "firstCycle" },
+          { target: "idle" },
+        ],
       },
       queueing: {
         entry: assignQueue,
         always: RUNNER_STATES.executingQueue,
       },
+      idle: { type: "final" },
     },
   });
 }
@@ -88,17 +94,16 @@ function makeMachine(
 function run(
   machine: ReturnType<typeof makeMachine>,
   ctx: Ctx,
-  maxTransitions = 100,
+  maxCycles = 100,
 ) {
   const actor = createActor(machine, {
     input: {
       domain: ctx,
-      maxTransitions,
+      maxCycles,
       runnerCtx: { token: "t", owner: "o", repo: "r" },
     },
   });
   actor.start();
-  actor.send({ type: "START" });
   return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
 }
 
@@ -111,7 +116,7 @@ describe("Runner States", () => {
     const machine = makeMachine(makeRegistry(), () => []);
     const snap = await run(machine, { counter: 0 });
 
-    expect(String(snap.value)).toBe("done");
+    expect(String(snap.value)).toBe("idle");
     expect(snap.context.completedActions).toHaveLength(0);
   });
 
@@ -130,11 +135,11 @@ describe("Runner States", () => {
     ]);
     const snap = await run(machine, { counter: 0 });
 
-    expect(String(snap.value)).toBe("done");
+    expect(String(snap.value)).toBe("idle");
     expect(executeFn).toHaveBeenCalledOnce();
     expect(snap.context.completedActions).toHaveLength(1);
     expect(snap.context.completedActions[0]?.verified).toBe(true);
-    expect(snap.context.transitionCount).toBe(1);
+    expect(snap.context.cycleCount).toBe(1);
   });
 
   it("multiple actions → sequential processing", async () => {
@@ -157,27 +162,47 @@ describe("Runner States", () => {
 
     const snap = await run(machine, { counter: 0 });
 
-    expect(String(snap.value)).toBe("done");
+    expect(String(snap.value)).toBe("idle");
     expect(executionOrder).toEqual(["A", "B", "C"]);
     expect(snap.context.completedActions).toHaveLength(3);
   });
 
-  it("max transitions → early exit with remaining queue", async () => {
+  it("max cycles → stops after N complete queue runs", async () => {
     const registry = makeRegistry();
-    const machine = makeMachine(registry, () => [
-      { type: "step", label: "1" },
-      { type: "step", label: "2" },
-      { type: "step", label: "3" },
-      { type: "step", label: "4" },
-      { type: "step", label: "5" },
-    ]);
+    const assignQueue = assign<
+      FullCtx,
+      AnyEventObject,
+      undefined,
+      EventObject,
+      never
+    >({
+      actionQueue: () => [
+        { type: "step", label: "a" },
+        { type: "step", label: "b" },
+      ],
+    });
+    const machine = createDomainMachine<Ctx, Act, Evt>({
+      id: "runner-cycles-test",
+      actionRegistry: registry,
+      refreshContext: async (_rc, current) => current,
+      guards: {},
+      domainStates: {
+        routing: {
+          always: "queueing",
+        },
+        queueing: {
+          entry: assignQueue,
+          always: RUNNER_STATES.executingQueue,
+        },
+      },
+    });
 
     const snap = await run(machine, { counter: 0 }, 3);
 
-    expect(String(snap.value)).toBe("transitionLimitReached");
-    expect(snap.context.completedActions).toHaveLength(3);
-    expect(snap.context.actionQueue).toHaveLength(2);
-    expect(snap.context.transitionCount).toBe(3);
+    expect(String(snap.value)).toBe("done");
+    // 3 cycles × 2 actions per queue = 6 completed
+    expect(snap.context.completedActions).toHaveLength(6);
+    expect(snap.context.cycleCount).toBe(3);
   });
 
   it("execution failure → executionFailed state", async () => {
@@ -258,7 +283,7 @@ describe("Runner States", () => {
     const machine = makeMachine(registry, () => [{ type: "step" }], refreshFn);
     const snap = await run(machine, { counter: 0 });
 
-    expect(String(snap.value)).toBe("done");
+    expect(String(snap.value)).toBe("idle");
     expect(refreshFn).toHaveBeenCalledOnce();
     expect(snap.context.domain.counter).toBe(10);
   });

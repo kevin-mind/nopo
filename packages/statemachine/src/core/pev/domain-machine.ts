@@ -74,11 +74,7 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
       always: [
         {
           guard: "queueEmpty",
-          target: RUNNER_STATES.done,
-        },
-        {
-          guard: "maxTransitionsReached",
-          target: RUNNER_STATES.transitionLimitReached,
+          target: RUNNER_STATES.queueComplete,
         },
         {
           target: RUNNER_STATES.runningAction,
@@ -171,8 +167,6 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
                       verified: event.output.verifyResult.pass,
                     },
                   ],
-                  transitionCount: ({ context }: { context: Ctx }) =>
-                    context.transitionCount + 1,
                   currentAction: () => null,
                   prediction: () => null,
                   preActionSnapshot: () => null,
@@ -204,8 +198,19 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
       },
     },
 
-    [RUNNER_STATES.transitionLimitReached]: {
-      type: "final",
+    [RUNNER_STATES.queueComplete]: {
+      entry: assign({
+        cycleCount: ({ context }: { context: Ctx }) => context.cycleCount + 1,
+      }),
+      always: [
+        {
+          guard: "maxCyclesReached",
+          target: RUNNER_STATES.done,
+        },
+        {
+          target: `#${configId}.routing`,
+        },
+      ],
     },
 
     [RUNNER_STATES.executionFailed]: {
@@ -231,8 +236,7 @@ export function createDomainMachine<
 
   const runnerGuards: Record<string, (args: { context: Ctx }) => boolean> = {
     queueEmpty: ({ context }) => context.actionQueue.length === 0,
-    maxTransitionsReached: ({ context }) =>
-      context.transitionCount >= context.maxTransitions,
+    maxCyclesReached: ({ context }) => context.cycleCount >= context.maxCycles,
   };
 
   const allGuards = {
@@ -391,8 +395,8 @@ export function createDomainMachine<
         result: unknown;
         verified: boolean;
       }>,
-      transitionCount: 0,
-      maxTransitions: input.maxTransitions ?? 1,
+      cycleCount: 0,
+      maxCycles: input.maxCycles ?? 1,
       error: null,
       runnerCtx: input.runnerCtx,
     }),

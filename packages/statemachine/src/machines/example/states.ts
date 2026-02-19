@@ -73,6 +73,23 @@ function buildGroomQueue(
   ];
 }
 
+function buildPrepareQueue(
+  context: Ctx,
+  registry: ExampleRegistry,
+): ExampleAction[] {
+  const issueNumber =
+    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const branchName = context.domain.branch ?? `claude/issue/${issueNumber}`;
+  return [
+    registry.setupGit.create({
+      token: context.runnerCtx?.token ?? "",
+    }),
+    registry.prepareBranch.create({
+      branchName,
+    }),
+  ];
+}
+
 function buildIterateQueue(
   context: Ctx,
   registry: ExampleRegistry,
@@ -669,6 +686,16 @@ function buildActionFailureQueue(
 }
 
 export function createExampleQueueAssigners(registry: ExampleRegistry) {
+  const assignPrepareQueue = assign<
+    Ctx,
+    AnyEventObject,
+    undefined,
+    EventObject,
+    never
+  >({
+    actionQueue: ({ context }) => buildPrepareQueue(context, registry),
+  });
+
   const assignTriageQueue = assign<
     Ctx,
     AnyEventObject,
@@ -956,6 +983,7 @@ export function createExampleQueueAssigners(registry: ExampleRegistry) {
   });
 
   return {
+    assignPrepareQueue,
     assignBlockQueue,
     assignInitializingQueue,
     assignIterateFixQueue,
