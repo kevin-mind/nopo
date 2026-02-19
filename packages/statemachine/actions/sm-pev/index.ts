@@ -155,10 +155,7 @@ function asOctokitLike(
 async function run(): Promise<void> {
   const token = getRequiredInput("github_token");
   const reviewerToken = getOptionalInput("reviewer_token") || token;
-  const maxTransitions = parseInt(
-    getOptionalInput("max_transitions") || "1",
-    10,
-  );
+  const maxCycles = parseInt(getOptionalInput("max_cycles") || "1", 10);
   const projectNumber = parseInt(getOptionalInput("project_number") || "0", 10);
   const githubJsonStr = getRequiredInput("github_json");
 
@@ -191,7 +188,7 @@ async function run(): Promise<void> {
     return;
   }
 
-  core.info(`PEV Machine starting (max_transitions=${maxTransitions})`);
+  core.info(`PEV Machine starting (max_cycles=${maxCycles})`);
   core.info(`Event: ${githubJson.event_name}, Trigger: ${trigger}`);
 
   // Build a minimal domain context from the GitHub event
@@ -317,7 +314,7 @@ async function run(): Promise<void> {
   const actor = createActor(exampleMachine, {
     input: {
       domain: domainContext,
-      maxTransitions,
+      maxCycles,
       runnerCtx: {
         token,
         owner: ownerStr,
@@ -333,11 +330,10 @@ async function run(): Promise<void> {
     const ctx = snapshot.context;
     core.info(`[state] ${state}`);
     core.info(`[queue] ${ctx.actionQueue.length} actions remaining`);
-    core.info(`[transitions] ${ctx.transitionCount}/${ctx.maxTransitions}`);
+    core.info(`[cycles] ${ctx.cycleCount}/${ctx.maxCycles}`);
   });
 
   actor.start();
-  actor.send({ type: "DETECT" });
 
   // Wait for the machine to reach a final state
   const finalSnapshot = await waitFor(actor, (s) => s.status === "done", {

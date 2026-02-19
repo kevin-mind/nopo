@@ -42,8 +42,8 @@ function withRunnerContext(
     executeResult: null,
     verifyResult: null,
     completedActions: [],
-    transitionCount: 0,
-    maxTransitions: 10,
+    cycleCount: 0,
+    maxCycles: 10,
     error: null,
     runnerCtx: { token: "token", owner: "owner", repo: "repo" },
   };

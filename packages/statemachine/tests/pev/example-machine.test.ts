@@ -27,7 +27,7 @@ const RUNNER_CTX: ExternalRunnerContext = {
   repo: "test-repo",
 };
 
-async function runExampleMachine(domain: ExampleContext, maxTransitions = 10) {
+async function runExampleMachine(domain: ExampleContext, maxCycles = 1) {
   const triage =
     domain.services?.triage ??
     ({
@@ -39,7 +39,7 @@ async function runExampleMachine(domain: ExampleContext, maxTransitions = 10) {
   const grooming =
     domain.services?.grooming ??
     ({
-      groomIssue: async (input: {
+      groomIssue: async (_input: {
         issueNumber: number;
         promptVars: {
           ISSUE_NUMBER: string;
@@ -95,11 +95,10 @@ async function runExampleMachine(domain: ExampleContext, maxTransitions = 10) {
   };
 
   const actor = createActor(exampleMachine, {
-    input: { domain, maxTransitions, runnerCtx: RUNNER_CTX },
+    input: { domain, maxCycles, runnerCtx: RUNNER_CTX },
   });
 
   actor.start();
-  actor.send({ type: "DETECT" });
 
   return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
 }
@@ -287,10 +286,13 @@ describe("Example Machine — Iterate", () => {
       parentIssue,
     });
 
-    const snap = await runExampleMachine(domain);
+    // 2 cycles: prepare (setupGit + prepareBranch) → iterate
+    const snap = await runExampleMachine(domain, 2);
 
     expect(String(snap.value)).toBe("done");
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
+    expect(actionTypes).toContain("setupGit");
+    expect(actionTypes).toContain("prepareBranch");
     expect(actionTypes).toContain("updateStatus");
     expect(actionTypes).toContain("runClaudeIteration");
     expect(actionTypes).toContain("applyIterationOutput");
@@ -775,8 +777,8 @@ describe("Example Machine — Terminal States", () => {
 // Max Transitions Tests
 // ============================================================================
 
-describe("Example Machine — Max Transitions", () => {
-  it("exits gracefully when max transitions reached mid-queue", async () => {
+describe("Example Machine — Max Cycles", () => {
+  it("completes N full queue cycles before stopping", async () => {
     const domain = mockExampleContext({
       trigger: "issue-triage",
       issue: mockExampleIssue({ labels: [] }),
@@ -784,9 +786,10 @@ describe("Example Machine — Max Transitions", () => {
 
     const snap = await runExampleMachine(domain, 2);
 
-    expect(String(snap.value)).toBe("transitionLimitReached");
-    expect(snap.context.completedActions).toHaveLength(2);
-    expect(snap.context.actionQueue.length).toBeGreaterThan(0);
+    expect(String(snap.value)).toBe("done");
+    // 2 cycles × 4 triage actions = 8 completed
+    expect(snap.context.completedActions.length).toBeGreaterThanOrEqual(8);
+    expect(snap.context.cycleCount).toBe(2);
   });
 });
 
@@ -801,7 +804,7 @@ describe("Example Machine — Multiple Actions", () => {
       issue: mockExampleIssue({ labels: [] }),
     });
 
-    const snap = await runExampleMachine(domain, 100);
+    const snap = await runExampleMachine(domain);
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.completedActions).toHaveLength(4);

@@ -7,8 +7,8 @@ inputs:
   github_json:
     description: Full GitHub context JSON string (pass via toJson(github) in workflow)
     required: true
-  max_transitions:
-    description: Maximum transitions before exiting (default 1)
+  max_cycles:
+    description: Maximum routing cycles before exiting (default 1)
     required: false
     default: "1"
   github_token:

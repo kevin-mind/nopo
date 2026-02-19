@@ -1,0 +1,213 @@
+name: SM Context
+description: >-
+  Resolve issue number, trigger type, and concurrency policy from the GitHub
+  event context. Runs before the PEV job so the concurrency group can be
+  scoped per-issue regardless of event type.
+
+inputs:
+  github_json:
+    description: 'Full GitHub context JSON (${{ toJson(github) }})'
+    required: true
+  github_token:
+    description: 'GitHub token for GraphQL API calls'
+    required: true
+
+outputs:
+  issue_number:
+    description: 'Resolved issue number (0 if unresolvable)'
+    value: ${{ steps.resolve.outputs.issue_number }}
+  trigger:
+    description: 'State machine trigger string (e.g. issue-triage, workflow-run-completed)'
+    value: ${{ steps.resolve.outputs.trigger }}
+  cancel_in_progress:
+    description: 'Whether to cancel in-progress runs in the same concurrency group'
+    value: ${{ steps.resolve.outputs.cancel_in_progress }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve context
+      id: resolve
+      shell: bash
+      env:
+        GITHUB_JSON: ${{ inputs.github_json }}
+        GH_TOKEN: ${{ inputs.github_token }}
+      run: |
+        set -euo pipefail
+
+        EVENT_NAME=$(echo "$GITHUB_JSON" | jq -r '.event_name')
+        ACTION=$(echo "$GITHUB_JSON" | jq -r '.event.action // ""')
+        REPO_FULL=$(echo "$GITHUB_JSON" | jq -r '.repository // ""')
+        OWNER="${REPO_FULL%%/*}"
+        REPO="${REPO_FULL##*/}"
+
+        # ---------------------------------------------------------------
+        # 1. Resolve issue number
+        # ---------------------------------------------------------------
+        ISSUE_NUMBER=0
+
+        case "$EVENT_NAME" in
+          issues|issue_comment)
+            ISSUE_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.issue.number // 0')
+            ;;
+
+          workflow_dispatch)
+            ISSUE_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.inputs.resource_number // 0')
+            ;;
+
+          discussion|discussion_comment)
+            ISSUE_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.discussion.number // 0')
+            ;;
+
+          pull_request|pull_request_review|pull_request_review_comment)
+            PR_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.pull_request.number // 0')
+            if [ "$PR_NUMBER" != "0" ] && [ "$PR_NUMBER" != "null" ]; then
+              ISSUE_NUMBER=$(gh api graphql \
+                -f query='query($owner: String!, $repo: String!, $prNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $prNumber) {
+                      closingIssuesReferences(first: 1) {
+                        nodes { number }
+                      }
+                    }
+                  }
+                }' \
+                -f owner="$OWNER" -f repo="$REPO" -F prNumber="$PR_NUMBER" \
+                --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[0].number // 0' \
+                2>/dev/null || echo "0")
+            fi
+            ;;
+
+          workflow_run)
+            HEAD_BRANCH=$(echo "$GITHUB_JSON" | jq -r '.event.workflow_run.head_branch // ""')
+            if [ -n "$HEAD_BRANCH" ]; then
+              ISSUE_NUMBER=$(gh api graphql \
+                -f query='query($owner: String!, $repo: String!, $headRef: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequests(first: 1, headRefName: $headRef, states: [OPEN, MERGED]) {
+                      nodes {
+                        closingIssuesReferences(first: 1) {
+                          nodes { number }
+                        }
+                      }
+                    }
+                  }
+                }' \
+                -f owner="$OWNER" -f repo="$REPO" -f headRef="$HEAD_BRANCH" \
+                --jq '.data.repository.pullRequests.nodes[0].closingIssuesReferences.nodes[0].number // 0' \
+                2>/dev/null || echo "0")
+            fi
+            ;;
+        esac
+
+        # Normalize to integer (handle null/empty)
+        if [ -z "$ISSUE_NUMBER" ] || [ "$ISSUE_NUMBER" = "null" ]; then
+          ISSUE_NUMBER=0
+        fi
+
+        # ---------------------------------------------------------------
+        # 2. Detect trigger
+        # ---------------------------------------------------------------
+        TRIGGER=""
+
+        case "$EVENT_NAME" in
+          workflow_dispatch)
+            OVERRIDE=$(echo "$GITHUB_JSON" | jq -r '.event.inputs.trigger_type // ""')
+            if [ -n "$OVERRIDE" ]; then
+              # Validate against known triggers
+              case "$OVERRIDE" in
+                issue-triage|issue-assigned|issue-edited|issue-closed|issue-comment|\
+                issue-orchestrate|issue-retry|issue-reset|issue-pivot|\
+                issue-groom|issue-groom-summary|\
+                workflow-run-completed|\
+                pr-review|pr-review-requested|pr-review-submitted|pr-review-approved|\
+                pr-response|pr-human-response|pr-push|pr-merged|\
+                merge-queue-entered|merge-queue-failed|\
+                deployed-stage|deployed-prod|deployed-stage-failed|deployed-prod-failed)
+                  TRIGGER="$OVERRIDE"
+                  ;;
+                *)
+                  TRIGGER="issue-triage"
+                  ;;
+              esac
+            else
+              TRIGGER="issue-triage"
+            fi
+            ;;
+
+          issues)
+            case "$ACTION" in
+              assigned) TRIGGER="issue-assigned" ;;
+              edited)   TRIGGER="issue-edited" ;;
+              closed)   TRIGGER="issue-closed" ;;
+              opened)   TRIGGER="issue-triage" ;;
+              *)        TRIGGER="issue-triage" ;;
+            esac
+            ;;
+
+          issue_comment)
+            COMMENT_BODY=$(echo "$GITHUB_JSON" | jq -r '.event.comment.body // ""')
+            if echo "$COMMENT_BODY" | grep -qE '/(lfg|implement|continue)'; then
+              TRIGGER="issue-orchestrate"
+            elif echo "$COMMENT_BODY" | grep -qE '/retry'; then
+              TRIGGER="issue-retry"
+            elif echo "$COMMENT_BODY" | grep -qE '/reset'; then
+              TRIGGER="issue-reset"
+            elif echo "$COMMENT_BODY" | grep -qE '/pivot'; then
+              TRIGGER="issue-pivot"
+            else
+              TRIGGER="issue-comment"
+            fi
+            ;;
+
+          pull_request)
+            case "$ACTION" in
+              review_requested) TRIGGER="pr-review-requested" ;;
+              *)                TRIGGER="pr-push" ;;
+            esac
+            ;;
+
+          pull_request_review)
+            REVIEW_STATE=$(echo "$GITHUB_JSON" | jq -r '.event.review.state // ""' | tr '[:upper:]' '[:lower:]')
+            case "$REVIEW_STATE" in
+              approved)           TRIGGER="pr-review-approved" ;;
+              changes_requested)  TRIGGER="pr-review-submitted" ;;
+              *)                  TRIGGER="pr-review-submitted" ;;
+            esac
+            ;;
+
+          pull_request_review_comment)
+            TRIGGER="pr-response"
+            ;;
+
+          push)
+            # Push events don't trigger the state machine
+            TRIGGER=""
+            ;;
+
+          workflow_run)
+            TRIGGER="workflow-run-completed"
+            ;;
+
+          merge_group)
+            TRIGGER="merge-queue-entered"
+            ;;
+
+          *)
+            TRIGGER="issue-triage"
+            ;;
+        esac
+
+        # ---------------------------------------------------------------
+        # 3. Determine cancel_in_progress
+        # ---------------------------------------------------------------
+        CANCEL_IN_PROGRESS="false"
+
+        # ---------------------------------------------------------------
+        # 4. Output
+        # ---------------------------------------------------------------
+        echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+        echo "trigger=$TRIGGER" >> "$GITHUB_OUTPUT"
+        echo "cancel_in_progress=$CANCEL_IN_PROGRESS" >> "$GITHUB_OUTPUT"
+
+        echo "::notice::SM Context: event=$EVENT_NAME trigger=$TRIGGER issue=$ISSUE_NUMBER cancel=$CANCEL_IN_PROGRESS"

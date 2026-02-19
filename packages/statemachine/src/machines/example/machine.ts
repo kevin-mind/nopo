@@ -6,6 +6,7 @@
  * Imports only from core and local example files.
  */
 
+import { assign } from "xstate";
 import { createMachineFactory } from "../../core/pev/domain-machine-factory.js";
 import type { ExampleContext } from "./context.js";
 import {
@@ -25,6 +26,9 @@ import {
   runOrchestrationAction,
   recordFailureAction,
   persistStateAction,
+  setupGitAction,
+  prepareBranchAction,
+  gitPushAction,
   stopAction,
   type ExampleAction,
 } from "./actions.js";
@@ -86,6 +90,9 @@ import {
   triggeredByReviewAndCommented,
   prReviewWithCIPassed,
   prReviewWithCINotFailed,
+  branchPrepClean,
+  branchPrepRebased,
+  branchPrepConflicts,
 } from "./guards.js";
 import { createExampleQueueAssigners } from "./states.js";
 import { ExampleContextLoader } from "./context.js";
@@ -114,6 +121,9 @@ export const exampleMachine = createMachineFactory<
     runOrchestration: runOrchestrationAction(createAction),
     recordFailure: recordFailureAction(createAction),
     persistState: persistStateAction(createAction),
+    setupGit: setupGitAction(createAction),
+    prepareBranch: prepareBranchAction(createAction),
+    gitPush: gitPushAction(createAction),
     stop: stopAction(createAction),
   }))
   .guards(() => ({
@@ -174,119 +184,144 @@ export const exampleMachine = createMachineFactory<
     triggeredByReviewAndCommented,
     prReviewWithCIPassed,
     prReviewWithCINotFailed,
+    branchPrepClean,
+    branchPrepRebased,
+    branchPrepConflicts,
   }))
   .states(({ registry }) => {
     const queue = createExampleQueueAssigners(registry);
     return {
       routing: {
-        on: {
-          DETECT: [
-            // ARC 1-4
-            { target: "resetting", guard: "triggeredByReset" },
-            { target: "retrying", guard: "triggeredByRetry" },
-            { target: "pivoting", guard: "triggeredByPivot" },
-            { target: "orchestrationComplete", guard: "allPhasesDone" },
-            // ARC 5-7
-            { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
-            { target: "alreadyBlocked", guard: "isBlocked" },
-            { target: "error", guard: "isError" },
-            // ARC 8-14
-            {
-              target: "mergeQueueLogging",
-              guard: "triggeredByMergeQueueEntry",
-            },
-            {
-              target: "mergeQueueFailureLogging",
-              guard: "triggeredByMergeQueueFailure",
-            },
-            { target: "processingMerge", guard: "triggeredByPRMerged" },
-            {
-              target: "processingDeployedStage",
-              guard: "triggeredByDeployedStage",
-            },
-            {
-              target: "processingDeployedProd",
-              guard: "triggeredByDeployedProd",
-            },
-            {
-              target: "processingDeployedStageFailure",
-              guard: "triggeredByDeployedStageFailure",
-            },
-            {
-              target: "processingDeployedProdFailure",
-              guard: "triggeredByDeployedProdFailure",
-            },
-            // ARC 15-17
-            { target: "triaging", guard: "triggeredByTriage" },
-            { target: "commenting", guard: "triggeredByComment" },
-            {
-              target: "grooming",
-              guard: "triggeredByOrchestrateAndNeedsGrooming",
-            },
-            {
-              target: "orchestrating",
-              guard: "triggeredByOrchestrateAndReady",
-            },
-            { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
-            // ARC 18-22
-            {
-              target: "prReviewing",
-              guard: "prReviewWithCIPassed",
-            },
-            {
-              target: "prReviewAssigned",
-              guard: "prReviewWithCINotFailed",
-            },
-            { target: "prReviewSkipped", guard: "triggeredByPRReview" },
-            { target: "prResponding", guard: "triggeredByPRResponse" },
-            {
-              target: "prRespondingHuman",
-              guard: "triggeredByPRHumanResponse",
-            },
-            // ARC 23-24
-            { target: "awaitingMerge", guard: "triggeredByPRReviewApproved" },
-            { target: "prPush", guard: "triggeredByPRPush" },
-            // ARC 25-28 (CI direct; 27 before 26 so max-failures blocks first)
-            {
-              target: "transitioningToReview",
-              guard: "triggeredByCIAndReadyForReview",
-            },
-            { target: "blocking", guard: "triggeredByCIAndShouldBlock" },
-            { target: "iteratingFix", guard: "triggeredByCIAndShouldContinue" },
-            { target: "processingCI", guard: "triggeredByCI" },
-            // ARC 29-32 (review direct)
-            { target: "awaitingMerge", guard: "triggeredByReviewAndApproved" },
-            { target: "iteratingFix", guard: "triggeredByReviewAndChanges" },
-            { target: "reviewing", guard: "triggeredByReviewAndCommented" },
-            { target: "reviewing", guard: "triggeredByReview" },
-            // ARC 33-35
-            { target: "triaging", guard: "needsTriage" },
-            { target: "iterating", guard: "canIterate" },
-            { target: "subIssueIdle", guard: "isSubIssue" },
-            // ARC 36-38
-            { target: "grooming", guard: "triggeredByGroom" },
-            { target: "grooming", guard: "triggeredByGroomSummary" },
-            { target: "grooming", guard: "needsGrooming" },
-            { target: "initializing", guard: "needsSubIssues" },
-            { target: "orchestrating", guard: "hasSubIssues" },
-            // ARC 41-43
-            { target: "reviewing", guard: "isInReview" },
-            { target: "transitioningToReview", guard: "readyForReview" },
-            { target: "invalidIteration", guard: "isInvalidIteration" },
-            { target: "idle" },
-          ],
-        },
+        always: [
+          // ARC 1-4
+          { target: "resetting", guard: "triggeredByReset" },
+          { target: "retrying", guard: "triggeredByRetry" },
+          { target: "pivoting", guard: "triggeredByPivot" },
+          { target: "orchestrationComplete", guard: "allPhasesDone" },
+          // ARC 5-7
+          { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
+          { target: "alreadyBlocked", guard: "isBlocked" },
+          { target: "error", guard: "isError" },
+          // ARC 8-14
+          {
+            target: "mergeQueueLogging",
+            guard: "triggeredByMergeQueueEntry",
+          },
+          {
+            target: "mergeQueueFailureLogging",
+            guard: "triggeredByMergeQueueFailure",
+          },
+          { target: "processingMerge", guard: "triggeredByPRMerged" },
+          {
+            target: "processingDeployedStage",
+            guard: "triggeredByDeployedStage",
+          },
+          {
+            target: "processingDeployedProd",
+            guard: "triggeredByDeployedProd",
+          },
+          {
+            target: "processingDeployedStageFailure",
+            guard: "triggeredByDeployedStageFailure",
+          },
+          {
+            target: "processingDeployedProdFailure",
+            guard: "triggeredByDeployedProdFailure",
+          },
+          // ARC 15-17
+          { target: "triaging", guard: "triggeredByTriage" },
+          { target: "commenting", guard: "triggeredByComment" },
+          {
+            target: "grooming",
+            guard: "triggeredByOrchestrateAndNeedsGrooming",
+          },
+          {
+            target: "orchestrating",
+            guard: "triggeredByOrchestrateAndReady",
+          },
+          { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
+          // ARC 18-22
+          {
+            target: "prReviewing",
+            guard: "prReviewWithCIPassed",
+          },
+          {
+            target: "prReviewAssigned",
+            guard: "prReviewWithCINotFailed",
+          },
+          { target: "prReviewSkipped", guard: "triggeredByPRReview" },
+          { target: "prResponding", guard: "triggeredByPRResponse" },
+          {
+            target: "prRespondingHuman",
+            guard: "triggeredByPRHumanResponse",
+          },
+          // ARC 23-24
+          { target: "awaitingMerge", guard: "triggeredByPRReviewApproved" },
+          { target: "prPush", guard: "triggeredByPRPush" },
+          // ARC 25-28 (CI direct; 27 before 26 so max-failures blocks first)
+          {
+            target: "transitioningToReview",
+            guard: "triggeredByCIAndReadyForReview",
+          },
+          { target: "blocking", guard: "triggeredByCIAndShouldBlock" },
+          { target: "iteratingFix", guard: "triggeredByCIAndShouldContinue" },
+          { target: "processingCI", guard: "triggeredByCI" },
+          // ARC 29-32 (review direct)
+          { target: "awaitingMerge", guard: "triggeredByReviewAndApproved" },
+          { target: "iteratingFix", guard: "triggeredByReviewAndChanges" },
+          { target: "reviewing", guard: "triggeredByReviewAndCommented" },
+          { target: "reviewing", guard: "triggeredByReview" },
+          // Branch prep results (after preparing queue completes)
+          { target: "iterating", guard: "branchPrepClean" },
+          { target: "branchRebased", guard: "branchPrepRebased" },
+          { target: "blocking", guard: "branchPrepConflicts" },
+          // ARC 33-35
+          { target: "triaging", guard: "needsTriage" },
+          { target: "preparing", guard: "canIterate" },
+          { target: "subIssueIdle", guard: "isSubIssue" },
+          // ARC 36-38
+          { target: "grooming", guard: "triggeredByGroom" },
+          { target: "grooming", guard: "triggeredByGroomSummary" },
+          { target: "grooming", guard: "needsGrooming" },
+          { target: "initializing", guard: "needsSubIssues" },
+          { target: "orchestrating", guard: "hasSubIssues" },
+          // ARC 41-43
+          { target: "reviewing", guard: "isInReview" },
+          { target: "transitioningToReview", guard: "readyForReview" },
+          { target: "invalidIteration", guard: "isInvalidIteration" },
+          { target: "idle" },
+        ],
       },
       triaging: {
         entry: queue.assignTriageQueue,
         always: RUNNER_STATES.executingQueue,
       },
+      preparing: {
+        entry: queue.assignPrepareQueue,
+        always: RUNNER_STATES.executingQueue,
+      },
       iterating: {
-        entry: queue.assignIterateQueue,
+        entry: [
+          assign({
+            domain: ({ context }) => ({
+              ...context.domain,
+              branchPrepResult: null,
+            }),
+          }),
+          queue.assignIterateQueue,
+        ],
         always: RUNNER_STATES.executingQueue,
       },
       iteratingFix: {
-        entry: queue.assignIterateFixQueue,
+        entry: [
+          assign({
+            domain: ({ context }) => ({
+              ...context.domain,
+              branchPrepResult: null,
+            }),
+          }),
+          queue.assignIterateFixQueue,
+        ],
         always: RUNNER_STATES.executingQueue,
       },
       transitioningToReview: {
@@ -400,6 +435,7 @@ export const exampleMachine = createMachineFactory<
         entry: queue.assignBlockQueue,
         always: RUNNER_STATES.executingQueue,
       },
+      branchRebased: { type: "final" },
       idle: { type: "final" },
       subIssueIdle: { type: "final" },
       invalidIteration: { type: "final" },

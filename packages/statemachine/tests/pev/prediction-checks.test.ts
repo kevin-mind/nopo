@@ -33,10 +33,15 @@ function runMachine(registry: ActionRegistry<DemoAction, DemoCtx>) {
     id: "prediction-checks-test",
     actionRegistry: registry,
     refreshContext: async (_runnerCtx, current) => current,
-    guards: {},
+    guards: {
+      firstCycle: ({ context }) => context.cycleCount === 0,
+    },
     domainStates: {
       routing: {
-        always: "queueing",
+        always: [
+          { target: "queueing", guard: "firstCycle" },
+          { target: "idle" },
+        ],
       },
       queueing: {
         entry: assign({
@@ -44,6 +49,7 @@ function runMachine(registry: ActionRegistry<DemoAction, DemoCtx>) {
         }),
         always: "executingQueue",
       },
+      idle: { type: "final" },
     },
   });
 
@@ -64,7 +70,7 @@ function runMachine(registry: ActionRegistry<DemoAction, DemoCtx>) {
         owner: "o",
         repo: "r",
       },
-      maxTransitions: 10,
+      maxCycles: 10,
     },
   });
 
@@ -282,7 +288,7 @@ describe("runner integration with prediction checks", () => {
     };
 
     const snapshot = await runMachine(registry);
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(snapshot.context.verifyResult?.pass).toBe(true);
   });
 
@@ -345,7 +351,7 @@ describe("runner integration with prediction checks", () => {
     };
 
     const snapshot = await runMachine(registry);
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(sawPredictionPass).toBe(true);
     expect(sawExecuteOk).toBe(true);
   });
@@ -373,7 +379,7 @@ describe("runner integration with prediction checks", () => {
     };
 
     const snapshot = await runMachine(registry);
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(snapshot.context.verifyResult?.pass).toBe(true);
   });
 

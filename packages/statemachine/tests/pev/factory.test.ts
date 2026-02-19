@@ -24,7 +24,7 @@ interface TestAction {
   payload?: string;
 }
 
-type TestEvent = { type: "GO" } & EventObject;
+type TestEvent = EventObject;
 
 // ============================================================================
 // Helpers
@@ -70,13 +70,15 @@ function createMinimalMachine(
     actionRegistry: registry,
     refreshContext: async (_runnerCtx, current) => current,
     guards: {
-      hasActions: ({ context }) => context.domain.value > 0,
+      hasActions: ({ context }) =>
+        context.domain.value > 0 && context.cycleCount === 0,
     },
     domainStates: domainStates ?? {
       routing: {
-        on: {
-          GO: [{ target: "building", guard: "hasActions" }, { target: "idle" }],
-        },
+        always: [
+          { target: "building", guard: "hasActions" },
+          { target: "idle" },
+        ],
       },
       building: {
         entry: assign({
@@ -94,18 +96,17 @@ function createMinimalMachine(
 function runMachine(
   machine: ReturnType<typeof createMinimalMachine>,
   domain: TestContext,
-  maxTransitions = 10,
+  maxCycles = 10,
 ) {
   const actor = createActor(machine, {
     input: {
       domain,
-      maxTransitions,
+      maxCycles,
       runnerCtx: { token: "test", owner: "test", repo: "test" },
     },
   });
 
   actor.start();
-  actor.send({ type: "GO" });
 
   return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
 }
@@ -121,7 +122,7 @@ describe("createDomainMachine", () => {
     const snapshot = await runMachine(machine, { value: 1 });
 
     expect(snapshot.status).toBe("done");
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(snapshot.context.completedActions).toHaveLength(1);
     expect(snapshot.context.completedActions[0]?.action.type).toBe("increment");
     expect(snapshot.context.completedActions[0]?.verified).toBe(true);
@@ -136,7 +137,7 @@ describe("createDomainMachine", () => {
     expect(snapshot.context.completedActions).toHaveLength(0);
   });
 
-  it("respects maxTransitions limit", async () => {
+  it("respects maxCycles limit", async () => {
     const registry = createTestRegistry();
     const machine = createDomainMachine<TestContext, TestAction, TestEvent>({
       id: "test-limit",
@@ -145,9 +146,7 @@ describe("createDomainMachine", () => {
       guards: {},
       domainStates: {
         routing: {
-          on: {
-            GO: { target: "building" },
-          },
+          always: { target: "building" },
         },
         building: {
           entry: assign({
@@ -164,11 +163,12 @@ describe("createDomainMachine", () => {
 
     const snapshot = await runMachine(machine, { value: 1 }, 2);
 
-    expect(String(snapshot.value)).toBe("transitionLimitReached");
-    expect(snapshot.context.completedActions).toHaveLength(2);
-    expect(snapshot.context.transitionCount).toBe(2);
-    // One action should remain in queue
-    expect(snapshot.context.actionQueue).toHaveLength(1);
+    expect(String(snapshot.value)).toBe("done");
+    // 2 cycles × 3 actions per queue = 6 completed
+    expect(snapshot.context.completedActions).toHaveLength(6);
+    expect(snapshot.context.cycleCount).toBe(2);
+    // Queue is fully drained each cycle
+    expect(snapshot.context.actionQueue).toHaveLength(0);
   });
 
   it("drains the full queue when limit is high enough", async () => {
@@ -177,12 +177,15 @@ describe("createDomainMachine", () => {
       id: "test-drain",
       actionRegistry: registry,
       refreshContext: async (_runnerCtx, current) => current,
-      guards: {},
+      guards: {
+        firstCycle: ({ context }) => context.cycleCount === 0,
+      },
       domainStates: {
         routing: {
-          on: {
-            GO: { target: "building" },
-          },
+          always: [
+            { target: "building", guard: "firstCycle" },
+            { target: "idle" },
+          ],
         },
         building: {
           entry: assign({
@@ -194,12 +197,13 @@ describe("createDomainMachine", () => {
           }),
           always: "executingQueue",
         },
+        idle: { type: "final" },
       },
     });
 
     const snapshot = await runMachine(machine, { value: 1 }, 10);
 
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(snapshot.context.completedActions).toHaveLength(3);
     expect(snapshot.context.actionQueue).toHaveLength(0);
   });
@@ -213,9 +217,7 @@ describe("createDomainMachine", () => {
       guards: {},
       domainStates: {
         routing: {
-          on: {
-            GO: { target: "building" },
-          },
+          always: { target: "building" },
         },
         building: {
           entry: assign({
@@ -242,9 +244,7 @@ describe("createDomainMachine", () => {
       guards: {},
       domainStates: {
         routing: {
-          on: {
-            GO: { target: "building" },
-          },
+          always: { target: "building" },
         },
         building: {
           entry: assign({
@@ -274,12 +274,15 @@ describe("createDomainMachine", () => {
       id: "test-no-verify",
       actionRegistry: registry,
       refreshContext: async (_runnerCtx, current) => current,
-      guards: {},
+      guards: {
+        firstCycle: ({ context }) => context.cycleCount === 0,
+      },
       domainStates: {
         routing: {
-          on: {
-            GO: { target: "building" },
-          },
+          always: [
+            { target: "building", guard: "firstCycle" },
+            { target: "idle" },
+          ],
         },
         building: {
           entry: assign({
@@ -287,12 +290,13 @@ describe("createDomainMachine", () => {
           }),
           always: "executingQueue",
         },
+        idle: { type: "final" },
       },
     });
 
     const snapshot = await runMachine(machine, { value: 1 });
 
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(snapshot.context.completedActions).toHaveLength(1);
     expect(snapshot.context.completedActions[0]?.verified).toBe(true);
   });
@@ -316,12 +320,15 @@ describe("createDomainMachine", () => {
       id: "test-predict",
       actionRegistry: registry,
       refreshContext: async (_runnerCtx, current) => current,
-      guards: {},
+      guards: {
+        firstCycle: ({ context }) => context.cycleCount === 0,
+      },
       domainStates: {
         routing: {
-          on: {
-            GO: { target: "building" },
-          },
+          always: [
+            { target: "building", guard: "firstCycle" },
+            { target: "idle" },
+          ],
         },
         building: {
           entry: assign({
@@ -329,13 +336,14 @@ describe("createDomainMachine", () => {
           }),
           always: "executingQueue",
         },
+        idle: { type: "final" },
       },
     });
 
     const actor = createActor(machine, {
       input: {
         domain: { value: 1 },
-        maxTransitions: 10,
+        maxCycles: 10,
         runnerCtx: { token: "test", owner: "test", repo: "test" },
       },
     });
@@ -348,7 +356,6 @@ describe("createDomainMachine", () => {
     });
 
     actor.start();
-    actor.send({ type: "GO" });
 
     await waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
 
@@ -374,10 +381,15 @@ describe("createDomainMachine", () => {
       id: "test-domain-ctx",
       actionRegistry: registry,
       refreshContext: async (_runnerCtx, current) => current,
-      guards: {},
+      guards: {
+        firstCycle: ({ context }) => context.cycleCount === 0,
+      },
       domainStates: {
         routing: {
-          on: { GO: { target: "building" } },
+          always: [
+            { target: "building", guard: "firstCycle" },
+            { target: "idle" },
+          ],
         },
         building: {
           entry: assign({
@@ -385,11 +397,12 @@ describe("createDomainMachine", () => {
           }),
           always: "executingQueue",
         },
+        idle: { type: "final" },
       },
     });
 
     const snapshot = await runMachine(machine, { value: 1 });
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(capturedDomain).toEqual({ value: 1 });
   });
 
@@ -410,10 +423,15 @@ describe("createDomainMachine", () => {
         refreshCallCount++;
         return { value: current.value + 1 };
       },
-      guards: {},
+      guards: {
+        firstCycle: ({ context }) => context.cycleCount === 0,
+      },
       domainStates: {
         routing: {
-          on: { GO: { target: "building" } },
+          always: [
+            { target: "building", guard: "firstCycle" },
+            { target: "idle" },
+          ],
         },
         building: {
           entry: assign({
@@ -421,37 +439,44 @@ describe("createDomainMachine", () => {
           }),
           always: "executingQueue",
         },
+        idle: { type: "final" },
       },
     });
 
     const snapshot = await runMachine(machine, { value: 0 });
 
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(refreshCallCount).toBe(2);
     // Domain context should have been updated by refreshContext
     expect(snapshot.context.domain.value).toBe(2);
   });
 
-  it("transitions to done with empty queue", async () => {
+  it("transitions to idle with empty queue after one cycle", async () => {
     const machine = createDomainMachine<TestContext, TestAction, TestEvent>({
       id: "test-empty",
       actionRegistry: {},
       refreshContext: async (_runnerCtx, current) => current,
-      guards: {},
+      guards: {
+        firstCycle: ({ context }) => context.cycleCount === 0,
+      },
       domainStates: {
         routing: {
-          on: { GO: { target: "building" } },
+          always: [
+            { target: "building", guard: "firstCycle" },
+            { target: "idle" },
+          ],
         },
         building: {
           // No actions queued
           always: "executingQueue",
         },
+        idle: { type: "final" },
       },
     });
 
     const snapshot = await runMachine(machine, { value: 0 });
 
-    expect(String(snapshot.value)).toBe("done");
+    expect(String(snapshot.value)).toBe("idle");
     expect(snapshot.context.completedActions).toHaveLength(0);
   });
 });

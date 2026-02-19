@@ -250,6 +250,25 @@ function needsSubIssues(_guardContext: GuardArgs): boolean {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// Branch preparation guards (two-queue architecture)
+// ---------------------------------------------------------------------------
+
+/** Branch prep completed with no rebase needed — safe to continue to iterate */
+function branchPrepClean({ context }: GuardArgs): boolean {
+  return context.domain.branchPrepResult === "clean";
+}
+
+/** Branch was rebased and force-pushed — machine should stop so CI retriggers */
+function branchPrepRebased({ context }: GuardArgs): boolean {
+  return context.domain.branchPrepResult === "rebased";
+}
+
+/** Branch rebase failed due to conflicts — should block */
+function branchPrepConflicts({ context }: GuardArgs): boolean {
+  return context.domain.branchPrepResult === "conflicts";
+}
+
 export {
   needsTriage,
   canIterate,
@@ -308,4 +327,7 @@ export {
   triggeredByReviewAndCommented,
   prReviewWithCIPassed,
   prReviewWithCINotFailed,
+  branchPrepClean,
+  branchPrepRebased,
+  branchPrepConflicts,
 };
