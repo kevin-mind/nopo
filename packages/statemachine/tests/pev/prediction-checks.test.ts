@@ -353,6 +353,36 @@ describe("evaluatePredictionChecks", () => {
     // Both children fail — diffs from each child should be accumulated
     expect(result.diffs).toHaveLength(2);
   });
+
+  it("exists fails when field is null or undefined", () => {
+    const ctxWithNull = {
+      ...newCtx,
+      issue: { ...newCtx.issue, nested: undefined },
+    };
+    const checks: PredictionCheck[] = [
+      { comparator: "exists", field: "issue.nested" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, ctxWithNull);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.comparator).toBe("exists");
+    expect(result.diffs[0]?.actual).toBeUndefined();
+  });
+
+  it("subset fails when actual array does not contain all expected items", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "subset",
+        field: "issue.labels",
+        expected: ["triaged", "missing-label"],
+      },
+    ];
+    // newCtx.issue.labels = ["triaged", "groomed"] — does not contain "missing-label"
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.comparator).toBe("subset");
+  });
 });
 
 describe("runner integration with prediction checks", () => {
