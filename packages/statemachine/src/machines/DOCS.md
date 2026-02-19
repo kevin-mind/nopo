@@ -207,20 +207,19 @@ function buildReviewQueue(context: Ctx, registry: ExampleRegistry): ExampleActio
 
 #### `recordFailure` + circuit breaker integration
 
-`recordFailure` increments `issue.failures` in the domain model. It carries a `predict` check so the runner can verify the counter was incremented before continuing:
+`recordFailure` increments `issue.failures` in the domain model in memory only — it does **not** call any external API and intentionally has no `predict` callback (because failures are updated in-memory before persistence, so an external refresh would not see the change):
 
 ```ts
 // In actions.ts
 export function recordFailureAction(createAction: ExampleCreateAction) {
   return createAction<{ issueNumber: number; failureType: "ci" | "review" }>({
-    predict: (action, ctx) => {
-      const current = /* resolve issue or sub-issue */.failures ?? 0;
-      return {
-        checks: [{ comparator: "eq", field: "issue.failures", expected: current + 1 }],
-      };
-    },
+    // No predict: failures are updated in-memory only (not persisted until
+    // a subsequent persistState action), so external refresh won't see the change.
     execute: async (action, ctx) => {
-      const issue = /* resolve */;
+      const issue =
+        ctx.issue.number === action.payload.issueNumber
+          ? ctx.issue
+          : (ctx.currentSubIssue ?? ctx.issue);
       Object.assign(issue, { failures: (issue.failures ?? 0) + 1 });
       return { ok: true };
     },
