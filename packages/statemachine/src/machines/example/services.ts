@@ -15,8 +15,35 @@ export interface ExampleTriageOutput {
 
 export interface ExampleGroomingOutput {
   labelsToAdd: string[];
-  suggestedSubIssueNumbers: number[];
   summary: string;
+  decision: "ready" | "needs_info" | "blocked";
+  /** Engineer's recommended phases (used by reconcileSubIssues) */
+  recommendedPhases?: Array<{
+    phase_number: number;
+    title: string;
+    description: string;
+    affected_areas?: Array<{
+      path: string;
+      change_type?: string;
+      description?: string;
+    }>;
+    todos?: Array<{ task: string; manual?: boolean }>;
+    depends_on?: number[];
+  }>;
+  /** Questions for the issue body when decision is needs_info */
+  consolidatedQuestions?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    priority: string;
+  }>;
+  /** Previously asked questions that are now answered */
+  answeredQuestions?: Array<{
+    id: string;
+    title: string;
+    answer_summary: string;
+  }>;
+  blockerReason?: string;
 }
 
 export interface ExampleIterationOutput {
@@ -107,16 +134,32 @@ const ClaudeTriageOutputSchema = z.object({
   initial_approach: z.string(),
 });
 
-const ClaudeGroomingOutputSchema = z.object({
-  grooming: z.object({
-    labels_to_add: z.array(z.string()),
-    suggested_sub_issues: z.array(
+const ClaudeGroomingSummaryOutputSchema = z.object({
+  summary: z.string(),
+  decision: z.enum(["ready", "needs_info", "blocked"]),
+  decision_rationale: z.string(),
+  consolidated_questions: z
+    .array(
       z.object({
-        number: z.number().int().positive(),
+        id: z.string(),
+        title: z.string(),
+        description: z.string(),
+        sources: z.array(z.string()),
+        priority: z.enum(["critical", "important", "nice-to-have"]),
       }),
-    ),
-  }),
-  implementation_plan: z.string(),
+    )
+    .optional(),
+  answered_questions: z
+    .array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        answer_summary: z.string(),
+      }),
+    )
+    .optional(),
+  blocker_reason: z.string().optional(),
+  agent_notes: z.array(z.string()).optional(),
 });
 
 const ClaudeIterationOutputSchema = z.object({
@@ -166,19 +209,54 @@ function mapClaudeOutputToTriageResult(output: unknown): ExampleTriageOutput {
   };
 }
 
-function mapClaudeOutputToGroomingResult(
-  output: unknown,
+/** Schema for engineer agent output (extracts recommended_phases) */
+const ClaudeEngineerOutputSchema = z.object({
+  implementation_plan: z.string(),
+  recommended_phases: z.array(
+    z.object({
+      phase_number: z.number(),
+      title: z.string(),
+      description: z.string(),
+      affected_areas: z
+        .array(
+          z.object({
+            path: z.string(),
+            change_type: z.string().optional(),
+            description: z.string().optional(),
+          }),
+        )
+        .optional(),
+      todos: z
+        .array(z.object({ task: z.string(), manual: z.boolean().optional() }))
+        .optional(),
+      depends_on: z.array(z.number()).optional(),
+    }),
+  ),
+});
+
+function mapGroomingSummaryToOutput(
+  summaryOutput: unknown,
+  engineerOutput: unknown,
 ): ExampleGroomingOutput {
-  const parsed = ClaudeGroomingOutputSchema.parse(output);
-  const labelsToAdd = ["groomed", ...parsed.grooming.labels_to_add];
+  const summary = ClaudeGroomingSummaryOutputSchema.parse(summaryOutput);
+  const labelsToAdd =
+    summary.decision === "ready" ? ["groomed"] : ["needs-grooming-info"];
+  const engineer = ClaudeEngineerOutputSchema.safeParse(engineerOutput);
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
-    suggestedSubIssueNumbers: [
-      ...new Set(
-        parsed.grooming.suggested_sub_issues.map((item) => item.number),
-      ),
-    ],
-    summary: parsed.implementation_plan,
+    summary: summary.summary,
+    decision: summary.decision,
+    recommendedPhases: engineer.success
+      ? engineer.data.recommended_phases
+      : undefined,
+    consolidatedQuestions: summary.consolidated_questions?.map((q) => ({
+      id: q.id,
+      title: q.title,
+      description: q.description,
+      priority: q.priority,
+    })),
+    answeredQuestions: summary.answered_questions,
+    blockerReason: summary.blocker_reason,
   };
 }
 
@@ -253,25 +331,61 @@ export function createClaudeTriageService(
 export function createClaudeGroomingService(
   codeToken?: string,
 ): ExampleGroomingService {
+  const envOverrides = codeToken ? { GH_TOKEN: codeToken } : undefined;
+  const cwd = process.cwd();
+
+  async function runAgent(
+    promptDir: string,
+    promptVars: Record<string, string>,
+    label: string,
+  ): Promise<unknown> {
+    const resolved = resolvePrompt({ promptDir, promptVars });
+    const result = await executeClaudeSDK({
+      prompt: resolved.prompt,
+      cwd,
+      outputSchema: resolved.outputSchema,
+      ...(envOverrides && { envOverrides }),
+    });
+    if (!result.success || !result.structuredOutput) {
+      throw new Error(
+        result.error ?? `Claude ${label} agent failed (exitCode=${result.exitCode})`,
+      );
+    }
+    return result.structuredOutput;
+  }
+
   return {
     async groomIssue(input) {
-      const resolved = resolvePrompt({
-        promptDir: "grooming",
-        promptVars: input.promptVars,
-      });
-      const result = await executeClaudeSDK({
-        prompt: resolved.prompt,
-        cwd: process.cwd(),
-        outputSchema: resolved.outputSchema,
-        ...(codeToken && { envOverrides: { GH_TOKEN: codeToken } }),
-      });
-      if (!result.success || !result.structuredOutput) {
-        throw new Error(
-          result.error ??
-            `Claude grooming failed for issue #${input.issueNumber} (exitCode=${result.exitCode})`,
-        );
-      }
-      return mapClaudeOutputToGroomingResult(result.structuredOutput);
+      const vars = input.promptVars;
+
+      // Step 1: Run 4 grooming agents in parallel
+      const [engineerOutput, pmOutput, qaOutput, researchOutput] =
+        await Promise.all([
+          runAgent("grooming/engineer", vars, "engineer"),
+          runAgent("grooming/pm", vars, "pm"),
+          runAgent("grooming/qa", vars, "qa"),
+          runAgent("grooming/research", vars, "research"),
+        ]);
+
+      // Step 2: Feed agent outputs to summary prompt
+      const summaryVars: Record<string, string> = {
+        ISSUE_NUMBER: vars.ISSUE_NUMBER,
+        ISSUE_TITLE: vars.ISSUE_TITLE,
+        ISSUE_BODY: vars.ISSUE_BODY,
+        ISSUE_COMMENTS: vars.ISSUE_COMMENTS,
+        PM_OUTPUT: JSON.stringify(pmOutput),
+        ENGINEER_OUTPUT: JSON.stringify(engineerOutput),
+        QA_OUTPUT: JSON.stringify(qaOutput),
+        RESEARCH_OUTPUT: JSON.stringify(researchOutput),
+      };
+
+      const summaryOutput = await runAgent(
+        "grooming/summary",
+        summaryVars,
+        "summary",
+      );
+
+      return mapGroomingSummaryToOutput(summaryOutput, engineerOutput);
     },
   };
 }

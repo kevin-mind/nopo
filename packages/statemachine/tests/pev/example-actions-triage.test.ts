@@ -211,7 +211,7 @@ describe("example grooming actions", () => {
       }),
       groomingOutput: {
         labelsToAdd: ["groomed", "needs-spec"],
-        suggestedSubIssueNumbers: [101, 102],
+        decision: "ready",
         summary: "Split work",
       },
     });

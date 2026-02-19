@@ -65201,16 +65201,28 @@ var ClaudeTriageOutputSchema = external_exports.object({
   }),
   initial_approach: external_exports.string()
 });
-var ClaudeGroomingOutputSchema = external_exports.object({
-  grooming: external_exports.object({
-    labels_to_add: external_exports.array(external_exports.string()),
-    suggested_sub_issues: external_exports.array(
-      external_exports.object({
-        number: external_exports.number().int().positive()
-      })
-    )
-  }),
-  implementation_plan: external_exports.string()
+var ClaudeGroomingSummaryOutputSchema = external_exports.object({
+  summary: external_exports.string(),
+  decision: external_exports.enum(["ready", "needs_info", "blocked"]),
+  decision_rationale: external_exports.string(),
+  consolidated_questions: external_exports.array(
+    external_exports.object({
+      id: external_exports.string(),
+      title: external_exports.string(),
+      description: external_exports.string(),
+      sources: external_exports.array(external_exports.string()),
+      priority: external_exports.enum(["critical", "important", "nice-to-have"])
+    })
+  ).optional(),
+  answered_questions: external_exports.array(
+    external_exports.object({
+      id: external_exports.string(),
+      title: external_exports.string(),
+      answer_summary: external_exports.string()
+    })
+  ).optional(),
+  blocker_reason: external_exports.string().optional(),
+  agent_notes: external_exports.array(external_exports.string()).optional()
 });
 var ClaudeIterationOutputSchema = external_exports.object({
   iteration: external_exports.object({
@@ -65252,17 +65264,42 @@ function mapClaudeOutputToTriageResult(output) {
     summary: parsed.initial_approach
   };
 }
-function mapClaudeOutputToGroomingResult(output) {
-  const parsed = ClaudeGroomingOutputSchema.parse(output);
-  const labelsToAdd = ["groomed", ...parsed.grooming.labels_to_add];
+var ClaudeEngineerOutputSchema = external_exports.object({
+  implementation_plan: external_exports.string(),
+  recommended_phases: external_exports.array(
+    external_exports.object({
+      phase_number: external_exports.number(),
+      title: external_exports.string(),
+      description: external_exports.string(),
+      affected_areas: external_exports.array(
+        external_exports.object({
+          path: external_exports.string(),
+          change_type: external_exports.string().optional(),
+          description: external_exports.string().optional()
+        })
+      ).optional(),
+      todos: external_exports.array(external_exports.object({ task: external_exports.string(), manual: external_exports.boolean().optional() })).optional(),
+      depends_on: external_exports.array(external_exports.number()).optional()
+    })
+  )
+});
+function mapGroomingSummaryToOutput(summaryOutput, engineerOutput) {
+  const summary = ClaudeGroomingSummaryOutputSchema.parse(summaryOutput);
+  const labelsToAdd = summary.decision === "ready" ? ["groomed"] : ["needs-grooming-info"];
+  const engineer = ClaudeEngineerOutputSchema.safeParse(engineerOutput);
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
-    suggestedSubIssueNumbers: [
-      ...new Set(
-        parsed.grooming.suggested_sub_issues.map((item) => item.number)
-      )
-    ],
-    summary: parsed.implementation_plan
+    summary: summary.summary,
+    decision: summary.decision,
+    recommendedPhases: engineer.success ? engineer.data.recommended_phases : void 0,
+    consolidatedQuestions: summary.consolidated_questions?.map((q) => ({
+      id: q.id,
+      title: q.title,
+      description: q.description,
+      priority: q.priority
+    })),
+    answeredQuestions: summary.answered_questions,
+    blockerReason: summary.blocker_reason
   };
 }
 function mapClaudeOutputToIterationResult(output) {
@@ -65318,24 +65355,48 @@ function createClaudeTriageService(codeToken) {
   };
 }
 function createClaudeGroomingService(codeToken) {
+  const envOverrides = codeToken ? { GH_TOKEN: codeToken } : void 0;
+  const cwd2 = process.cwd();
+  async function runAgent(promptDir, promptVars, label) {
+    const resolved = resolvePrompt({ promptDir, promptVars });
+    const result = await executeClaudeSDK({
+      prompt: resolved.prompt,
+      cwd: cwd2,
+      outputSchema: resolved.outputSchema,
+      ...envOverrides && { envOverrides }
+    });
+    if (!result.success || !result.structuredOutput) {
+      throw new Error(
+        result.error ?? `Claude ${label} agent failed (exitCode=${result.exitCode})`
+      );
+    }
+    return result.structuredOutput;
+  }
   return {
     async groomIssue(input) {
-      const resolved = resolvePrompt({
-        promptDir: "grooming",
-        promptVars: input.promptVars
-      });
-      const result = await executeClaudeSDK({
-        prompt: resolved.prompt,
-        cwd: process.cwd(),
-        outputSchema: resolved.outputSchema,
-        ...codeToken && { envOverrides: { GH_TOKEN: codeToken } }
-      });
-      if (!result.success || !result.structuredOutput) {
-        throw new Error(
-          result.error ?? `Claude grooming failed for issue #${input.issueNumber} (exitCode=${result.exitCode})`
-        );
-      }
-      return mapClaudeOutputToGroomingResult(result.structuredOutput);
+      const vars = input.promptVars;
+      const [engineerOutput, pmOutput, qaOutput, researchOutput] = await Promise.all([
+        runAgent("grooming/engineer", vars, "engineer"),
+        runAgent("grooming/pm", vars, "pm"),
+        runAgent("grooming/qa", vars, "qa"),
+        runAgent("grooming/research", vars, "research")
+      ]);
+      const summaryVars = {
+        ISSUE_NUMBER: vars.ISSUE_NUMBER,
+        ISSUE_TITLE: vars.ISSUE_TITLE,
+        ISSUE_BODY: vars.ISSUE_BODY,
+        ISSUE_COMMENTS: vars.ISSUE_COMMENTS,
+        PM_OUTPUT: JSON.stringify(pmOutput),
+        ENGINEER_OUTPUT: JSON.stringify(engineerOutput),
+        QA_OUTPUT: JSON.stringify(qaOutput),
+        RESEARCH_OUTPUT: JSON.stringify(researchOutput)
+      };
+      const summaryOutput = await runAgent(
+        "grooming/summary",
+        summaryVars,
+        "summary"
+      );
+      return mapGroomingSummaryToOutput(summaryOutput, engineerOutput);
     }
   };
 }
@@ -65529,58 +65590,58 @@ function runClaudeGroomingAction(createAction) {
 function applyGroomingOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply grooming output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All grooming labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["groomed"]).map((label) => ({
-            comparator: "includes",
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label
-          }))
-        }
-      ]
-    }),
-    execute: async (action, ctx) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ctx.groomingOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No grooming labels available to apply");
+    execute: async (_action, ctx) => {
+      const output = ctx.groomingOutput;
+      if (!output) {
+        throw new Error("No grooming output available to apply");
       }
-      applyGrooming(ctx, labelsToAdd);
-      return { ok: true };
-    },
-    verify: ({ action, executeResult, predictionEval, predictionDiffs }) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["groomed"];
-      const executeSucceeded = isOkResult(executeResult);
-      if (!executeSucceeded) {
-        return {
-          message: "Grooming output execute step did not return ok=true"
-        };
-      }
-      if (predictionEval.pass) return;
-      return {
-        message: `Missing grooming labels after apply: ${labelsToAdd.join(", ")}`,
-        diffs: predictionDiffs
-      };
+      applyGrooming(ctx, output.labelsToAdd);
+      return { ok: true, decision: output.decision };
     }
   });
 }
 function reconcileSubIssuesAction(createAction) {
   return createAction({
     description: (action) => `Reconcile sub-issues for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const subIssueNumbers = action.payload.subIssueNumbers ?? ctx.groomingOutput?.suggestedSubIssueNumbers;
-      if (subIssueNumbers !== void 0) {
-        reconcileSubIssues(ctx, subIssueNumbers);
+    predict: () => ({
+      checks: [
+        {
+          comparator: "equals",
+          description: "Issue should have sub-issues after grooming",
+          field: "issue.hasSubIssues",
+          expected: true
+        }
+      ]
+    }),
+    execute: async (_action, ctx) => {
+      const output = ctx.groomingOutput;
+      if (!output) {
+        throw new Error("No grooming output to reconcile");
+      }
+      if (output.decision === "ready" && output.recommendedPhases) {
+        const existingNumbers = ctx.issue.subIssues.map((s) => s.number);
+        if (existingNumbers.length > 0) {
+          reconcileSubIssues(ctx, existingNumbers);
+        }
       }
       const persisted = await persistIssueState(ctx);
       if (!persisted) {
         throw new Error("Failed to persist grooming output");
       }
       ctx.groomingOutput = null;
-      return { ok: true };
+      return { ok: true, decision: output.decision };
+    },
+    verify: ({ executeResult, newCtx }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "Reconcile sub-issues execute did not return ok=true" };
+      }
+      const decision = executeResult.decision;
+      if (decision === "ready" && !newCtx.domain.issue.hasSubIssues) {
+        return {
+          message: "Grooming decision was 'ready' but issue has no sub-issues after reconciliation"
+        };
+      }
+      return void 0;
     }
   });
 }

@@ -50,7 +50,7 @@ async function runExampleMachine(domain: ExampleContext, maxTransitions = 10) {
         };
       }) => ({
         labelsToAdd: ["groomed"],
-        suggestedSubIssueNumbers: [input.issueNumber * 10 + 1],
+        decision: "ready" as const,
         summary: "Issue groomed",
       }),
     } satisfies NonNullable<ExampleContext["services"]>["grooming"]);

@@ -262,9 +262,11 @@ Automated issue management using GitHub Project fields for state. Race condition
 **Parent issues** = big loop (overall progress). **Sub-issues** = little loop (per phase). Every issue MUST have at least one sub-issue — all implementation work happens on sub-issues, never directly on parent issues.
 
 ```
-PARENT: Backlog → Groomed → In Progress → Done (or Blocked/Error)
+PARENT: Backlog → [triage] → [groom] → In Progress → Done (or Blocked/Error)
 SUB:    Ready → Working → Review → Done
 ```
+
+Note: "triage" and "groom" are state machine phases, not project statuses. Grooming adds the "groomed" label and creates sub-issues.
 
 **Project Fields:** Status, Iteration (counter), Failures (consecutive)
 

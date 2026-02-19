@@ -191,47 +191,16 @@ export function runClaudeGroomingAction(createAction: ExampleCreateAction) {
 export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
-    labelsToAdd?: string[];
   }>({
     description: (action) =>
       `Apply grooming output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description:
-            "All grooming labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["groomed"]).map((label) => ({
-            comparator: "includes" as const,
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label,
-          })),
-        },
-      ],
-    }),
-    execute: async (action, ctx) => {
-      const labelsToAdd =
-        action.payload.labelsToAdd ?? ctx.groomingOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No grooming labels available to apply");
+    execute: async (_action, ctx) => {
+      const output = ctx.groomingOutput;
+      if (!output) {
+        throw new Error("No grooming output available to apply");
       }
-      applyGrooming(ctx, labelsToAdd);
-      return { ok: true };
-    },
-    verify: ({ action, executeResult, predictionEval, predictionDiffs }) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["groomed"];
-      const executeSucceeded = isOkResult(executeResult);
-      if (!executeSucceeded) {
-        return {
-          message: "Grooming output execute step did not return ok=true",
-        };
-      }
-      if (predictionEval.pass) return;
-      return {
-        message: `Missing grooming labels after apply: ${labelsToAdd.join(", ")}`,
-        diffs: predictionDiffs,
-      };
+      applyGrooming(ctx, output.labelsToAdd);
+      return { ok: true, decision: output.decision };
     },
   });
 }
@@ -239,24 +208,51 @@ export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
 export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
-    expectedSubIssueCount?: number;
-    subIssueNumbers?: number[];
   }>({
     description: (action) =>
       `Reconcile sub-issues for #${action.payload.issueNumber}`,
-    execute: async (action, ctx) => {
-      const subIssueNumbers =
-        action.payload.subIssueNumbers ??
-        ctx.groomingOutput?.suggestedSubIssueNumbers;
-      if (subIssueNumbers !== undefined) {
-        reconcileSubIssues(ctx, subIssueNumbers);
+    predict: () => ({
+      checks: [
+        {
+          comparator: "equals" as const,
+          description: "Issue should have sub-issues after grooming",
+          field: "issue.hasSubIssues",
+          expected: true,
+        },
+      ],
+    }),
+    execute: async (_action, ctx) => {
+      const output = ctx.groomingOutput;
+      if (!output) {
+        throw new Error("No grooming output to reconcile");
+      }
+      // Only reconcile sub-issues when the decision is "ready"
+      if (output.decision === "ready" && output.recommendedPhases) {
+        const existingNumbers = ctx.issue.subIssues.map((s) => s.number);
+        if (existingNumbers.length > 0) {
+          reconcileSubIssues(ctx, existingNumbers);
+        }
       }
       const persisted = await persistIssueState(ctx);
       if (!persisted) {
         throw new Error("Failed to persist grooming output");
       }
       ctx.groomingOutput = null;
-      return { ok: true };
+      return { ok: true, decision: output.decision };
+    },
+    verify: ({ executeResult, newCtx }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "Reconcile sub-issues execute did not return ok=true" };
+      }
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- runtime output check
+      const decision = (executeResult as { decision?: string }).decision;
+      if (decision === "ready" && !newCtx.domain.issue.hasSubIssues) {
+        return {
+          message:
+            "Grooming decision was 'ready' but issue has no sub-issues after reconciliation",
+        };
+      }
+      return undefined;
     },
   });
 }
