@@ -348,7 +348,8 @@ export function createClaudeGroomingService(
     });
     if (!result.success || !result.structuredOutput) {
       throw new Error(
-        result.error ?? `Claude ${label} agent failed (exitCode=${result.exitCode})`,
+        result.error ??
+          `Claude ${label} agent failed (exitCode=${result.exitCode})`,
       );
     }
     return result.structuredOutput;

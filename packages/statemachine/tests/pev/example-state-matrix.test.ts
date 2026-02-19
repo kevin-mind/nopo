@@ -315,9 +315,7 @@ describe("Example Machine — state matrix hardening", () => {
           labels: ["triaged", "groomed"],
           projectStatus: "In progress",
           hasSubIssues: true,
-          subIssues: [
-            { number: 100, projectStatus: "Backlog", state: "OPEN" },
-          ],
+          subIssues: [{ number: 100, projectStatus: "Backlog", state: "OPEN" }],
         }),
       }),
     );

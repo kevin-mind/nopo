@@ -330,7 +330,8 @@ describe("example grooming actions", () => {
       executeResult: reconcileResult,
     });
     expect(verifyResult).toEqual({
-      message: "Grooming decision was 'ready' but issue has no sub-issues after reconciliation",
+      message:
+        "Grooming decision was 'ready' but issue has no sub-issues after reconciliation",
     });
   });
 });

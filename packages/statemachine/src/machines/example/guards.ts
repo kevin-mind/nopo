@@ -90,16 +90,14 @@ const triggeredByOrchestrate = triggeredBy("issue-orchestrate");
 
 /** Orchestrate trigger + issue already groomed with sub-issues → orchestrate phases */
 function triggeredByOrchestrateAndReady({ context }: GuardArgs): boolean {
-  return (
-    triggeredByOrchestrate({ context }) && hasSubIssues({ context })
-  );
+  return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
 }
 
 /** Orchestrate trigger + issue not yet groomed → should groom first */
-function triggeredByOrchestrateAndNeedsGrooming({ context }: GuardArgs): boolean {
-  return (
-    triggeredByOrchestrate({ context }) && needsGrooming({ context })
-  );
+function triggeredByOrchestrateAndNeedsGrooming({
+  context,
+}: GuardArgs): boolean {
+  return triggeredByOrchestrate({ context }) && needsGrooming({ context });
 }
 const triggeredByPRReview = triggeredBy("pr-review");
 
