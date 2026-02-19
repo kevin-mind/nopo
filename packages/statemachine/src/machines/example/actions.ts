@@ -94,6 +94,11 @@ function isOkResult(value: unknown): value is { ok: true } {
   return Reflect.get(value, "ok") === true;
 }
 
+/**
+ * Sets the project status field of an issue.
+ * Payload: `issueNumber`, `status` (ExampleProjectStatus).
+ * Predicts `issue.projectStatus` equals the requested status.
+ */
 export function updateStatusAction(createAction: ExampleCreateAction) {
   return createAction<{ issueNumber: number; status: ExampleProjectStatus }>({
     description: (action) =>
@@ -115,6 +120,11 @@ export function updateStatusAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Appends an entry to the issue's iteration history via `repo.appendHistoryEntry`.
+ * Payload: `issueNumber`, `message`, optional `phase` (triage | groom | iterate | review).
+ * No prediction; no direct side effects on `ctx` state fields.
+ */
 export function appendHistoryAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -139,6 +149,11 @@ export function appendHistoryAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Invokes the triage service to analyse an issue and stores the result in `ctx.triageOutput`.
+ * Payload: `issueNumber`, `promptVars` (TriagePromptVars).
+ * No prediction; side effect: sets `ctx.triageOutput` for downstream apply action.
+ */
 export function runClaudeTriageAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -164,6 +179,12 @@ export function runClaudeTriageAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Applies triage labels from `ctx.triageOutput` (or payload override) to the issue, then persists state.
+ * Payload: `issueNumber`, optional `labelsToAdd` (defaults to `ctx.triageOutput.labelsToAdd`).
+ * Predicts all applied labels are present on `issue.labels`; has a verify step confirming execution success.
+ * Clears `ctx.triageOutput` after successful apply.
+ */
 export function applyTriageOutputAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -221,6 +242,11 @@ export function applyTriageOutputAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Invokes the grooming service to analyse an issue and stores the result in `ctx.groomingOutput`.
+ * Payload: `issueNumber`, `promptVars` (GroomingPromptVars).
+ * No prediction; side effect: sets `ctx.groomingOutput` for downstream apply/reconcile actions.
+ */
 export function runClaudeGroomingAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -246,6 +272,11 @@ export function runClaudeGroomingAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Applies grooming labels from `ctx.groomingOutput` to the issue.
+ * Payload: `issueNumber`.
+ * Reads `ctx.groomingOutput`; predicts all grooming labels (or `["groomed"]`) appear on `issue.labels`.
+ */
 export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -279,6 +310,12 @@ export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Creates or reconciles sub-issues from `ctx.groomingOutput.recommendedPhases`, then persists state.
+ * Payload: `issueNumber`.
+ * Predicts `issue.hasSubIssues` equals `true`; has a verify step that checks the decision was applied.
+ * Clears `ctx.groomingOutput` after successful reconciliation.
+ */
 export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -343,6 +380,11 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Invokes the iteration service to implement or retry work on an issue, storing the result in `ctx.iterationOutput`.
+ * Payload: `issueNumber`, `mode` (`iterate` | `retry`), `promptVars` (IterationPromptVars).
+ * No prediction; side effect: sets `ctx.iterationOutput` for downstream apply action.
+ */
 export function runClaudeIterationAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -370,6 +412,12 @@ export function runClaudeIterationAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Applies iteration labels from `ctx.iterationOutput`, checks off completed todos in the issue body, then persists state.
+ * Payload: `issueNumber`, optional `labelsToAdd` (defaults to `ctx.iterationOutput.labelsToAdd`).
+ * Predicts all applied labels are present on `issue.labels`; has a verify step confirming execution success.
+ * Clears `ctx.iterationOutput` after successful apply.
+ */
 export function applyIterationOutputAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -442,6 +490,11 @@ export function applyIterationOutputAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Invokes the review service to review a PR for an issue, storing the result in `ctx.reviewOutput`.
+ * Payload: `issueNumber`, `promptVars` (ReviewPromptVars).
+ * No prediction; side effect: sets `ctx.reviewOutput` for downstream apply action.
+ */
 export function runClaudeReviewAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -464,6 +517,11 @@ export function runClaudeReviewAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Applies review labels from `ctx.reviewOutput` (or payload override) to the issue, then persists state.
+ * Payload: `issueNumber`, optional `labelsToAdd` (defaults to `ctx.reviewOutput.labelsToAdd`).
+ * Predicts all applied labels are present on `issue.labels`; clears `ctx.reviewOutput` after apply.
+ */
 export function applyReviewOutputAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -503,6 +561,11 @@ export function applyReviewOutputAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Invokes the PR response service to address review comments on a PR, storing the result in `ctx.prResponseOutput`.
+ * Payload: `issueNumber`, `promptVars` (ReviewPromptVars).
+ * No prediction; side effect: sets `ctx.prResponseOutput` for downstream apply action.
+ */
 export function runClaudePrResponseAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -525,6 +588,11 @@ export function runClaudePrResponseAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Applies PR response labels from `ctx.prResponseOutput` (or payload override) to the issue, then persists state.
+ * Payload: `issueNumber`, optional `labelsToAdd` (defaults to `ctx.prResponseOutput.labelsToAdd`).
+ * Predicts all applied labels are present on `issue.labels`; clears `ctx.prResponseOutput` after apply.
+ */
 export function applyPrResponseOutputAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -568,6 +636,11 @@ export function applyPrResponseOutputAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Increments the `failures` counter on the active issue or `ctx.currentSubIssue`.
+ * Payload: `issueNumber`, `failureType` (`ci` | `review`).
+ * Predicts `issue.failures` equals the current count plus one.
+ */
 export function recordFailureAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -589,6 +662,11 @@ export function recordFailureAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Persists the current issue state by calling `persistIssueState`.
+ * Payload: `issueNumber`, `reason` (human-readable description logged in the description field).
+ * No prediction; throws if persistence fails.
+ */
 export function persistStateAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -606,6 +684,11 @@ export function persistStateAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Orchestrates the parent issue: optionally sets its status to "In progress", persists state, then assigns the bot to the first non-Done sub-issue.
+ * Payload: `issueNumber`, `initParentIfNeeded` (boolean).
+ * Predicts `issue.projectStatus` equals "In progress" when `initParentIfNeeded` is true.
+ */
 export function runOrchestrationAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -648,6 +731,12 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Configures git credentials for PAT-based push.
+ * Payload: `token` (GitHub PAT for authentication).
+ * Sets user.name, user.email, and URL rewrite for token-based auth.
+ * Skipped in non-git environments.
+ */
 export function setupGitAction(createAction: ExampleCreateAction) {
   return createAction<{ token: string }>({
     description: () => "Configure git credentials for PAT-based push",
@@ -692,6 +781,12 @@ export function setupGitAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Prepares a branch for iteration: fetches, checks out, rebases on base branch.
+ * Payload: `branchName`, optional `baseBranch` (default "main").
+ * Sets `ctx.branchPrepResult` to "clean", "rebased", or "conflicts".
+ * Force-pushes after successful rebase.
+ */
 export function prepareBranchAction(createAction: ExampleCreateAction) {
   return createAction<{ branchName: string; baseBranch?: string }>({
     description: (action) =>
@@ -802,6 +897,11 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Pushes the current branch to the remote origin.
+ * Payload: `branchName`, optional `forceWithLease` (default true).
+ * Skipped in non-git environments.
+ */
 export function gitPushAction(createAction: ExampleCreateAction) {
   return createAction<{ branchName: string; forceWithLease?: boolean }>({
     description: (action) =>
@@ -831,6 +931,11 @@ export function gitPushAction(createAction: ExampleCreateAction) {
   });
 }
 
+/**
+ * Terminal no-op action that halts the state machine sequence.
+ * Payload: `message` (reason for stopping, included in the action description).
+ * No prediction; always returns `{ ok: true }` immediately.
+ */
 export function stopAction(createAction: ExampleCreateAction) {
   return createAction<{ message: string }>({
     description: (action) => `Stop: ${action.payload.message}`,
