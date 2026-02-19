@@ -24,7 +24,117 @@ import {
   getOptionalInput,
   setOutputs,
 } from "../../src/core/action-utils.js";
+import type { ExampleTrigger } from "../../src/machines/example/events.js";
 import type { OctokitLike } from "@more/issue-state";
+
+/**
+ * Detect the trigger type from the GitHub event context.
+ * Maps github.event_name + github.event.action to an ExampleTrigger.
+ */
+function detectTrigger(ctx: {
+  event_name: string;
+  event: {
+    action?: string;
+    inputs?: { trigger_type?: string };
+    issue?: { number: number };
+    comment?: { body?: string };
+    review?: { state?: string };
+    workflow_run?: { conclusion?: string };
+  };
+}): ExampleTrigger {
+  const eventName = ctx.event_name;
+  const action = ctx.event?.action;
+
+  // workflow_dispatch can override trigger via inputs
+  if (eventName === "workflow_dispatch") {
+    const override = ctx.event?.inputs?.trigger_type;
+    if (override) {
+      const valid = new Set<string>([
+        "issue-triage",
+        "issue-assigned",
+        "issue-edited",
+        "issue-closed",
+        "issue-comment",
+        "issue-orchestrate",
+        "issue-retry",
+        "issue-reset",
+        "issue-pivot",
+        "issue-groom",
+        "issue-groom-summary",
+        "workflow-run-completed",
+        "pr-review",
+        "pr-review-requested",
+        "pr-review-submitted",
+        "pr-review-approved",
+        "pr-response",
+        "pr-human-response",
+        "pr-push",
+        "pr-merged",
+        "merge-queue-entered",
+        "merge-queue-failed",
+        "deployed-stage",
+        "deployed-prod",
+        "deployed-stage-failed",
+        "deployed-prod-failed",
+      ]);
+      if (valid.has(override)) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- validated via Set lookup
+        return override as ExampleTrigger;
+      }
+    }
+    return "issue-triage";
+  }
+
+  // issues events
+  if (eventName === "issues") {
+    if (action === "assigned") return "issue-assigned";
+    if (action === "edited") return "issue-edited";
+    if (action === "closed") return "issue-closed";
+    if (action === "opened") return "issue-triage";
+    return "issue-triage";
+  }
+
+  // issue_comment — check for slash commands
+  if (eventName === "issue_comment") {
+    const body = ctx.event?.comment?.body ?? "";
+    if (/\/(lfg|implement|continue)/.test(body)) return "issue-orchestrate";
+    if (/\/retry/.test(body)) return "issue-retry";
+    if (/\/reset/.test(body)) return "issue-reset";
+    if (/\/pivot/.test(body)) return "issue-pivot";
+    return "issue-comment";
+  }
+
+  // pull_request events
+  if (eventName === "pull_request") {
+    if (action === "review_requested") return "pr-review-requested";
+    return "pr-push";
+  }
+
+  // pull_request_review
+  if (eventName === "pull_request_review") {
+    const state = ctx.event?.review?.state?.toLowerCase();
+    if (state === "approved") return "pr-review-approved";
+    if (state === "changes_requested") return "pr-review-submitted";
+    return "pr-review-submitted";
+  }
+
+  // pull_request_review_comment
+  if (eventName === "pull_request_review_comment") {
+    return "pr-response";
+  }
+
+  // push to claude/** branches
+  if (eventName === "push") return "pr-push";
+
+  // workflow_run (CI completion)
+  if (eventName === "workflow_run") return "workflow-run-completed";
+
+  // merge_group
+  if (eventName === "merge_group") return "merge-queue-entered";
+
+  // Default fallback
+  return "issue-triage";
+}
 
 function asOctokitLike(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -45,16 +155,22 @@ async function run(): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub context JSON is untyped
   const githubJson = JSON.parse(githubJsonStr) as {
     event: {
+      action?: string;
       issue?: { number: number; title: string; body: string };
-      inputs?: { resource_number?: string };
+      inputs?: { resource_number?: string; trigger_type?: string };
+      comment?: { body?: string };
+      review?: { state?: string };
+      workflow_run?: { conclusion?: string };
     };
     repository_owner: string;
     event_name: string;
     repository: string;
   };
 
+  const trigger = detectTrigger(githubJson);
+
   core.info(`PEV Machine starting (max_transitions=${maxTransitions})`);
-  core.info(`Event: ${githubJson.event_name}`);
+  core.info(`Event: ${githubJson.event_name}, Trigger: ${trigger}`);
 
   // Build a minimal domain context from the GitHub event
   const issueData = githubJson.event?.issue;
@@ -68,7 +184,7 @@ async function run(): Promise<void> {
   const loader = new ExampleContextLoader();
   const loaded = await loader.load({
     octokit: asOctokitLike(octokit),
-    trigger: "issue-triage",
+    trigger,
     owner: owner ?? "unknown",
     repo: repo ?? "unknown",
     event: {
@@ -81,7 +197,7 @@ async function run(): Promise<void> {
   });
   const loadedContext = loaded ? loader.toContext() : null;
   const domainContext: ExampleContext = loadedContext ?? {
-    trigger: "issue-triage",
+    trigger,
     owner: owner ?? "unknown",
     repo: repo ?? "unknown",
     issue: {
