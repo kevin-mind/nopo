@@ -44,6 +44,8 @@ import {
   triggeredByTriage,
   triggeredByComment,
   triggeredByOrchestrate,
+  triggeredByOrchestrateAndReady,
+  triggeredByOrchestrateAndNeedsGrooming,
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
@@ -130,6 +132,8 @@ export const exampleMachine = createMachineFactory<
     triggeredByTriage,
     triggeredByComment,
     triggeredByOrchestrate,
+    triggeredByOrchestrateAndReady,
+    triggeredByOrchestrateAndNeedsGrooming,
     triggeredByPRReview,
     triggeredByPRResponse,
     triggeredByPRHumanResponse,
@@ -215,7 +219,14 @@ export const exampleMachine = createMachineFactory<
             // ARC 15-17
             { target: "triaging", guard: "triggeredByTriage" },
             { target: "commenting", guard: "triggeredByComment" },
-            { target: "orchestrating", guard: "triggeredByOrchestrate" },
+            {
+              target: "grooming",
+              guard: "triggeredByOrchestrateAndNeedsGrooming",
+            },
+            {
+              target: "orchestrating",
+              guard: "triggeredByOrchestrateAndReady",
+            },
             { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
             // ARC 18-22
             {
