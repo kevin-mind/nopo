@@ -149,6 +149,14 @@ export interface IssueStateRepository {
     subIssueNumber: number,
     botUsername: string,
   ): Promise<void>;
+  updateBody?(body: string): void;
+  appendHistoryEntry?(entry: {
+    phase: string;
+    message: string;
+    timestamp?: string;
+    sha?: string;
+    runLink?: string;
+  }): void;
 }
 
 /**
@@ -856,6 +864,116 @@ export class ExampleContextLoader implements IssueStateRepository {
 
   setIssueStatus(status: ExampleProjectStatus): void {
     this.updateIssue({ projectStatus: status });
+  }
+
+  updateBody(body: string): void {
+    this.updateIssue({ body });
+  }
+
+  appendHistoryEntry(entry: {
+    phase: string;
+    message: string;
+    timestamp?: string;
+    sha?: string;
+    runLink?: string;
+  }): void {
+    const state = this.requireState();
+    const ast = state.issue.bodyAst;
+    const children = ast.children as Array<{
+      type: string;
+      depth?: number;
+      children?: Array<{ type: string; value?: string; children?: unknown[] }>;
+      align?: (string | null)[];
+    }>;
+
+    // Find existing "Iteration History" heading
+    let headingIdx = -1;
+    for (let i = 0; i < children.length; i++) {
+      const node = children[i]!;
+      if (
+        node.type === "heading" &&
+        node.depth === 2 &&
+        node.children?.[0]?.type === "text" &&
+        node.children[0].value === "Iteration History"
+      ) {
+        headingIdx = i;
+        break;
+      }
+    }
+
+    // Format timestamp
+    const ts = entry.timestamp ?? new Date().toISOString();
+    let timeCell = "-";
+    try {
+      const d = new Date(ts);
+      if (!isNaN(d.getTime())) {
+        const months = [
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        ];
+        timeCell = `${months[d.getUTCMonth()]} ${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+      }
+    } catch {
+      // keep "-"
+    }
+
+    // Count existing data rows for iteration number
+    let iteration = 1;
+    if (headingIdx !== -1) {
+      const tableNode = children[headingIdx + 1];
+      if (tableNode?.type === "table" && tableNode.children) {
+        // First child is header row, rest are data
+        iteration = tableNode.children.length; // includes header, so this = dataRows + 1
+      }
+    }
+
+    // Build new table row as AST
+    const cell = (text: string) => ({
+      type: "tableCell" as const,
+      children: [{ type: "text" as const, value: text }],
+    });
+    const newRow = {
+      type: "tableRow" as const,
+      children: [
+        cell(timeCell),
+        cell(String(iteration)),
+        cell(entry.phase),
+        cell(entry.message),
+        cell(entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-"),
+        cell(entry.runLink ?? "-"),
+      ],
+    };
+
+    if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
+      // Append row to existing table
+      const table = children[headingIdx + 1]!;
+      (table.children as unknown[]).push(newRow);
+    } else {
+      // Create heading + table with header row + data row
+      const headerRow = {
+        type: "tableRow" as const,
+        children: [
+          cell("Time"),
+          cell("#"),
+          cell("Phase"),
+          cell("Action"),
+          cell("SHA"),
+          cell("Run"),
+        ],
+      };
+      const table = {
+        type: "table" as const,
+        align: [null, null, null, null, null, null],
+        children: [headerRow, newRow],
+      };
+      const heading = {
+        type: "heading" as const,
+        depth: 2 as const,
+        children: [{ type: "text" as const, value: "Iteration History" }],
+      };
+      children.push(heading as typeof children[number]);
+      children.push(table as typeof children[number]);
+    }
   }
 
   addIssueLabels(labels: string[]): void {

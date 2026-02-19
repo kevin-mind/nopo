@@ -45402,6 +45402,23 @@ var InMemoryIssueStateRepository = class {
     this.context.issue.hasSubIssues = true;
     return { issueNumber };
   }
+  updateBody(body) {
+    this.context.issue.body = body;
+  }
+  appendHistoryEntry(entry) {
+    const issue2 = this.context.issue;
+    if (!issue2.body.includes("## Iteration History")) {
+      issue2.body += `
+
+## Iteration History
+
+| Time | # | Phase | Action | SHA | Run |
+|---|---|---|---|---|---|
+`;
+    }
+    issue2.body += `| ${entry.timestamp ?? "-"} | - | ${entry.phase} | ${entry.message} | ${entry.sha ?? "-"} | ${entry.runLink ?? "-"} |
+`;
+  }
   async assignBotToSubIssue(_subIssueNumber, _botUsername) {
   }
 };
@@ -65781,7 +65798,19 @@ function updateStatusAction(createAction) {
 function appendHistoryAction(createAction) {
   return createAction({
     description: (action) => `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
-    execute: async () => ({ ok: true })
+    execute: async (action, ctx) => {
+      const repo = repositoryFor(ctx);
+      if (repo.appendHistoryEntry) {
+        repo.appendHistoryEntry({
+          phase: action.payload.phase ?? "generic",
+          message: action.payload.message,
+          timestamp: ctx.workflowStartedAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+          sha: ctx.ciCommitSha ?? void 0,
+          runLink: ctx.workflowRunUrl ?? void 0
+        });
+      }
+      return { ok: true };
+    }
   });
 }
 function runClaudeTriageAction(createAction) {
@@ -65877,6 +65906,22 @@ function runClaudeGroomingAction(createAction) {
 function applyGroomingOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply grooming output to #${action.payload.issueNumber}`,
+    predict: (_action, ctx) => ({
+      checks: [
+        {
+          comparator: "all",
+          description: "All grooming labels should exist on issue after apply",
+          checks: (ctx.groomingOutput?.labelsToAdd ?? ["groomed"]).map(
+            (label) => ({
+              comparator: "includes",
+              description: `Issue labels should include "${label}"`,
+              field: "issue.labels",
+              expected: label
+            })
+          )
+        }
+      ]
+    }),
     execute: async (_action, ctx) => {
       const output = ctx.groomingOutput;
       if (!output) {
@@ -66091,6 +66136,20 @@ function runClaudePrResponseAction(createAction) {
 function applyPrResponseOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply PR response output to #${action.payload.issueNumber}`,
+    predict: (action, ctx) => ({
+      checks: [
+        {
+          comparator: "all",
+          description: "All PR response labels should exist on issue after apply",
+          checks: (action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd ?? []).map((label) => ({
+            comparator: "includes",
+            description: `Issue labels should include "${label}"`,
+            field: "issue.labels",
+            expected: label
+          }))
+        }
+      ]
+    }),
     execute: async (action, ctx) => {
       const labelsToAdd = action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
       if (!labelsToAdd || labelsToAdd.length === 0) {
@@ -66146,6 +66205,19 @@ function persistStateAction(createAction) {
 function runOrchestrationAction(createAction) {
   return createAction({
     description: (action) => `Run orchestration step for #${action.payload.issueNumber}`,
+    predict: (action) => {
+      if (!action.payload.initParentIfNeeded) return { checks: [] };
+      return {
+        checks: [
+          {
+            comparator: "eq",
+            description: "Parent issue status should be In progress after orchestration",
+            field: "issue.projectStatus",
+            expected: "In progress"
+          }
+        ]
+      };
+    },
     execute: async (action, ctx) => {
       if (action.payload.initParentIfNeeded) {
         setIssueStatus(ctx, "In progress");
@@ -67483,6 +67555,95 @@ var ExampleContextLoader = class _ExampleContextLoader {
   }
   setIssueStatus(status) {
     this.updateIssue({ projectStatus: status });
+  }
+  updateBody(body) {
+    this.updateIssue({ body });
+  }
+  appendHistoryEntry(entry) {
+    const state = this.requireState();
+    const ast = state.issue.bodyAst;
+    const children = ast.children;
+    let headingIdx = -1;
+    for (let i = 0; i < children.length; i++) {
+      const node2 = children[i];
+      if (node2.type === "heading" && node2.depth === 2 && node2.children?.[0]?.type === "text" && node2.children[0].value === "Iteration History") {
+        headingIdx = i;
+        break;
+      }
+    }
+    const ts = entry.timestamp ?? (/* @__PURE__ */ new Date()).toISOString();
+    let timeCell = "-";
+    try {
+      const d = new Date(ts);
+      if (!isNaN(d.getTime())) {
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec"
+        ];
+        timeCell = `${months[d.getUTCMonth()]} ${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+      }
+    } catch {
+    }
+    let iteration = 1;
+    if (headingIdx !== -1) {
+      const tableNode = children[headingIdx + 1];
+      if (tableNode?.type === "table" && tableNode.children) {
+        iteration = tableNode.children.length;
+      }
+    }
+    const cell = (text5) => ({
+      type: "tableCell",
+      children: [{ type: "text", value: text5 }]
+    });
+    const newRow = {
+      type: "tableRow",
+      children: [
+        cell(timeCell),
+        cell(String(iteration)),
+        cell(entry.phase),
+        cell(entry.message),
+        cell(entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-"),
+        cell(entry.runLink ?? "-")
+      ]
+    };
+    if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
+      const table = children[headingIdx + 1];
+      table.children.push(newRow);
+    } else {
+      const headerRow = {
+        type: "tableRow",
+        children: [
+          cell("Time"),
+          cell("#"),
+          cell("Phase"),
+          cell("Action"),
+          cell("SHA"),
+          cell("Run")
+        ]
+      };
+      const table = {
+        type: "table",
+        align: [null, null, null, null, null, null],
+        children: [headerRow, newRow]
+      };
+      const heading2 = {
+        type: "heading",
+        depth: 2,
+        children: [{ type: "text", value: "Iteration History" }]
+      };
+      children.push(heading2);
+      children.push(table);
+    }
   }
   addIssueLabels(labels) {
     const state = this.requireState();

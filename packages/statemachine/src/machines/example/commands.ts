@@ -51,6 +51,25 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     return { issueNumber };
   }
 
+  updateBody(body: string): void {
+    this.context.issue.body = body;
+  }
+
+  appendHistoryEntry(entry: {
+    phase: string;
+    message: string;
+    timestamp?: string;
+    sha?: string;
+    runLink?: string;
+  }): void {
+    // In-memory: append a simple text representation to body
+    const issue = this.context.issue;
+    if (!issue.body.includes("## Iteration History")) {
+      issue.body += `\n\n## Iteration History\n\n| Time | # | Phase | Action | SHA | Run |\n|---|---|---|---|---|---|\n`;
+    }
+    issue.body += `| ${entry.timestamp ?? "-"} | - | ${entry.phase} | ${entry.message} | ${entry.sha ?? "-"} | ${entry.runLink ?? "-"} |\n`;
+  }
+
   async assignBotToSubIssue(
     _subIssueNumber: number,
     _botUsername: string,

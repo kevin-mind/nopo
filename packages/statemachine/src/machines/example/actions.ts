@@ -108,7 +108,19 @@ export function appendHistoryAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
-    execute: async () => ({ ok: true }),
+    execute: async (action, ctx) => {
+      const repo = repositoryFor(ctx);
+      if (repo.appendHistoryEntry) {
+        repo.appendHistoryEntry({
+          phase: action.payload.phase ?? "generic",
+          message: action.payload.message,
+          timestamp: ctx.workflowStartedAt ?? new Date().toISOString(),
+          sha: ctx.ciCommitSha ?? undefined,
+          runLink: ctx.workflowRunUrl ?? undefined,
+        });
+      }
+      return { ok: true };
+    },
   });
 }
 
@@ -225,6 +237,23 @@ export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Apply grooming output to #${action.payload.issueNumber}`,
+    predict: (_action, ctx) => ({
+      checks: [
+        {
+          comparator: "all" as const,
+          description:
+            "All grooming labels should exist on issue after apply",
+          checks: (ctx.groomingOutput?.labelsToAdd ?? ["groomed"]).map(
+            (label) => ({
+              comparator: "includes" as const,
+              description: `Issue labels should include "${label}"`,
+              field: "issue.labels",
+              expected: label,
+            }),
+          ),
+        },
+      ],
+    }),
     execute: async (_action, ctx) => {
       const output = ctx.groomingOutput;
       if (!output) {
@@ -487,6 +516,24 @@ export function applyPrResponseOutputAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Apply PR response output to #${action.payload.issueNumber}`,
+    predict: (action, ctx) => ({
+      checks: [
+        {
+          comparator: "all" as const,
+          description:
+            "All PR response labels should exist on issue after apply",
+          checks: (
+            action.payload.labelsToAdd ??
+            ctx.prResponseOutput?.labelsToAdd ?? []
+          ).map((label) => ({
+            comparator: "includes" as const,
+            description: `Issue labels should include "${label}"`,
+            field: "issue.labels",
+            expected: label,
+          })),
+        },
+      ],
+    }),
     execute: async (action, ctx) => {
       const labelsToAdd =
         action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
@@ -564,6 +611,20 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Run orchestration step for #${action.payload.issueNumber}`,
+    predict: (action) => {
+      if (!action.payload.initParentIfNeeded) return { checks: [] };
+      return {
+        checks: [
+          {
+            comparator: "eq" as const,
+            description:
+              "Parent issue status should be In progress after orchestration",
+            field: "issue.projectStatus",
+            expected: "In progress",
+          },
+        ],
+      };
+    },
     execute: async (action, ctx) => {
       if (action.payload.initParentIfNeeded) {
         setIssueStatus(ctx, "In progress");
