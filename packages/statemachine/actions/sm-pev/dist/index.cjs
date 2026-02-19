@@ -65974,7 +65974,9 @@ function reconcileSubIssuesAction(createAction) {
     },
     verify: ({ executeResult, newCtx }) => {
       if (!isOkResult(executeResult)) {
-        return { message: "Reconcile sub-issues execute did not return ok=true" };
+        return {
+          message: "Reconcile sub-issues execute did not return ok=true"
+        };
       }
       const decision = executeResult.decision;
       if (decision === "ready" && !newCtx.issue.hasSubIssues) {
@@ -66289,7 +66291,9 @@ var triggeredByOrchestrate = triggeredBy("issue-orchestrate");
 function triggeredByOrchestrateAndReady({ context }) {
   return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
 }
-function triggeredByOrchestrateAndNeedsGrooming({ context }) {
+function triggeredByOrchestrateAndNeedsGrooming({
+  context
+}) {
   return triggeredByOrchestrate({ context }) && needsGrooming({ context });
 }
 var triggeredByPRReview = triggeredBy("pr-review");
