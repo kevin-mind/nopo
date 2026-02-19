@@ -6,7 +6,7 @@ description: >-
 
 inputs:
   github_json:
-    description: 'Full GitHub context JSON (${{ toJson(github) }})'
+    description: 'Full GitHub context JSON (pass toJson(github) from the caller)'
     required: true
   github_token:
     description: 'GitHub token for GraphQL API calls'
