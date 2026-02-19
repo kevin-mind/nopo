@@ -101,6 +101,223 @@ This lets `verify` add domain-specific messaging while declarative checks remain
 
 Integration tests live in `tests/pev/example-machine.test.ts` and use only **example** and **core** imports. Fixtures are built from `tests/pev/mock-factories.ts`.
 
+### Queue Builder Patterns
+
+Queue builders are plain TypeScript functions with the signature:
+
+```ts
+function buildXxxQueue(
+  context: RunnerMachineContext<ExampleContext, ExampleAction>,
+  registry: ExampleRegistry,
+): ExampleAction[]
+```
+
+Each builder receives the full runner context (including `context.domain` for the domain model) and the typed action registry. It returns an ordered `ExampleAction[]` array that becomes the `actionQueue` for the state.
+
+#### Assigner wrapping
+
+Builders are never called directly from the machine. Instead, each builder is wrapped in an XState `assign` call so the queue is set atomically when a state is entered:
+
+```ts
+const assignIterateQueue = assign<Ctx, AnyEventObject, undefined, EventObject, never>({
+  actionQueue: ({ context }) => buildIterateQueue(context, registry),
+});
+```
+
+`createExampleQueueAssigners(registry)` collects all assigners and returns them as a named object. The machine imports only the assigner object, never the raw builder functions.
+
+#### Conditional queue composition
+
+Some builders accumulate a `prelude` array before the fixed tail of the queue. This lets a single builder cover multiple triggers without duplicating the core action sequence.
+
+**`buildIterateQueue` — CI-failure and review-changes preludes:**
+
+```ts
+function buildIterateQueue(
+  context: Ctx,
+  registry: ExampleRegistry,
+  mode: "iterate" | "retry" = "iterate",
+): ExampleAction[] {
+  const issueNumber =
+    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const prelude: ExampleAction[] = [];
+
+  // CI-failure prelude: record the failure and log context before iterating
+  if (context.domain.ciResult === "failure") {
+    prelude.push(
+      registry.recordFailure.create({ issueNumber, failureType: "ci" }),
+      registry.appendHistory.create({
+        issueNumber,
+        message: "CI failed, returning to iteration",
+        phase: "iterate",
+      }),
+    );
+  }
+
+  // Review-changes prelude: log context when reviewer requested changes
+  if (context.domain.reviewDecision === "CHANGES_REQUESTED") {
+    prelude.push(
+      registry.appendHistory.create({
+        issueNumber,
+        message: "Review requested changes, returning to iteration",
+        phase: "review",
+      }),
+    );
+  }
+
+  return [
+    ...prelude,
+    registry.updateStatus.create({ issueNumber, status: "In progress" }),
+    registry.appendHistory.create({
+      issueNumber,
+      message: mode === "retry" ? "Fixing CI" : "Starting iteration",
+    }),
+    registry.runClaudeIteration.create({ issueNumber, mode, promptVars: { /* ... */ } }),
+    registry.applyIterationOutput.create({ issueNumber }),
+  ];
+}
+```
+
+**`buildReviewQueue` — COMMENTED prelude:**
+
+```ts
+function buildReviewQueue(context: Ctx, registry: ExampleRegistry): ExampleAction[] {
+  const issueNumber =
+    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+
+  // When a reviewer left a comment (not approval/changes), log it before requesting review
+  const prelude: ExampleAction[] =
+    context.domain.reviewDecision === "COMMENTED"
+      ? [
+          registry.appendHistory.create({
+            issueNumber,
+            message: "Review commented, staying in review",
+            phase: "review",
+          }),
+        ]
+      : [];
+
+  return [
+    ...prelude,
+    registry.updateStatus.create({ issueNumber, status: "In review" }),
+    registry.appendHistory.create({ issueNumber, message: "Requesting review" }),
+  ];
+}
+```
+
+#### `recordFailure` + circuit breaker integration
+
+`recordFailure` increments `issue.failures` in the domain model. It carries a `predict` check so the runner can verify the counter was incremented before continuing:
+
+```ts
+// In actions.ts
+export function recordFailureAction(createAction: ExampleCreateAction) {
+  return createAction<{ issueNumber: number; failureType: "ci" | "review" }>({
+    predict: (action, ctx) => {
+      const current = /* resolve issue or sub-issue */.failures ?? 0;
+      return {
+        checks: [{ comparator: "eq", field: "issue.failures", expected: current + 1 }],
+      };
+    },
+    execute: async (action, ctx) => {
+      const issue = /* resolve */;
+      Object.assign(issue, { failures: (issue.failures ?? 0) + 1 });
+      return { ok: true };
+    },
+  });
+}
+```
+
+The circuit breaker lives in `guards.ts` as `maxFailuresReached`:
+
+```ts
+function maxFailuresReached({ context }: GuardArgs): boolean {
+  const failures = context.domain.issue.failures ?? 0;
+  const max = context.domain.maxRetries ?? 3;
+  return failures >= max;
+}
+```
+
+When `triggeredByCIAndShouldBlock` fires (CI trigger + `maxFailuresReached`), the machine routes to the `blocking` state whose assigner uses `buildBlockQueue`:
+
+```ts
+function buildBlockQueue(context: Ctx, registry: ExampleRegistry): ExampleAction[] {
+  const failures = (context.domain.currentSubIssue ?? context.domain.issue).failures ?? 0;
+  return [
+    registry.updateStatus.create({ issueNumber, status: "Blocked" }),
+    registry.appendHistory.create({
+      issueNumber,
+      message: `Blocked: Max failures reached (${failures})`,
+      phase: "iterate",
+    }),
+  ];
+}
+```
+
+The typical CI-failure flow is therefore:
+
+```
+CI failure trigger
+  → triggeredByCIAndShouldBlock?  yes → blocking (buildBlockQueue)
+  → triggeredByCIAndShouldContinue? yes → iterating (buildIterateQueue with ciResult prelude)
+```
+
+#### Orchestration conditional patterns
+
+Several builders inspect parent/sub-issue relationships to decide what extra actions to append.
+
+**`buildMergeQueue` — conditional orchestration tail:**
+
+```ts
+function buildMergeQueue(context: Ctx, registry: ExampleRegistry): ExampleAction[] {
+  const queue: ExampleAction[] = [
+    registry.updateStatus.create({ issueNumber, status: "Done" }),
+    registry.appendHistory.create({ issueNumber, message: "PR merged, issue marked done", phase: "review" }),
+    registry.persistState.create({ issueNumber, reason: "merge-complete" }),
+  ];
+
+  // Only run orchestration when this issue is part of a parent/sub-issue hierarchy
+  const needsOrchestration =
+    context.domain.parentIssue !== null || context.domain.issue.hasSubIssues;
+  if (needsOrchestration) {
+    const parentNumber =
+      context.domain.parentIssue?.number ?? context.domain.issue.number;
+    queue.push(
+      registry.runOrchestration.create({ issueNumber: parentNumber, initParentIfNeeded: false }),
+      registry.appendHistory.create({ issueNumber: parentNumber, message: "Orchestration command processed" }),
+    );
+  }
+  return queue;
+}
+```
+
+**`buildOrchestrateQueue` — status-driven `initParentIfNeeded`:**
+
+```ts
+function buildOrchestrateQueue(context: Ctx, registry: ExampleRegistry): ExampleAction[] {
+  const status = context.domain.issue.projectStatus;
+  // Initialize the parent issue only when it has not yet been started
+  const initParentIfNeeded = status === null || status === "Backlog";
+  return [
+    registry.runOrchestration.create({ issueNumber, initParentIfNeeded }),
+    registry.appendHistory.create({ issueNumber, message: "Orchestration command processed" }),
+  ];
+}
+```
+
+**`buildInitializingQueue`** always passes `initParentIfNeeded: true` because it fires when a parent issue has just been assigned and sub-issues need to be initialized:
+
+```ts
+function buildInitializingQueue(context: Ctx, registry: ExampleRegistry): ExampleAction[] {
+  return [
+    registry.runOrchestration.create({ issueNumber, initParentIfNeeded: true }),
+    registry.appendHistory.create({ issueNumber, message: "Initializing" }),
+  ];
+}
+```
+
+The difference between `buildInitializingQueue` and `buildOrchestrateQueue` is intent: `initializing` runs on first assignment (always needs parent setup), while `orchestrating` runs on subsequent events (only initializes parent when the project status shows it has not yet started).
+
 ### Sprint 1 additions: trigger normalization + routing skeleton
 
 - `machines/example/events.ts`
