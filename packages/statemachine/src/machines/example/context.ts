@@ -21,6 +21,7 @@ import type {
   ExampleTriageOutput,
 } from "./services.js";
 import {
+  addSubIssueToParent,
   createExtractor,
   createMutator,
   parseIssue,
@@ -139,6 +140,11 @@ export interface IssueStateRepository {
   setIssueStatus(status: ExampleProjectStatus): void;
   addIssueLabels(labels: string[]): void;
   reconcileSubIssues(subIssueNumbers: number[]): void;
+  createSubIssue?(input: {
+    title: string;
+    body?: string;
+    labels?: string[];
+  }): Promise<{ issueNumber: number }>;
 }
 
 /**
@@ -873,6 +879,45 @@ export class ExampleContextLoader implements IssueStateRepository {
       hasSubIssues: nextSubIssues.length > 0,
       subIssues: nextSubIssues,
     });
+  }
+
+  async createSubIssue(input: {
+    title: string;
+    body?: string;
+    labels?: string[];
+  }): Promise<{ issueNumber: number }> {
+    const options = this.requireOptions();
+    const state = this.requireState();
+    const parentIssue = extractIssue(state);
+    const result = await addSubIssueToParent(
+      options.owner,
+      options.repo,
+      parentIssue.number,
+      {
+        title: input.title,
+        body: input.body,
+        labels: input.labels,
+      },
+      {
+        octokit: options.octokit,
+        projectNumber: options.projectNumber,
+        projectStatus: "Ready",
+      },
+    );
+    // Update local state to reflect the new sub-issue
+    const current = extractIssue(state);
+    this.updateIssue({
+      hasSubIssues: true,
+      subIssues: [
+        ...current.subIssues,
+        {
+          number: result.issueNumber,
+          projectStatus: "Backlog",
+          state: "OPEN",
+        },
+      ],
+    });
+    return { issueNumber: result.issueNumber };
   }
 
   async save(): Promise<boolean> {

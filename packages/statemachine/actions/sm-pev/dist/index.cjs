@@ -44451,6 +44451,46 @@ mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value
   }
 }
 `;
+var ADD_ISSUE_TO_PROJECT_MUTATION = `
+mutation AddIssueToProject($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+`;
+
+// packages/issue-state/src/graphql/issue-mutations.ts
+var CREATE_ISSUE_MUTATION = `
+mutation CreateIssue($repositoryId: ID!, $title: String!, $body: String!) {
+  createIssue(input: { repositoryId: $repositoryId, title: $title, body: $body }) {
+    issue {
+      id
+      number
+    }
+  }
+}
+`;
+var ADD_SUB_ISSUE_MUTATION = `
+mutation AddSubIssue($parentId: ID!, $childId: ID!) {
+  addSubIssue(input: { issueId: $parentId, subIssueId: $childId }) {
+    issue {
+      id
+    }
+  }
+}
+`;
+var GET_REPO_ID_QUERY = `
+query GetRepoId($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    id
+  }
+}
+`;
 
 // packages/issue-state/src/diff.ts
 function setDifference(a, b) {
@@ -44986,6 +45026,210 @@ async function parseIssue(owner, repo, issueNumber, options) {
   };
 }
 
+// packages/issue-state/src/create-issue.ts
+var GET_PROJECT_FIELDS_QUERY = `
+query GetProjectFields($org: String!, $projectNumber: Int!) {
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      id
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}
+`;
+async function getRepoId(octokit, owner, repo) {
+  const response = await octokit.graphql(GET_REPO_ID_QUERY, {
+    owner,
+    repo
+  });
+  if (!response.repository?.id) {
+    throw new Error(`Repository ${owner}/${repo} not found`);
+  }
+  return response.repository.id;
+}
+async function createIssueInRepo(octokit, repositoryId, title, body) {
+  const response = await octokit.graphql(
+    CREATE_ISSUE_MUTATION,
+    {
+      repositoryId,
+      title,
+      body
+    }
+  );
+  return {
+    id: response.createIssue.issue.id,
+    number: response.createIssue.issue.number
+  };
+}
+async function linkSubIssue(octokit, parentId, childId) {
+  await octokit.graphql(ADD_SUB_ISSUE_MUTATION, {
+    parentId,
+    childId
+  });
+}
+async function addIssueToProject(octokit, projectId, issueId) {
+  const response = await octokit.graphql(
+    ADD_ISSUE_TO_PROJECT_MUTATION,
+    {
+      projectId,
+      contentId: issueId
+    }
+  );
+  return response.addProjectV2ItemById.item.id;
+}
+async function getProjectFieldInfo2(octokit, organization, projectNumber) {
+  try {
+    const response = await octokit.graphql(
+      GET_PROJECT_FIELDS_QUERY,
+      {
+        org: organization,
+        projectNumber
+      }
+    );
+    const project = response.organization?.projectV2;
+    if (!project) {
+      return null;
+    }
+    let statusFieldId = null;
+    const statusOptions = /* @__PURE__ */ new Map();
+    let iterationFieldId = null;
+    let failuresFieldId = null;
+    for (const field of project.fields.nodes) {
+      if (field.name === "Status" && field.options) {
+        statusFieldId = field.id;
+        for (const option of field.options) {
+          statusOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Iteration" && field.dataType === "NUMBER") {
+        iterationFieldId = field.id;
+      } else if (field.name === "Failures" && field.dataType === "NUMBER") {
+        failuresFieldId = field.id;
+      }
+    }
+    return {
+      projectId: project.id,
+      statusFieldId,
+      statusOptions,
+      iterationFieldId,
+      failuresFieldId
+    };
+  } catch {
+    return null;
+  }
+}
+async function updateProjectField2(octokit, projectId, itemId, fieldId, value) {
+  await octokit.graphql(UPDATE_PROJECT_FIELD_MUTATION, {
+    projectId,
+    itemId,
+    fieldId,
+    value
+  });
+}
+async function addSubIssueToParent(owner, repo, parentIssueNumber2, input, options) {
+  const {
+    octokit,
+    projectNumber,
+    organization = owner,
+    projectStatus
+  } = options;
+  const repositoryId = await getRepoId(octokit, owner, repo);
+  const parentQuery = `
+    query GetParentIssueId($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          id
+        }
+      }
+    }
+  `;
+  const parentResult = await octokit.graphql(parentQuery, {
+    owner,
+    repo,
+    issueNumber: parentIssueNumber2
+  });
+  if (!parentResult.repository?.issue?.id) {
+    throw new Error(`Parent issue #${parentIssueNumber2} not found`);
+  }
+  const parentIssueId = parentResult.repository.issue.id;
+  let bodyString = "";
+  if (input.body) {
+    if (typeof input.body === "string") {
+      bodyString = input.body;
+    } else {
+      bodyString = serializeMarkdown(input.body);
+    }
+  }
+  const subIssue = await createIssueInRepo(
+    octokit,
+    repositoryId,
+    input.title,
+    bodyString
+  );
+  await linkSubIssue(octokit, parentIssueId, subIssue.id);
+  if (input.labels && input.labels.length > 0) {
+    await octokit.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      labels: input.labels
+    });
+  }
+  if (input.assignees && input.assignees.length > 0) {
+    await octokit.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: subIssue.number,
+      assignees: input.assignees
+    });
+  }
+  if (projectNumber) {
+    const fieldInfo = await getProjectFieldInfo2(
+      octokit,
+      organization,
+      projectNumber
+    );
+    if (fieldInfo) {
+      const projectItemId = await addIssueToProject(
+        octokit,
+        fieldInfo.projectId,
+        subIssue.id
+      );
+      if (projectStatus && fieldInfo.statusFieldId) {
+        const optionId = fieldInfo.statusOptions.get(projectStatus);
+        if (optionId) {
+          await updateProjectField2(
+            octokit,
+            fieldInfo.projectId,
+            projectItemId,
+            fieldInfo.statusFieldId,
+            { singleSelectOptionId: optionId }
+          );
+        }
+      }
+    }
+  }
+  return {
+    issueNumber: subIssue.number,
+    issueId: subIssue.id
+  };
+}
+
 // packages/issue-state/src/sections/types.ts
 var TodoItemSchema = external_exports.object({
   text: external_exports.string(),
@@ -45123,6 +45367,7 @@ var InMemoryIssueStateRepository = class {
   constructor(context) {
     this.context = context;
   }
+  nextIssueNumber = 1e3;
   setIssueStatus(status) {
     this.context.issue.projectStatus = status;
   }
@@ -45146,6 +45391,16 @@ var InMemoryIssueStateRepository = class {
       };
     });
     this.context.issue.hasSubIssues = this.context.issue.subIssues.length > 0;
+  }
+  async createSubIssue(input) {
+    const issueNumber = this.nextIssueNumber++;
+    this.context.issue.subIssues.push({
+      number: issueNumber,
+      projectStatus: "Backlog",
+      state: "OPEN"
+    });
+    this.context.issue.hasSubIssues = true;
+    return { issueNumber };
   }
 };
 function repositoryFor(context) {
@@ -65468,6 +65723,36 @@ function createClaudePrResponseService(codeToken) {
 }
 
 // packages/statemachine/src/machines/example/actions.ts
+function formatPhaseBody(phase) {
+  const lines = [`## Description
+
+${phase.description}`];
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    lines.push("\n## Affected Areas\n");
+    for (const area of phase.affected_areas) {
+      const parts = [`- \`${area.path}\``];
+      if (area.change_type) parts[0] += ` (${area.change_type})`;
+      if (area.description) parts.push(`  ${area.description}`);
+      lines.push(parts.join("\n"));
+    }
+  }
+  if (phase.todos && phase.todos.length > 0) {
+    lines.push("\n## Todos\n");
+    for (const todo of phase.todos) {
+      const suffix = todo.manual ? " *(manual)*" : "";
+      lines.push(`- [ ] ${todo.task}${suffix}`);
+    }
+  }
+  if (phase.depends_on && phase.depends_on.length > 0) {
+    lines.push(
+      `
+## Dependencies
+
+Depends on phases: ${phase.depends_on.join(", ")}`
+    );
+  }
+  return lines.join("\n");
+}
 function isOkResult(value) {
   if (value == null || typeof value !== "object") return false;
   return Reflect.get(value, "ok") === true;
@@ -65606,7 +65891,7 @@ function reconcileSubIssuesAction(createAction) {
     predict: () => ({
       checks: [
         {
-          comparator: "equals",
+          comparator: "eq",
           description: "Issue should have sub-issues after grooming",
           field: "issue.hasSubIssues",
           expected: true
@@ -65619,8 +65904,17 @@ function reconcileSubIssuesAction(createAction) {
         throw new Error("No grooming output to reconcile");
       }
       if (output.decision === "ready" && output.recommendedPhases) {
+        const repo = repositoryFor(ctx);
         const existingNumbers = ctx.issue.subIssues.map((s) => s.number);
-        if (existingNumbers.length > 0) {
+        if (existingNumbers.length === 0 && repo.createSubIssue) {
+          for (const phase of output.recommendedPhases) {
+            const body = formatPhaseBody(phase);
+            await repo.createSubIssue({
+              title: `[Phase ${phase.phase_number}]: ${phase.title}`,
+              body
+            });
+          }
+        } else if (existingNumbers.length > 0) {
           reconcileSubIssues(ctx, existingNumbers);
         }
       }
@@ -67205,6 +67499,39 @@ var ExampleContextLoader = class _ExampleContextLoader {
       hasSubIssues: nextSubIssues.length > 0,
       subIssues: nextSubIssues
     });
+  }
+  async createSubIssue(input) {
+    const options = this.requireOptions();
+    const state = this.requireState();
+    const parentIssue = extractIssue(state);
+    const result = await addSubIssueToParent(
+      options.owner,
+      options.repo,
+      parentIssue.number,
+      {
+        title: input.title,
+        body: input.body,
+        labels: input.labels
+      },
+      {
+        octokit: options.octokit,
+        projectNumber: options.projectNumber,
+        projectStatus: "Ready"
+      }
+    );
+    const current = extractIssue(state);
+    this.updateIssue({
+      hasSubIssues: true,
+      subIssues: [
+        ...current.subIssues,
+        {
+          number: result.issueNumber,
+          projectStatus: "Backlog",
+          state: "OPEN"
+        }
+      ]
+    });
+    return { issueNumber: result.issueNumber };
   }
   async save() {
     if (this.state === null || this.remoteUpdate === null) return false;

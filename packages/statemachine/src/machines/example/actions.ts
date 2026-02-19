@@ -17,9 +17,40 @@ import {
   applyTriage,
   persistIssueState,
   reconcileSubIssues,
+  repositoryFor,
   setIssueStatus,
 } from "./commands.js";
-import { type TriagePromptVars } from "./services.js";
+import { type ExampleGroomingOutput, type TriagePromptVars } from "./services.js";
+
+type RecommendedPhase = NonNullable<
+  ExampleGroomingOutput["recommendedPhases"]
+>[number];
+
+function formatPhaseBody(phase: RecommendedPhase): string {
+  const lines: string[] = [`## Description\n\n${phase.description}`];
+  if (phase.affected_areas && phase.affected_areas.length > 0) {
+    lines.push("\n## Affected Areas\n");
+    for (const area of phase.affected_areas) {
+      const parts = [`- \`${area.path}\``];
+      if (area.change_type) parts[0] += ` (${area.change_type})`;
+      if (area.description) parts.push(`  ${area.description}`);
+      lines.push(parts.join("\n"));
+    }
+  }
+  if (phase.todos && phase.todos.length > 0) {
+    lines.push("\n## Todos\n");
+    for (const todo of phase.todos) {
+      const suffix = todo.manual ? " *(manual)*" : "";
+      lines.push(`- [ ] ${todo.task}${suffix}`);
+    }
+  }
+  if (phase.depends_on && phase.depends_on.length > 0) {
+    lines.push(
+      `\n## Dependencies\n\nDepends on phases: ${phase.depends_on.join(", ")}`,
+    );
+  }
+  return lines.join("\n");
+}
 
 interface GroomingPromptVars extends TriagePromptVars {
   ISSUE_LABELS: string;
@@ -214,7 +245,7 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
     predict: () => ({
       checks: [
         {
-          comparator: "equals" as const,
+          comparator: "eq" as const,
           description: "Issue should have sub-issues after grooming",
           field: "issue.hasSubIssues",
           expected: true,
@@ -228,8 +259,18 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
       }
       // Only reconcile sub-issues when the decision is "ready"
       if (output.decision === "ready" && output.recommendedPhases) {
+        const repo = repositoryFor(ctx);
         const existingNumbers = ctx.issue.subIssues.map((s) => s.number);
-        if (existingNumbers.length > 0) {
+        if (existingNumbers.length === 0 && repo.createSubIssue) {
+          // No sub-issues yet — create them from recommended phases
+          for (const phase of output.recommendedPhases) {
+            const body = formatPhaseBody(phase);
+            await repo.createSubIssue({
+              title: `[Phase ${phase.phase_number}]: ${phase.title}`,
+              body,
+            });
+          }
+        } else if (existingNumbers.length > 0) {
           reconcileSubIssues(ctx, existingNumbers);
         }
       }

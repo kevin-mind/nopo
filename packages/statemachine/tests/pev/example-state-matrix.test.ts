@@ -307,7 +307,19 @@ describe("Example Machine — state matrix hardening", () => {
 
   it("handles orchestration trigger with orchestration queue", async () => {
     const snap = await run(
-      mockExampleContext({ ...baseDomain, trigger: "issue-orchestrate" }),
+      mockExampleContext({
+        ...baseDomain,
+        trigger: "issue-orchestrate",
+        issue: mockExampleIssue({
+          number: 42,
+          labels: ["triaged", "groomed"],
+          projectStatus: "In progress",
+          hasSubIssues: true,
+          subIssues: [
+            { number: 100, projectStatus: "Backlog", state: "OPEN" },
+          ],
+        }),
+      }),
     );
     expect(String(snap.value)).toBe("done");
     expect(hasActionType(snap, "runOrchestration")).toBe(true);

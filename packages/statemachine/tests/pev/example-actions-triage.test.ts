@@ -201,8 +201,19 @@ describe("example grooming actions", () => {
     ).rejects.toThrow("No grooming service configured");
   });
 
-  it("apply/reconcile grooming output updates labels, sub-issues, persists, and clears output", async () => {
+  it("apply/reconcile grooming output updates labels, creates sub-issues, persists, and clears output", async () => {
     const save = vi.fn(async () => true);
+    let nextIssueNumber = 1000;
+    const createSubIssue = vi.fn(async () => {
+      const issueNumber = nextIssueNumber++;
+      ctx.issue.subIssues.push({
+        number: issueNumber,
+        projectStatus: "Backlog",
+        state: "OPEN",
+      });
+      ctx.issue.hasSubIssues = true;
+      return { issueNumber };
+    });
     const ctx: ExampleContext = mockExampleContext({
       issue: mockExampleIssue({
         labels: [],
@@ -213,6 +224,10 @@ describe("example grooming actions", () => {
         labelsToAdd: ["groomed", "needs-spec"],
         decision: "ready",
         summary: "Split work",
+        recommendedPhases: [
+          { phase_number: 1, title: "Backend", description: "Backend work" },
+          { phase_number: 2, title: "Frontend", description: "Frontend work" },
+        ],
       },
     });
     const repository: IssueStateRepository & { save: () => Promise<boolean> } =
@@ -229,6 +244,7 @@ describe("example grooming actions", () => {
           }));
           ctx.issue.hasSubIssues = subIssueNumbers.length > 0;
         }),
+        createSubIssue,
         save,
       };
     ctx.repository = repository;
@@ -250,14 +266,72 @@ describe("example grooming actions", () => {
       ctx,
     );
 
-    expect(applyResult).toEqual({ ok: true });
-    expect(reconcileResult).toEqual({ ok: true });
+    expect(applyResult).toEqual({ ok: true, decision: "ready" });
+    expect(reconcileResult).toEqual({ ok: true, decision: "ready" });
     expect(ctx.issue.labels).toEqual(["groomed", "needs-spec"]);
-    expect(ctx.issue.subIssues.map((subIssue) => subIssue.number)).toEqual([
-      101, 102,
-    ]);
+    expect(createSubIssue).toHaveBeenCalledTimes(2);
+    expect(ctx.issue.hasSubIssues).toBe(true);
+    expect(ctx.issue.subIssues).toHaveLength(2);
     expect(save).toHaveBeenCalledOnce();
     expect(ctx.groomingOutput).toBeNull();
+  });
+
+  it("reconcileSubIssues verification fails when no recommended phases returned", async () => {
+    const save = vi.fn(async () => true);
+    const ctx: ExampleContext = mockExampleContext({
+      issue: mockExampleIssue({
+        labels: [],
+        subIssues: [],
+        hasSubIssues: false,
+      }),
+      groomingOutput: {
+        labelsToAdd: ["groomed"],
+        decision: "ready",
+        summary: "Ready but no phases",
+      },
+    });
+    const repository: IssueStateRepository & { save: () => Promise<boolean> } =
+      {
+        setIssueStatus: vi.fn(),
+        addIssueLabels: vi.fn(),
+        reconcileSubIssues: vi.fn(),
+        save,
+      };
+    ctx.repository = repository;
+    const reconcileDef = reconcileSubIssuesAction(createAction);
+
+    const reconcileResult = await reconcileDef.execute(
+      {
+        type: "reconcileSubIssues",
+        payload: { issueNumber: 42 },
+      },
+      ctx,
+    );
+
+    // Execute succeeds but hasSubIssues is still false
+    expect(reconcileResult).toEqual({ ok: true, decision: "ready" });
+    expect(ctx.issue.hasSubIssues).toBe(false);
+
+    // Verify should fail since prediction expects hasSubIssues=true
+    const prediction = reconcileDef.predict?.(
+      { type: "reconcileSubIssues", payload: { issueNumber: 42 } },
+      ctx,
+    );
+    expect(prediction?.checks).toHaveLength(1);
+
+    // Custom verify should catch the mismatch
+    const verifyResult = reconcileDef.verify?.({
+      action: { type: "reconcileSubIssues", payload: { issueNumber: 42 } },
+      oldCtx: ctx,
+      newCtx: ctx,
+      prediction: prediction ?? null,
+      predictionEval: { pass: false, diffs: [] },
+      predictionDiffs: [],
+      executeResult: reconcileResult,
+    });
+    expect(verifyResult).toEqual({
+      message: "Grooming decision was 'ready' but issue has no sub-issues after reconciliation",
+    });
   });
 });
 

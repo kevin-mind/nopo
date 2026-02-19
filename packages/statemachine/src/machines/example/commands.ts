@@ -5,6 +5,8 @@ import type {
 } from "./context.js";
 
 class InMemoryIssueStateRepository implements IssueStateRepository {
+  private nextIssueNumber = 1000;
+
   constructor(private readonly context: ExampleContext) {}
 
   setIssueStatus(status: ExampleProjectStatus): void {
@@ -33,9 +35,24 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     });
     this.context.issue.hasSubIssues = this.context.issue.subIssues.length > 0;
   }
+
+  async createSubIssue(input: {
+    title: string;
+    body?: string;
+    labels?: string[];
+  }): Promise<{ issueNumber: number }> {
+    const issueNumber = this.nextIssueNumber++;
+    this.context.issue.subIssues.push({
+      number: issueNumber,
+      projectStatus: "Backlog",
+      state: "OPEN",
+    });
+    this.context.issue.hasSubIssues = true;
+    return { issueNumber };
+  }
 }
 
-function repositoryFor(context: ExampleContext): IssueStateRepository {
+export function repositoryFor(context: ExampleContext): IssueStateRepository {
   return context.repository ?? new InMemoryIssueStateRepository(context);
 }
 

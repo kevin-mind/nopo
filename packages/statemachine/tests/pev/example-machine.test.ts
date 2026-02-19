@@ -52,6 +52,13 @@ async function runExampleMachine(domain: ExampleContext, maxTransitions = 10) {
         labelsToAdd: ["groomed"],
         decision: "ready" as const,
         summary: "Issue groomed",
+        recommendedPhases: [
+          {
+            phase_number: 1,
+            title: "Implementation",
+            description: "Implement the feature",
+          },
+        ],
       }),
     } satisfies NonNullable<ExampleContext["services"]>["grooming"]);
   const iteration =
