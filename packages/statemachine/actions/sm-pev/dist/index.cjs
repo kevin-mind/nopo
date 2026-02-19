@@ -65850,6 +65850,12 @@ var triggeredByReviewRequest = triggeredBy("pr-review-requested");
 var triggeredByTriage = triggeredBy("issue-triage");
 var triggeredByComment = triggeredBy("issue-comment");
 var triggeredByOrchestrate = triggeredBy("issue-orchestrate");
+function triggeredByOrchestrateAndReady({ context }) {
+  return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
+}
+function triggeredByOrchestrateAndNeedsGrooming({ context }) {
+  return triggeredByOrchestrate({ context }) && needsGrooming({ context });
+}
 var triggeredByPRReview = triggeredBy("pr-review");
 function prReviewWithCIPassed({ context }) {
   return triggeredByPRReview({ context }) && ciPassed({ context });
@@ -67181,6 +67187,8 @@ var exampleMachine = createMachineFactory().actions((createAction) => ({
   triggeredByTriage,
   triggeredByComment,
   triggeredByOrchestrate,
+  triggeredByOrchestrateAndReady,
+  triggeredByOrchestrateAndNeedsGrooming,
   triggeredByPRReview,
   triggeredByPRResponse,
   triggeredByPRHumanResponse,
@@ -67265,7 +67273,14 @@ var exampleMachine = createMachineFactory().actions((createAction) => ({
           // ARC 15-17
           { target: "triaging", guard: "triggeredByTriage" },
           { target: "commenting", guard: "triggeredByComment" },
-          { target: "orchestrating", guard: "triggeredByOrchestrate" },
+          {
+            target: "grooming",
+            guard: "triggeredByOrchestrateAndNeedsGrooming"
+          },
+          {
+            target: "orchestrating",
+            guard: "triggeredByOrchestrateAndReady"
+          },
           { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
           // ARC 18-22
           {
