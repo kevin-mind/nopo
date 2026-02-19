@@ -17,6 +17,10 @@ inputs:
   reviewer_token:
     description: GitHub token for PR review tasks (CLAUDE_REVIEWER_PAT). Falls back to github_token if not set.
     required: false
+  project_number:
+    description: GitHub Project number for reading/writing project fields (Status, Iteration, Failures)
+    required: false
+    default: "0"
 
 outputs:
   final_state:

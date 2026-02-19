@@ -152,6 +152,8 @@ function reviewCommented({ context }: GuardArgs): boolean {
 }
 
 function needsGrooming({ context }: GuardArgs): boolean {
+  // Sub-issues are never groomed — they are already phases from parent grooming
+  if (context.domain.parentIssue !== null) return false;
   const hasTriaged = hasLabel(context.domain, "triaged");
   const hasGroomed = hasLabel(context.domain, "groomed");
   return hasTriaged && !hasGroomed;

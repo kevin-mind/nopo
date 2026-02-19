@@ -66335,6 +66335,7 @@ function reviewCommented({ context }) {
   return context.domain.reviewDecision === "COMMENTED";
 }
 function needsGrooming({ context }) {
+  if (context.domain.parentIssue !== null) return false;
   const hasTriaged = hasLabel(context.domain, "triaged");
   const hasGroomed = hasLabel(context.domain, "groomed");
   return hasTriaged && !hasGroomed;
@@ -68165,6 +68166,10 @@ async function run() {
     getOptionalInput("max_transitions") || "1",
     10
   );
+  const projectNumber = parseInt(
+    getOptionalInput("project_number") || "0",
+    10
+  );
   const githubJsonStr = getRequiredInput("github_json");
   const githubJson = JSON.parse(githubJsonStr);
   const trigger = detectTrigger(githubJson);
@@ -68181,6 +68186,7 @@ async function run() {
     trigger,
     owner: owner ?? "unknown",
     repo: repo ?? "unknown",
+    projectNumber: projectNumber || void 0,
     event: {
       type: githubJson.event_name,
       owner: owner ?? "unknown",
@@ -68240,7 +68246,8 @@ async function run() {
       runnerCtx: {
         token,
         owner: owner ?? "unknown",
-        repo: repo ?? "unknown"
+        repo: repo ?? "unknown",
+        projectNumber: projectNumber || void 0
       }
     }
   });

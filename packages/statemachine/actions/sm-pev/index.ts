@@ -150,6 +150,10 @@ async function run(): Promise<void> {
     getOptionalInput("max_transitions") || "1",
     10,
   );
+  const projectNumber = parseInt(
+    getOptionalInput("project_number") || "0",
+    10,
+  );
   const githubJsonStr = getRequiredInput("github_json");
 
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub context JSON is untyped
@@ -187,6 +191,7 @@ async function run(): Promise<void> {
     trigger,
     owner: owner ?? "unknown",
     repo: repo ?? "unknown",
+    projectNumber: projectNumber || undefined,
     event: {
       type: githubJson.event_name,
       owner: owner ?? "unknown",
@@ -248,6 +253,7 @@ async function run(): Promise<void> {
         token,
         owner: owner ?? "unknown",
         repo: repo ?? "unknown",
+        projectNumber: projectNumber || undefined,
       },
     },
   });

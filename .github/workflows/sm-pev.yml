@@ -36,3 +36,4 @@ jobs:
           max_transitions: ${{ inputs.max_transitions || '1' }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}
+          project_number: ${{ vars.PROJECT_NUMBER }}
