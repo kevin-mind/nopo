@@ -23,10 +23,9 @@ describe("createClaudeIterationService", () => {
       exitCode: 0,
       output: "",
       structuredOutput: {
-        iteration: {
-          labels_to_add: ["CI Fixing", "PR Ready"],
-        },
-        implementation_notes: "Fix tests, then request review.",
+        status: "completed_todo",
+        todos_completed: ["Fix flaky test"],
+        agent_notes: ["Fix tests", "then request review"],
       },
     });
 
@@ -58,8 +57,10 @@ describe("createClaudeIterationService", () => {
       },
     });
     expect(result).toEqual({
-      labelsToAdd: ["iteration:ready", "ci-fixing", "pr-ready"],
-      summary: "Fix tests, then request review.",
+      labelsToAdd: ["iteration:ready"],
+      summary: "Fix tests; then request review",
+      status: "completed_todo",
+      todosCompleted: ["Fix flaky test"],
     });
   });
 });

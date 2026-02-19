@@ -65499,13 +65499,11 @@ var ClaudeGroomingSummaryOutputSchema = external_exports.object({
   agent_notes: external_exports.array(external_exports.string()).optional()
 });
 var ClaudeIterationOutputSchema = external_exports.object({
-  iteration: external_exports.object({
-    labels_to_add: external_exports.array(external_exports.string())
-  }),
-  implementation_notes: external_exports.string(),
-  status: external_exports.enum(["completed_todo", "waiting_manual", "blocked", "all_done"]).optional(),
+  status: external_exports.enum(["completed_todo", "waiting_manual", "blocked", "all_done"]),
   todos_completed: external_exports.array(external_exports.string()).optional(),
-  todo_completed: external_exports.string().optional()
+  manual_todo: external_exports.string().optional(),
+  blocked_reason: external_exports.string().optional(),
+  agent_notes: external_exports.array(external_exports.string())
 });
 var ClaudeReviewOutputSchema = external_exports.object({
   review: external_exports.object({
@@ -65578,13 +65576,11 @@ function mapGroomingSummaryToOutput(summaryOutput, engineerOutput) {
 }
 function mapClaudeOutputToIterationResult(output) {
   const parsed = ClaudeIterationOutputSchema.parse(output);
-  const labelsToAdd = ["iteration:ready", ...parsed.iteration.labels_to_add];
-  const todosCompleted = parsed.todos_completed && parsed.todos_completed.length > 0 ? parsed.todos_completed : parsed.todo_completed ? [parsed.todo_completed] : void 0;
   return {
-    labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
-    summary: parsed.implementation_notes,
+    labelsToAdd: ["iteration:ready"],
+    summary: parsed.agent_notes.join("; ") || parsed.status,
     status: parsed.status,
-    todosCompleted
+    todosCompleted: parsed.todos_completed && parsed.todos_completed.length > 0 ? parsed.todos_completed : void 0
   };
 }
 function mapClaudeOutputToReviewResult(output) {

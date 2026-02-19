@@ -163,15 +163,11 @@ const ClaudeGroomingSummaryOutputSchema = z.object({
 });
 
 const ClaudeIterationOutputSchema = z.object({
-  iteration: z.object({
-    labels_to_add: z.array(z.string()),
-  }),
-  implementation_notes: z.string(),
-  status: z
-    .enum(["completed_todo", "waiting_manual", "blocked", "all_done"])
-    .optional(),
+  status: z.enum(["completed_todo", "waiting_manual", "blocked", "all_done"]),
   todos_completed: z.array(z.string()).optional(),
-  todo_completed: z.string().optional(),
+  manual_todo: z.string().optional(),
+  blocked_reason: z.string().optional(),
+  agent_notes: z.array(z.string()),
 });
 
 const ClaudeReviewOutputSchema = z.object({
@@ -264,18 +260,14 @@ function mapClaudeOutputToIterationResult(
   output: unknown,
 ): ExampleIterationOutput {
   const parsed = ClaudeIterationOutputSchema.parse(output);
-  const labelsToAdd = ["iteration:ready", ...parsed.iteration.labels_to_add];
-  const todosCompleted =
-    parsed.todos_completed && parsed.todos_completed.length > 0
-      ? parsed.todos_completed
-      : parsed.todo_completed
-        ? [parsed.todo_completed]
-        : undefined;
   return {
-    labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
-    summary: parsed.implementation_notes,
+    labelsToAdd: ["iteration:ready"],
+    summary: parsed.agent_notes.join("; ") || parsed.status,
     status: parsed.status,
-    todosCompleted,
+    todosCompleted:
+      parsed.todos_completed && parsed.todos_completed.length > 0
+        ? parsed.todos_completed
+        : undefined,
   };
 }
 
