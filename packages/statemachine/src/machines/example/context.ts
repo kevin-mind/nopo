@@ -66,6 +66,8 @@ const ExampleIssueSchema = z.object({
   assignees: z.array(z.string()),
   hasSubIssues: z.boolean(),
   subIssues: z.array(ExampleSubIssueSchema),
+  /** Iteration counter from GitHub Project field (default 0) */
+  iteration: z.number().int().min(0).optional().default(0),
   /** CI failure count for circuit breaker (default 0) */
   failures: z.number().int().min(0).optional().default(0),
 });
@@ -315,6 +317,8 @@ const extractIssue = createExtractor(ExampleIssueSchema, (data) => ({
     projectStatus: normalizeProjectStatus(subIssue.projectStatus),
     state: subIssue.state,
   })),
+  iteration: data.issue.iteration,
+  failures: data.issue.failures,
 }));
 
 const extractParentIssue = createExtractor(
@@ -908,8 +912,18 @@ export class ExampleContextLoader implements IssueStateRepository {
       const d = new Date(ts);
       if (!isNaN(d.getTime())) {
         const months = [
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
         ];
         timeCell = `${months[d.getUTCMonth()]} ${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
       }
@@ -971,8 +985,8 @@ export class ExampleContextLoader implements IssueStateRepository {
         depth: 2 as const,
         children: [{ type: "text" as const, value: "Iteration History" }],
       };
-      children.push(heading as typeof children[number]);
-      children.push(table as typeof children[number]);
+      children.push(heading as (typeof children)[number]);
+      children.push(table as (typeof children)[number]);
     }
   }
 

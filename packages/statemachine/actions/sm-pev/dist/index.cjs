@@ -66492,7 +66492,19 @@ function buildIterateQueue(context, registry2, mode = "iterate") {
         ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
         ISSUE_LABELS: context.domain.issue.labels.join(", "),
         CI_RESULT: context.domain.ciResult ?? "none",
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none"
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        ITERATION: String(context.domain.issue.iteration ?? 0),
+        LAST_CI_RESULT: context.domain.ciResult ?? "none",
+        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
+        PR_CREATE_COMMAND: [
+          `gh pr create --draft`,
+          `--title "fix: implement #${issueNumber}"`,
+          `--body "Fixes #${issueNumber}"`,
+          `--base main`,
+          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`
+        ].join(" \\\n  "),
+        AGENT_NOTES: ""
       }
     }),
     registry2.applyIterationOutput.create({
@@ -66693,7 +66705,19 @@ function buildRetryQueue(context, registry2) {
         ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
         ISSUE_LABELS: context.domain.issue.labels.join(", "),
         CI_RESULT: context.domain.ciResult ?? "none",
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none"
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        ITERATION: String(context.domain.issue.iteration ?? 0),
+        LAST_CI_RESULT: context.domain.ciResult ?? "none",
+        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
+        PR_CREATE_COMMAND: [
+          `gh pr create --draft`,
+          `--title "fix: implement #${issueNumber}"`,
+          `--body "Fixes #${issueNumber}"`,
+          `--base main`,
+          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`
+        ].join(" \\\n  "),
+        AGENT_NOTES: ""
       }
     }),
     registry2.applyIterationOutput.create({
@@ -67035,6 +67059,8 @@ var ExampleIssueSchema = external_exports.object({
   assignees: external_exports.array(external_exports.string()),
   hasSubIssues: external_exports.boolean(),
   subIssues: external_exports.array(ExampleSubIssueSchema),
+  /** Iteration counter from GitHub Project field (default 0) */
+  iteration: external_exports.number().int().min(0).optional().default(0),
   /** CI failure count for circuit breaker (default 0) */
   failures: external_exports.number().int().min(0).optional().default(0)
 });
@@ -67141,7 +67167,9 @@ var extractIssue = createExtractor(ExampleIssueSchema, (data) => ({
     number: subIssue.number,
     projectStatus: normalizeProjectStatus(subIssue.projectStatus),
     state: subIssue.state
-  }))
+  })),
+  iteration: data.issue.iteration,
+  failures: data.issue.failures
 }));
 var extractParentIssue = createExtractor(
   external_exports.union([ExampleIssueSchema, external_exports.null()]),
@@ -68172,7 +68200,9 @@ async function run() {
       labels: [],
       assignees: [],
       hasSubIssues: false,
-      subIssues: []
+      subIssues: [],
+      iteration: 0,
+      failures: 0
     },
     parentIssue: null,
     currentSubIssue: null,

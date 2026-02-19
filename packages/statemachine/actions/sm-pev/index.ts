@@ -211,6 +211,8 @@ async function run(): Promise<void> {
       assignees: [],
       hasSubIssues: false,
       subIssues: [],
+      iteration: 0,
+      failures: 0,
     },
     parentIssue: null,
     currentSubIssue: null,

@@ -22,6 +22,7 @@ export const mockExampleIssue = createMockFactory<ExampleIssue>({
   assignees: [],
   hasSubIssues: false,
   subIssues: [],
+  iteration: 0,
   failures: 0,
 });
 

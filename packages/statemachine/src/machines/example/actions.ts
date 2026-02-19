@@ -20,7 +20,10 @@ import {
   repositoryFor,
   setIssueStatus,
 } from "./commands.js";
-import { type ExampleGroomingOutput, type TriagePromptVars } from "./services.js";
+import {
+  type ExampleGroomingOutput,
+  type TriagePromptVars,
+} from "./services.js";
 
 type RecommendedPhase = NonNullable<
   ExampleGroomingOutput["recommendedPhases"]
@@ -60,6 +63,12 @@ interface IterationPromptVars extends TriagePromptVars {
   ISSUE_LABELS: string;
   CI_RESULT: string;
   REVIEW_DECISION: string;
+  ITERATION: string;
+  LAST_CI_RESULT: string;
+  CONSECUTIVE_FAILURES: string;
+  BRANCH_NAME: string;
+  PR_CREATE_COMMAND: string;
+  AGENT_NOTES: string;
 }
 
 interface ReviewPromptVars extends TriagePromptVars {
@@ -241,8 +250,7 @@ export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
       checks: [
         {
           comparator: "all" as const,
-          description:
-            "All grooming labels should exist on issue after apply",
+          description: "All grooming labels should exist on issue after apply",
           checks: (ctx.groomingOutput?.labelsToAdd ?? ["groomed"]).map(
             (label) => ({
               comparator: "includes" as const,
@@ -312,7 +320,9 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
     },
     verify: ({ executeResult, newCtx }) => {
       if (!isOkResult(executeResult)) {
-        return { message: "Reconcile sub-issues execute did not return ok=true" };
+        return {
+          message: "Reconcile sub-issues execute did not return ok=true",
+        };
       }
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- runtime output check
       const decision = (executeResult as { decision?: string }).decision;
@@ -524,7 +534,8 @@ export function applyPrResponseOutputAction(createAction: ExampleCreateAction) {
             "All PR response labels should exist on issue after apply",
           checks: (
             action.payload.labelsToAdd ??
-            ctx.prResponseOutput?.labelsToAdd ?? []
+            ctx.prResponseOutput?.labelsToAdd ??
+            []
           ).map((label) => ({
             comparator: "includes" as const,
             description: `Issue labels should include "${label}"`,
