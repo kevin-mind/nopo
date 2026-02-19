@@ -44374,6 +44374,36 @@ query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
 }
 `;
 
+// packages/issue-state/src/graphql/pr-queries.ts
+var GET_PR_CLOSING_ISSUES_QUERY = `
+query GetPRClosingIssues($owner: String!, $repo: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      closingIssuesReferences(first: 1) {
+        nodes {
+          number
+        }
+      }
+    }
+  }
+}
+`;
+var GET_BRANCH_CLOSING_ISSUES_QUERY = `
+query GetBranchClosingIssues($owner: String!, $repo: String!, $headRef: String!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(first: 1, headRefName: $headRef, states: [OPEN, MERGED]) {
+      nodes {
+        closingIssuesReferences(first: 1) {
+          nodes {
+            number
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
 // packages/issue-state/src/graphql/project-queries.ts
 var GET_PROJECT_ITEM_QUERY = `
 query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
@@ -45346,6 +45376,22 @@ function checkOffTodoInBody(body, todoText) {
   return updateTodoInBody(body, todoText, true);
 }
 
+// packages/issue-state/src/resolve-issue.ts
+async function issueNumberFromPR(octokit, owner, repo, prNumber) {
+  const response = await octokit.graphql(
+    GET_PR_CLOSING_ISSUES_QUERY,
+    { owner, repo, prNumber }
+  );
+  return response.repository?.pullRequest?.closingIssuesReferences?.nodes?.[0]?.number ?? null;
+}
+async function issueNumberFromBranch(octokit, owner, repo, branch) {
+  const response = await octokit.graphql(
+    GET_BRANCH_CLOSING_ISSUES_QUERY,
+    { owner, repo, headRef: branch }
+  );
+  return response.repository?.pullRequests?.nodes?.[0]?.closingIssuesReferences?.nodes?.[0]?.number ?? null;
+}
+
 // packages/issue-state/src/create-extractor.ts
 function createExtractor(schema, transform2) {
   return (data) => {
@@ -45392,7 +45438,7 @@ var InMemoryIssueStateRepository = class {
     });
     this.context.issue.hasSubIssues = this.context.issue.subIssues.length > 0;
   }
-  async createSubIssue(input) {
+  async createSubIssue(_input) {
     const issueNumber = this.nextIssueNumber++;
     this.context.issue.subIssues.push({
       number: issueNumber,
@@ -68135,7 +68181,7 @@ function detectTrigger(ctx) {
   if (eventName === "pull_request_review_comment") {
     return "pr-response";
   }
-  if (eventName === "push") return "pr-push";
+  if (eventName === "push") return null;
   if (eventName === "workflow_run") return "workflow-run-completed";
   if (eventName === "merge_group") return "merge-queue-entered";
   return "issue-triage";
@@ -68150,31 +68196,75 @@ async function run() {
     getOptionalInput("max_transitions") || "1",
     10
   );
-  const projectNumber = parseInt(
-    getOptionalInput("project_number") || "0",
-    10
-  );
+  const projectNumber = parseInt(getOptionalInput("project_number") || "0", 10);
   const githubJsonStr = getRequiredInput("github_json");
   const githubJson = JSON.parse(githubJsonStr);
   const trigger = detectTrigger(githubJson);
+  if (trigger === null) {
+    core3.info(
+      `Event ${githubJson.event_name} skipped (no state machine action needed)`
+    );
+    return;
+  }
   core3.info(`PEV Machine starting (max_transitions=${maxTransitions})`);
   core3.info(`Event: ${githubJson.event_name}, Trigger: ${trigger}`);
   const issueData = githubJson.event?.issue;
   const [owner, repo] = (githubJson.repository ?? "unknown/unknown").split("/");
   const resourceNumberStr = githubJson.event?.inputs?.resource_number;
-  const issueNumber = (issueData?.number ?? (resourceNumberStr ? parseInt(resourceNumberStr, 10) : 0)) || 0;
+  let issueNumber = (issueData?.number ?? (resourceNumberStr ? parseInt(resourceNumberStr, 10) : 0)) || 0;
   const octokit = github.getOctokit(token);
+  const oktLike = asOctokitLike(octokit);
+  const ownerStr = owner ?? "unknown";
+  const repoStr = repo ?? "unknown";
+  if (issueNumber === 0) {
+    if (githubJson.event_name === "workflow_run") {
+      const headBranch = githubJson.event?.workflow_run?.head_branch;
+      if (headBranch) {
+        core3.info(
+          `Resolving issue from workflow_run head_branch: ${headBranch}`
+        );
+        const resolved = await issueNumberFromBranch(
+          oktLike,
+          ownerStr,
+          repoStr,
+          headBranch
+        );
+        if (resolved) {
+          issueNumber = resolved;
+          core3.info(`Resolved issue #${issueNumber} from branch ${headBranch}`);
+        } else {
+          core3.warning(`Could not resolve issue from branch ${headBranch}`);
+        }
+      }
+    }
+    if ((githubJson.event_name === "pull_request" || githubJson.event_name === "pull_request_review") && githubJson.event?.pull_request?.number) {
+      const prNumber = githubJson.event.pull_request.number;
+      core3.info(`Resolving issue from PR #${prNumber}`);
+      const resolved = await issueNumberFromPR(
+        oktLike,
+        ownerStr,
+        repoStr,
+        prNumber
+      );
+      if (resolved) {
+        issueNumber = resolved;
+        core3.info(`Resolved issue #${issueNumber} from PR #${prNumber}`);
+      } else {
+        core3.warning(`Could not resolve issue from PR #${prNumber}`);
+      }
+    }
+  }
   const loader = new ExampleContextLoader();
   const loaded = await loader.load({
-    octokit: asOctokitLike(octokit),
+    octokit: oktLike,
     trigger,
-    owner: owner ?? "unknown",
-    repo: repo ?? "unknown",
+    owner: ownerStr,
+    repo: repoStr,
     projectNumber: projectNumber || void 0,
     event: {
       type: githubJson.event_name,
-      owner: owner ?? "unknown",
-      repo: repo ?? "unknown",
+      owner: ownerStr,
+      repo: repoStr,
       issueNumber,
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     }
@@ -68182,8 +68272,8 @@ async function run() {
   const loadedContext = loaded ? loader.toContext() : null;
   const domainContext = loadedContext ?? {
     trigger,
-    owner: owner ?? "unknown",
-    repo: repo ?? "unknown",
+    owner: ownerStr,
+    repo: repoStr,
     issue: {
       number: issueNumber,
       title: issueData?.title ?? "Unknown",
@@ -68229,8 +68319,8 @@ async function run() {
       maxTransitions,
       runnerCtx: {
         token,
-        owner: owner ?? "unknown",
-        repo: repo ?? "unknown",
+        owner: ownerStr,
+        repo: repoStr,
         projectNumber: projectNumber || void 0
       }
     }

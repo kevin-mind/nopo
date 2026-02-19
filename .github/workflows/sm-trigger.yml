@@ -22,9 +22,10 @@ run-name: >-
 # PEV-based automation: sm-pev runs predict-execute-verify in a single invocation.
 
 'on':
-  push:
-    branches:
-      - 'claude/**'
+  # push events only trigger CI; state machine reacts to CI completion via workflow_run
+  # push:
+  #   branches:
+  #     - 'claude/**'
   issues:
     types:
       - opened

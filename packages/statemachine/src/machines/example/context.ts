@@ -883,6 +883,7 @@ export class ExampleContextLoader implements IssueStateRepository {
   }): void {
     const state = this.requireState();
     const ast = state.issue.bodyAst;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast recursive types require assertion
     const children = ast.children as Array<{
       type: string;
       depth?: number;
@@ -961,6 +962,7 @@ export class ExampleContextLoader implements IssueStateRepository {
     if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
       // Append row to existing table
       const table = children[headingIdx + 1]!;
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast table children manipulation
       (table.children as unknown[]).push(newRow);
     } else {
       // Create heading + table with header row + data row
@@ -985,7 +987,9 @@ export class ExampleContextLoader implements IssueStateRepository {
         depth: 2 as const,
         children: [{ type: "text" as const, value: "Iteration History" }],
       };
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast node insertion
       children.push(heading as (typeof children)[number]);
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast node insertion
       children.push(table as (typeof children)[number]);
     }
   }

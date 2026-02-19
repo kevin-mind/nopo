@@ -36,7 +36,7 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     this.context.issue.hasSubIssues = this.context.issue.subIssues.length > 0;
   }
 
-  async createSubIssue(input: {
+  async createSubIssue(_input: {
     title: string;
     body?: string;
     labels?: string[];

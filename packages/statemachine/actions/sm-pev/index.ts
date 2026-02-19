@@ -25,7 +25,11 @@ import {
   setOutputs,
 } from "../../src/core/action-utils.js";
 import type { ExampleTrigger } from "../../src/machines/example/events.js";
-import type { OctokitLike } from "@more/issue-state";
+import {
+  issueNumberFromBranch,
+  issueNumberFromPR,
+  type OctokitLike,
+} from "@more/issue-state";
 
 /**
  * Detect the trigger type from the GitHub event context.
@@ -39,9 +43,14 @@ function detectTrigger(ctx: {
     issue?: { number: number };
     comment?: { body?: string };
     review?: { state?: string };
-    workflow_run?: { conclusion?: string };
+    workflow_run?: {
+      conclusion?: string;
+      head_branch?: string;
+      pull_requests?: Array<{ number: number }>;
+    };
+    pull_request?: { number: number };
   };
-}): ExampleTrigger {
+}): ExampleTrigger | null {
   const eventName = ctx.event_name;
   const action = ctx.event?.action;
 
@@ -123,8 +132,8 @@ function detectTrigger(ctx: {
     return "pr-response";
   }
 
-  // push to claude/** branches
-  if (eventName === "push") return "pr-push";
+  // push events only trigger CI — state machine reacts to CI completion via workflow_run
+  if (eventName === "push") return null;
 
   // workflow_run (CI completion)
   if (eventName === "workflow_run") return "workflow-run-completed";
@@ -150,10 +159,7 @@ async function run(): Promise<void> {
     getOptionalInput("max_transitions") || "1",
     10,
   );
-  const projectNumber = parseInt(
-    getOptionalInput("project_number") || "0",
-    10,
-  );
+  const projectNumber = parseInt(getOptionalInput("project_number") || "0", 10);
   const githubJsonStr = getRequiredInput("github_json");
 
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub context JSON is untyped
@@ -164,7 +170,12 @@ async function run(): Promise<void> {
       inputs?: { resource_number?: string; trigger_type?: string };
       comment?: { body?: string };
       review?: { state?: string };
-      workflow_run?: { conclusion?: string };
+      workflow_run?: {
+        conclusion?: string;
+        head_branch?: string;
+        pull_requests?: Array<{ number: number }>;
+      };
+      pull_request?: { number: number };
     };
     repository_owner: string;
     event_name: string;
@@ -173,6 +184,13 @@ async function run(): Promise<void> {
 
   const trigger = detectTrigger(githubJson);
 
+  if (trigger === null) {
+    core.info(
+      `Event ${githubJson.event_name} skipped (no state machine action needed)`,
+    );
+    return;
+  }
+
   core.info(`PEV Machine starting (max_transitions=${maxTransitions})`);
   core.info(`Event: ${githubJson.event_name}, Trigger: ${trigger}`);
 
@@ -180,22 +198,73 @@ async function run(): Promise<void> {
   const issueData = githubJson.event?.issue;
   const [owner, repo] = (githubJson.repository ?? "unknown/unknown").split("/");
   const resourceNumberStr = githubJson.event?.inputs?.resource_number;
-  const issueNumber =
+  let issueNumber =
     (issueData?.number ??
       (resourceNumberStr ? parseInt(resourceNumberStr, 10) : 0)) ||
     0;
+
   const octokit = github.getOctokit(token);
+  const oktLike = asOctokitLike(octokit);
+  const ownerStr = owner ?? "unknown";
+  const repoStr = repo ?? "unknown";
+
+  // For events without a direct issue reference, resolve via GraphQL
+  if (issueNumber === 0) {
+    // workflow_run: resolve via head_branch → PR → closing issue
+    if (githubJson.event_name === "workflow_run") {
+      const headBranch = githubJson.event?.workflow_run?.head_branch;
+      if (headBranch) {
+        core.info(
+          `Resolving issue from workflow_run head_branch: ${headBranch}`,
+        );
+        const resolved = await issueNumberFromBranch(
+          oktLike,
+          ownerStr,
+          repoStr,
+          headBranch,
+        );
+        if (resolved) {
+          issueNumber = resolved;
+          core.info(`Resolved issue #${issueNumber} from branch ${headBranch}`);
+        } else {
+          core.warning(`Could not resolve issue from branch ${headBranch}`);
+        }
+      }
+    }
+
+    // pull_request / pull_request_review: resolve via PR number → closing issue
+    if (
+      (githubJson.event_name === "pull_request" ||
+        githubJson.event_name === "pull_request_review") &&
+      githubJson.event?.pull_request?.number
+    ) {
+      const prNumber = githubJson.event.pull_request.number;
+      core.info(`Resolving issue from PR #${prNumber}`);
+      const resolved = await issueNumberFromPR(
+        oktLike,
+        ownerStr,
+        repoStr,
+        prNumber,
+      );
+      if (resolved) {
+        issueNumber = resolved;
+        core.info(`Resolved issue #${issueNumber} from PR #${prNumber}`);
+      } else {
+        core.warning(`Could not resolve issue from PR #${prNumber}`);
+      }
+    }
+  }
   const loader = new ExampleContextLoader();
   const loaded = await loader.load({
-    octokit: asOctokitLike(octokit),
+    octokit: oktLike,
     trigger,
-    owner: owner ?? "unknown",
-    repo: repo ?? "unknown",
+    owner: ownerStr,
+    repo: repoStr,
     projectNumber: projectNumber || undefined,
     event: {
       type: githubJson.event_name,
-      owner: owner ?? "unknown",
-      repo: repo ?? "unknown",
+      owner: ownerStr,
+      repo: repoStr,
       issueNumber,
       timestamp: new Date().toISOString(),
     },
@@ -203,8 +272,8 @@ async function run(): Promise<void> {
   const loadedContext = loaded ? loader.toContext() : null;
   const domainContext: ExampleContext = loadedContext ?? {
     trigger,
-    owner: owner ?? "unknown",
-    repo: repo ?? "unknown",
+    owner: ownerStr,
+    repo: repoStr,
     issue: {
       number: issueNumber,
       title: issueData?.title ?? "Unknown",
@@ -251,8 +320,8 @@ async function run(): Promise<void> {
       maxTransitions,
       runnerCtx: {
         token,
-        owner: owner ?? "unknown",
-        repo: repo ?? "unknown",
+        owner: ownerStr,
+        repo: repoStr,
         projectNumber: projectNumber || undefined,
       },
     },
