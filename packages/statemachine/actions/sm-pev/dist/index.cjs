@@ -45402,6 +45402,8 @@ var InMemoryIssueStateRepository = class {
     this.context.issue.hasSubIssues = true;
     return { issueNumber };
   }
+  async assignBotToSubIssue(_subIssueNumber, _botUsername) {
+  }
 };
 function repositoryFor(context) {
   return context.repository ?? new InMemoryIssueStateRepository(context);
@@ -66152,6 +66154,13 @@ function runOrchestrationAction(createAction) {
       if (!persisted) {
         throw new Error("Failed to persist orchestration step");
       }
+      const firstSub = ctx.issue.subIssues.find(
+        (s) => s.projectStatus !== "Done" && s.state === "OPEN"
+      );
+      const repo = repositoryFor(ctx);
+      if (firstSub && repo.assignBotToSubIssue) {
+        await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
+      }
       return { ok: true };
     }
   });
@@ -67532,6 +67541,15 @@ var ExampleContextLoader = class _ExampleContextLoader {
       ]
     });
     return { issueNumber: result.issueNumber };
+  }
+  async assignBotToSubIssue(subIssueNumber, botUsername) {
+    const options = this.requireOptions();
+    await options.octokit.rest.issues.addAssignees({
+      owner: options.owner,
+      repo: options.repo,
+      issue_number: subIssueNumber,
+      assignees: [botUsername]
+    });
   }
   async save() {
     if (this.state === null || this.remoteUpdate === null) return false;

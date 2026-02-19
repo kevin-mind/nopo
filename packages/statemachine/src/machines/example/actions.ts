@@ -572,6 +572,14 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
       if (!persisted) {
         throw new Error("Failed to persist orchestration step");
       }
+      // Assign bot to the first non-Done sub-issue to start iteration
+      const firstSub = ctx.issue.subIssues.find(
+        (s) => s.projectStatus !== "Done" && s.state === "OPEN",
+      );
+      const repo = repositoryFor(ctx);
+      if (firstSub && repo.assignBotToSubIssue) {
+        await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
+      }
       return { ok: true };
     },
   });

@@ -145,6 +145,10 @@ export interface IssueStateRepository {
     body?: string;
     labels?: string[];
   }): Promise<{ issueNumber: number }>;
+  assignBotToSubIssue?(
+    subIssueNumber: number,
+    botUsername: string,
+  ): Promise<void>;
 }
 
 /**
@@ -918,6 +922,19 @@ export class ExampleContextLoader implements IssueStateRepository {
       ],
     });
     return { issueNumber: result.issueNumber };
+  }
+
+  async assignBotToSubIssue(
+    subIssueNumber: number,
+    botUsername: string,
+  ): Promise<void> {
+    const options = this.requireOptions();
+    await options.octokit.rest.issues.addAssignees({
+      owner: options.owner,
+      repo: options.repo,
+      issue_number: subIssueNumber,
+      assignees: [botUsername],
+    });
   }
 
   async save(): Promise<boolean> {

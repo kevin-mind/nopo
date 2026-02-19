@@ -50,6 +50,13 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     this.context.issue.hasSubIssues = true;
     return { issueNumber };
   }
+
+  async assignBotToSubIssue(
+    _subIssueNumber: number,
+    _botUsername: string,
+  ): Promise<void> {
+    // In-memory: no-op (no real GitHub API to call)
+  }
 }
 
 export function repositoryFor(context: ExampleContext): IssueStateRepository {
