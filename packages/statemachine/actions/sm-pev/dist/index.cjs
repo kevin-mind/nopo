@@ -65636,7 +65636,7 @@ function reconcileSubIssuesAction(createAction) {
         return { message: "Reconcile sub-issues execute did not return ok=true" };
       }
       const decision = executeResult.decision;
-      if (decision === "ready" && !newCtx.domain.issue.hasSubIssues) {
+      if (decision === "ready" && !newCtx.issue.hasSubIssues) {
         return {
           message: "Grooming decision was 'ready' but issue has no sub-issues after reconciliation"
         };
