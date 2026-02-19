@@ -259,10 +259,10 @@ Automated issue management using GitHub Project fields for state. Race condition
 
 ### Two-Level State Machine
 
-**Parent issues** = big loop (overall progress). **Sub-issues** = little loop (per phase).
+**Parent issues** = big loop (overall progress). **Sub-issues** = little loop (per phase). Every issue MUST have at least one sub-issue — all implementation work happens on sub-issues, never directly on parent issues.
 
 ```
-PARENT: Backlog → In Progress → Done (or Blocked/Error)
+PARENT: Backlog → Groomed → In Progress → Done (or Blocked/Error)
 SUB:    Ready → Working → Review → Done
 ```
 
@@ -351,7 +351,7 @@ These commands work on both parent issues (triggers orchestration) and sub-issue
 
 **Labels:** Type (bug/enhancement/etc), Priority (low-critical), Topic (max 3)
 **Fields:** Priority (P0-P2), Size (XS-XL), Estimate (Fibonacci hours)
-**Sub-issues:** M/L/XL issues get 2-5 phases, title `[Phase N]: <Title>`
+**Sub-issues:** ALL issues get sub-issues during grooming. XS/S get 1 phase, M/L/XL get 2-5 phases. Title format: `[Phase N]: <Title>`
 
 ### PR Requirements
 
