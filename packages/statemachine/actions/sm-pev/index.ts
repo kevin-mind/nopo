@@ -341,7 +341,7 @@ async function run(): Promise<void> {
 
   // Wait for the machine to reach a final state
   const finalSnapshot = await waitFor(actor, (s) => s.status === "done", {
-    timeout: 300_000, // 5 minutes
+    timeout: 600_000, // 10 minutes
   });
 
   const finalState = String(finalSnapshot.value);

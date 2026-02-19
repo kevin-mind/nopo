@@ -68335,8 +68335,8 @@ async function run() {
   actor.start();
   actor.send({ type: "DETECT" });
   const finalSnapshot = await waitFor(actor, (s) => s.status === "done", {
-    timeout: 3e5
-    // 5 minutes
+    timeout: 6e5
+    // 10 minutes
   });
   const finalState = String(finalSnapshot.value);
   const ctx = finalSnapshot.context;
