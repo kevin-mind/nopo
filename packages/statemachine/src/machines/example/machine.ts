@@ -305,9 +305,10 @@ export const exampleMachine = createMachineFactory<
           { target: "reviewing", guard: "triggeredByReview" },
           // ARC 33-35
           { target: "triaging", guard: "needsTriage" },
+          // "In review" stops iteration — wait for review events
+          { target: "awaitingReview", guard: "isInReview" },
           { target: "preparing", guard: "canIterate" },
           // Sub-issue status-based routing (before isSubIssue catch-all)
-          { target: "awaitingReview", guard: "isInReview" },
           { target: "transitioningToReview", guard: "readyForReview" },
           // Parent iterating on current sub-issue (after orchestration resets stale state)
           { target: "preparing", guard: "shouldIterateSubIssue" },
