@@ -46200,12 +46200,17 @@ function requestReviewerAction(createAction) {
   return createAction({
     description: (action) => `Request review from ${action.payload.reviewer} on PR #${action.payload.prNumber}`,
     execute: async ({ action, ctx }) => {
-      await requestReviewer(
-        ctx,
-        action.payload.prNumber,
-        action.payload.reviewer
-      );
-      return { ok: true };
+      try {
+        await requestReviewer(
+          ctx,
+          action.payload.prNumber,
+          action.payload.reviewer
+        );
+        return { ok: true };
+      } catch (error3) {
+        const msg = error3 instanceof Error ? error3.message : String(error3);
+        return { ok: true, skipped: true, reason: msg };
+      }
     },
     verify: ({ executeResult }) => {
       if (!isOkResult(executeResult)) {

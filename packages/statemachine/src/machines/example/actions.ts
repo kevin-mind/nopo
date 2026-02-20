@@ -896,12 +896,19 @@ export function requestReviewerAction(createAction: ExampleCreateAction) {
     description: (action) =>
       `Request review from ${action.payload.reviewer} on PR #${action.payload.prNumber}`,
     execute: async ({ action, ctx }) => {
-      await requestReviewer(
-        ctx,
-        action.payload.prNumber,
-        action.payload.reviewer,
-      );
-      return { ok: true };
+      try {
+        await requestReviewer(
+          ctx,
+          action.payload.prNumber,
+          action.payload.reviewer,
+        );
+        return { ok: true };
+      } catch (error) {
+        // Non-fatal: reviewer might be the PR author or unavailable.
+        // Don't abort the queue — updateStatus and persistState must still run.
+        const msg = error instanceof Error ? error.message : String(error);
+        return { ok: true, skipped: true, reason: msg };
+      }
     },
     verify: ({ executeResult }) => {
       if (!isOkResult(executeResult)) {
