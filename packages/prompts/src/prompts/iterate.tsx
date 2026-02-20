@@ -102,32 +102,49 @@ const Iterate = promptFactory()
         ].join("\n")}
       </section>
 
-      <section title="3. Implementation">
+      <section title="3. Delegate to full-stack-engineer Sub-Agent">
         {[
-          "1. Read files before editing",
+          "**IMPORTANT**: You are the orchestration agent. Do NOT write, edit, or delete files directly.",
+          "All implementation work MUST be delegated to the `full-stack-engineer` sub-agent via the Task tool.",
+          "",
+          "**How to delegate:**",
+          "",
+          "Use the Task tool with `subagent_type: \"full-stack-engineer\"` and provide a detailed prompt including:",
+          "- The issue number, title, and full issue body",
+          "- The current branch name",
+          "- The specific todo item or CI failure to address",
+          "- Any relevant context from previous agent notes",
+          "",
+          "**Example Task tool invocation:**",
+          "```",
+          "Task tool:",
+          "  subagent_type: full-stack-engineer",
+          "  prompt: |",
+          `    Implement issue #${inputs.issueNumber}: "${inputs.issueTitle}"`,
+          `    Branch: ${inputs.branchName}`,
+          "    Task: <paste the specific todo text here>",
+          "",
+          "    <paste the full issue body here>",
+          "",
+          "    After implementing, run make fix && make check && make test,",
+          "    then commit with a descriptive message and push to origin.",
+          "```",
+          "",
+          "**The sub-agent will:**",
+          "1. Read relevant files before making changes",
           "2. Follow CLAUDE.md guidelines",
           "3. Keep changes small and focused",
+          "4. Run `make fix && make check && make test` before committing",
+          "5. Commit with a descriptive message and push to origin",
+          "",
+          "**After delegation, verify the sub-agent's work:**",
+          "- Run `git log --oneline -3` to confirm commits were made",
+          "- Run `git status` to confirm no uncommitted changes remain",
         ].join("\n")}
       </section>
 
-      <section title="4. Fix and Verify Before Committing">
-        {[
-          "**Always run `make fix` before committing** to auto-fix formatting and lint issues:",
-        ].join("\n")}
-        <codeblock lang="bash">
-          {"make fix && make check && make test"}
-        </codeblock>
-        {"\n**STOP if any command fails.** Fix before committing."}
-      </section>
-
-      <section title="5. Commit and Push">
-        {
-          "Commit with descriptive message, push to origin. Workflow handles the rest."
-        }
-      </section>
-
-      <section title="6. Create PR (First Iteration Only)">
-        {`If no PR exists:\n${inputs.prCreateCommand}`}
+      <section title="4. Create PR (First Iteration Only)">
+        {`If no PR exists after the sub-agent pushes:\n${inputs.prCreateCommand}`}
       </section>
 
       <section title="Output">
