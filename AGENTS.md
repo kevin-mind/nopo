@@ -487,6 +487,109 @@ Create → Research (spawn threads) → Respond (investigate) → Update descrip
 
 ---
 
+## Sub-Agent Architecture
+
+Nopo uses a multi-agent system where a **main orchestration agent** delegates implementation work to specialized **sub-agents**. This enforces separation of concerns: the main agent reads, plans, and coordinates; sub-agents execute.
+
+### Permission Model
+
+| Agent | Write/Edit | Bash | MCPs |
+|-------|-----------|------|------|
+| **Main agent** | No | Read-only (git*, gh*, make check/test, pnpm*, nopo*, cd*, ls*, cat*, find*) | Read MCPs only |
+| **full-stack-engineer** | Yes | Unrestricted | All MCPs |
+| **code-reviewer** | No | git diff/log/show, make check/test, gh pr | GitHub MCP |
+| **design-engineer** | Yes | Unrestricted | Figma, Playwright MCPs |
+| **platform-engineer** | Yes | Unrestricted | GCP, Sentry MCPs |
+| **qa-engineer** | Yes | Unrestricted | Playwright, GitHub MCPs |
+| **product-manager** | No | gh issue/pr/project | GitHub MCP |
+
+### Sub-Agent Files
+
+All sub-agents are defined in `.claude/agents/` as markdown files with YAML frontmatter:
+
+```
+.claude/agents/
+├── full-stack-engineer.md    # Primary coding agent - all permissions
+├── code-reviewer.md          # Code review - read-only
+├── design-engineer.md        # UI/UX - full permissions + Figma
+├── platform-engineer.md      # Infrastructure - full permissions + GCP
+├── product-manager.md        # Product - read-only + GitHub
+└── qa-engineer.md            # Testing - full permissions + Playwright
+```
+
+Frontmatter format:
+```yaml
+---
+name: agent-name
+description: "When to use this agent..."
+model: sonnet
+color: blue
+tools: Read, Write, Edit, Glob, Grep, Bash, mcp__github__*
+---
+```
+
+### When to Use Sub-Agents
+
+The **main agent** handles:
+- Reading and understanding code
+- Planning and coordination
+- Running read-only commands (git status, gh pr view, make check)
+- Delegating implementation tasks to sub-agents
+
+The **full-stack-engineer** handles all implementation:
+- Writing and editing code files
+- Running tests and builds
+- Committing and pushing changes
+- Any task requiring file modifications
+
+### MCP Configuration
+
+MCPs are configured in `.mcp.json` at the repo root. Each MCP server may require auth:
+
+#### Figma MCP
+Provides access to Figma design files for UI implementation.
+```bash
+export FIGMA_ACCESS_TOKEN="your-figma-personal-access-token"
+```
+Get your token at: https://www.figma.com/settings (Personal access tokens)
+
+#### GCP MCP
+Provides access to Google Cloud Platform resources.
+```bash
+gcloud auth login
+gcloud auth application-default login
+```
+
+#### GitHub MCP
+Uses the `GITHUB_TOKEN` environment variable (automatically available in GitHub Actions).
+
+#### Sentry MCP
+Uses the `SENTRY_AUTH_TOKEN` environment variable.
+
+### Workflow Patterns
+
+**Feature Implementation:**
+```
+Main agent reads issue → Plans approach → Delegates to full-stack-engineer → Commits
+```
+
+**Code Review:**
+```
+Main agent reads PR → Delegates to code-reviewer → Review submitted
+```
+
+**UI Feature with Designs:**
+```
+Main agent reads Figma designs (via mcp__figma__*) → Delegates to design-engineer → UI built
+```
+
+**Infrastructure Change:**
+```
+Main agent reads GCP state (via mcp__gcp__*) → Delegates to platform-engineer → Infrastructure updated
+```
+
+---
+
 ## Quick Reference
 
 ```bash
