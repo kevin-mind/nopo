@@ -26,6 +26,7 @@ import {
   parseIssue,
   parseMarkdown,
   serializeMarkdown,
+  updateProjectFields,
   type IssueData,
   type IssueStateData,
   type LinkedPR,
@@ -149,6 +150,10 @@ export interface IssueStateRepository {
   assignBotToSubIssue?(
     subIssueNumber: number,
     botUsername: string,
+  ): Promise<void>;
+  updateSubIssueProjectStatus?(
+    subIssueNumber: number,
+    status: ExampleProjectStatus,
   ): Promise<void>;
   updateBody?(body: string): void;
   appendHistoryEntry?(entry: {
@@ -1077,6 +1082,21 @@ export class ExampleContextLoader implements IssueStateRepository {
       issue_number: subIssueNumber,
       assignees: [botUsername],
     });
+  }
+
+  async updateSubIssueProjectStatus(
+    subIssueNumber: number,
+    status: ExampleProjectStatus,
+  ): Promise<void> {
+    const options = this.requireOptions();
+    await updateProjectFields(
+      options.octokit,
+      options.owner,
+      options.repo,
+      subIssueNumber,
+      options.projectNumber ?? 0,
+      { status: status === "In progress" ? "Ready" : status },
+    );
   }
 
   async save(): Promise<boolean> {

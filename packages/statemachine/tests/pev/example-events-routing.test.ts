@@ -77,7 +77,12 @@ beforeEach(() => {
 
 async function runDetect(domain: ExampleContext) {
   const actor = createActor(exampleMachine, {
-    input: { domain, maxCycles: 1, runnerCtx: RUNNER_CTX, services: mockExampleServices() },
+    input: {
+      domain,
+      maxCycles: 1,
+      runnerCtx: RUNNER_CTX,
+      services: mockExampleServices(),
+    },
   });
   actor.start();
   return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
@@ -189,18 +194,16 @@ describe("example routing skeleton", () => {
   const directRoutingCases: Array<{
     trigger: ExampleTrigger;
     expectedState: string;
+    needsSubIssue?: boolean;
   }> = [
     { trigger: "issue-closed", expectedState: "done" },
     { trigger: "issue-reset", expectedState: "done" },
-    { trigger: "issue-retry", expectedState: "done" },
+    { trigger: "issue-retry", expectedState: "done", needsSubIssue: true },
     { trigger: "issue-comment", expectedState: "done" },
     { trigger: "issue-groom-summary", expectedState: "done" },
     { trigger: "pr-review-requested", expectedState: "done" },
     { trigger: "merge-queue-entered", expectedState: "done" },
-    {
-      trigger: "deployed-prod-failed",
-      expectedState: "done",
-    },
+    { trigger: "deployed-prod-failed", expectedState: "done" },
   ];
 
   for (const c of directRoutingCases) {
@@ -210,6 +213,9 @@ describe("example routing skeleton", () => {
         owner: "test-owner",
         repo: "test-repo",
         issue: mockExampleIssue({ number: 42 }),
+        ...(c.needsSubIssue
+          ? { currentSubIssue: mockExampleIssue({ number: 100 }) }
+          : {}),
       });
 
       const snap = await runDetect(domain);

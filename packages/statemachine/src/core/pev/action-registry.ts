@@ -43,7 +43,11 @@ export interface TAction<
     ctx: TDomain,
   ) => PredictResult;
   execute: (
-    input: ActionExecuteInput<TActionInput<TType, TPayload>, TDomain, TServices>,
+    input: ActionExecuteInput<
+      TActionInput<TType, TPayload>,
+      TDomain,
+      TServices
+    >,
   ) => Promise<unknown>;
   verify?: (
     args: VerifyArgs<TActionInput<TType, TPayload>, TDomain>,

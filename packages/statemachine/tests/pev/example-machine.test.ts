@@ -421,12 +421,19 @@ describe("Example Machine — Iterate", () => {
 
 describe("Example Machine — Review", () => {
   it("routes to review when status is In review", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      labels: ["triaged", "groomed"],
+      hasSubIssues: true,
+    });
     const domain = mockExampleContext({
       trigger: "issue-edited",
       issue: mockExampleIssue({
         projectStatus: "In review",
         labels: ["triaged", "groomed"],
       }),
+      parentIssue,
     });
 
     const snap = await runExampleMachine(domain);
@@ -438,6 +445,12 @@ describe("Example Machine — Review", () => {
   });
 
   it("adds comment context when staying in review after comments", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      labels: ["triaged", "groomed"],
+      hasSubIssues: true,
+    });
     const domain = mockExampleContext({
       trigger: "pr-review-submitted",
       reviewDecision: "COMMENTED",
@@ -445,6 +458,7 @@ describe("Example Machine — Review", () => {
         projectStatus: "In review",
         labels: ["triaged", "groomed"],
       }),
+      parentIssue,
     });
 
     const snap = await runExampleMachine(domain);
@@ -465,12 +479,19 @@ describe("Example Machine — Review", () => {
   });
 
   it("runs awaiting-merge queue for approved review trigger", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      labels: ["triaged", "groomed"],
+      hasSubIssues: true,
+    });
     const domain = mockExampleContext({
       trigger: "pr-review-approved",
       issue: mockExampleIssue({
         projectStatus: "In review",
         labels: ["triaged", "groomed"],
       }),
+      parentIssue,
     });
 
     const snap = await runExampleMachine(domain);
@@ -500,12 +521,19 @@ describe("Example Machine — Review", () => {
   });
 
   it("handles pr-review-requested trigger via review queue", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      labels: ["triaged", "groomed"],
+      hasSubIssues: true,
+    });
     const domain = mockExampleContext({
       trigger: "pr-review-requested",
       issue: mockExampleIssue({
         projectStatus: "In review",
         labels: ["triaged", "groomed"],
       }),
+      parentIssue,
     });
 
     const snap = await runExampleMachine(domain);

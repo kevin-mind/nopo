@@ -245,6 +245,20 @@ function isSubIssue({ context }: GuardArgs): boolean {
   return context.domain.parentIssue !== null;
 }
 
+/**
+ * Parent machine should iterate on current sub-issue inline.
+ * True when: parent context (not a sub-issue), has a currentSubIssue,
+ * bot is assigned, and sub-issue is in a working state.
+ */
+function shouldIterateSubIssue({ context }: GuardArgs): boolean {
+  if (context.domain.parentIssue !== null) return false;
+  const sub = context.domain.currentSubIssue;
+  if (!sub) return false;
+  const bot = context.domain.botUsername;
+  if (!sub.assignees.includes(bot)) return false;
+  return sub.projectStatus === "In progress" || sub.projectStatus === "Backlog";
+}
+
 /** Parent in progress without sub-issues (invalid iteration) */
 function isInvalidIteration({ context }: GuardArgs): boolean {
   if (context.domain.parentIssue !== null) return false;
@@ -328,6 +342,7 @@ export {
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,
+  shouldIterateSubIssue,
   isInvalidIteration,
   needsSubIssues,
   todosDone,

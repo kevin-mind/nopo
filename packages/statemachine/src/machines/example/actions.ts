@@ -28,7 +28,10 @@ import type {
   TriagePromptVars,
 } from "./services.js";
 
-type ExampleCreateAction = TCreateActionForDomain<ExampleContext, ExampleServices>;
+type ExampleCreateAction = TCreateActionForDomain<
+  ExampleContext,
+  ExampleServices
+>;
 
 const execAsync = promisify(execCb);
 
@@ -625,7 +628,28 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
         (s) => s.projectStatus !== "Done" && s.state === "OPEN",
       );
       const repo = repositoryFor(ctx);
-      if (firstSub && repo.assignBotToSubIssue) {
+      if (!firstSub) return { ok: true };
+
+      // Detect stale review: sub-issue is "In review" but PR is closed or missing.
+      // Reset to "In progress" so the machine can re-route to iterate in the same run.
+      const isStaleReview =
+        firstSub.projectStatus === "In review" &&
+        (!ctx.pr || ctx.pr.state !== "OPEN");
+      if (isStaleReview) {
+        if (repo.updateSubIssueProjectStatus) {
+          await repo.updateSubIssueProjectStatus(
+            firstSub.number,
+            "In progress",
+          );
+        }
+        // Update in-memory state so routing sees the change
+        firstSub.projectStatus = "In progress";
+        if (ctx.currentSubIssue?.number === firstSub.number) {
+          ctx.currentSubIssue.projectStatus = "In progress";
+        }
+      }
+
+      if (repo.assignBotToSubIssue) {
         await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
       }
       return { ok: true };

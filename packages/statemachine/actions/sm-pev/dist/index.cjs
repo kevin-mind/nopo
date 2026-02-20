@@ -45439,6 +45439,15 @@ var InMemoryIssueStateRepository = class {
   }
   async assignBotToSubIssue(_subIssueNumber, _botUsername) {
   }
+  async updateSubIssueProjectStatus(subIssueNumber, status) {
+    const sub = this.context.issue.subIssues.find(
+      (s) => s.number === subIssueNumber
+    );
+    if (sub) sub.projectStatus = status;
+    if (this.context.currentSubIssue?.number === subIssueNumber) {
+      this.context.currentSubIssue.projectStatus = status;
+    }
+  }
 };
 function repositoryFor(context) {
   return context.repository ?? new InMemoryIssueStateRepository(context);
@@ -45929,7 +45938,21 @@ function runOrchestrationAction(createAction) {
         (s) => s.projectStatus !== "Done" && s.state === "OPEN"
       );
       const repo = repositoryFor(ctx);
-      if (firstSub && repo.assignBotToSubIssue) {
+      if (!firstSub) return { ok: true };
+      const isStaleReview = firstSub.projectStatus === "In review" && (!ctx.pr || ctx.pr.state !== "OPEN");
+      if (isStaleReview) {
+        if (repo.updateSubIssueProjectStatus) {
+          await repo.updateSubIssueProjectStatus(
+            firstSub.number,
+            "In progress"
+          );
+        }
+        firstSub.projectStatus = "In progress";
+        if (ctx.currentSubIssue?.number === firstSub.number) {
+          ctx.currentSubIssue.projectStatus = "In progress";
+        }
+      }
+      if (repo.assignBotToSubIssue) {
         await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
       }
       return { ok: true };
@@ -46239,6 +46262,14 @@ function maxFailuresReached({ context }) {
 function isSubIssue({ context }) {
   return context.domain.parentIssue !== null;
 }
+function shouldIterateSubIssue({ context }) {
+  if (context.domain.parentIssue !== null) return false;
+  const sub = context.domain.currentSubIssue;
+  if (!sub) return false;
+  const bot = context.domain.botUsername;
+  if (!sub.assignees.includes(bot)) return false;
+  return sub.projectStatus === "In progress" || sub.projectStatus === "Backlog";
+}
 function isInvalidIteration({ context }) {
   if (context.domain.parentIssue !== null) return false;
   if (!hasLabel(context.domain, "groomed")) return false;
@@ -46311,9 +46342,16 @@ function buildGroomQueue(context, registry2) {
     })
   ];
 }
+function requireCurrentSubIssue(context) {
+  const sub = context.domain.currentSubIssue;
+  if (!sub) {
+    throw new Error("Cannot operate without a currentSubIssue");
+  }
+  return sub;
+}
 function buildPrepareQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const branchName = context.domain.branch ?? `claude/issue/${issueNumber}`;
+  const sub = requireCurrentSubIssue(context);
+  const branchName = context.domain.branch ?? `claude/issue/${sub.number}`;
   return [
     registry2.setupGit.create({
       token: context.runnerCtx?.token ?? ""
@@ -46324,7 +46362,8 @@ function buildPrepareQueue(context, registry2) {
   ];
 }
 function buildIterateQueue(context, registry2, mode = "iterate") {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
+  const issueNumber = sub.number;
   const prelude = [];
   if (context.domain.ciResult === "failure") {
     prelude.push(
@@ -46363,15 +46402,15 @@ function buildIterateQueue(context, registry2, mode = "iterate") {
       mode,
       promptVars: {
         ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        ISSUE_LABELS: context.domain.issue.labels.join(", "),
+        ISSUE_TITLE: sub.title,
+        ISSUE_BODY: sub.body,
+        ISSUE_COMMENTS: sub.comments.join("\n"),
+        ISSUE_LABELS: sub.labels.join(", "),
         CI_RESULT: context.domain.ciResult ?? "none",
         REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(context.domain.issue.iteration ?? 0),
+        ITERATION: String(sub.iteration ?? 0),
         LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        CONSECUTIVE_FAILURES: String(sub.failures ?? 0),
         BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
         PR_CREATE_COMMAND: [
           `gh pr create --draft`,
@@ -46392,24 +46431,24 @@ function buildIterateFixQueue(context, registry2) {
   return buildIterateQueue(context, registry2, "retry");
 }
 function buildTransitionToReviewQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
   return [
     registry2.updateStatus.create({
-      issueNumber,
+      issueNumber: target.number,
       status: "In review"
     }),
     registry2.appendHistory.create({
-      issueNumber,
+      issueNumber: target.number,
       message: "CI passed, transitioning to review",
       phase: "review"
     })
   ];
 }
 function buildReviewQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
   const prelude = context.domain.reviewDecision === "COMMENTED" ? [
     registry2.appendHistory.create({
-      issueNumber,
+      issueNumber: sub.number,
       message: "Review commented, staying in review",
       phase: "review"
     })
@@ -46417,27 +46456,27 @@ function buildReviewQueue(context, registry2) {
   return [
     ...prelude,
     registry2.updateStatus.create({
-      issueNumber,
+      issueNumber: sub.number,
       status: "In review"
     }),
     registry2.appendHistory.create({
-      issueNumber,
+      issueNumber: sub.number,
       message: "Requesting review"
     })
   ];
 }
 function buildAwaitingMergeQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
   return [
     registry2.appendHistory.create({
-      issueNumber,
+      issueNumber: sub.number,
       message: "Review approved, awaiting merge",
       phase: "review"
     })
   ];
 }
 function buildMergeQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   const queue = [
     registry2.updateStatus.create({
       issueNumber,
@@ -46470,7 +46509,7 @@ function buildMergeQueue(context, registry2) {
   return queue;
 }
 function buildDeployedStageQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry2.appendHistory.create({
       issueNumber,
@@ -46483,7 +46522,7 @@ function buildDeployedStageQueue(context, registry2) {
   ];
 }
 function buildDeployedProdQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry2.updateStatus.create({
       issueNumber,
@@ -46500,7 +46539,7 @@ function buildDeployedProdQueue(context, registry2) {
   ];
 }
 function buildDeployedStageFailureQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry2.updateStatus.create({
       issueNumber,
@@ -46517,7 +46556,7 @@ function buildDeployedStageFailureQueue(context, registry2) {
   ];
 }
 function buildDeployedProdFailureQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry2.updateStatus.create({
       issueNumber,
@@ -46560,7 +46599,8 @@ function buildResetQueue(context, registry2) {
   ];
 }
 function buildRetryQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
+  const issueNumber = sub.number;
   return [
     registry2.appendHistory.create({
       issueNumber,
@@ -46576,15 +46616,15 @@ function buildRetryQueue(context, registry2) {
       mode: "retry",
       promptVars: {
         ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        ISSUE_LABELS: context.domain.issue.labels.join(", "),
+        ISSUE_TITLE: sub.title,
+        ISSUE_BODY: sub.body,
+        ISSUE_COMMENTS: sub.comments.join("\n"),
+        ISSUE_LABELS: sub.labels.join(", "),
         CI_RESULT: context.domain.ciResult ?? "none",
         REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(context.domain.issue.iteration ?? 0),
+        ITERATION: String(sub.iteration ?? 0),
         LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        CONSECUTIVE_FAILURES: String(sub.failures ?? 0),
         BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
         PR_CREATE_COMMAND: [
           `gh pr create --draft`,
@@ -47646,6 +47686,17 @@ var ExampleContextLoader = class _ExampleContextLoader {
       assignees: [botUsername]
     });
   }
+  async updateSubIssueProjectStatus(subIssueNumber, status) {
+    const options = this.requireOptions();
+    await updateProjectFields(
+      options.octokit,
+      options.owner,
+      options.repo,
+      subIssueNumber,
+      options.projectNumber ?? 0,
+      { status: status === "In progress" ? "Ready" : status }
+    );
+  }
   async save() {
     if (this.state === null || this.remoteUpdate === null) return false;
     await this.remoteUpdate(this.state);
@@ -47724,6 +47775,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,
+  shouldIterateSubIssue,
   isInvalidIteration,
   todosDone,
   readyForReview,
@@ -47831,6 +47883,11 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         // ARC 33-35
         { target: "triaging", guard: "needsTriage" },
         { target: "preparing", guard: "canIterate" },
+        // Sub-issue status-based routing (before isSubIssue catch-all)
+        { target: "reviewing", guard: "isInReview" },
+        { target: "transitioningToReview", guard: "readyForReview" },
+        // Parent iterating on current sub-issue (after orchestration resets stale state)
+        { target: "preparing", guard: "shouldIterateSubIssue" },
         { target: "subIssueIdle", guard: "isSubIssue" },
         // ARC 36-38
         { target: "grooming", guard: "triggeredByGroom" },
@@ -47839,8 +47896,6 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "initializing", guard: "needsSubIssues" },
         { target: "orchestrating", guard: "hasSubIssues" },
         // ARC 41-43
-        { target: "reviewing", guard: "isInReview" },
-        { target: "transitioningToReview", guard: "readyForReview" },
         { target: "invalidIteration", guard: "isInvalidIteration" },
         { target: "idle" }
       ]

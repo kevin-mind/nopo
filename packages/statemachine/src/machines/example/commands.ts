@@ -76,6 +76,19 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
   ): Promise<void> {
     // In-memory: no-op (no real GitHub API to call)
   }
+
+  async updateSubIssueProjectStatus(
+    subIssueNumber: number,
+    status: ExampleProjectStatus,
+  ): Promise<void> {
+    const sub = this.context.issue.subIssues.find(
+      (s) => s.number === subIssueNumber,
+    );
+    if (sub) sub.projectStatus = status;
+    if (this.context.currentSubIssue?.number === subIssueNumber) {
+      this.context.currentSubIssue.projectStatus = status;
+    }
+  }
 }
 
 export function repositoryFor(context: ExampleContext): IssueStateRepository {

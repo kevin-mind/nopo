@@ -73,13 +73,20 @@ function buildGroomQueue(
   ];
 }
 
+function requireCurrentSubIssue(context: Ctx) {
+  const sub = context.domain.currentSubIssue;
+  if (!sub) {
+    throw new Error("Cannot operate without a currentSubIssue");
+  }
+  return sub;
+}
+
 function buildPrepareQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const branchName = context.domain.branch ?? `claude/issue/${issueNumber}`;
+  const sub = requireCurrentSubIssue(context);
+  const branchName = context.domain.branch ?? `claude/issue/${sub.number}`;
   return [
     registry.setupGit.create({
       token: context.runnerCtx?.token ?? "",
@@ -95,8 +102,8 @@ function buildIterateQueue(
   registry: ExampleRegistry,
   mode: "iterate" | "retry" = "iterate",
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
+  const issueNumber = sub.number;
   const prelude: ExampleAction[] = [];
   if (context.domain.ciResult === "failure") {
     prelude.push(
@@ -135,15 +142,15 @@ function buildIterateQueue(
       mode,
       promptVars: {
         ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        ISSUE_LABELS: context.domain.issue.labels.join(", "),
+        ISSUE_TITLE: sub.title,
+        ISSUE_BODY: sub.body,
+        ISSUE_COMMENTS: sub.comments.join("\n"),
+        ISSUE_LABELS: sub.labels.join(", "),
         CI_RESULT: context.domain.ciResult ?? "none",
         REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(context.domain.issue.iteration ?? 0),
+        ITERATION: String(sub.iteration ?? 0),
         LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        CONSECUTIVE_FAILURES: String(sub.failures ?? 0),
         BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
         PR_CREATE_COMMAND: [
           `gh pr create --draft`,
@@ -172,15 +179,14 @@ function buildTransitionToReviewQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
   return [
     registry.updateStatus.create({
-      issueNumber,
+      issueNumber: target.number,
       status: "In review",
     }),
     registry.appendHistory.create({
-      issueNumber,
+      issueNumber: target.number,
       message: "CI passed, transitioning to review",
       phase: "review",
     }),
@@ -191,13 +197,12 @@ function buildReviewQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
   const prelude: ExampleAction[] =
     context.domain.reviewDecision === "COMMENTED"
       ? [
           registry.appendHistory.create({
-            issueNumber,
+            issueNumber: sub.number,
             message: "Review commented, staying in review",
             phase: "review",
           }),
@@ -206,11 +211,11 @@ function buildReviewQueue(
   return [
     ...prelude,
     registry.updateStatus.create({
-      issueNumber,
+      issueNumber: sub.number,
       status: "In review",
     }),
     registry.appendHistory.create({
-      issueNumber,
+      issueNumber: sub.number,
       message: "Requesting review",
     }),
   ];
@@ -220,11 +225,10 @@ function buildAwaitingMergeQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
   return [
     registry.appendHistory.create({
-      issueNumber,
+      issueNumber: sub.number,
       message: "Review approved, awaiting merge",
       phase: "review",
     }),
@@ -235,8 +239,7 @@ function buildMergeQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   const queue: ExampleAction[] = [
     registry.updateStatus.create({
       issueNumber,
@@ -275,8 +278,7 @@ function buildDeployedStageQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry.appendHistory.create({
       issueNumber,
@@ -293,8 +295,7 @@ function buildDeployedProdQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry.updateStatus.create({
       issueNumber,
@@ -315,8 +316,7 @@ function buildDeployedStageFailureQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry.updateStatus.create({
       issueNumber,
@@ -337,8 +337,7 @@ function buildDeployedProdFailureQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const issueNumber = context.domain.issue.number;
   return [
     registry.updateStatus.create({
       issueNumber,
@@ -393,8 +392,8 @@ function buildRetryQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
+  const sub = requireCurrentSubIssue(context);
+  const issueNumber = sub.number;
   return [
     registry.appendHistory.create({
       issueNumber,
@@ -410,15 +409,15 @@ function buildRetryQueue(
       mode: "retry",
       promptVars: {
         ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        ISSUE_LABELS: context.domain.issue.labels.join(", "),
+        ISSUE_TITLE: sub.title,
+        ISSUE_BODY: sub.body,
+        ISSUE_COMMENTS: sub.comments.join("\n"),
+        ISSUE_LABELS: sub.labels.join(", "),
         CI_RESULT: context.domain.ciResult ?? "none",
         REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(context.domain.issue.iteration ?? 0),
+        ITERATION: String(sub.iteration ?? 0),
         LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(context.domain.issue.failures ?? 0),
+        CONSECUTIVE_FAILURES: String(sub.failures ?? 0),
         BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
         PR_CREATE_COMMAND: [
           `gh pr create --draft`,
@@ -653,7 +652,7 @@ function buildBlockQueue(
     ];
   }
 
-  // Sub-issue or direct blocking (max failures on current issue)
+  // Sub-issue or parent blocking (max failures)
   const issueNumber = currentSub?.number ?? context.domain.issue.number;
   const failures = (currentSub ?? context.domain.issue).failures ?? 0;
   return [

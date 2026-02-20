@@ -168,7 +168,13 @@ export function createMachineFactory<
   TActionOverride extends { type: string } | undefined = undefined,
   TFactoryEvent extends EventObject = EventObject,
   TServices = unknown,
->(): MachineFactory<TDomain, undefined, TActionOverride, TFactoryEvent, TServices> {
+>(): MachineFactory<
+  TDomain,
+  undefined,
+  TActionOverride,
+  TFactoryEvent,
+  TServices
+> {
   function buildFactory<TRegistry>(
     state: RuntimeFactoryState<TDomain, TRegistry, TActionOverride>,
   ): MachineFactory<
@@ -208,7 +214,11 @@ export function createMachineFactory<
       TServices
     >;
     function actions(
-      build?: TRegistryBuilder<TDomain, TActionDefs<TDomain, TServices>, TServices>,
+      build?: TRegistryBuilder<
+        TDomain,
+        TActionDefs<TDomain, TServices>,
+        TServices
+      >,
     ) {
       if (build === undefined) {
         return state.registry;

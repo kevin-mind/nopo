@@ -71,8 +71,18 @@ describe("Example Machine — state matrix hardening", () => {
   });
 
   it("handles retry trigger with retry queue", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      labels: ["triaged", "groomed"],
+      hasSubIssues: true,
+    });
     const snap = await run(
-      mockExampleContext({ ...baseDomain, trigger: "issue-retry" }),
+      mockExampleContext({
+        ...baseDomain,
+        trigger: "issue-retry",
+        parentIssue,
+      }),
     );
     expect(String(snap.value)).toBe("done");
     expect(hasActionType(snap, "runClaudeIteration")).toBe(true);
@@ -247,6 +257,12 @@ describe("Example Machine — state matrix hardening", () => {
   });
 
   it("routes to transitioningToReview when CI passed and todos done", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      labels: ["triaged", "groomed"],
+      hasSubIssues: true,
+    });
     const snap = await run(
       mockExampleContext({
         ...baseDomain,
@@ -258,6 +274,7 @@ describe("Example Machine — state matrix hardening", () => {
           projectStatus: "In progress",
           body: "## Todos\n- [x] Task 1\n- [x] Task 2",
         }),
+        parentIssue,
       }),
     );
     expect(String(snap.value)).toBe("done");
@@ -268,6 +285,12 @@ describe("Example Machine — state matrix hardening", () => {
   });
 
   it("handles PR push trigger with iteration status reset", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      labels: ["triaged", "groomed"],
+      hasSubIssues: true,
+    });
     const snap = await run(
       mockExampleContext({
         ...baseDomain,
@@ -277,6 +300,7 @@ describe("Example Machine — state matrix hardening", () => {
           labels: ["triaged", "groomed"],
           projectStatus: "In review",
         }),
+        parentIssue,
       }),
     );
     expect(String(snap.value)).toBe("done");

@@ -81,6 +81,7 @@ import {
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,
+  shouldIterateSubIssue,
   isInvalidIteration,
   todosDone,
   readyForReview,
@@ -179,6 +180,7 @@ export const exampleMachine = createMachineFactory<
     allPhasesDone,
     maxFailuresReached,
     isSubIssue,
+    shouldIterateSubIssue,
     isInvalidIteration,
     todosDone,
     readyForReview,
@@ -287,6 +289,11 @@ export const exampleMachine = createMachineFactory<
           // ARC 33-35
           { target: "triaging", guard: "needsTriage" },
           { target: "preparing", guard: "canIterate" },
+          // Sub-issue status-based routing (before isSubIssue catch-all)
+          { target: "reviewing", guard: "isInReview" },
+          { target: "transitioningToReview", guard: "readyForReview" },
+          // Parent iterating on current sub-issue (after orchestration resets stale state)
+          { target: "preparing", guard: "shouldIterateSubIssue" },
           { target: "subIssueIdle", guard: "isSubIssue" },
           // ARC 36-38
           { target: "grooming", guard: "triggeredByGroom" },
@@ -295,8 +302,6 @@ export const exampleMachine = createMachineFactory<
           { target: "initializing", guard: "needsSubIssues" },
           { target: "orchestrating", guard: "hasSubIssues" },
           // ARC 41-43
-          { target: "reviewing", guard: "isInReview" },
-          { target: "transitioningToReview", guard: "readyForReview" },
           { target: "invalidIteration", guard: "isInvalidIteration" },
           { target: "idle" },
         ],

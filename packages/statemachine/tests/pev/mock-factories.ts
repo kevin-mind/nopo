@@ -71,7 +71,15 @@ const buildExampleContext = createMockFactory<ExampleContextFixture>({
 export const mockExamplePR = buildExamplePR;
 export const mockExampleContext = (
   overrides?: Parameters<typeof buildExampleContext>[0],
-): ExampleContext => buildExampleContext(overrides);
+): ExampleContext => {
+  const ctx = buildExampleContext(overrides);
+  // When parentIssue is set and currentSubIssue wasn't explicitly provided,
+  // auto-derive currentSubIssue from issue (the sub-issue itself).
+  if (ctx.parentIssue !== null && ctx.currentSubIssue === null) {
+    ctx.currentSubIssue = ctx.issue;
+  }
+  return ctx;
+};
 
 export const mockIssueStateLinkedPR = createMockFactory<LinkedPR>({
   number: 10,
