@@ -75,6 +75,52 @@ describe("ExampleContextLoader", () => {
     expect(loaded).toBeNull();
   });
 
+  it("load() returns false and resets state when parseIssue throws", async () => {
+    const loader = new ExampleContextLoader();
+    vi.mocked(parseIssue).mockRejectedValue(new Error("API error"));
+    const ok = await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: 42 }),
+    });
+    expect(ok).toBe(false);
+    expect(loader.getState()).toBeNull();
+    expect(loader.toContext()).toBeNull();
+    await expect(loader.save()).resolves.toBe(false);
+  });
+
+  it("load() returns false for negative issue number without calling parseIssue", async () => {
+    const loader = new ExampleContextLoader();
+    const ok = await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: -1 }),
+    });
+    expect(ok).toBe(false);
+    expect(loader.getState()).toBeNull();
+    expect(loader.toContext()).toBeNull();
+    expect(vi.mocked(parseIssue)).not.toHaveBeenCalled();
+  });
+
+  it("load() returns false for NaN issue number without calling parseIssue", async () => {
+    const loader = new ExampleContextLoader();
+    const ok = await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: NaN }),
+    });
+    expect(ok).toBe(false);
+    expect(loader.getState()).toBeNull();
+    expect(loader.toContext()).toBeNull();
+    expect(vi.mocked(parseIssue)).not.toHaveBeenCalled();
+  });
+
   it("prefers event CI/review values over seed values", async () => {
     const loader = new ExampleContextLoader();
     vi.mocked(parseIssue).mockResolvedValue({
