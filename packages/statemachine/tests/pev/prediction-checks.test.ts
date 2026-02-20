@@ -248,14 +248,14 @@ describe("evaluatePredictionChecks", () => {
 
   it("startsWith fails when actual value is not a string", () => {
     const checks: PredictionCheck[] = [
-      { comparator: "startsWith", field: "issue.number", expected: "4" },
+      { comparator: "startsWith", field: "issue.number", expected: "42" },
     ];
     const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
     expect(result.pass).toBe(false);
     expect(result.diffs).toHaveLength(1);
   });
 
-  it("startsWith passes using from:'old' reading pre-action context", () => {
+  it("startsWith passes using from:old reading pre-action context", () => {
     const checks: PredictionCheck[] = [
       {
         comparator: "startsWith",
@@ -269,12 +269,12 @@ describe("evaluatePredictionChecks", () => {
     expect(result.diffs).toHaveLength(0);
   });
 
-  it("from:'old' fails when old context value does not match expected", () => {
+  it("from:old fails when old context value does not match expected", () => {
     const checks: PredictionCheck[] = [
       {
-        comparator: "eq",
+        comparator: "startsWith",
         field: "issue.title",
-        expected: "Updated title",
+        expected: "Updated",
         from: "old",
       },
     ];
@@ -289,14 +289,28 @@ describe("evaluatePredictionChecks", () => {
     ];
     const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
     expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
   });
 
   it("resolvePath returns undefined when an intermediate segment is missing", () => {
-    const ctx = { issue: { number: 1, labels: [], failures: 0, title: "t" } };
+    const ctxWithoutNested: DemoCtx = {
+      issue: {
+        number: 1,
+        labels: [],
+        failures: 0,
+        title: "test",
+        // nested is omitted — undefined
+      },
+      counter: 0,
+    };
     const checks: PredictionCheck[] = [
       { comparator: "exists", field: "issue.nested.value" },
     ];
-    const result = evaluatePredictionChecks(checks, ctx, ctx);
+    const result = evaluatePredictionChecks(
+      checks,
+      ctxWithoutNested,
+      ctxWithoutNested,
+    );
     expect(result.pass).toBe(false);
     expect(result.diffs).toHaveLength(1);
   });
@@ -306,8 +320,8 @@ describe("evaluatePredictionChecks", () => {
       {
         comparator: "any",
         checks: [
-          { comparator: "eq", field: "issue.number", expected: 42 },
-          { comparator: "eq", field: "issue.number", expected: 999 },
+          { comparator: "eq", field: "issue.number", expected: 99 }, // fail
+          { comparator: "eq", field: "issue.number", expected: 42 }, // pass
         ],
       },
     ];
@@ -316,19 +330,20 @@ describe("evaluatePredictionChecks", () => {
     expect(result.diffs).toHaveLength(0);
   });
 
-  it("all accumulates diffs from all failing children", () => {
+  it("all collects diffs from all failing children (not just the first)", () => {
     const checks: PredictionCheck[] = [
       {
         comparator: "all",
         checks: [
-          { comparator: "eq", field: "issue.number", expected: 1 },
-          { comparator: "eq", field: "counter", expected: 99 },
+          { comparator: "eq", field: "issue.number", expected: 1 }, // fail
+          { comparator: "eq", field: "issue.failures", expected: 99 }, // fail
+          { comparator: "eq", field: "counter", expected: 0 }, // fail
         ],
       },
     ];
     const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
     expect(result.pass).toBe(false);
-    expect(result.diffs).toHaveLength(2);
+    expect(result.diffs).toHaveLength(3);
   });
 });
 
