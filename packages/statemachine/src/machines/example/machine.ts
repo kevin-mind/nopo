@@ -212,6 +212,11 @@ export const exampleMachine = createMachineFactory<
           { target: "error", guard: "isError" },
           // Parent iterating on current sub-issue after orchestration
           { target: "preparing", guard: "shouldIterateSubIssue" },
+          // Branch prep results (checked before alreadyOrchestrated so
+          // the prepare→iterate flow completes before stopping)
+          { target: "iterating", guard: "branchPrepClean" },
+          { target: "branchRebased", guard: "branchPrepRebased" },
+          { target: "blocking", guard: "branchPrepConflicts" },
           // Parent with sub-issues already orchestrated this invocation — stop
           { target: "idle", guard: "alreadyOrchestrated" },
           // ARC 8-14
@@ -284,10 +289,6 @@ export const exampleMachine = createMachineFactory<
           { target: "iteratingFix", guard: "triggeredByReviewAndChanges" },
           { target: "reviewing", guard: "triggeredByReviewAndCommented" },
           { target: "reviewing", guard: "triggeredByReview" },
-          // Branch prep results (after preparing queue completes)
-          { target: "iterating", guard: "branchPrepClean" },
-          { target: "branchRebased", guard: "branchPrepRebased" },
-          { target: "blocking", guard: "branchPrepConflicts" },
           // ARC 33-35
           { target: "triaging", guard: "needsTriage" },
           { target: "preparing", guard: "canIterate" },
