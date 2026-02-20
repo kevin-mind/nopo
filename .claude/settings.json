@@ -1,9 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash",
-      "Edit",
-      "Write",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(make check)",
+      "Bash(make test)",
+      "Bash(make smoketest)",
+      "Bash(pnpm *)",
+      "Bash(nopo *)",
+      "Bash(cd *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(find *)",
       "Read",
       "Glob",
       "Grep",
