@@ -236,6 +236,119 @@ describe("evaluatePredictionChecks", () => {
     const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
     expect(result.pass).toBe(false);
   });
+
+  it("startsWith fails when string does not start with expected prefix", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "startsWith", field: "issue.title", expected: "Old" },
+    ];
+    // newCtx.issue.title = "Updated title" — does not start with "Old"
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.field).toBe("issue.title");
+  });
+
+  it("startsWith fails when actual value is not a string", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "startsWith", field: "issue.number", expected: "42" },
+    ];
+    // newCtx.issue.number = 42 (number), not a string — startsWith requires string
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.actual).toBe(42);
+  });
+
+  it("startsWith passes using from:'old' reading pre-action context", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "startsWith",
+        field: "issue.title",
+        expected: "Old",
+        from: "old",
+      },
+    ];
+    // oldCtx.issue.title = "Old title" — starts with "Old"
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
+  });
+
+  it("from:'old' fails when old context value does not match expected", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "eq",
+        field: "issue.title",
+        expected: "Updated title",
+        from: "old",
+      },
+    ];
+    // oldCtx.issue.title = "Old title", not "Updated title"
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.actual).toBe("Old title");
+  });
+
+  it("deeply nested path (3+ levels) resolves correctly for eq comparator", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "eq", field: "issue.nested.value", expected: 12 },
+    ];
+    // newCtx.issue.nested.value = 12
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
+  });
+
+  it("resolvePath returns undefined when an intermediate segment is missing", () => {
+    const ctxWithMissing = {
+      issue: { number: 1, labels: [] as string[], failures: 0, title: "test" },
+      counter: 0,
+    };
+    const checks: PredictionCheck[] = [
+      { comparator: "exists", field: "issue.nested.value" },
+    ];
+    // issue.nested is undefined — resolvePath returns undefined, exists fails
+    const result = evaluatePredictionChecks(
+      checks,
+      ctxWithMissing,
+      ctxWithMissing,
+    );
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.actual).toBeUndefined();
+  });
+
+  it("any with mixed children (one pass, one fail) returns pass:true with empty diffs", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "any",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 99 }, // fails
+          { comparator: "eq", field: "issue.number", expected: 42 }, // passes
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
+  });
+
+  it("all collects diffs from all failing children (not just the first)", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "all",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 99 }, // fails
+          { comparator: "eq", field: "counter", expected: 99 }, // fails
+          { comparator: "eq", field: "issue.failures", expected: 99 }, // fails
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(3);
+  });
 });
 
 describe("runner integration with prediction checks", () => {
