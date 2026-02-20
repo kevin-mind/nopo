@@ -93,6 +93,11 @@ function triggeredByOrchestrateAndReady({ context }: GuardArgs): boolean {
   return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
 }
 
+/** Orchestration already ran this invocation — stop looping */
+function alreadyOrchestrated({ context }: GuardArgs): boolean {
+  return context.cycleCount > 0 && hasSubIssues({ context });
+}
+
 /** Orchestrate trigger + issue not yet groomed → should groom first */
 function triggeredByOrchestrateAndNeedsGrooming({
   context,
@@ -319,6 +324,7 @@ export {
   hasSubIssues,
   currentPhaseInReview,
   currentPhaseBlocked,
+  alreadyOrchestrated,
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,

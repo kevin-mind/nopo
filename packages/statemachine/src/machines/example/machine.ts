@@ -77,6 +77,7 @@ import {
   hasSubIssues,
   currentPhaseInReview,
   currentPhaseBlocked,
+  alreadyOrchestrated,
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,
@@ -174,6 +175,7 @@ export const exampleMachine = createMachineFactory<
     hasSubIssues,
     currentPhaseInReview,
     currentPhaseBlocked,
+    alreadyOrchestrated,
     allPhasesDone,
     maxFailuresReached,
     isSubIssue,
@@ -206,6 +208,8 @@ export const exampleMachine = createMachineFactory<
           { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
           { target: "alreadyBlocked", guard: "isBlocked" },
           { target: "error", guard: "isError" },
+          // Parent with sub-issues already orchestrated this invocation — stop
+          { target: "idle", guard: "alreadyOrchestrated" },
           // ARC 8-14
           {
             target: "mergeQueueLogging",

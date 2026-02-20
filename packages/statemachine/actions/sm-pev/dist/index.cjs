@@ -46134,6 +46134,9 @@ var triggeredByOrchestrate = triggeredBy("issue-orchestrate");
 function triggeredByOrchestrateAndReady({ context }) {
   return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
 }
+function alreadyOrchestrated({ context }) {
+  return context.cycleCount > 0 && hasSubIssues({ context });
+}
 function triggeredByOrchestrateAndNeedsGrooming({
   context
 }) {
@@ -47717,6 +47720,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   hasSubIssues,
   currentPhaseInReview,
   currentPhaseBlocked,
+  alreadyOrchestrated,
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,
@@ -47748,6 +47752,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
         { target: "alreadyBlocked", guard: "isBlocked" },
         { target: "error", guard: "isError" },
+        // Parent with sub-issues already orchestrated this invocation — stop
+        { target: "idle", guard: "alreadyOrchestrated" },
         // ARC 8-14
         {
           target: "mergeQueueLogging",
