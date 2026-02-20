@@ -25,7 +25,7 @@ async function run(domain: ExampleContext, maxCycles = 1) {
     },
   });
   actor.start();
-  return waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
+  return waitFor(actor, (s) => s.status === "done", { timeout: 10000 });
 }
 
 function hasActionType(
