@@ -179,20 +179,24 @@ describe("execCommand", () => {
   });
 
   it("returns exitCode from exec", async () => {
-    vi.mocked(exec.exec).mockImplementation(async (_command, _args, options) => {
-      options?.listeners?.stdout?.(Buffer.from(""));
-      return 1;
-    });
+    vi.mocked(exec.exec).mockImplementation(
+      async (_command, _args, options) => {
+        options?.listeners?.stdout?.(Buffer.from(""));
+        return 1;
+      },
+    );
 
     const result = await execCommand("false");
     expect(result.exitCode).toBe(1);
   });
 
   it("passes through extra options", async () => {
-    vi.mocked(exec.exec).mockImplementation(async (_command, _args, options) => {
-      options?.listeners?.stdout?.(Buffer.from(""));
-      return 0;
-    });
+    vi.mocked(exec.exec).mockImplementation(
+      async (_command, _args, options) => {
+        options?.listeners?.stdout?.(Buffer.from(""));
+        return 0;
+      },
+    );
 
     await execCommand("echo", [], { ignoreReturnCode: true });
     expect(exec.exec).toHaveBeenCalledWith(
