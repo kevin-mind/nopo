@@ -68570,25 +68570,64 @@ async function run() {
       services
     }
   });
+  let lastState = "";
+  let pendingVerify = null;
   actor.subscribe((snapshot) => {
-    const state = JSON.stringify(snapshot.value);
     const ctx2 = snapshot.context;
-    core3.info(`[state] ${state}`);
-    core3.info(`[queue] ${ctx2.actionQueue.length} actions remaining`);
-    core3.info(`[cycles] ${ctx2.cycleCount}/${ctx2.maxCycles}`);
+    const stateKey = typeof snapshot.value === "object" ? Object.values(snapshot.value).join(".") : String(snapshot.value);
+    if (stateKey === lastState) return;
+    lastState = stateKey;
+    if (pendingVerify && stateKey !== "verifying") {
+      const { action: verifiedAction, prediction: pred } = pendingVerify;
+      const result = ctx2.verifyResult;
+      const icon = result?.pass === false ? "\u2717" : "\u2713";
+      const desc = pred?.description ? `: ${pred.description}` : "";
+      const checkLines = (pred?.checks ?? []).map((c) => {
+        const diff = result?.diffs?.find((d) => d.field === c.field);
+        if (diff) {
+          return `    \u2717 ${c.description ?? c.field} (expected: ${JSON.stringify(diff.expected)}, actual: ${JSON.stringify(diff.actual)})`;
+        }
+        return `    \u2713 ${c.description ?? c.field}`;
+      }).join("\n");
+      core3.info(
+        `[verify] ${icon} ${verifiedAction}${desc}${checkLines ? `
+${checkLines}` : ""}`
+      );
+      if (result?.pass === false && result.message) {
+        core3.warning(`[verify] ${result.message}`);
+      }
+      pendingVerify = null;
+    }
+    const action = ctx2.currentAction?.type ?? "\u2014";
+    const queued = ctx2.actionQueue.map((a) => a.type).join(" \u2192 ");
+    const cycle = `cycle ${ctx2.cycleCount + 1}/${ctx2.maxCycles}`;
+    if (stateKey === "executing") {
+      core3.info(
+        `[exec] ${action} (${cycle}${queued ? `, next: ${queued}` : ""})`
+      );
+    } else if (stateKey === "verifying") {
+      pendingVerify = { action, prediction: ctx2.prediction };
+    } else if (stateKey === "done") {
+      core3.info(
+        `[done] ${ctx2.completedActions.length} actions executed over ${ctx2.cycleCount} cycles`
+      );
+    } else {
+      core3.info(`[${stateKey}] action=${action}, ${cycle}`);
+    }
   });
   actor.start();
   const finalSnapshot = await waitFor(actor, (s) => s.status === "done", {
     timeout: 6e5
     // 10 minutes
   });
-  const finalState = JSON.stringify(finalSnapshot.value);
   const ctx = finalSnapshot.context;
-  core3.info(`[final] state=${finalState}`);
-  core3.info(`[final] ${ctx.completedActions.length} actions executed`);
+  const finalState = typeof finalSnapshot.value === "object" ? Object.values(finalSnapshot.value).join(".") : String(finalSnapshot.value);
   if (ctx.error) {
-    core3.warning(`[final] error: ${ctx.error}`);
+    core3.warning(`[error] ${ctx.error}`);
   }
+  const actionList = ctx.completedActions.map((a) => `  ${a.verified ? "\u2713" : "\u2717"} ${a.action.type}`).join("\n");
+  core3.info(`[summary]
+${actionList}`);
   setOutputs({
     final_state: finalState,
     actions_executed: String(ctx.completedActions.length),

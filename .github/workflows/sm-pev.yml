@@ -48,6 +48,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-nopo
+
       - name: Install Claude Code
         run: curl -fsSL https://claude.ai/install.sh | bash
 

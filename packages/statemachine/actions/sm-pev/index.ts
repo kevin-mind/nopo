@@ -139,13 +139,64 @@ async function run(): Promise<void> {
     },
   });
 
-  // Log all state transitions
+  // Log meaningful state transitions
+  let lastState = "";
+  let pendingVerify: {
+    action: string;
+    prediction: typeof ctx.prediction;
+  } | null = null;
   actor.subscribe((snapshot) => {
-    const state = JSON.stringify(snapshot.value);
     const ctx = snapshot.context;
-    core.info(`[state] ${state}`);
-    core.info(`[queue] ${ctx.actionQueue.length} actions remaining`);
-    core.info(`[cycles] ${ctx.cycleCount}/${ctx.maxCycles}`);
+    const stateKey =
+      typeof snapshot.value === "object"
+        ? Object.values(snapshot.value as Record<string, string>).join(".")
+        : String(snapshot.value);
+
+    // Deduplicate: only log when state actually changes
+    if (stateKey === lastState) return;
+    lastState = stateKey;
+
+    // When leaving verifying state, log the verify result
+    if (pendingVerify && stateKey !== "verifying") {
+      const { action: verifiedAction, prediction: pred } = pendingVerify;
+      const result = ctx.verifyResult;
+      const icon = result?.pass === false ? "✗" : "✓";
+      const desc = pred?.description ? `: ${pred.description}` : "";
+      const checkLines = (pred?.checks ?? [])
+        .map((c) => {
+          const diff = result?.diffs?.find((d) => d.field === c.field);
+          if (diff) {
+            return `    ✗ ${c.description ?? c.field} (expected: ${JSON.stringify(diff.expected)}, actual: ${JSON.stringify(diff.actual)})`;
+          }
+          return `    ✓ ${c.description ?? c.field}`;
+        })
+        .join("\n");
+      core.info(
+        `[verify] ${icon} ${verifiedAction}${desc}${checkLines ? `\n${checkLines}` : ""}`,
+      );
+      if (result?.pass === false && result.message) {
+        core.warning(`[verify] ${result.message}`);
+      }
+      pendingVerify = null;
+    }
+
+    const action = ctx.currentAction?.type ?? "—";
+    const queued = ctx.actionQueue.map((a) => a.type).join(" → ");
+    const cycle = `cycle ${ctx.cycleCount + 1}/${ctx.maxCycles}`;
+
+    if (stateKey === "executing") {
+      core.info(
+        `[exec] ${action} (${cycle}${queued ? `, next: ${queued}` : ""})`,
+      );
+    } else if (stateKey === "verifying") {
+      pendingVerify = { action, prediction: ctx.prediction };
+    } else if (stateKey === "done") {
+      core.info(
+        `[done] ${ctx.completedActions.length} actions executed over ${ctx.cycleCount} cycles`,
+      );
+    } else {
+      core.info(`[${stateKey}] action=${action}, ${cycle}`);
+    }
   });
 
   actor.start();
@@ -155,14 +206,21 @@ async function run(): Promise<void> {
     timeout: 600_000, // 10 minutes
   });
 
-  const finalState = JSON.stringify(finalSnapshot.value);
   const ctx = finalSnapshot.context;
+  const finalState =
+    typeof finalSnapshot.value === "object"
+      ? Object.values(finalSnapshot.value as Record<string, string>).join(".")
+      : String(finalSnapshot.value);
 
-  core.info(`[final] state=${finalState}`);
-  core.info(`[final] ${ctx.completedActions.length} actions executed`);
   if (ctx.error) {
-    core.warning(`[final] error: ${ctx.error}`);
+    core.warning(`[error] ${ctx.error}`);
   }
+
+  // Summary: list all actions that ran
+  const actionList = ctx.completedActions
+    .map((a) => `  ${a.verified ? "✓" : "✗"} ${a.action.type}`)
+    .join("\n");
+  core.info(`[summary]\n${actionList}`);
 
   setOutputs({
     final_state: finalState,
