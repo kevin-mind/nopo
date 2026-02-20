@@ -46343,6 +46343,7 @@ function isSubIssue({ context }) {
 function shouldIterateSubIssue({ context }) {
   if (context.domain.parentIssue !== null) return false;
   if (context.domain.branchPrepResult !== null) return false;
+  if (context.domain.pr?.state === "OPEN") return false;
   const sub = context.domain.currentSubIssue;
   if (!sub) return false;
   const bot = context.domain.botUsername;

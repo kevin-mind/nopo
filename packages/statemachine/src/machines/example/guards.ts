@@ -261,6 +261,8 @@ function isSubIssue({ context }: GuardArgs): boolean {
 function shouldIterateSubIssue({ context }: GuardArgs): boolean {
   if (context.domain.parentIssue !== null) return false;
   if (context.domain.branchPrepResult !== null) return false;
+  // If there's an open PR, wait for CI — don't re-iterate
+  if (context.domain.pr?.state === "OPEN") return false;
   const sub = context.domain.currentSubIssue;
   if (!sub) return false;
   const bot = context.domain.botUsername;
