@@ -1,5 +1,27 @@
-import { describe, it, expect } from "vitest";
-import { determineOutcome } from "../src/core/action-utils.js";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  determineOutcome,
+  getOptionalInput,
+  getRequiredInput,
+  setOutputs,
+  execCommand,
+} from "../src/core/action-utils.js";
+
+vi.mock("@actions/core", () => ({
+  getInput: vi.fn(),
+  setOutput: vi.fn(),
+}));
+
+vi.mock("@actions/exec", () => ({
+  exec: vi.fn(),
+}));
+
+import * as core from "@actions/core";
+import * as exec from "@actions/exec";
+
+beforeEach(() => {
+  vi.resetAllMocks();
+});
 
 describe("determineOutcome", () => {
   const baseParams = {
@@ -96,5 +118,91 @@ describe("determineOutcome", () => {
     });
     expect(result.emoji).toBe("❌");
     expect(result.transition).toBe("Iterate");
+  });
+});
+
+describe("getOptionalInput", () => {
+  it("returns value when non-empty", () => {
+    vi.mocked(core.getInput).mockReturnValue("hello");
+    expect(getOptionalInput("my-input")).toBe("hello");
+    expect(core.getInput).toHaveBeenCalledWith("my-input");
+  });
+
+  it("returns undefined when empty string", () => {
+    vi.mocked(core.getInput).mockReturnValue("");
+    expect(getOptionalInput("my-input")).toBeUndefined();
+  });
+});
+
+describe("getRequiredInput", () => {
+  it("calls getInput with { required: true } and returns the value", () => {
+    vi.mocked(core.getInput).mockReturnValue("required-value");
+    expect(getRequiredInput("my-input")).toBe("required-value");
+    expect(core.getInput).toHaveBeenCalledWith("my-input", { required: true });
+  });
+});
+
+describe("setOutputs", () => {
+  it("calls setOutput for each defined entry", () => {
+    setOutputs({ foo: "bar", baz: "qux" });
+    expect(core.setOutput).toHaveBeenCalledWith("foo", "bar");
+    expect(core.setOutput).toHaveBeenCalledWith("baz", "qux");
+    expect(core.setOutput).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips undefined values", () => {
+    setOutputs({ foo: "bar", baz: undefined });
+    expect(core.setOutput).toHaveBeenCalledTimes(1);
+    expect(core.setOutput).toHaveBeenCalledWith("foo", "bar");
+  });
+
+  it("handles empty object", () => {
+    setOutputs({});
+    expect(core.setOutput).not.toHaveBeenCalled();
+  });
+});
+
+describe("execCommand", () => {
+  it("captures stdout and stderr via listeners and trims whitespace", async () => {
+    vi.mocked(exec.exec).mockImplementation(
+      async (_command, _args, options) => {
+        options?.listeners?.stdout?.(Buffer.from("  hello  "));
+        options?.listeners?.stderr?.(Buffer.from("  error  "));
+        return 0;
+      },
+    );
+
+    const result = await execCommand("echo", ["hello"]);
+    expect(result.stdout).toBe("hello");
+    expect(result.stderr).toBe("error");
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("returns exitCode from exec", async () => {
+    vi.mocked(exec.exec).mockImplementation(
+      async (_command, _args, options) => {
+        options?.listeners?.stdout?.(Buffer.from(""));
+        return 1;
+      },
+    );
+
+    const result = await execCommand("false");
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("passes through extra options", async () => {
+    vi.mocked(exec.exec).mockImplementation(
+      async (_command, _args, options) => {
+        options?.listeners?.stdout?.(Buffer.from(""));
+        return 0;
+      },
+    );
+
+    await execCommand("echo", [], { ignoreReturnCode: true });
+    expect(exec.exec).toHaveBeenCalledWith(
+      "echo",
+      [],
+      expect.objectContaining({ ignoreReturnCode: true }),
+    );
   });
 });
