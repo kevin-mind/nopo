@@ -64,6 +64,19 @@ describe("example guards", () => {
     expect(needsTriage({ context: withRunnerContext(domain) })).toBe(false);
   });
 
+  it("needsTriage is false for [Phase] title prefix (race condition guard)", () => {
+    const domain = mockExampleContext({
+      trigger: "issue-edited",
+      parentIssue: null,
+      issue: mockExampleIssue({
+        title: "[Phase 1]: Add unit tests",
+        labels: [],
+        projectStatus: null,
+      }),
+    });
+    expect(needsTriage({ context: withRunnerContext(domain) })).toBe(false);
+  });
+
   it("needsTriage is false when status is Triaged", () => {
     const domain = mockExampleContext({
       trigger: "issue-edited",

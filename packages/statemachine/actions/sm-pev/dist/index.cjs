@@ -46290,15 +46290,10 @@ function triggeredBy(trigger) {
   return ({ context }) => context.domain.trigger === trigger;
 }
 function needsTriage({ context }) {
-  const hasParent = context.domain.parentIssue !== null;
+  if (context.domain.parentIssue !== null) return false;
+  if (context.domain.issue.title.startsWith("[Phase")) return false;
   const status = context.domain.issue.projectStatus;
-  const result = !hasParent && (status === null || status === "Backlog");
-  if (result) {
-    console.log(
-      `[needsTriage] TRUE \u2014 parentIssue=${hasParent ? "set" : "null"}, status=${String(status)}, issue=#${context.domain.issue.number}`
-    );
-  }
-  return result;
+  return status === null || status === "Backlog";
 }
 function canIterate({ context }) {
   if (context.domain.parentIssue === null) return false;
@@ -46385,6 +46380,7 @@ function reviewCommented({ context }) {
 }
 function needsGrooming({ context }) {
   if (context.domain.parentIssue !== null) return false;
+  if (context.domain.issue.title.startsWith("[Phase")) return false;
   const status = context.domain.issue.projectStatus;
   return status === "Triaged" && !context.domain.issue.hasSubIssues;
 }

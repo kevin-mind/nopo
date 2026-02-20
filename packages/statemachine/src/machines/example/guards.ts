@@ -30,15 +30,13 @@ function _triggeredByAny(
 
 /** Needs triage: status is null or Backlog (not yet triaged) */
 function needsTriage({ context }: GuardArgs): boolean {
-  const hasParent = context.domain.parentIssue !== null;
+  if (context.domain.parentIssue !== null) return false;
+  // Sub-issues created by grooming have "[Phase N]:" title prefix.
+  // Check this to handle the race condition where issues.opened fires
+  // before linkSubIssue completes (parentIssue is null due to timing).
+  if (context.domain.issue.title.startsWith("[Phase")) return false;
   const status = context.domain.issue.projectStatus;
-  const result = !hasParent && (status === null || status === "Backlog");
-  if (result) {
-    console.log(
-      `[needsTriage] TRUE — parentIssue=${hasParent ? "set" : "null"}, status=${String(status)}, issue=#${context.domain.issue.number}`,
-    );
-  }
-  return result;
+  return status === null || status === "Backlog";
 }
 
 /** Sub-issue can iterate: has parent, bot assigned to parent and sub-issue */
@@ -171,8 +169,10 @@ function reviewCommented({ context }: GuardArgs): boolean {
 }
 
 function needsGrooming({ context }: GuardArgs): boolean {
-  // Sub-issues are never groomed — they are already phases from parent grooming
+  // Sub-issues are never groomed — they are already phases from parent grooming.
+  // Also check title prefix to handle race condition (see needsTriage comment).
   if (context.domain.parentIssue !== null) return false;
+  if (context.domain.issue.title.startsWith("[Phase")) return false;
   // Needs grooming: has been triaged but not yet groomed (no sub-issues)
   const status = context.domain.issue.projectStatus;
   return status === "Triaged" && !context.domain.issue.hasSubIssues;
