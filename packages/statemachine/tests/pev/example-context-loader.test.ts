@@ -444,6 +444,62 @@ describe("ExampleContextLoader", () => {
     await expect(loader.save()).resolves.toBe(false);
   });
 
+  it("load() returns false and state is reset when parseIssue throws", async () => {
+    const loader = new ExampleContextLoader();
+    vi.mocked(parseIssue).mockRejectedValue(new Error("API error"));
+    const ok = await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: 42 }),
+    });
+    expect(ok).toBe(false);
+    expect(loader.toContext()).toBeNull();
+    expect(loader.getState()).toBeNull();
+  });
+
+  it("save() returns false after load() fails due to API error", async () => {
+    const loader = new ExampleContextLoader();
+    vi.mocked(parseIssue).mockRejectedValue(new Error("API error"));
+    await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: 42 }),
+    });
+    await expect(loader.save()).resolves.toBe(false);
+  });
+
+  it("load() returns false for negative issue number without calling parseIssue", async () => {
+    const loader = new ExampleContextLoader();
+    const ok = await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: -1 }),
+    });
+    expect(ok).toBe(false);
+    expect(vi.mocked(parseIssue)).not.toHaveBeenCalled();
+    expect(loader.getState()).toBeNull();
+  });
+
+  it("load() returns false for NaN issue number without calling parseIssue", async () => {
+    const loader = new ExampleContextLoader();
+    const ok = await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: NaN }),
+    });
+    expect(ok).toBe(false);
+    expect(vi.mocked(parseIssue)).not.toHaveBeenCalled();
+    expect(loader.getState()).toBeNull();
+  });
+
   it("save propagates persistence errors", async () => {
     const loader = new ExampleContextLoader();
     const update = vi.fn(async () => {
