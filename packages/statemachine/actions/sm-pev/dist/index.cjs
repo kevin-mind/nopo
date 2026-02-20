@@ -46289,6 +46289,9 @@ function isStatusCompatible(actual, expected) {
 function triggeredBy(trigger) {
   return ({ context }) => context.domain.trigger === trigger;
 }
+function firstCycleOnly(guard) {
+  return ({ context }) => context.cycleCount === 0 && guard({ context });
+}
 function needsTriage({ context }) {
   if (context.domain.parentIssue !== null) return false;
   if (context.domain.issue.title.startsWith("[Phase")) return false;
@@ -46323,11 +46326,13 @@ function isStatusMisaligned({ context }) {
 }
 var triggeredByAssignment = triggeredBy("issue-assigned");
 var triggeredByEdit = triggeredBy("issue-edited");
-var triggeredByCI = triggeredBy("workflow-run-completed");
-var triggeredByReview = triggeredBy("pr-review-submitted");
-var triggeredByReviewRequest = triggeredBy("pr-review-requested");
-var triggeredByTriage = triggeredBy("issue-triage");
-var triggeredByComment = triggeredBy("issue-comment");
+var triggeredByCI = firstCycleOnly(triggeredBy("workflow-run-completed"));
+var triggeredByReview = firstCycleOnly(triggeredBy("pr-review-submitted"));
+var triggeredByReviewRequest = firstCycleOnly(
+  triggeredBy("pr-review-requested")
+);
+var triggeredByTriage = firstCycleOnly(triggeredBy("issue-triage"));
+var triggeredByComment = firstCycleOnly(triggeredBy("issue-comment"));
 var triggeredByOrchestrate = triggeredBy("issue-orchestrate");
 function triggeredByOrchestrateAndReady({ context }) {
   return triggeredByOrchestrate({ context }) && hasSubIssues({ context });
@@ -46340,29 +46345,43 @@ function triggeredByOrchestrateAndNeedsGrooming({
 }) {
   return triggeredByOrchestrate({ context }) && needsGrooming({ context });
 }
-var triggeredByPRReview = triggeredBy("pr-review");
+var triggeredByPRReview = firstCycleOnly(triggeredBy("pr-review"));
 function prReviewWithCIPassed({ context }) {
   return triggeredByPRReview({ context }) && ciPassed({ context });
 }
 function prReviewWithCINotFailed({ context }) {
   return triggeredByPRReview({ context }) && !ciFailed({ context });
 }
-var triggeredByPRResponse = triggeredBy("pr-response");
-var triggeredByPRHumanResponse = triggeredBy("pr-human-response");
-var triggeredByPRReviewApproved = triggeredBy("pr-review-approved");
-var triggeredByPRPush = triggeredBy("pr-push");
-var triggeredByReset = triggeredBy("issue-reset");
-var triggeredByRetry = triggeredBy("issue-retry");
-var triggeredByPivot = triggeredBy("issue-pivot");
-var triggeredByMergeQueueEntry = triggeredBy("merge-queue-entered");
-var triggeredByMergeQueueFailure = triggeredBy("merge-queue-failed");
-var triggeredByPRMerged = triggeredBy("pr-merged");
-var triggeredByDeployedStage = triggeredBy("deployed-stage");
-var triggeredByDeployedProd = triggeredBy("deployed-prod");
-var triggeredByDeployedStageFailure = triggeredBy("deployed-stage-failed");
-var triggeredByDeployedProdFailure = triggeredBy("deployed-prod-failed");
-var triggeredByGroom = triggeredBy("issue-groom");
-var triggeredByGroomSummary = triggeredBy("issue-groom-summary");
+var triggeredByPRResponse = firstCycleOnly(triggeredBy("pr-response"));
+var triggeredByPRHumanResponse = firstCycleOnly(
+  triggeredBy("pr-human-response")
+);
+var triggeredByPRReviewApproved = firstCycleOnly(
+  triggeredBy("pr-review-approved")
+);
+var triggeredByPRPush = firstCycleOnly(triggeredBy("pr-push"));
+var triggeredByReset = firstCycleOnly(triggeredBy("issue-reset"));
+var triggeredByRetry = firstCycleOnly(triggeredBy("issue-retry"));
+var triggeredByPivot = firstCycleOnly(triggeredBy("issue-pivot"));
+var triggeredByMergeQueueEntry = firstCycleOnly(
+  triggeredBy("merge-queue-entered")
+);
+var triggeredByMergeQueueFailure = firstCycleOnly(
+  triggeredBy("merge-queue-failed")
+);
+var triggeredByPRMerged = firstCycleOnly(triggeredBy("pr-merged"));
+var triggeredByDeployedStage = firstCycleOnly(triggeredBy("deployed-stage"));
+var triggeredByDeployedProd = firstCycleOnly(triggeredBy("deployed-prod"));
+var triggeredByDeployedStageFailure = firstCycleOnly(
+  triggeredBy("deployed-stage-failed")
+);
+var triggeredByDeployedProdFailure = firstCycleOnly(
+  triggeredBy("deployed-prod-failed")
+);
+var triggeredByGroom = firstCycleOnly(triggeredBy("issue-groom"));
+var triggeredByGroomSummary = firstCycleOnly(
+  triggeredBy("issue-groom-summary")
+);
 function ciPassed({ context }) {
   return context.domain.ciResult === "success";
 }

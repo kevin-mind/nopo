@@ -22,6 +22,14 @@ function triggeredBy(
   return ({ context }: GuardArgs) => context.domain.trigger === trigger;
 }
 
+/** Wrap a guard so it only fires on the first cycle (cycleCount === 0) */
+function firstCycleOnly(
+  guard: ({ context }: GuardArgs) => boolean,
+): ({ context }: GuardArgs) => boolean {
+  return ({ context }: GuardArgs) =>
+    context.cycleCount === 0 && guard({ context });
+}
+
 function _triggeredByAny(
   triggers: readonly ExampleTrigger[],
 ): ({ context }: GuardArgs) => boolean {
@@ -93,11 +101,13 @@ function isStatusMisaligned({ context }: GuardArgs): boolean {
 
 const triggeredByAssignment = triggeredBy("issue-assigned");
 const triggeredByEdit = triggeredBy("issue-edited");
-const triggeredByCI = triggeredBy("workflow-run-completed");
-const triggeredByReview = triggeredBy("pr-review-submitted");
-const triggeredByReviewRequest = triggeredBy("pr-review-requested");
-const triggeredByTriage = triggeredBy("issue-triage");
-const triggeredByComment = triggeredBy("issue-comment");
+const triggeredByCI = firstCycleOnly(triggeredBy("workflow-run-completed"));
+const triggeredByReview = firstCycleOnly(triggeredBy("pr-review-submitted"));
+const triggeredByReviewRequest = firstCycleOnly(
+  triggeredBy("pr-review-requested"),
+);
+const triggeredByTriage = firstCycleOnly(triggeredBy("issue-triage"));
+const triggeredByComment = firstCycleOnly(triggeredBy("issue-comment"));
 const triggeredByOrchestrate = triggeredBy("issue-orchestrate");
 
 /** Orchestrate trigger + issue already groomed with sub-issues → orchestrate phases */
@@ -116,7 +126,7 @@ function triggeredByOrchestrateAndNeedsGrooming({
 }: GuardArgs): boolean {
   return triggeredByOrchestrate({ context }) && needsGrooming({ context });
 }
-const triggeredByPRReview = triggeredBy("pr-review");
+const triggeredByPRReview = firstCycleOnly(triggeredBy("pr-review"));
 
 /** PR review trigger + CI passed → run Claude review */
 function prReviewWithCIPassed({ context }: GuardArgs): boolean {
@@ -127,22 +137,36 @@ function prReviewWithCIPassed({ context }: GuardArgs): boolean {
 function prReviewWithCINotFailed({ context }: GuardArgs): boolean {
   return triggeredByPRReview({ context }) && !ciFailed({ context });
 }
-const triggeredByPRResponse = triggeredBy("pr-response");
-const triggeredByPRHumanResponse = triggeredBy("pr-human-response");
-const triggeredByPRReviewApproved = triggeredBy("pr-review-approved");
-const triggeredByPRPush = triggeredBy("pr-push");
-const triggeredByReset = triggeredBy("issue-reset");
-const triggeredByRetry = triggeredBy("issue-retry");
-const triggeredByPivot = triggeredBy("issue-pivot");
-const triggeredByMergeQueueEntry = triggeredBy("merge-queue-entered");
-const triggeredByMergeQueueFailure = triggeredBy("merge-queue-failed");
-const triggeredByPRMerged = triggeredBy("pr-merged");
-const triggeredByDeployedStage = triggeredBy("deployed-stage");
-const triggeredByDeployedProd = triggeredBy("deployed-prod");
-const triggeredByDeployedStageFailure = triggeredBy("deployed-stage-failed");
-const triggeredByDeployedProdFailure = triggeredBy("deployed-prod-failed");
-const triggeredByGroom = triggeredBy("issue-groom");
-const triggeredByGroomSummary = triggeredBy("issue-groom-summary");
+const triggeredByPRResponse = firstCycleOnly(triggeredBy("pr-response"));
+const triggeredByPRHumanResponse = firstCycleOnly(
+  triggeredBy("pr-human-response"),
+);
+const triggeredByPRReviewApproved = firstCycleOnly(
+  triggeredBy("pr-review-approved"),
+);
+const triggeredByPRPush = firstCycleOnly(triggeredBy("pr-push"));
+const triggeredByReset = firstCycleOnly(triggeredBy("issue-reset"));
+const triggeredByRetry = firstCycleOnly(triggeredBy("issue-retry"));
+const triggeredByPivot = firstCycleOnly(triggeredBy("issue-pivot"));
+const triggeredByMergeQueueEntry = firstCycleOnly(
+  triggeredBy("merge-queue-entered"),
+);
+const triggeredByMergeQueueFailure = firstCycleOnly(
+  triggeredBy("merge-queue-failed"),
+);
+const triggeredByPRMerged = firstCycleOnly(triggeredBy("pr-merged"));
+const triggeredByDeployedStage = firstCycleOnly(triggeredBy("deployed-stage"));
+const triggeredByDeployedProd = firstCycleOnly(triggeredBy("deployed-prod"));
+const triggeredByDeployedStageFailure = firstCycleOnly(
+  triggeredBy("deployed-stage-failed"),
+);
+const triggeredByDeployedProdFailure = firstCycleOnly(
+  triggeredBy("deployed-prod-failed"),
+);
+const triggeredByGroom = firstCycleOnly(triggeredBy("issue-groom"));
+const triggeredByGroomSummary = firstCycleOnly(
+  triggeredBy("issue-groom-summary"),
+);
 
 // ---------------------------------------------------------------------------
 // CI/review guards (for skeleton branching)
