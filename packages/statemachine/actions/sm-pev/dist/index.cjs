@@ -68571,7 +68571,7 @@ async function run() {
     }
   });
   actor.subscribe((snapshot) => {
-    const state = String(snapshot.value);
+    const state = JSON.stringify(snapshot.value);
     const ctx2 = snapshot.context;
     core3.info(`[state] ${state}`);
     core3.info(`[queue] ${ctx2.actionQueue.length} actions remaining`);
@@ -68582,7 +68582,7 @@ async function run() {
     timeout: 6e5
     // 10 minutes
   });
-  const finalState = String(finalSnapshot.value);
+  const finalState = JSON.stringify(finalSnapshot.value);
   const ctx = finalSnapshot.context;
   core3.info(`[final] state=${finalState}`);
   core3.info(`[final] ${ctx.completedActions.length} actions executed`);

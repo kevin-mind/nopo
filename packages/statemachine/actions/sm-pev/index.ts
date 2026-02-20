@@ -141,7 +141,7 @@ async function run(): Promise<void> {
 
   // Log all state transitions
   actor.subscribe((snapshot) => {
-    const state = String(snapshot.value);
+    const state = JSON.stringify(snapshot.value);
     const ctx = snapshot.context;
     core.info(`[state] ${state}`);
     core.info(`[queue] ${ctx.actionQueue.length} actions remaining`);
@@ -155,7 +155,7 @@ async function run(): Promise<void> {
     timeout: 600_000, // 10 minutes
   });
 
-  const finalState = String(finalSnapshot.value);
+  const finalState = JSON.stringify(finalSnapshot.value);
   const ctx = finalSnapshot.context;
 
   core.info(`[final] state=${finalState}`);
