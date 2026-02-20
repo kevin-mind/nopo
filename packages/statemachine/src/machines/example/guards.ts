@@ -248,10 +248,12 @@ function isSubIssue({ context }: GuardArgs): boolean {
 /**
  * Parent machine should iterate on current sub-issue inline.
  * True when: parent context (not a sub-issue), has a currentSubIssue,
- * bot is assigned, and sub-issue is in a working state.
+ * bot is assigned, sub-issue is in a working state, and branch prep
+ * hasn't already been done (branchPrepResult is null).
  */
 function shouldIterateSubIssue({ context }: GuardArgs): boolean {
   if (context.domain.parentIssue !== null) return false;
+  if (context.domain.branchPrepResult !== null) return false;
   const sub = context.domain.currentSubIssue;
   if (!sub) return false;
   const bot = context.domain.botUsername;
