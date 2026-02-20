@@ -776,12 +776,13 @@ describe("Example Machine — Multiple Actions", () => {
     const snap = await runExampleMachine(domain);
 
     expect(String(snap.value)).toBe("done");
-    expect(snap.context.completedActions).toHaveLength(4);
+    expect(snap.context.completedActions).toHaveLength(5);
     expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
       "appendHistory",
       "runClaudeTriage",
       "applyTriageOutput",
       "updateStatus",
+      "persistState",
     ]);
     expect(snap.context.actionQueue).toHaveLength(0);
   });

@@ -46510,6 +46510,10 @@ function buildTriageQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Triaged"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "triage-complete"
     })
   ];
 }

@@ -70,6 +70,10 @@ function buildTriageQueue(
       issueNumber,
       status: "Triaged",
     }),
+    registry.persistState.create({
+      issueNumber,
+      reason: "triage-complete",
+    }),
   ];
 }
 

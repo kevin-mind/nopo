@@ -142,9 +142,11 @@ describe("triage integration persistence flow", () => {
       "runClaudeTriage",
       "applyTriageOutput",
       "updateStatus",
+      "persistState",
     ]);
     expect(vi.mocked(executeClaudeSDK)).toHaveBeenCalledOnce();
-    expect(update).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenCalledTimes(2);
+    // First persist (from applyTriageOutput): labels applied, status not yet updated
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
         issue: expect.objectContaining({
@@ -153,6 +155,14 @@ describe("triage integration persistence flow", () => {
             "type:enhancement",
             "topic:automation",
           ]),
+        }),
+      }),
+    );
+    // Second persist (from persistState): status updated to "Triaged"
+    expect(update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        issue: expect.objectContaining({
+          projectStatus: "Triaged",
         }),
       }),
     );
