@@ -46695,6 +46695,10 @@ function buildReviewQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber: sub.number,
       message: "Requesting review"
+    }),
+    registry2.persistState.create({
+      issueNumber: sub.number,
+      reason: "review-queue"
     })
   ];
 }
@@ -46815,6 +46819,10 @@ function buildPivotQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Pivot requested, blocking current path for replanning"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "pivot-blocked"
     })
   ];
 }
@@ -46828,6 +46836,10 @@ function buildResetQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Issue reset to backlog"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "reset-to-backlog"
     })
   ];
 }
@@ -46953,6 +46965,10 @@ function buildPrPushQueue(context, registry2) {
       issueNumber,
       message: "PR updated by push; awaiting CI and review loop",
       phase: "iterate"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "pr-push-status-update"
     })
   ];
 }
@@ -47054,6 +47070,10 @@ function buildBlockQueue(context, registry2) {
       issueNumber,
       message: `Blocked: Max failures reached (${failures})`,
       phase: "iterate"
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "max-failures-blocked"
     })
   ];
 }
