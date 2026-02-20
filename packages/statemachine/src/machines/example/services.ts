@@ -389,7 +389,7 @@ export function createClaudeIterationService(
   return {
     async iterateIssue(input) {
       const resolved = resolvePrompt({
-        promptDir: input.mode === "retry" ? "retry" : "iterate",
+        promptDir: "iterate",
         promptVars: input.promptVars,
       });
       const result = await executeClaudeSDK({
