@@ -46190,6 +46190,10 @@ function currentPhaseInReview({ context }) {
   if (!hasSubIssues({ context })) return false;
   return context.domain.currentSubIssue?.projectStatus === "In review";
 }
+function currentPhaseBlocked({ context }) {
+  if (!hasSubIssues({ context })) return false;
+  return context.domain.currentSubIssue?.projectStatus === "Blocked";
+}
 function allPhasesDone({ context }) {
   if (!hasLabel(context.domain, "groomed")) return false;
   if (!hasSubIssues({ context })) return false;
@@ -46743,8 +46747,28 @@ function buildMergeQueueEntryQueue(context, registry2) {
   ];
 }
 function buildBlockQueue(context, registry2) {
-  const issueNumber = context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const failures = (context.domain.currentSubIssue ?? context.domain.issue).failures ?? 0;
+  const isParent = context.domain.parentIssue === null;
+  const currentSub = context.domain.currentSubIssue;
+  if (isParent && currentSub?.projectStatus === "Blocked") {
+    const issueNumber2 = context.domain.issue.number;
+    const subFailures = currentSub.failures ?? 0;
+    return [
+      registry2.updateStatus.create({
+        issueNumber: issueNumber2,
+        status: "Blocked"
+      }),
+      registry2.appendHistory.create({
+        issueNumber: issueNumber2,
+        message: `Blocked: Sub-issue #${currentSub.number} is blocked (${subFailures} failures)`
+      }),
+      registry2.persistState.create({
+        issueNumber: issueNumber2,
+        reason: "sub-issue-blocked"
+      })
+    ];
+  }
+  const issueNumber = currentSub?.number ?? context.domain.issue.number;
+  const failures = (currentSub ?? context.domain.issue).failures ?? 0;
   return [
     registry2.updateStatus.create({
       issueNumber,
@@ -47692,6 +47716,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   needsSubIssues,
   hasSubIssues,
   currentPhaseInReview,
+  currentPhaseBlocked,
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,
@@ -47761,6 +47786,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
           guard: "triggeredByOrchestrateAndReady"
         },
         { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
+        { target: "blocking", guard: "currentPhaseBlocked" },
         // ARC 18-22
         {
           target: "prReviewing",

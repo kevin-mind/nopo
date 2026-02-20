@@ -170,6 +170,12 @@ function currentPhaseInReview({ context }: GuardArgs): boolean {
   return context.domain.currentSubIssue?.projectStatus === "In review";
 }
 
+/** Current sub-issue is blocked → bubble up to parent */
+function currentPhaseBlocked({ context }: GuardArgs): boolean {
+  if (!hasSubIssues({ context })) return false;
+  return context.domain.currentSubIssue?.projectStatus === "Blocked";
+}
+
 function allPhasesDone({ context }: GuardArgs): boolean {
   if (!hasLabel(context.domain, "groomed")) return false;
   if (!hasSubIssues({ context })) return false;
@@ -312,6 +318,7 @@ export {
   needsGrooming,
   hasSubIssues,
   currentPhaseInReview,
+  currentPhaseBlocked,
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,

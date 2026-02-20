@@ -630,10 +630,32 @@ function buildBlockQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const issueNumber =
-    context.domain.currentSubIssue?.number ?? context.domain.issue.number;
-  const failures =
-    (context.domain.currentSubIssue ?? context.domain.issue).failures ?? 0;
+  const isParent = context.domain.parentIssue === null;
+  const currentSub = context.domain.currentSubIssue;
+
+  // Parent blocking because current sub-issue is blocked → block the parent
+  if (isParent && currentSub?.projectStatus === "Blocked") {
+    const issueNumber = context.domain.issue.number;
+    const subFailures = currentSub.failures ?? 0;
+    return [
+      registry.updateStatus.create({
+        issueNumber,
+        status: "Blocked",
+      }),
+      registry.appendHistory.create({
+        issueNumber,
+        message: `Blocked: Sub-issue #${currentSub.number} is blocked (${subFailures} failures)`,
+      }),
+      registry.persistState.create({
+        issueNumber,
+        reason: "sub-issue-blocked",
+      }),
+    ];
+  }
+
+  // Sub-issue or direct blocking (max failures on current issue)
+  const issueNumber = currentSub?.number ?? context.domain.issue.number;
+  const failures = (currentSub ?? context.domain.issue).failures ?? 0;
   return [
     registry.updateStatus.create({
       issueNumber,

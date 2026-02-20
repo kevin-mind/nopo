@@ -76,6 +76,7 @@ import {
   needsSubIssues,
   hasSubIssues,
   currentPhaseInReview,
+  currentPhaseBlocked,
   allPhasesDone,
   maxFailuresReached,
   isSubIssue,
@@ -172,6 +173,7 @@ export const exampleMachine = createMachineFactory<
     needsSubIssues,
     hasSubIssues,
     currentPhaseInReview,
+    currentPhaseBlocked,
     allPhasesDone,
     maxFailuresReached,
     isSubIssue,
@@ -242,6 +244,7 @@ export const exampleMachine = createMachineFactory<
             guard: "triggeredByOrchestrateAndReady",
           },
           { target: "orchestrationWaiting", guard: "currentPhaseInReview" },
+          { target: "blocking", guard: "currentPhaseBlocked" },
           // ARC 18-22
           {
             target: "prReviewing",
