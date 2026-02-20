@@ -367,7 +367,15 @@ export const exampleMachine = createMachineFactory<
         always: RUNNER_STATES.executingQueue,
       },
       completingReviewTransition: {
-        entry: queue.assignCompletingReviewTransitionQueue,
+        entry: [
+          assign({
+            domain: ({ context }) => ({
+              ...context.domain,
+              branchPrepResult: null,
+            }),
+          }),
+          queue.assignCompletingReviewTransitionQueue,
+        ],
         always: RUNNER_STATES.executingQueue,
       },
       reviewing: {
