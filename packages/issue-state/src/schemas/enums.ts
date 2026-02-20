@@ -8,6 +8,8 @@ import { z } from "zod";
  */
 export const ProjectStatusSchema = z.enum([
   "Backlog",
+  "Triaged",
+  "Groomed",
   "In progress",
   "Ready",
   "In review",

@@ -12,6 +12,7 @@ import type { ExampleContext } from "./context.js";
 import {
   updateStatusAction,
   appendHistoryAction,
+  removeLabelsAction,
   runClaudeTriageAction,
   applyTriageOutputAction,
   runClaudeGroomingAction,
@@ -33,6 +34,7 @@ import {
   type ExampleAction,
 } from "./actions.js";
 import {
+  isStatusMisaligned,
   needsTriage,
   canIterate,
   isInReview,
@@ -112,6 +114,7 @@ export const exampleMachine = createMachineFactory<
   .actions((createAction) => ({
     updateStatus: updateStatusAction(createAction),
     appendHistory: appendHistoryAction(createAction),
+    removeLabels: removeLabelsAction(createAction),
     runClaudeTriage: runClaudeTriageAction(createAction),
     applyTriageOutput: applyTriageOutputAction(createAction),
     runClaudeGrooming: runClaudeGroomingAction(createAction),
@@ -132,6 +135,7 @@ export const exampleMachine = createMachineFactory<
     stop: stopAction(createAction),
   }))
   .guards(() => ({
+    isStatusMisaligned,
     needsTriage,
     canIterate,
     isInReview,
@@ -201,12 +205,12 @@ export const exampleMachine = createMachineFactory<
     return {
       routing: {
         always: [
-          // ARC 1-4
+          // ARC 1-4: Explicit trigger actions take priority
           { target: "resetting", guard: "triggeredByReset" },
           { target: "retrying", guard: "triggeredByRetry" },
           { target: "pivoting", guard: "triggeredByPivot" },
           { target: "orchestrationComplete", guard: "allPhasesDone" },
-          // ARC 5-7
+          // ARC 5-7: Terminal states (intentionally set by machine actions)
           { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
           { target: "alreadyBlocked", guard: "isBlocked" },
           { target: "error", guard: "isError" },
@@ -219,7 +223,7 @@ export const exampleMachine = createMachineFactory<
           { target: "blocking", guard: "branchPrepConflicts" },
           // Parent with sub-issues already orchestrated this invocation — stop
           { target: "idle", guard: "alreadyOrchestrated" },
-          // ARC 8-14
+          // ARC 8-14: Trigger-specific routing
           {
             target: "mergeQueueLogging",
             guard: "triggeredByMergeQueueEntry",
@@ -304,10 +308,17 @@ export const exampleMachine = createMachineFactory<
           { target: "grooming", guard: "needsGrooming" },
           { target: "initializing", guard: "needsSubIssues" },
           { target: "orchestrating", guard: "hasSubIssues" },
+          // Status misalignment — fix after all trigger/status routing
+          // so trigger-specific actions take priority
+          { target: "fixState", guard: "isStatusMisaligned" },
           // ARC 41-43
           { target: "invalidIteration", guard: "isInvalidIteration" },
           { target: "idle" },
         ],
+      },
+      fixState: {
+        entry: queue.assignFixStateQueue,
+        always: RUNNER_STATES.executingQueue,
       },
       triaging: {
         entry: queue.assignTriageQueue,

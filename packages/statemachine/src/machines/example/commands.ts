@@ -18,6 +18,12 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     this.context.issue.labels = merged;
   }
 
+  removeIssueLabels(labels: string[]): void {
+    this.context.issue.labels = this.context.issue.labels.filter(
+      (l) => !labels.some((r) => r.toLowerCase() === l.toLowerCase()),
+    );
+  }
+
   reconcileSubIssues(subIssueNumbers: number[]): void {
     const byNumber = new Map(
       this.context.issue.subIssues.map((subIssue) => [
@@ -122,6 +128,16 @@ export function applyGrooming(
   labelsToAdd: string[],
 ): void {
   repositoryFor(context).addIssueLabels(labelsToAdd);
+}
+
+export function removeIssueLabels(
+  context: ExampleContext,
+  labels: string[],
+): void {
+  const repo = repositoryFor(context);
+  if (repo.removeIssueLabels) {
+    repo.removeIssueLabels(labels);
+  }
 }
 
 export function reconcileSubIssues(

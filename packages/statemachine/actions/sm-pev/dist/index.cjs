@@ -31928,6 +31928,8 @@ var NEVER = INVALID;
 // packages/issue-state/src/schemas/enums.ts
 var ProjectStatusSchema = external_exports.enum([
   "Backlog",
+  "Triaged",
+  "Groomed",
   "In progress",
   "Ready",
   "In review",
@@ -45393,6 +45395,11 @@ var InMemoryIssueStateRepository = class {
     const merged = [.../* @__PURE__ */ new Set([...this.context.issue.labels, ...labels])];
     this.context.issue.labels = merged;
   }
+  removeIssueLabels(labels) {
+    this.context.issue.labels = this.context.issue.labels.filter(
+      (l) => !labels.some((r) => r.toLowerCase() === l.toLowerCase())
+    );
+  }
   reconcileSubIssues(subIssueNumbers) {
     const byNumber = new Map(
       this.context.issue.subIssues.map((subIssue) => [
@@ -45465,6 +45472,12 @@ function applyTriage(context, labelsToAdd) {
 }
 function applyGrooming(context, labelsToAdd) {
   repositoryFor(context).addIssueLabels(labelsToAdd);
+}
+function removeIssueLabels(context, labels) {
+  const repo = repositoryFor(context);
+  if (repo.removeIssueLabels) {
+    repo.removeIssueLabels(labels);
+  }
 }
 function reconcileSubIssues(context, subIssueNumbers) {
   repositoryFor(context).reconcileSubIssues(subIssueNumbers);
@@ -45547,6 +45560,16 @@ function appendHistoryAction(createAction) {
           runLink: ctx.workflowRunUrl ?? void 0
         });
       }
+      return { ok: true };
+    }
+  });
+}
+function removeLabelsAction(createAction) {
+  return createAction({
+    description: (action) => `Remove labels [${action.payload.labels.join(", ")}] from #${action.payload.issueNumber}`,
+    // No predict: "not_includes" comparator not yet available in prediction checks
+    execute: async ({ action, ctx }) => {
+      removeIssueLabels(ctx, action.payload.labels);
       return { ok: true };
     }
   });
@@ -46112,18 +46135,70 @@ function stopAction(createAction) {
   });
 }
 
-// packages/statemachine/src/machines/example/guards.ts
-function hasLabel(context, label) {
-  return context.issue.labels.some(
-    (l) => l.toLowerCase() === label.toLowerCase()
-  );
+// packages/statemachine/src/machines/example/milestones.ts
+var PARENT_MILESTONE_STATUS = {
+  done: "Done",
+  working: "In progress",
+  groomed: "Groomed",
+  backlog: "Backlog"
+};
+function computeParentMilestone(ctx) {
+  if (ctx.issue.hasSubIssues && ctx.issue.subIssues.length > 0 && ctx.issue.subIssues.every(
+    (s) => s.projectStatus === "Done" || s.state === "CLOSED"
+  )) {
+    return "done";
+  }
+  if (ctx.issue.hasSubIssues && ctx.issue.subIssues.some(
+    (s) => s.state === "OPEN" && (s.projectStatus === "In progress" || s.projectStatus === "In review")
+  )) {
+    return "working";
+  }
+  if (ctx.issue.hasSubIssues) {
+    return "groomed";
+  }
+  return "backlog";
 }
+var SUB_MILESTONE_STATUS = {
+  done: "Done",
+  review: "In review",
+  working: "In progress",
+  backlog: "Backlog"
+};
+function computeSubIssueMilestone(ctx) {
+  if (ctx.pr?.state === "MERGED") {
+    return "done";
+  }
+  if (ctx.pr?.state === "OPEN" && !ctx.pr.isDraft) {
+    return "review";
+  }
+  if (ctx.issue.assignees.includes(ctx.botUsername)) {
+    return "working";
+  }
+  return "backlog";
+}
+function computeExpectedStatus(ctx) {
+  if (ctx.parentIssue !== null) {
+    const milestone2 = computeSubIssueMilestone(ctx);
+    return SUB_MILESTONE_STATUS[milestone2];
+  }
+  const milestone = computeParentMilestone(ctx);
+  return PARENT_MILESTONE_STATUS[milestone];
+}
+function isStatusCompatible(actual, expected) {
+  if (actual === expected) return true;
+  if (actual === null && expected === "Backlog") return true;
+  if (expected === "Backlog" && actual === "Triaged") return true;
+  return false;
+}
+
+// packages/statemachine/src/machines/example/guards.ts
 function triggeredBy(trigger) {
   return ({ context }) => context.domain.trigger === trigger;
 }
 function needsTriage({ context }) {
   if (context.domain.parentIssue !== null) return false;
-  return !hasLabel(context.domain, "triaged");
+  const status = context.domain.issue.projectStatus;
+  return status === null || status === "Backlog";
 }
 function canIterate({ context }) {
   if (context.domain.parentIssue === null) return false;
@@ -46145,6 +46220,11 @@ function isError({ context }) {
 }
 function botIsAssigned({ context }) {
   return context.domain.issue.assignees.includes(context.domain.botUsername);
+}
+function isStatusMisaligned({ context }) {
+  if (context.cycleCount > 0) return false;
+  const expected = computeExpectedStatus(context.domain);
+  return !isStatusCompatible(context.domain.issue.projectStatus, expected);
 }
 var triggeredByAssignment = triggeredBy("issue-assigned");
 var triggeredByEdit = triggeredBy("issue-edited");
@@ -46205,9 +46285,8 @@ function reviewCommented({ context }) {
 }
 function needsGrooming({ context }) {
   if (context.domain.parentIssue !== null) return false;
-  const hasTriaged = hasLabel(context.domain, "triaged");
-  const hasGroomed = hasLabel(context.domain, "groomed");
-  return hasTriaged && !hasGroomed;
+  const status = context.domain.issue.projectStatus;
+  return status === "Triaged" && !context.domain.issue.hasSubIssues;
 }
 function hasSubIssues({ context }) {
   return context.domain.parentIssue === null && context.domain.issue.hasSubIssues;
@@ -46221,7 +46300,6 @@ function currentPhaseBlocked({ context }) {
   return context.domain.currentSubIssue?.projectStatus === "Blocked";
 }
 function allPhasesDone({ context }) {
-  if (!hasLabel(context.domain, "groomed")) return false;
   if (!hasSubIssues({ context })) return false;
   if (context.domain.issue.subIssues.length === 0) return false;
   return context.domain.issue.subIssues.every(
@@ -46273,8 +46351,8 @@ function shouldIterateSubIssue({ context }) {
 }
 function isInvalidIteration({ context }) {
   if (context.domain.parentIssue !== null) return false;
-  if (!hasLabel(context.domain, "groomed")) return false;
-  if (context.domain.issue.projectStatus !== "In progress") return false;
+  const status = context.domain.issue.projectStatus;
+  if (status !== "Groomed" && status !== "In progress") return false;
   return !context.domain.issue.hasSubIssues;
 }
 function needsSubIssues(_guardContext) {
@@ -46291,6 +46369,26 @@ function branchPrepConflicts({ context }) {
 }
 
 // packages/statemachine/src/machines/example/states.ts
+function buildFixStateQueue(context, registry2) {
+  const ctx = context.domain;
+  const issueNumber = ctx.issue.number;
+  const currentStatus = ctx.issue.projectStatus;
+  const expectedStatus = computeExpectedStatus(ctx);
+  return [
+    registry2.appendHistory.create({
+      issueNumber,
+      message: `State fix: ${String(currentStatus)} \u2192 ${String(expectedStatus)}`
+    }),
+    registry2.updateStatus.create({
+      issueNumber,
+      status: expectedStatus
+    }),
+    registry2.persistState.create({
+      issueNumber,
+      reason: "fix-status-misalignment"
+    })
+  ];
+}
 function buildTriageQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
   return [
@@ -46313,7 +46411,7 @@ function buildTriageQueue(context, registry2) {
     }),
     registry2.updateStatus.create({
       issueNumber,
-      status: "In progress"
+      status: "Triaged"
     })
   ];
 }
@@ -46854,6 +46952,9 @@ function buildActionFailureQueue(context, registry2) {
   ];
 }
 function createExampleQueueAssigners(registry2) {
+  const assignFixStateQueue = assign({
+    actionQueue: ({ context }) => buildFixStateQueue(context, registry2)
+  });
   const assignPrepareQueue = assign({
     actionQueue: ({ context }) => buildPrepareQueue(context, registry2)
   });
@@ -46942,6 +47043,7 @@ function createExampleQueueAssigners(registry2) {
     actionQueue: ({ context }) => buildActionFailureQueue(context, registry2)
   });
   return {
+    assignFixStateQueue,
     assignPrepareQueue,
     assignBlockQueue,
     assignInitializingQueue,
@@ -46978,6 +47080,8 @@ function createExampleQueueAssigners(registry2) {
 var ExampleProjectStatusSchema = external_exports.union([
   external_exports.null(),
   external_exports.literal("Backlog"),
+  external_exports.literal("Triaged"),
+  external_exports.literal("Groomed"),
   external_exports.literal("In progress"),
   external_exports.literal("In review"),
   external_exports.literal("Blocked"),
@@ -47626,6 +47730,14 @@ var ExampleContextLoader = class _ExampleContextLoader {
     const merged = [.../* @__PURE__ */ new Set([...current, ...labels])];
     this.updateIssue({ labels: merged });
   }
+  removeIssueLabels(labels) {
+    const state = this.requireState();
+    const current = extractIssue(state).labels;
+    const filtered = current.filter(
+      (l) => !labels.some((r) => r.toLowerCase() === l.toLowerCase())
+    );
+    this.updateIssue({ labels: filtered });
+  }
   reconcileSubIssues(subIssueNumbers) {
     const state = this.requireState();
     const current = extractIssue(state);
@@ -47709,6 +47821,7 @@ var ExampleContextLoader = class _ExampleContextLoader {
 var exampleMachine = createMachineFactory().services().actions((createAction) => ({
   updateStatus: updateStatusAction(createAction),
   appendHistory: appendHistoryAction(createAction),
+  removeLabels: removeLabelsAction(createAction),
   runClaudeTriage: runClaudeTriageAction(createAction),
   applyTriageOutput: applyTriageOutputAction(createAction),
   runClaudeGrooming: runClaudeGroomingAction(createAction),
@@ -47728,6 +47841,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   gitPush: gitPushAction(createAction),
   stop: stopAction(createAction)
 })).guards(() => ({
+  isStatusMisaligned,
   needsTriage,
   canIterate,
   isInReview,
@@ -47796,12 +47910,12 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   return {
     routing: {
       always: [
-        // ARC 1-4
+        // ARC 1-4: Explicit trigger actions take priority
         { target: "resetting", guard: "triggeredByReset" },
         { target: "retrying", guard: "triggeredByRetry" },
         { target: "pivoting", guard: "triggeredByPivot" },
         { target: "orchestrationComplete", guard: "allPhasesDone" },
-        // ARC 5-7
+        // ARC 5-7: Terminal states (intentionally set by machine actions)
         { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
         { target: "alreadyBlocked", guard: "isBlocked" },
         { target: "error", guard: "isError" },
@@ -47814,7 +47928,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "blocking", guard: "branchPrepConflicts" },
         // Parent with sub-issues already orchestrated this invocation — stop
         { target: "idle", guard: "alreadyOrchestrated" },
-        // ARC 8-14
+        // ARC 8-14: Trigger-specific routing
         {
           target: "mergeQueueLogging",
           guard: "triggeredByMergeQueueEntry"
@@ -47899,10 +48013,17 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "grooming", guard: "needsGrooming" },
         { target: "initializing", guard: "needsSubIssues" },
         { target: "orchestrating", guard: "hasSubIssues" },
+        // Status misalignment — fix after all trigger/status routing
+        // so trigger-specific actions take priority
+        { target: "fixState", guard: "isStatusMisaligned" },
         // ARC 41-43
         { target: "invalidIteration", guard: "isInvalidIteration" },
         { target: "idle" }
       ]
+    },
+    fixState: {
+      entry: queue.assignFixStateQueue,
+      always: RUNNER_STATES.executingQueue
     },
     triaging: {
       entry: queue.assignTriageQueue,

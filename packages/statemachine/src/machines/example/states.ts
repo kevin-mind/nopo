@@ -10,8 +10,38 @@ import type { AnyEventObject, EventObject } from "xstate";
 import type { RunnerMachineContext } from "../../core/pev/types.js";
 import type { ExampleContext } from "./context.js";
 import type { ExampleAction, ExampleRegistry } from "./actions.js";
+import { computeExpectedStatus } from "./milestones.js";
 
 type Ctx = RunnerMachineContext<ExampleContext, ExampleAction>;
+
+// ---------------------------------------------------------------------------
+// Fix state queue — aligns project status with milestone-computed status
+// ---------------------------------------------------------------------------
+
+function buildFixStateQueue(
+  context: Ctx,
+  registry: ExampleRegistry,
+): ExampleAction[] {
+  const ctx = context.domain;
+  const issueNumber = ctx.issue.number;
+  const currentStatus = ctx.issue.projectStatus;
+  const expectedStatus = computeExpectedStatus(ctx);
+
+  return [
+    registry.appendHistory.create({
+      issueNumber,
+      message: `State fix: ${String(currentStatus)} → ${String(expectedStatus)}`,
+    }),
+    registry.updateStatus.create({
+      issueNumber,
+      status: expectedStatus,
+    }),
+    registry.persistState.create({
+      issueNumber,
+      reason: "fix-status-misalignment",
+    }),
+  ];
+}
 
 function buildTriageQueue(
   context: Ctx,
@@ -38,7 +68,7 @@ function buildTriageQueue(
     }),
     registry.updateStatus.create({
       issueNumber,
-      status: "In progress",
+      status: "Triaged",
     }),
   ];
 }
@@ -707,6 +737,16 @@ function buildActionFailureQueue(
 }
 
 export function createExampleQueueAssigners(registry: ExampleRegistry) {
+  const assignFixStateQueue = assign<
+    Ctx,
+    AnyEventObject,
+    undefined,
+    EventObject,
+    never
+  >({
+    actionQueue: ({ context }) => buildFixStateQueue(context, registry),
+  });
+
   const assignPrepareQueue = assign<
     Ctx,
     AnyEventObject,
@@ -1004,6 +1044,7 @@ export function createExampleQueueAssigners(registry: ExampleRegistry) {
   });
 
   return {
+    assignFixStateQueue,
     assignPrepareQueue,
     assignBlockQueue,
     assignInitializingQueue,

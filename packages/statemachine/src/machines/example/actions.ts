@@ -19,6 +19,7 @@ import {
   applyTriage,
   persistIssueState,
   reconcileSubIssues,
+  removeIssueLabels,
   repositoryFor,
   setIssueStatus,
 } from "./commands.js";
@@ -142,6 +143,18 @@ export function appendHistoryAction(createAction: ExampleCreateAction) {
           runLink: ctx.workflowRunUrl ?? undefined,
         });
       }
+      return { ok: true };
+    },
+  });
+}
+
+export function removeLabelsAction(createAction: ExampleCreateAction) {
+  return createAction<{ issueNumber: number; labels: string[] }>({
+    description: (action) =>
+      `Remove labels [${action.payload.labels.join(", ")}] from #${action.payload.issueNumber}`,
+    // No predict: "not_includes" comparator not yet available in prediction checks
+    execute: async ({ action, ctx }) => {
+      removeIssueLabels(ctx, action.payload.labels);
       return { ok: true };
     },
   });
@@ -850,6 +863,7 @@ export function stopAction(createAction: ExampleCreateAction) {
 export type ExampleRegistry = TActionRegistryFromDefs<{
   updateStatus: ReturnType<typeof updateStatusAction>;
   appendHistory: ReturnType<typeof appendHistoryAction>;
+  removeLabels: ReturnType<typeof removeLabelsAction>;
   runClaudeTriage: ReturnType<typeof runClaudeTriageAction>;
   applyTriageOutput: ReturnType<typeof applyTriageOutputAction>;
   runClaudeGrooming: ReturnType<typeof runClaudeGroomingAction>;

@@ -50,13 +50,16 @@ function hasHistoryMessage(
 }
 
 describe("Example Machine — state matrix hardening", () => {
+  // Parent issue that's validly "In progress" — needs active sub-issues
+  // so milestone computes "working" → "In progress" (no fixState).
   const baseDomain = {
     owner: "test-owner",
     repo: "test-repo",
     issue: mockExampleIssue({
       number: 42,
-      labels: ["triaged", "groomed"],
       projectStatus: "In progress",
+      hasSubIssues: true,
+      subIssues: [{ number: 100, projectStatus: "In progress", state: "OPEN" }],
     }),
   } satisfies Parameters<typeof mockExampleContext>[0];
 
@@ -74,13 +77,18 @@ describe("Example Machine — state matrix hardening", () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
-      labels: ["triaged", "groomed"],
+      assignees: ["nopo-bot"],
       hasSubIssues: true,
     });
     const snap = await run(
       mockExampleContext({
         ...baseDomain,
         trigger: "issue-retry",
+        issue: mockExampleIssue({
+          number: 42,
+          projectStatus: "In progress",
+          assignees: ["nopo-bot"],
+        }),
         parentIssue,
       }),
     );
@@ -173,7 +181,6 @@ describe("Example Machine — state matrix hardening", () => {
         trigger: "issue-edited",
         issue: mockExampleIssue({
           number: 42,
-          labels: ["triaged", "groomed"],
           projectStatus: "Blocked",
         }),
       }),
@@ -199,7 +206,6 @@ describe("Example Machine — state matrix hardening", () => {
       number: 99,
       projectStatus: "In progress",
       assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const snap = await run(
@@ -209,8 +215,8 @@ describe("Example Machine — state matrix hardening", () => {
         ciResult: "failure",
         issue: mockExampleIssue({
           number: 100,
+          projectStatus: "In progress",
           assignees: ["nopo-bot"],
-          labels: ["triaged", "groomed"],
         }),
         parentIssue,
       }),
@@ -229,7 +235,6 @@ describe("Example Machine — state matrix hardening", () => {
       number: 99,
       projectStatus: "In progress",
       assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const snap = await run(
@@ -239,8 +244,8 @@ describe("Example Machine — state matrix hardening", () => {
         reviewDecision: "CHANGES_REQUESTED",
         issue: mockExampleIssue({
           number: 100,
+          projectStatus: "In progress",
           assignees: ["nopo-bot"],
-          labels: ["triaged", "groomed"],
         }),
         parentIssue,
       }),
@@ -260,7 +265,6 @@ describe("Example Machine — state matrix hardening", () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const snap = await run(
@@ -270,8 +274,8 @@ describe("Example Machine — state matrix hardening", () => {
         ciResult: "success",
         issue: mockExampleIssue({
           number: 42,
-          labels: ["triaged", "groomed"],
           projectStatus: "In progress",
+          assignees: ["nopo-bot"],
           body: "## Todos\n- [x] Task 1\n- [x] Task 2",
         }),
         parentIssue,
@@ -288,16 +292,15 @@ describe("Example Machine — state matrix hardening", () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const snap = await run(
       mockExampleContext({
         ...baseDomain,
         trigger: "pr-push",
+        pr: { state: "OPEN", isDraft: false },
         issue: mockExampleIssue({
           number: 42,
-          labels: ["triaged", "groomed"],
           projectStatus: "In review",
         }),
         parentIssue,
@@ -320,8 +323,7 @@ describe("Example Machine — state matrix hardening", () => {
         trigger: "issue-orchestrate",
         issue: mockExampleIssue({
           number: 42,
-          labels: ["triaged", "groomed"],
-          projectStatus: "In progress",
+          projectStatus: "Groomed",
           hasSubIssues: true,
           subIssues: [{ number: 100, projectStatus: "Backlog", state: "OPEN" }],
         }),
@@ -341,7 +343,6 @@ describe("Example Machine — state matrix hardening", () => {
         trigger: "issue-edited",
         issue: mockExampleIssue({
           number: 42,
-          labels: ["triaged", "groomed"],
           projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
@@ -373,7 +374,6 @@ describe("Example Machine — state matrix hardening", () => {
         trigger: "issue-edited",
         issue: mockExampleIssue({
           number: 42,
-          labels: ["triaged", "groomed"],
           projectStatus: "In progress",
           hasSubIssues: true,
           subIssues: [
@@ -416,7 +416,6 @@ describe("Example Machine — state matrix hardening", () => {
         ...baseDomain,
         trigger: "pr-merged",
         issue: mockExampleIssue({
-          labels: ["triaged", "groomed"],
           projectStatus: "In review",
           hasSubIssues: false,
         }),
@@ -434,7 +433,6 @@ describe("Example Machine — state matrix hardening", () => {
         ...baseDomain,
         trigger: "pr-merged",
         issue: mockExampleIssue({
-          labels: ["triaged", "groomed"],
           projectStatus: "In review",
           hasSubIssues: true,
           subIssues: [

@@ -42,6 +42,8 @@ import { z } from "zod";
 const ExampleProjectStatusSchema = z.union([
   z.null(),
   z.literal("Backlog"),
+  z.literal("Triaged"),
+  z.literal("Groomed"),
   z.literal("In progress"),
   z.literal("In review"),
   z.literal("Blocked"),
@@ -155,6 +157,7 @@ export interface IssueStateRepository {
     subIssueNumber: number,
     status: ExampleProjectStatus,
   ): Promise<void>;
+  removeIssueLabels?(labels: string[]): void;
   updateBody?(body: string): void;
   appendHistoryEntry?(entry: {
     phase: string;
@@ -1010,6 +1013,15 @@ export class ExampleContextLoader implements IssueStateRepository {
     const current = extractIssue(state).labels;
     const merged = [...new Set([...current, ...labels])];
     this.updateIssue({ labels: merged });
+  }
+
+  removeIssueLabels(labels: string[]): void {
+    const state = this.requireState();
+    const current = extractIssue(state).labels;
+    const filtered = current.filter(
+      (l) => !labels.some((r) => r.toLowerCase() === l.toLowerCase()),
+    );
+    this.updateIssue({ labels: filtered });
   }
 
   reconcileSubIssues(subIssueNumbers: number[]): void {

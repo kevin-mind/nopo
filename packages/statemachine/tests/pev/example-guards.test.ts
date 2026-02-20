@@ -62,10 +62,10 @@ describe("example guards", () => {
     expect(needsTriage({ context: withRunnerContext(domain) })).toBe(false);
   });
 
-  it("needsTriage is false when triaged label exists (case-insensitive)", () => {
+  it("needsTriage is false when status is Triaged", () => {
     const domain = mockExampleContext({
       trigger: "issue-edited",
-      issue: mockExampleIssue({ labels: ["TRIAGED"] }),
+      issue: mockExampleIssue({ projectStatus: "Triaged" }),
     });
     expect(needsTriage({ context: withRunnerContext(domain) })).toBe(false);
   });
@@ -170,15 +170,18 @@ describe("example guards", () => {
     ).toBe(true);
   });
 
-  it("needsGrooming is true only when triaged and not groomed", () => {
+  it("needsGrooming is true when status is Triaged and no sub-issues", () => {
     const yes = mockExampleContext({
-      issue: mockExampleIssue({ labels: ["triaged"] }),
+      issue: mockExampleIssue({ projectStatus: "Triaged" }),
     });
     const noAlready = mockExampleContext({
-      issue: mockExampleIssue({ labels: ["triaged", "groomed"] }),
+      issue: mockExampleIssue({
+        projectStatus: "Groomed",
+        hasSubIssues: true,
+      }),
     });
     const noTriaged = mockExampleContext({
-      issue: mockExampleIssue({ labels: [] }),
+      issue: mockExampleIssue({ projectStatus: "Backlog" }),
     });
     expect(needsGrooming({ context: withRunnerContext(yes) })).toBe(true);
     expect(needsGrooming({ context: withRunnerContext(noAlready) })).toBe(

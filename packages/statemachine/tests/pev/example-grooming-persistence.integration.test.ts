@@ -74,7 +74,7 @@ describe("grooming integration persistence flow", () => {
         issue: mockIssueStateIssueData({
           number: 42,
           labels: ["triaged"],
-          projectStatus: "Backlog",
+          projectStatus: "Triaged",
         }),
         parentIssue: null,
       },
@@ -193,7 +193,7 @@ describe("grooming integration persistence flow", () => {
         issue: mockIssueStateIssueData({
           number: 42,
           labels: ["triaged"],
-          projectStatus: "Backlog",
+          projectStatus: "Triaged",
         }),
         parentIssue: null,
       },

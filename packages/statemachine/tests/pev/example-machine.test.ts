@@ -161,7 +161,7 @@ describe("Example Machine — Grooming", () => {
     const domain = mockExampleContext({
       trigger: "issue-groom",
       issue: mockExampleIssue({
-        labels: ["triaged"],
+        projectStatus: "Triaged",
       }),
     });
 
@@ -179,7 +179,7 @@ describe("Example Machine — Grooming", () => {
     const domain = mockExampleContext({
       trigger: "issue-edited",
       issue: mockExampleIssue({
-        labels: ["triaged"],
+        projectStatus: "Triaged",
       }),
     });
 
@@ -194,7 +194,7 @@ describe("Example Machine — Grooming", () => {
     const domain = mockExampleContext({
       trigger: "issue-groom-summary",
       issue: mockExampleIssue({
-        labels: ["triaged"],
+        projectStatus: "Triaged",
       }),
     });
 
@@ -224,7 +224,7 @@ describe("Example Machine — Iterate", () => {
         number: 99,
         projectStatus: "In progress",
         assignees: ["nopo-bot"],
-        labels: ["triaged", "groomed"],
+
         hasSubIssues: true,
       });
 
@@ -233,7 +233,6 @@ describe("Example Machine — Iterate", () => {
         issue: mockExampleIssue({
           number: 100,
           assignees: ["nopo-bot"],
-          labels: ["triaged", "groomed"],
         }),
         parentIssue,
       });
@@ -259,7 +258,6 @@ describe("Example Machine — Iterate", () => {
       number: 99,
       projectStatus: "In progress",
       assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const domain = mockExampleContext({
@@ -269,7 +267,7 @@ describe("Example Machine — Iterate", () => {
       issue: mockExampleIssue({
         number: 100,
         assignees: ["nopo-bot"],
-        labels: ["triaged", "groomed"],
+
         failures: 0,
       }),
       parentIssue,
@@ -302,7 +300,6 @@ describe("Example Machine — Iterate", () => {
       number: 99,
       projectStatus: "In progress",
       assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const domain = mockExampleContext({
@@ -311,7 +308,6 @@ describe("Example Machine — Iterate", () => {
       issue: mockExampleIssue({
         number: 100,
         assignees: ["nopo-bot"],
-        labels: ["triaged", "groomed"],
       }),
       parentIssue,
     });
@@ -338,7 +334,6 @@ describe("Example Machine — Iterate", () => {
       number: 99,
       projectStatus: "In progress",
       assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
 
@@ -349,7 +344,7 @@ describe("Example Machine — Iterate", () => {
       issue: mockExampleIssue({
         number: 100,
         assignees: ["nopo-bot"],
-        labels: ["triaged", "groomed"],
+
         failures: 3,
       }),
       parentIssue,
@@ -382,7 +377,6 @@ describe("Example Machine — Iterate", () => {
       number: 99,
       projectStatus: "In progress",
       assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const domain = mockExampleContext({
@@ -391,7 +385,6 @@ describe("Example Machine — Iterate", () => {
       issue: mockExampleIssue({
         number: 100,
         assignees: ["nopo-bot"],
-        labels: ["triaged", "groomed"],
       }),
       parentIssue,
     });
@@ -424,14 +417,12 @@ describe("Example Machine — Review", () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const domain = mockExampleContext({
       trigger: "issue-edited",
       issue: mockExampleIssue({
         projectStatus: "In review",
-        labels: ["triaged", "groomed"],
       }),
       parentIssue,
     });
@@ -448,7 +439,6 @@ describe("Example Machine — Review", () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const domain = mockExampleContext({
@@ -456,7 +446,6 @@ describe("Example Machine — Review", () => {
       reviewDecision: "COMMENTED",
       issue: mockExampleIssue({
         projectStatus: "In review",
-        labels: ["triaged", "groomed"],
       }),
       parentIssue,
     });
@@ -482,14 +471,12 @@ describe("Example Machine — Review", () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const domain = mockExampleContext({
       trigger: "pr-review-approved",
       issue: mockExampleIssue({
         projectStatus: "In review",
-        labels: ["triaged", "groomed"],
       }),
       parentIssue,
     });
@@ -507,7 +494,6 @@ describe("Example Machine — Review", () => {
       trigger: "pr-merged",
       issue: mockExampleIssue({
         projectStatus: "In review",
-        labels: ["triaged", "groomed"],
       }),
     });
 
@@ -524,14 +510,12 @@ describe("Example Machine — Review", () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
     const domain = mockExampleContext({
       trigger: "pr-review-requested",
       issue: mockExampleIssue({
         projectStatus: "In review",
-        labels: ["triaged", "groomed"],
       }),
       parentIssue,
     });
@@ -555,7 +539,6 @@ describe("Example Machine — Deploy", () => {
       trigger: "deployed-stage",
       issue: mockExampleIssue({
         projectStatus: "Done",
-        labels: ["triaged", "groomed"],
       }),
     });
 
@@ -581,7 +564,6 @@ describe("Example Machine — Deploy", () => {
       trigger: "deployed-prod",
       issue: mockExampleIssue({
         projectStatus: "Done",
-        labels: ["triaged", "groomed"],
       }),
     });
 
@@ -599,7 +581,6 @@ describe("Example Machine — Deploy", () => {
       trigger: "deployed-stage-failed",
       issue: mockExampleIssue({
         projectStatus: "Done",
-        labels: ["triaged", "groomed"],
       }),
     });
 
@@ -624,7 +605,6 @@ describe("Example Machine — Deploy", () => {
       trigger: "deployed-prod-failed",
       issue: mockExampleIssue({
         projectStatus: "Done",
-        labels: ["triaged", "groomed"],
       }),
     });
 
@@ -656,7 +636,6 @@ describe("Example Machine — Terminal States", () => {
         trigger: "issue-edited",
         issue: mockExampleIssue({
           projectStatus: "Done",
-          labels: ["triaged", "groomed"],
         }),
       }),
       pr: mockExamplePR({ state: "MERGED", title: "Test PR" }),
@@ -674,7 +653,6 @@ describe("Example Machine — Terminal States", () => {
       trigger: "issue-edited",
       issue: mockExampleIssue({
         projectStatus: "Blocked",
-        labels: ["triaged", "groomed"],
       }),
     });
 
@@ -689,7 +667,6 @@ describe("Example Machine — Terminal States", () => {
       trigger: "issue-edited",
       issue: mockExampleIssue({
         projectStatus: "Error",
-        labels: ["triaged", "groomed"],
       }),
     });
 
@@ -704,7 +681,6 @@ describe("Example Machine — Terminal States", () => {
       number: 99,
       projectStatus: "In progress",
       assignees: ["nopo-bot"],
-      labels: ["triaged", "groomed"],
       hasSubIssues: true,
     });
 
@@ -712,8 +688,8 @@ describe("Example Machine — Terminal States", () => {
       trigger: "issue-edited",
       issue: mockExampleIssue({
         number: 100,
+        projectStatus: "Backlog",
         assignees: [],
-        labels: ["triaged", "groomed"],
       }),
       parentIssue,
     });
@@ -724,12 +700,11 @@ describe("Example Machine — Terminal States", () => {
     expect(snap.context.completedActions).toHaveLength(0);
   });
 
-  it("routes parent in progress without sub-issues to invalidIteration", async () => {
+  it("fixes status when parent is Groomed without sub-issues", async () => {
     const domain = mockExampleContext({
       trigger: "issue-edited",
       issue: mockExampleIssue({
-        labels: ["triaged", "groomed"],
-        projectStatus: "In progress",
+        projectStatus: "Groomed",
         hasSubIssues: false,
         subIssues: [],
       }),
@@ -737,23 +712,37 @@ describe("Example Machine — Terminal States", () => {
 
     const snap = await runExampleMachine(domain);
 
-    expect(String(snap.value)).toBe("invalidIteration");
-    expect(snap.context.completedActions).toHaveLength(0);
+    // fixState catches the misalignment (Groomed without sub-issues → Backlog)
+    expect(String(snap.value)).toBe("done");
+    expect(snap.context.domain.issue.projectStatus).toBe("Backlog");
   });
 
-  it("routes to idle when no guard matches", async () => {
+  it("fixes status misalignment when parent is In progress without sub-issues", async () => {
     const domain = mockExampleContext({
       trigger: "issue-edited",
       issue: mockExampleIssue({
-        projectStatus: "Backlog",
-        labels: ["triaged", "groomed"],
+        projectStatus: "In progress",
+        hasSubIssues: false,
       }),
     });
 
     const snap = await runExampleMachine(domain);
 
-    expect(String(snap.value)).toBe("idle");
-    expect(snap.context.completedActions).toHaveLength(0);
+    expect(String(snap.value)).toBe("done");
+    // fixState should have corrected status to Backlog
+    expect(snap.context.domain.issue.projectStatus).toBe("Backlog");
+    expect(
+      snap.context.completedActions.some(
+        (a) =>
+          a.action.type === "appendHistory" &&
+          "payload" in a.action &&
+          typeof a.action.payload === "object" &&
+          a.action.payload !== null &&
+          "message" in a.action.payload &&
+          typeof a.action.payload.message === "string" &&
+          a.action.payload.message.includes("State fix"),
+      ),
+    ).toBe(true);
   });
 });
 

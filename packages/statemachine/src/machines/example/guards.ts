@@ -9,17 +9,12 @@ import { parseTodoStatsInSection } from "@more/issue-state";
 import type { RunnerMachineContext } from "../../core/pev/types.js";
 import type { ExampleContext } from "./context.js";
 import type { ExampleTrigger } from "./events.js";
+import { computeExpectedStatus, isStatusCompatible } from "./milestones.js";
 
 /** Guard args: use context.domain; action type is widened so factory accepts these guards */
 type GuardArgs = {
   context: RunnerMachineContext<ExampleContext, { type: string }>;
 };
-
-function hasLabel(context: ExampleContext, label: string): boolean {
-  return context.issue.labels.some(
-    (l) => l.toLowerCase() === label.toLowerCase(),
-  );
-}
 
 function triggeredBy(
   trigger: ExampleTrigger,
@@ -33,10 +28,11 @@ function _triggeredByAny(
   return ({ context }: GuardArgs) => triggers.includes(context.domain.trigger);
 }
 
-/** Needs triage: no triaged/groomed labels */
+/** Needs triage: status is null or Backlog (not yet triaged) */
 function needsTriage({ context }: GuardArgs): boolean {
   if (context.domain.parentIssue !== null) return false;
-  return !hasLabel(context.domain, "triaged");
+  const status = context.domain.issue.projectStatus;
+  return status === null || status === "Backlog";
 }
 
 /** Sub-issue can iterate: has parent, bot assigned to parent and sub-issue */
@@ -73,6 +69,18 @@ function isError({ context }: GuardArgs): boolean {
 /** Bot assigned to current issue */
 function botIsAssigned({ context }: GuardArgs): boolean {
   return context.domain.issue.assignees.includes(context.domain.botUsername);
+}
+
+/**
+ * Status misalignment: project status doesn't match what milestones compute.
+ * Only fires on first cycle (cycleCount === 0) to prevent looping after fix.
+ * Allows "Triaged" as a valid intermediate between Backlog and Groomed since
+ * milestones cannot detect triage from artifacts alone.
+ */
+function isStatusMisaligned({ context }: GuardArgs): boolean {
+  if (context.cycleCount > 0) return false;
+  const expected = computeExpectedStatus(context.domain);
+  return !isStatusCompatible(context.domain.issue.projectStatus, expected);
 }
 
 // ---------------------------------------------------------------------------
@@ -159,9 +167,9 @@ function reviewCommented({ context }: GuardArgs): boolean {
 function needsGrooming({ context }: GuardArgs): boolean {
   // Sub-issues are never groomed — they are already phases from parent grooming
   if (context.domain.parentIssue !== null) return false;
-  const hasTriaged = hasLabel(context.domain, "triaged");
-  const hasGroomed = hasLabel(context.domain, "groomed");
-  return hasTriaged && !hasGroomed;
+  // Needs grooming: has been triaged but not yet groomed (no sub-issues)
+  const status = context.domain.issue.projectStatus;
+  return status === "Triaged" && !context.domain.issue.hasSubIssues;
 }
 
 function hasSubIssues({ context }: GuardArgs): boolean {
@@ -182,7 +190,6 @@ function currentPhaseBlocked({ context }: GuardArgs): boolean {
 }
 
 function allPhasesDone({ context }: GuardArgs): boolean {
-  if (!hasLabel(context.domain, "groomed")) return false;
   if (!hasSubIssues({ context })) return false;
   if (context.domain.issue.subIssues.length === 0) return false;
   return context.domain.issue.subIssues.every(
@@ -264,8 +271,8 @@ function shouldIterateSubIssue({ context }: GuardArgs): boolean {
 /** Parent in progress without sub-issues (invalid iteration) */
 function isInvalidIteration({ context }: GuardArgs): boolean {
   if (context.domain.parentIssue !== null) return false;
-  if (!hasLabel(context.domain, "groomed")) return false;
-  if (context.domain.issue.projectStatus !== "In progress") return false;
+  const status = context.domain.issue.projectStatus;
+  if (status !== "Groomed" && status !== "In progress") return false;
   return !context.domain.issue.hasSubIssues;
 }
 
@@ -297,6 +304,7 @@ function branchPrepConflicts({ context }: GuardArgs): boolean {
 }
 
 export {
+  isStatusMisaligned,
   needsTriage,
   canIterate,
   isInReview,
