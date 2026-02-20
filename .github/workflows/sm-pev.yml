@@ -7,6 +7,10 @@ on:
         description: Issue number to process
         required: true
         type: string
+      trigger_type:
+        description: Override trigger type (defaults to issue-triage)
+        required: false
+        type: string
       max_cycles:
         description: Maximum queue cycles per invocation
         required: false
@@ -19,7 +23,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  sm-context:
+    runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.context.outputs.issue_number }}
+      trigger: ${{ steps.context.outputs.trigger }}
+      owner: ${{ steps.context.outputs.owner }}
+      repo: ${{ steps.context.outputs.repo }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/sm-context
+      - uses: ./.github/actions/sm-context
+        id: context
+        with:
+          github_json: ${{ toJson(github) }}
+          github_token: ${{ secrets.NOPO_BOT_PAT }}
+
   pev:
+    needs: sm-context
+    if: needs.sm-context.outputs.issue_number != '0' && needs.sm-context.outputs.trigger != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -32,7 +55,10 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
-          github_json: ${{ toJson(github) }}
+          issue_number: ${{ needs.sm-context.outputs.issue_number }}
+          trigger: ${{ needs.sm-context.outputs.trigger }}
+          owner: ${{ needs.sm-context.outputs.owner }}
+          repo: ${{ needs.sm-context.outputs.repo }}
           max_cycles: ${{ inputs.max_cycles || '1' }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}

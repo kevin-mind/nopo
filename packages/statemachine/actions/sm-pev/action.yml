@@ -1,11 +1,21 @@
 name: State Machine PEV (Predict-Execute-Verify)
 description: >
   Unified state machine action that runs predict-execute-verify
-  in a single invocation. Prototype for the new PEV architecture.
+  in a single invocation. Expects issue_number, trigger, owner,
+  and repo to be resolved upstream by sm-context.
 
 inputs:
-  github_json:
-    description: Full GitHub context JSON string (pass via toJson(github) in workflow)
+  issue_number:
+    description: Resolved issue number (from sm-context)
+    required: true
+  trigger:
+    description: State machine trigger string (from sm-context)
+    required: true
+  owner:
+    description: Repository owner (from sm-context)
+    required: true
+  repo:
+    description: Repository name (from sm-context)
     required: true
   max_cycles:
     description: Maximum routing cycles before exiting (default 1)
@@ -19,8 +29,7 @@ inputs:
     required: false
   project_number:
     description: GitHub Project number for reading/writing project fields (Status, Iteration, Failures)
-    required: false
-    default: "0"
+    required: true
 
 outputs:
   final_state:

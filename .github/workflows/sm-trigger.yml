@@ -94,6 +94,8 @@ jobs:
     outputs:
       issue_number: ${{ steps.context.outputs.issue_number }}
       trigger: ${{ steps.context.outputs.trigger }}
+      owner: ${{ steps.context.outputs.owner }}
+      repo: ${{ steps.context.outputs.repo }}
       cancel_in_progress: ${{ steps.context.outputs.cancel_in_progress }}
     steps:
       - uses: actions/checkout@v4
@@ -129,7 +131,10 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         with:
-          github_json: ${{ toJson(github) }}
+          issue_number: ${{ needs.sm-context.outputs.issue_number }}
+          trigger: ${{ needs.sm-context.outputs.trigger }}
+          owner: ${{ needs.sm-context.outputs.owner }}
+          repo: ${{ needs.sm-context.outputs.repo }}
           max_cycles: "5"
           github_token: ${{ secrets.NOPO_BOT_PAT }}
           reviewer_token: ${{ secrets.CLAUDE_REVIEWER_PAT }}

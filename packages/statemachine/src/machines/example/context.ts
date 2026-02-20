@@ -767,9 +767,15 @@ export class ExampleContextLoader implements IssueStateRepository {
       return false;
     }
 
+    const resolvedProjectNumber = options.projectNumber ?? 0;
+    if (resolvedProjectNumber === 0) {
+      console.warn(
+        "[ExampleContextLoader] WARNING: projectNumber is 0 — parentIssue will always be null, which allows sub-issues to be groomed (creating duplicates).",
+      );
+    }
     const parseOptions: ParseIssueOptions = {
       octokit: options.octokit,
-      projectNumber: options.projectNumber ?? 0,
+      projectNumber: resolvedProjectNumber,
       botUsername:
         options.botUsername ??
         options.seed?.botUsername ??

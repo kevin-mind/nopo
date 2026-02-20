@@ -19,6 +19,12 @@ outputs:
   trigger:
     description: 'State machine trigger string (e.g. issue-triage, workflow-run-completed)'
     value: ${{ steps.resolve.outputs.trigger }}
+  owner:
+    description: 'Repository owner'
+    value: ${{ steps.resolve.outputs.owner }}
+  repo:
+    description: 'Repository name'
+    value: ${{ steps.resolve.outputs.repo }}
   cancel_in_progress:
     description: 'Whether to cancel in-progress runs in the same concurrency group'
     value: ${{ steps.resolve.outputs.cancel_in_progress }}
@@ -208,6 +214,8 @@ runs:
         # ---------------------------------------------------------------
         echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
         echo "trigger=$TRIGGER" >> "$GITHUB_OUTPUT"
+        echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
+        echo "repo=$REPO" >> "$GITHUB_OUTPUT"
         echo "cancel_in_progress=$CANCEL_IN_PROGRESS" >> "$GITHUB_OUTPUT"
 
-        echo "::notice::SM Context: event=$EVENT_NAME trigger=$TRIGGER issue=$ISSUE_NUMBER cancel=$CANCEL_IN_PROGRESS"
+        echo "::notice::SM Context: event=$EVENT_NAME trigger=$TRIGGER issue=$ISSUE_NUMBER owner=$OWNER repo=$REPO cancel=$CANCEL_IN_PROGRESS"

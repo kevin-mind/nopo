@@ -4,13 +4,15 @@
  * Unified GitHub Action that runs the predict-execute-verify cycle
  * in a single invocation. Creates an XState actor, sends DETECT,
  * and lets the machine run to completion.
+ *
+ * Expects issue_number, trigger, owner, and repo to be resolved
+ * upstream by sm-context.
  */
 
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { createActor, waitFor } from "xstate";
 import { exampleMachine } from "../../src/machines/example/index.js";
-import type { ExampleContext } from "../../src/machines/example/context.js";
 import { ExampleContextLoader } from "../../src/machines/example/context.js";
 import {
   createClaudeGroomingService,
@@ -25,125 +27,8 @@ import {
   setOutputs,
 } from "../../src/core/action-utils.js";
 import type { ExampleTrigger } from "../../src/machines/example/events.js";
-import {
-  issueNumberFromBranch,
-  issueNumberFromPR,
-  type OctokitLike,
-} from "@more/issue-state";
-
-/**
- * Detect the trigger type from the GitHub event context.
- * Maps github.event_name + github.event.action to an ExampleTrigger.
- */
-function detectTrigger(ctx: {
-  event_name: string;
-  event: {
-    action?: string;
-    inputs?: { trigger_type?: string };
-    issue?: { number: number };
-    comment?: { body?: string };
-    review?: { state?: string };
-    workflow_run?: {
-      conclusion?: string;
-      head_branch?: string;
-      pull_requests?: Array<{ number: number }>;
-    };
-    pull_request?: { number: number };
-  };
-}): ExampleTrigger | null {
-  const eventName = ctx.event_name;
-  const action = ctx.event?.action;
-
-  // workflow_dispatch can override trigger via inputs
-  if (eventName === "workflow_dispatch") {
-    const override = ctx.event?.inputs?.trigger_type;
-    if (override) {
-      const valid = new Set<string>([
-        "issue-triage",
-        "issue-assigned",
-        "issue-edited",
-        "issue-closed",
-        "issue-comment",
-        "issue-orchestrate",
-        "issue-retry",
-        "issue-reset",
-        "issue-pivot",
-        "issue-groom",
-        "issue-groom-summary",
-        "workflow-run-completed",
-        "pr-review",
-        "pr-review-requested",
-        "pr-review-submitted",
-        "pr-review-approved",
-        "pr-response",
-        "pr-human-response",
-        "pr-push",
-        "pr-merged",
-        "merge-queue-entered",
-        "merge-queue-failed",
-        "deployed-stage",
-        "deployed-prod",
-        "deployed-stage-failed",
-        "deployed-prod-failed",
-      ]);
-      if (valid.has(override)) {
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- validated via Set lookup
-        return override as ExampleTrigger;
-      }
-    }
-    return "issue-triage";
-  }
-
-  // issues events
-  if (eventName === "issues") {
-    if (action === "assigned") return "issue-assigned";
-    if (action === "edited") return "issue-edited";
-    if (action === "closed") return "issue-closed";
-    if (action === "opened") return "issue-triage";
-    return "issue-triage";
-  }
-
-  // issue_comment — check for slash commands
-  if (eventName === "issue_comment") {
-    const body = ctx.event?.comment?.body ?? "";
-    if (/\/(lfg|implement|continue)/.test(body)) return "issue-orchestrate";
-    if (/\/retry/.test(body)) return "issue-retry";
-    if (/\/reset/.test(body)) return "issue-reset";
-    if (/\/pivot/.test(body)) return "issue-pivot";
-    return "issue-comment";
-  }
-
-  // pull_request events
-  if (eventName === "pull_request") {
-    if (action === "review_requested") return "pr-review-requested";
-    return "pr-push";
-  }
-
-  // pull_request_review
-  if (eventName === "pull_request_review") {
-    const state = ctx.event?.review?.state?.toLowerCase();
-    if (state === "approved") return "pr-review-approved";
-    if (state === "changes_requested") return "pr-review-submitted";
-    return "pr-review-submitted";
-  }
-
-  // pull_request_review_comment
-  if (eventName === "pull_request_review_comment") {
-    return "pr-response";
-  }
-
-  // push events only trigger CI — state machine reacts to CI completion via workflow_run
-  if (eventName === "push") return null;
-
-  // workflow_run (CI completion)
-  if (eventName === "workflow_run") return "workflow-run-completed";
-
-  // merge_group
-  if (eventName === "merge_group") return "merge-queue-entered";
-
-  // Default fallback
-  return "issue-triage";
-}
+import { z } from "zod";
+import { type OctokitLike } from "@more/issue-state";
 
 function asOctokitLike(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -152,156 +37,86 @@ function asOctokitLike(
   return octokit as unknown as OctokitLike;
 }
 
+const ActionInputSchema = z.object({
+  github_token: z.string().min(1, "github_token is required"),
+  reviewer_token: z.string().min(1).optional(),
+  max_cycles: z
+    .string()
+    .default("1")
+    .transform((v) => parseInt(v, 10))
+    .pipe(z.number().int().min(1, "max_cycles must be >= 1")),
+  project_number: z
+    .string()
+    .transform((v) => parseInt(v, 10))
+    .pipe(
+      z
+        .number()
+        .int()
+        .min(
+          1,
+          "project_number is required (set vars.PROJECT_NUMBER). Without it, parentIssue resolution fails and sub-issues get re-groomed.",
+        ),
+    ),
+  issue_number: z
+    .string()
+    .transform((v) => parseInt(v, 10))
+    .pipe(z.number().int().min(1, "issue_number must be >= 1")),
+  trigger: z.string().min(1, "trigger is required"),
+  owner: z.string().min(1, "owner is required"),
+  repo: z.string().min(1, "repo is required"),
+});
+
 async function run(): Promise<void> {
-  const token = getRequiredInput("github_token");
-  const reviewerToken = getOptionalInput("reviewer_token") || token;
-  const maxCycles = parseInt(getOptionalInput("max_cycles") || "1", 10);
-  const projectNumber = parseInt(getOptionalInput("project_number") || "0", 10);
-  const githubJsonStr = getRequiredInput("github_json");
+  const inputs = ActionInputSchema.parse({
+    github_token: getRequiredInput("github_token"),
+    reviewer_token: getOptionalInput("reviewer_token") || undefined,
+    max_cycles: getOptionalInput("max_cycles") || "1",
+    project_number: getOptionalInput("project_number") || "0",
+    issue_number: getRequiredInput("issue_number"),
+    trigger: getRequiredInput("trigger"),
+    owner: getRequiredInput("owner"),
+    repo: getRequiredInput("repo"),
+  });
 
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- GitHub context JSON is untyped
-  const githubJson = JSON.parse(githubJsonStr) as {
-    event: {
-      action?: string;
-      issue?: { number: number; title: string; body: string };
-      inputs?: { resource_number?: string; trigger_type?: string };
-      comment?: { body?: string };
-      review?: { state?: string };
-      workflow_run?: {
-        conclusion?: string;
-        head_branch?: string;
-        pull_requests?: Array<{ number: number }>;
-      };
-      pull_request?: { number: number };
-    };
-    repository_owner: string;
-    event_name: string;
-    repository: string;
-  };
-
-  const trigger = detectTrigger(githubJson);
-
-  if (trigger === null) {
-    core.info(
-      `Event ${githubJson.event_name} skipped (no state machine action needed)`,
-    );
-    return;
-  }
+  const token = inputs.github_token;
+  const reviewerToken = inputs.reviewer_token ?? token;
+  const maxCycles = inputs.max_cycles;
+  const projectNumber = inputs.project_number;
+  const issueNumber = inputs.issue_number;
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- validated upstream by sm-context
+  const trigger = inputs.trigger as ExampleTrigger;
+  const owner = inputs.owner;
+  const repo = inputs.repo;
 
   core.info(`PEV Machine starting (max_cycles=${maxCycles})`);
-  core.info(`Event: ${githubJson.event_name}, Trigger: ${trigger}`);
-
-  // Build a minimal domain context from the GitHub event
-  const issueData = githubJson.event?.issue;
-  const [owner, repo] = (githubJson.repository ?? "unknown/unknown").split("/");
-  const resourceNumberStr = githubJson.event?.inputs?.resource_number;
-  let issueNumber =
-    (issueData?.number ??
-      (resourceNumberStr ? parseInt(resourceNumberStr, 10) : 0)) ||
-    0;
+  core.info(`Issue: #${issueNumber}, Trigger: ${trigger}`);
 
   const octokit = github.getOctokit(token);
   const oktLike = asOctokitLike(octokit);
-  const ownerStr = owner ?? "unknown";
-  const repoStr = repo ?? "unknown";
 
-  // For events without a direct issue reference, resolve via GraphQL
-  if (issueNumber === 0) {
-    // workflow_run: resolve via head_branch → PR → closing issue
-    if (githubJson.event_name === "workflow_run") {
-      const headBranch = githubJson.event?.workflow_run?.head_branch;
-      if (headBranch) {
-        core.info(
-          `Resolving issue from workflow_run head_branch: ${headBranch}`,
-        );
-        const resolved = await issueNumberFromBranch(
-          oktLike,
-          ownerStr,
-          repoStr,
-          headBranch,
-        );
-        if (resolved) {
-          issueNumber = resolved;
-          core.info(`Resolved issue #${issueNumber} from branch ${headBranch}`);
-        } else {
-          core.warning(`Could not resolve issue from branch ${headBranch}`);
-        }
-      }
-    }
-
-    // pull_request / pull_request_review: resolve via PR number → closing issue
-    if (
-      (githubJson.event_name === "pull_request" ||
-        githubJson.event_name === "pull_request_review") &&
-      githubJson.event?.pull_request?.number
-    ) {
-      const prNumber = githubJson.event.pull_request.number;
-      core.info(`Resolving issue from PR #${prNumber}`);
-      const resolved = await issueNumberFromPR(
-        oktLike,
-        ownerStr,
-        repoStr,
-        prNumber,
-      );
-      if (resolved) {
-        issueNumber = resolved;
-        core.info(`Resolved issue #${issueNumber} from PR #${prNumber}`);
-      } else {
-        core.warning(`Could not resolve issue from PR #${prNumber}`);
-      }
-    }
-  }
   const loader = new ExampleContextLoader();
   const loaded = await loader.load({
     octokit: oktLike,
     trigger,
-    owner: ownerStr,
-    repo: repoStr,
-    projectNumber: projectNumber || undefined,
+    owner,
+    repo,
+    projectNumber,
     event: {
-      type: githubJson.event_name,
-      owner: ownerStr,
-      repo: repoStr,
+      type: trigger,
+      owner,
+      repo,
       issueNumber,
       timestamp: new Date().toISOString(),
     },
   });
-  const loadedContext = loaded ? loader.toContext() : null;
-  const domainContext: ExampleContext = loadedContext ?? {
-    trigger,
-    owner: ownerStr,
-    repo: repoStr,
-    issue: {
-      number: issueNumber,
-      title: issueData?.title ?? "Unknown",
-      body: issueData?.body ?? "",
-      comments: [],
-      state: "OPEN",
-      projectStatus: null,
-      labels: [],
-      assignees: [],
-      hasSubIssues: false,
-      subIssues: [],
-      iteration: 0,
-      failures: 0,
-    },
-    parentIssue: null,
-    currentSubIssue: null,
-    pr: null,
-    hasPR: false,
-    ciResult: null,
-    reviewDecision: null,
-    commentContextType: null,
-    commentContextDescription: null,
-    ciRunUrl: null,
-    ciCommitSha: null,
-    workflowStartedAt: null,
-    workflowRunUrl: null,
-    branch: null,
-    hasBranch: false,
-    botUsername: "nopo-bot",
-    triageOutput: null,
-  };
+
+  if (!loaded) {
+    throw new Error(
+      `Failed to load context for issue #${issueNumber} (trigger=${trigger}, owner=${owner}, repo=${repo})`,
+    );
+  }
+
+  const domainContext = loader.toContext();
   const services = {
     triage: createClaudeTriageService(token),
     grooming: createClaudeGroomingService(token),
@@ -316,9 +131,9 @@ async function run(): Promise<void> {
       maxCycles,
       runnerCtx: {
         token,
-        owner: ownerStr,
-        repo: repoStr,
-        projectNumber: projectNumber || undefined,
+        owner,
+        repo,
+        projectNumber,
       },
       services,
     },
