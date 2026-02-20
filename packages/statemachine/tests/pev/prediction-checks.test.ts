@@ -236,6 +236,119 @@ describe("evaluatePredictionChecks", () => {
     const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
     expect(result.pass).toBe(false);
   });
+
+  it("startsWith fails when string does not start with expected prefix", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "startsWith", field: "issue.title", expected: "Something" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.comparator).toBe("startsWith");
+  });
+
+  it("startsWith fails when actual value is not a string (e.g. number)", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "startsWith", field: "issue.number", expected: "4" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.actual).toBe(42);
+  });
+
+  it("startsWith passes using from:'old' reading pre-action context", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "startsWith",
+        field: "issue.title",
+        expected: "Old",
+        from: "old",
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
+  });
+
+  it("from:'old' fails when old context value does not match expected", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "startsWith",
+        field: "issue.title",
+        expected: "Updated",
+        from: "old",
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.actual).toBe("Old title");
+  });
+
+  it("deeply nested path (3+ levels) resolves correctly for eq comparator", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "eq", field: "issue.nested.value", expected: 12 },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
+  });
+
+  it("resolvePath returns undefined when an intermediate segment is missing", () => {
+    const noNestedCtx: DemoCtx = {
+      issue: {
+        number: 1,
+        labels: [],
+        failures: 0,
+        title: "No nested",
+      },
+      counter: 0,
+    };
+    const checks: PredictionCheck[] = [
+      { comparator: "exists", field: "issue.nested.value" },
+    ];
+    const result = evaluatePredictionChecks(checks, noNestedCtx, noNestedCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+    expect(result.diffs[0]?.actual).toBeUndefined();
+  });
+
+  it("any with mixed children (one pass, one fail) returns pass:true with empty diffs", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "any",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 999 },
+          { comparator: "eq", field: "issue.number", expected: 42 },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
+  });
+
+  it("all collects diffs from all failing children (not just the first)", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "all",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 1 },
+          { comparator: "eq", field: "issue.title", expected: "Wrong" },
+          { comparator: "eq", field: "counter", expected: 99 },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(3);
+    expect(result.diffs.map((d) => d.field)).toEqual([
+      "issue.number",
+      "issue.title",
+      "counter",
+    ]);
+  });
 });
 
 describe("runner integration with prediction checks", () => {
