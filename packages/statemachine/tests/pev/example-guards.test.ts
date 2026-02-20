@@ -30,6 +30,7 @@ import {
   mockExampleIssue,
   mockExamplePR,
 } from "./mock-factories.js";
+import { checkOffTodoInBody } from "@more/issue-state";
 
 function withRunnerContext(
   domain: ExampleContext,
@@ -347,6 +348,19 @@ describe("example guards", () => {
       issue: mockExampleIssue({
         body: "## Todos\n- [x] Task 1\n- [x] Task 2",
       }),
+    });
+    expect(todosDone({ context: withRunnerContext(domain) })).toBe(true);
+  });
+
+  it("todosDone works after checkOffTodoInBody with markdown-escaped text", () => {
+    // Issue body has markdown-escaped underscores (CI\_SUCCESS), but
+    // Claude's todosCompleted has plain text (CI_SUCCESS)
+    const body =
+      "## Todos\n- [ ] Test CI\\_SUCCESS and CI\\_FAILURE\n- [x] Other task";
+    const updated = checkOffTodoInBody(body, "Test CI_SUCCESS and CI_FAILURE");
+    expect(updated).not.toBeNull();
+    const domain = mockExampleContext({
+      issue: mockExampleIssue({ body: updated! }),
     });
     expect(todosDone({ context: withRunnerContext(domain) })).toBe(true);
   });

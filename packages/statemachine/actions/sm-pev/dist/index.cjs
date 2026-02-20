@@ -45339,6 +45339,9 @@ function calculateTodoStats(todos) {
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+function stripMarkdownEscapes(str) {
+  return str.replace(/\\([_*~`|{}[\]()#+\-.!>\\])/g, "$1");
+}
 function parseTodosInSection(body, sectionHeader) {
   const lines = body.split("\n");
   const sectionRegex = new RegExp(`^##\\s+${escapeRegex(sectionHeader)}`, "i");
@@ -45367,14 +45370,14 @@ function parseTodoStatsInSection(body, sectionHeader) {
 }
 function updateTodoInBody(body, todoText, checked) {
   const lines = body.split("\n");
-  const escapedText = escapeRegex(todoText.trim());
-  const todoRegex = new RegExp(
-    `^(\\s*)-\\s*\\[[ xX]\\]\\s*${escapedText}\\s*$`,
-    "i"
-  );
+  const normalizedSearch = stripMarkdownEscapes(todoText.trim()).toLowerCase();
   let found = false;
   const newLines = lines.map((line) => {
-    if (todoRegex.test(line)) {
+    if (found) return line;
+    const match = line.match(TODO_PATTERNS.checkbox);
+    if (!match) return line;
+    const lineText = stripMarkdownEscapes(match[3]?.trim() || "").toLowerCase();
+    if (lineText === normalizedSearch) {
       found = true;
       const checkMark = checked ? "x" : " ";
       return line.replace(/\[([ xX])\]/, `[${checkMark}]`);

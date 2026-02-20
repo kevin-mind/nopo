@@ -109,6 +109,13 @@ function escapeRegex(str: string): string {
 }
 
 /**
+ * Strip markdown backslash escapes (e.g. \_ → _, \* → *)
+ */
+function stripMarkdownEscapes(str: string): string {
+  return str.replace(/\\([_*~`|{}[\]()#+\-.!>\\])/g, "$1");
+}
+
+/**
  * Extract todos from a specific section of the body
  */
 export function parseTodosInSection(
@@ -180,15 +187,17 @@ export function updateTodoInBody(
   checked: boolean,
 ): string | null {
   const lines = body.split("\n");
-  const escapedText = escapeRegex(todoText.trim());
-  const todoRegex = new RegExp(
-    `^(\\s*)-\\s*\\[[ xX]\\]\\s*${escapedText}\\s*$`,
-    "i",
-  );
+  const normalizedSearch = stripMarkdownEscapes(todoText.trim()).toLowerCase();
 
   let found = false;
   const newLines = lines.map((line) => {
-    if (todoRegex.test(line)) {
+    if (found) return line;
+    // Quick check: must be a checkbox line
+    const match = line.match(TODO_PATTERNS.checkbox);
+    if (!match) return line;
+    // Compare the todo text portion (group 3) after stripping markdown escapes
+    const lineText = stripMarkdownEscapes(match[3]?.trim() || "").toLowerCase();
+    if (lineText === normalizedSearch) {
       found = true;
       const checkMark = checked ? "x" : " ";
       return line.replace(/\[([ xX])\]/, `[${checkMark}]`);
