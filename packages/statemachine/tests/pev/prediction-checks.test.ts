@@ -236,6 +236,98 @@ describe("evaluatePredictionChecks", () => {
     const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
     expect(result.pass).toBe(false);
   });
+
+  it("startsWith fails when string does not start with expected prefix", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "startsWith", field: "issue.title", expected: "Old" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+  });
+
+  it("startsWith fails when actual value is not a string", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "startsWith", field: "issue.number", expected: "4" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+  });
+
+  it("startsWith passes using from:old reading pre-action context", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "startsWith",
+        field: "issue.title",
+        expected: "Old",
+        from: "old",
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("from:old fails when old context value does not match expected", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "eq",
+        field: "issue.title",
+        expected: "Updated title",
+        from: "old",
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+  });
+
+  it("deeply nested path (3+ levels) resolves correctly for eq comparator", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "eq", field: "issue.nested.value", expected: 12 },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+  });
+
+  it("resolvePath returns undefined when an intermediate segment is missing", () => {
+    const checks: PredictionCheck[] = [
+      { comparator: "exists", field: "issue.missing.value" },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(1);
+  });
+
+  it("any with mixed children returns pass true with empty diffs", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "any",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 99 },
+          { comparator: "eq", field: "issue.number", expected: 42 },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(true);
+    expect(result.diffs).toHaveLength(0);
+  });
+
+  it("all collects diffs from all failing children", () => {
+    const checks: PredictionCheck[] = [
+      {
+        comparator: "all",
+        checks: [
+          { comparator: "eq", field: "issue.number", expected: 99 },
+          { comparator: "eq", field: "counter", expected: 99 },
+        ],
+      },
+    ];
+    const result = evaluatePredictionChecks(checks, oldCtx, newCtx);
+    expect(result.pass).toBe(false);
+    expect(result.diffs).toHaveLength(2);
+  });
 });
 
 describe("runner integration with prediction checks", () => {
