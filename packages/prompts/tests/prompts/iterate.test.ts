@@ -41,16 +41,22 @@ describe("Iterate prompt", () => {
       '<section title="1. Assess Current State">',
     );
     expect(result.prompt).toContain('<section title="2. Determine Action">');
-    expect(result.prompt).toContain('<section title="3. Implementation">');
     expect(result.prompt).toContain(
-      '<section title="4. Fix and Verify Before Committing">',
+      '<section title="3. Delegate to full-stack-engineer Sub-Agent">',
     );
-    expect(result.prompt).toContain('<section title="5. Commit and Push">');
     expect(result.prompt).toContain(
-      '<section title="6. Create PR (First Iteration Only)">',
+      '<section title="4. Create PR (First Iteration Only)">',
     );
     expect(result.prompt).toContain('<section title="Output">');
     expect(result.prompt).toContain("</section>");
+  });
+
+  it("delegation section instructs use of Task tool and full-stack-engineer", () => {
+    const result = Iterate(validInputs);
+    expect(result.prompt).toContain("full-stack-engineer");
+    expect(result.prompt).toContain("Task tool");
+    expect(result.prompt).toContain("orchestration agent");
+    expect(result.prompt).toContain("subagent_type");
   });
 
   it("outputs JSON Schema matches expected structure", () => {
