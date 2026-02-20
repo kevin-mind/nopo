@@ -187,7 +187,7 @@ async function run(): Promise<void> {
     if (stateKey === "routing") {
       const d = ctx.domain;
       core.info(
-        `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"}`,
+        `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"} parentIssue=${d.parentIssue ? `#${d.parentIssue.number}` : "null"} issue=#${d.issue.number}`,
       );
     } else if (stateKey === "executing") {
       core.info(

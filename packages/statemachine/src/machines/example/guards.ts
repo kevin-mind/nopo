@@ -30,9 +30,15 @@ function _triggeredByAny(
 
 /** Needs triage: status is null or Backlog (not yet triaged) */
 function needsTriage({ context }: GuardArgs): boolean {
-  if (context.domain.parentIssue !== null) return false;
+  const hasParent = context.domain.parentIssue !== null;
   const status = context.domain.issue.projectStatus;
-  return status === null || status === "Backlog";
+  const result = !hasParent && (status === null || status === "Backlog");
+  if (result) {
+    console.log(
+      `[needsTriage] TRUE — parentIssue=${hasParent ? "set" : "null"}, status=${String(status)}, issue=#${context.domain.issue.number}`,
+    );
+  }
+  return result;
 }
 
 /** Sub-issue can iterate: has parent, bot assigned to parent and sub-issue */

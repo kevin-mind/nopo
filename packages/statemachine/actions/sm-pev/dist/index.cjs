@@ -46290,9 +46290,15 @@ function triggeredBy(trigger) {
   return ({ context }) => context.domain.trigger === trigger;
 }
 function needsTriage({ context }) {
-  if (context.domain.parentIssue !== null) return false;
+  const hasParent = context.domain.parentIssue !== null;
   const status = context.domain.issue.projectStatus;
-  return status === null || status === "Backlog";
+  const result = !hasParent && (status === null || status === "Backlog");
+  if (result) {
+    console.log(
+      `[needsTriage] TRUE \u2014 parentIssue=${hasParent ? "set" : "null"}, status=${String(status)}, issue=#${context.domain.issue.number}`
+    );
+  }
+  return result;
 }
 function canIterate({ context }) {
   if (context.domain.parentIssue === null) return false;
@@ -68793,7 +68799,7 @@ ${checkLines}` : ""}`
     if (stateKey === "routing") {
       const d = ctx2.domain;
       core3.info(
-        `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"}`
+        `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"} parentIssue=${d.parentIssue ? `#${d.parentIssue.number}` : "null"} issue=#${d.issue.number}`
       );
     } else if (stateKey === "executing") {
       core3.info(
