@@ -107,22 +107,26 @@ describe("computeExpectedStatus", () => {
     });
 
     it("returns In review when PR is OPEN and not a draft", () => {
-      const ctx = mockExampleContext({
-        parentIssue: mockExampleIssue({ number: 1 }),
-        issue: mockExampleIssue({ assignees: [] }),
+      const ctx = {
+        ...mockExampleContext({
+          parentIssue: mockExampleIssue({ number: 1 }),
+          issue: mockExampleIssue({ assignees: [] }),
+          botUsername: "nopo-bot",
+        }),
         pr: mockExamplePR({ state: "OPEN", isDraft: false }),
-        botUsername: "nopo-bot",
-      });
+      };
       expect(computeExpectedStatus(ctx)).toBe("In review");
     });
 
     it("returns Done when PR is MERGED", () => {
-      const ctx = mockExampleContext({
-        parentIssue: mockExampleIssue({ number: 1 }),
-        issue: mockExampleIssue({ assignees: [] }),
+      const ctx = {
+        ...mockExampleContext({
+          parentIssue: mockExampleIssue({ number: 1 }),
+          issue: mockExampleIssue({ assignees: [] }),
+          botUsername: "nopo-bot",
+        }),
         pr: mockExamplePR({ state: "MERGED" }),
-        botUsername: "nopo-bot",
-      });
+      };
       expect(computeExpectedStatus(ctx)).toBe("Done");
     });
   });
