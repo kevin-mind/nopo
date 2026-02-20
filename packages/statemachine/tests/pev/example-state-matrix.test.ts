@@ -16,16 +16,23 @@ const RUNNER_CTX: ExternalRunnerContext = {
 };
 
 async function run(domain: ExampleContext, maxCycles = 1) {
-  const actor = createActor(exampleMachine, {
-    input: {
-      domain,
-      maxCycles,
-      runnerCtx: RUNNER_CTX,
-      services: mockExampleServices(),
-    },
-  });
-  actor.start();
-  return waitFor(actor, (s) => s.status === "done", { timeout: 10000 });
+  // Clear GITHUB_ACTIONS so git actions use their fast (skipped) path in CI
+  const origGHA = process.env.GITHUB_ACTIONS;
+  process.env.GITHUB_ACTIONS = "";
+  try {
+    const actor = createActor(exampleMachine, {
+      input: {
+        domain,
+        maxCycles,
+        runnerCtx: RUNNER_CTX,
+        services: mockExampleServices(),
+      },
+    });
+    actor.start();
+    return await waitFor(actor, (s) => s.status === "done", { timeout: 5000 });
+  } finally {
+    process.env.GITHUB_ACTIONS = origGHA;
+  }
 }
 
 function hasActionType(
