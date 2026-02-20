@@ -455,8 +455,21 @@ describe("ExampleContextLoader", () => {
       event: mockExampleNormalizedEvent({ issueNumber: 42 }),
     });
     expect(ok).toBe(false);
-    expect(loader.toContext()).toBeNull();
     expect(loader.getState()).toBeNull();
+    expect(loader.toContext()).toBeNull();
+  });
+
+  it("save() returns false after load() fails due to API error", async () => {
+    const loader = new ExampleContextLoader();
+    vi.mocked(parseIssue).mockRejectedValue(new Error("API error"));
+    const ok = await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: 42 }),
+    });
+    expect(ok).toBe(false);
     await expect(loader.save()).resolves.toBe(false);
   });
 
@@ -470,8 +483,9 @@ describe("ExampleContextLoader", () => {
       event: mockExampleNormalizedEvent({ issueNumber: -1 }),
     });
     expect(ok).toBe(false);
-    expect(loader.toContext()).toBeNull();
     expect(vi.mocked(parseIssue)).not.toHaveBeenCalled();
+    expect(loader.getState()).toBeNull();
+    expect(loader.toContext()).toBeNull();
   });
 
   it("load() returns false for NaN issue number without calling parseIssue", async () => {
@@ -484,8 +498,9 @@ describe("ExampleContextLoader", () => {
       event: mockExampleNormalizedEvent({ issueNumber: NaN }),
     });
     expect(ok).toBe(false);
-    expect(loader.toContext()).toBeNull();
     expect(vi.mocked(parseIssue)).not.toHaveBeenCalled();
+    expect(loader.getState()).toBeNull();
+    expect(loader.toContext()).toBeNull();
   });
 
   it("save propagates persistence errors", async () => {
