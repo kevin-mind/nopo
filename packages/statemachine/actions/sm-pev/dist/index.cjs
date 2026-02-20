@@ -47804,6 +47804,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: RUNNER_STATES.done, guard: "isAlreadyDone" },
         { target: "alreadyBlocked", guard: "isBlocked" },
         { target: "error", guard: "isError" },
+        // Parent iterating on current sub-issue after orchestration
+        { target: "preparing", guard: "shouldIterateSubIssue" },
         // Parent with sub-issues already orchestrated this invocation — stop
         { target: "idle", guard: "alreadyOrchestrated" },
         // ARC 8-14
