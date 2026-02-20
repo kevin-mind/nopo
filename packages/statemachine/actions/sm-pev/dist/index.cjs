@@ -68765,7 +68765,12 @@ ${checkLines}` : ""}`
     const action = ctx2.currentAction?.type ?? "\u2014";
     const queued = ctx2.actionQueue.map((a) => a.type).join(" \u2192 ");
     const cycle = `cycle ${ctx2.cycleCount + 1}/${ctx2.maxCycles}`;
-    if (stateKey === "executing") {
+    if (stateKey === "routing") {
+      const d = ctx2.domain;
+      core3.info(
+        `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"}`
+      );
+    } else if (stateKey === "executing") {
       core3.info(
         `[exec] ${action} (${cycle}${queued ? `, next: ${queued}` : ""})`
       );

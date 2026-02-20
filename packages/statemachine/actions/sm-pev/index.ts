@@ -184,7 +184,12 @@ async function run(): Promise<void> {
     const queued = ctx.actionQueue.map((a) => a.type).join(" → ");
     const cycle = `cycle ${ctx.cycleCount + 1}/${ctx.maxCycles}`;
 
-    if (stateKey === "executing") {
+    if (stateKey === "routing") {
+      const d = ctx.domain;
+      core.info(
+        `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"}`,
+      );
+    } else if (stateKey === "executing") {
       core.info(
         `[exec] ${action} (${cycle}${queued ? `, next: ${queued}` : ""})`,
       );
