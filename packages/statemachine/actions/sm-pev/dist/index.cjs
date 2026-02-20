@@ -45830,7 +45830,12 @@ function applyIterationOutputAction(createAction) {
           const updated = checkOffTodoInBody(body, todoText);
           if (updated) body = updated;
         }
-        issue2.body = body;
+        const repo = repositoryFor(ctx);
+        if (repo.updateBody) {
+          repo.updateBody(body);
+        } else {
+          issue2.body = body;
+        }
       }
       const persisted = await persistIssueState(ctx);
       if (!persisted) {

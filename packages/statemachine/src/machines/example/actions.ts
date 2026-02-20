@@ -426,7 +426,15 @@ export function applyIterationOutputAction(createAction: ExampleCreateAction) {
           const updated = checkOffTodoInBody(body, todoText);
           if (updated) body = updated;
         }
-        issue.body = body;
+        // Use the repository's updateBody to update both the string
+        // and the underlying AST (bodyAst). Direct issue.body mutation
+        // doesn't update bodyAst, so save() would not persist the change.
+        const repo = repositoryFor(ctx);
+        if (repo.updateBody) {
+          repo.updateBody(body);
+        } else {
+          issue.body = body;
+        }
       }
 
       const persisted = await persistIssueState(ctx);
