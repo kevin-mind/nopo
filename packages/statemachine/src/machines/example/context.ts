@@ -23,6 +23,8 @@ import {
   addSubIssueToParent,
   createExtractor,
   createMutator,
+  GET_PR_ID_QUERY,
+  MARK_PR_READY_MUTATION,
   parseIssue,
   parseMarkdown,
   serializeMarkdown,
@@ -166,6 +168,8 @@ export interface IssueStateRepository {
     sha?: string;
     runLink?: string;
   }): void;
+  markPRReady?(prNumber: number): Promise<void>;
+  requestReviewer?(prNumber: number, reviewer: string): Promise<void>;
 }
 
 /**
@@ -1109,6 +1113,43 @@ export class ExampleContextLoader implements IssueStateRepository {
       options.projectNumber ?? 0,
       { status: status === "In progress" ? "Ready" : status },
     );
+  }
+
+  async markPRReady(prNumber: number): Promise<void> {
+    const options = this.requireOptions();
+    const { repository } = await options.octokit.graphql<{
+      repository: { pullRequest: { id: string } };
+    }>(GET_PR_ID_QUERY, {
+      owner: options.owner,
+      repo: options.repo,
+      prNumber,
+    });
+    await options.octokit.graphql(MARK_PR_READY_MUTATION, {
+      prId: repository.pullRequest.id,
+    });
+    this.updatePr({
+      ...(this.extractPr() ?? {
+        number: prNumber,
+        state: "OPEN",
+        isDraft: false,
+        title: "",
+        headRef: "",
+        baseRef: "",
+        labels: [],
+        reviews: [],
+      }),
+      isDraft: false,
+    });
+  }
+
+  async requestReviewer(prNumber: number, reviewer: string): Promise<void> {
+    const options = this.requireOptions();
+    await options.octokit.rest.pulls.requestReviewers({
+      owner: options.owner,
+      repo: options.repo,
+      pull_number: prNumber,
+      reviewers: [reviewer],
+    });
   }
 
   async save(): Promise<boolean> {

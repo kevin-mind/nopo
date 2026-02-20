@@ -23,6 +23,7 @@ import {
   maxFailuresReached,
   todosDone,
   readyForReview,
+  branchPrepCleanAndReadyForReview,
 } from "../../src/machines/example/guards.js";
 import {
   mockExampleContext,
@@ -381,6 +382,43 @@ describe("example guards", () => {
     expect(readyForReview({ context: withRunnerContext(yes) })).toBe(true);
     expect(readyForReview({ context: withRunnerContext(noCi) })).toBe(false);
     expect(readyForReview({ context: withRunnerContext(noTodos) })).toBe(false);
+  });
+
+  it("branchPrepCleanAndReadyForReview requires both conditions", () => {
+    const both = mockExampleContext({
+      ciResult: "success",
+      branchPrepResult: "clean",
+      issue: mockExampleIssue({ body: "## Todos\n- [x] Done" }),
+    });
+    const noPrep = mockExampleContext({
+      ciResult: "success",
+      branchPrepResult: null,
+      issue: mockExampleIssue({ body: "## Todos\n- [x] Done" }),
+    });
+    const rebased = mockExampleContext({
+      ciResult: "success",
+      branchPrepResult: "rebased",
+      issue: mockExampleIssue({ body: "## Todos\n- [x] Done" }),
+    });
+    const notReady = mockExampleContext({
+      ciResult: "success",
+      branchPrepResult: "clean",
+      issue: mockExampleIssue({ body: "## Todos\n- [ ] Pending" }),
+    });
+    expect(
+      branchPrepCleanAndReadyForReview({ context: withRunnerContext(both) }),
+    ).toBe(true);
+    expect(
+      branchPrepCleanAndReadyForReview({ context: withRunnerContext(noPrep) }),
+    ).toBe(false);
+    expect(
+      branchPrepCleanAndReadyForReview({ context: withRunnerContext(rebased) }),
+    ).toBe(false);
+    expect(
+      branchPrepCleanAndReadyForReview({
+        context: withRunnerContext(notReady),
+      }),
+    ).toBe(false);
   });
 
   it("allPhasesDone returns false when some sub-issues not done", () => {

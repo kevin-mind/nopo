@@ -30,6 +30,8 @@ import {
   setupGitAction,
   prepareBranchAction,
   gitPushAction,
+  markPRReadyAction,
+  requestReviewerAction,
   stopAction,
   type ExampleAction,
 } from "./actions.js";
@@ -95,6 +97,7 @@ import {
   triggeredByReviewAndCommented,
   prReviewWithCIPassed,
   prReviewWithCINotFailed,
+  branchPrepCleanAndReadyForReview,
   branchPrepClean,
   branchPrepRebased,
   branchPrepConflicts,
@@ -132,6 +135,8 @@ export const exampleMachine = createMachineFactory<
     setupGit: setupGitAction(createAction),
     prepareBranch: prepareBranchAction(createAction),
     gitPush: gitPushAction(createAction),
+    markPRReady: markPRReadyAction(createAction),
+    requestReviewer: requestReviewerAction(createAction),
     stop: stopAction(createAction),
   }))
   .guards(() => ({
@@ -196,6 +201,7 @@ export const exampleMachine = createMachineFactory<
     triggeredByReviewAndCommented,
     prReviewWithCIPassed,
     prReviewWithCINotFailed,
+    branchPrepCleanAndReadyForReview,
     branchPrepClean,
     branchPrepRebased,
     branchPrepConflicts,
@@ -218,6 +224,10 @@ export const exampleMachine = createMachineFactory<
           { target: "preparing", guard: "shouldIterateSubIssue" },
           // Branch prep results (checked before alreadyOrchestrated so
           // the prepare→iterate flow completes before stopping)
+          {
+            target: "completingReviewTransition",
+            guard: "branchPrepCleanAndReadyForReview",
+          },
           { target: "iterating", guard: "branchPrepClean" },
           { target: "branchRebased", guard: "branchPrepRebased" },
           { target: "blocking", guard: "branchPrepConflicts" },
@@ -297,7 +307,7 @@ export const exampleMachine = createMachineFactory<
           { target: "triaging", guard: "needsTriage" },
           { target: "preparing", guard: "canIterate" },
           // Sub-issue status-based routing (before isSubIssue catch-all)
-          { target: "reviewing", guard: "isInReview" },
+          { target: "awaitingReview", guard: "isInReview" },
           { target: "transitioningToReview", guard: "readyForReview" },
           // Parent iterating on current sub-issue (after orchestration resets stale state)
           { target: "preparing", guard: "shouldIterateSubIssue" },
@@ -356,10 +366,15 @@ export const exampleMachine = createMachineFactory<
         entry: queue.assignTransitionToReviewQueue,
         always: RUNNER_STATES.executingQueue,
       },
+      completingReviewTransition: {
+        entry: queue.assignCompletingReviewTransitionQueue,
+        always: RUNNER_STATES.executingQueue,
+      },
       reviewing: {
         entry: queue.assignReviewQueue,
         always: RUNNER_STATES.executingQueue,
       },
+      awaitingReview: { type: "final" },
       grooming: {
         entry: queue.assignGroomQueue,
         always: RUNNER_STATES.executingQueue,
@@ -445,7 +460,8 @@ export const exampleMachine = createMachineFactory<
       processingCI: {
         always: [
           { target: "transitioningToReview", guard: "readyForReview" },
-          { target: "reviewing", guard: "ciPassed" },
+          // CI passed but todos not done — continue iterating to finish remaining work
+          { target: "iterating", guard: "ciPassed" },
           { target: "blocking", guard: "maxFailuresReached" },
           { target: "iteratingFix", guard: "ciFailed" },
           { target: "iterating" },

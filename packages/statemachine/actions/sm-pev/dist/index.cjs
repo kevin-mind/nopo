@@ -44394,6 +44394,27 @@ query GetIssueLinkedPRs($owner: String!, $repo: String!, $issueNumber: Int!) {
 }
 `;
 
+// packages/issue-state/src/graphql/pr-queries.ts
+var MARK_PR_READY_MUTATION = `
+mutation MarkPRReady($prId: ID!) {
+  markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
+    pullRequest {
+      id
+      isDraft
+    }
+  }
+}
+`;
+var GET_PR_ID_QUERY = `
+query GetPRId($owner: String!, $repo: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      id
+    }
+  }
+}
+`;
+
 // packages/issue-state/src/graphql/project-queries.ts
 var GET_PROJECT_ITEM_QUERY = `
 query GetProjectItem($org: String!, $repo: String!, $issueNumber: Int!, $projectNumber: Int!) {
@@ -45444,6 +45465,13 @@ var InMemoryIssueStateRepository = class {
     issue2.body += `| ${entry.timestamp ?? "-"} | - | ${entry.phase} | ${entry.message} | ${entry.sha ?? "-"} | ${entry.runLink ?? "-"} |
 `;
   }
+  async markPRReady(_prNumber) {
+    if (this.context.pr) {
+      this.context.pr.isDraft = false;
+    }
+  }
+  async requestReviewer(_prNumber, _reviewer) {
+  }
   async assignBotToSubIssue(_subIssueNumber, _botUsername) {
   }
   async updateSubIssueProjectStatus(subIssueNumber, status) {
@@ -45481,6 +45509,12 @@ function removeIssueLabels(context, labels) {
 }
 function reconcileSubIssues(context, subIssueNumbers) {
   repositoryFor(context).reconcileSubIssues(subIssueNumbers);
+}
+async function markPRReady(context, prNumber) {
+  await repositoryFor(context).markPRReady?.(prNumber);
+}
+async function requestReviewer(context, prNumber, reviewer) {
+  await repositoryFor(context).requestReviewer?.(prNumber, reviewer);
 }
 async function persistIssueState(context) {
   const repository = context.repository;
@@ -46128,6 +46162,53 @@ function gitPushAction(createAction) {
     }
   });
 }
+function markPRReadyAction(createAction) {
+  return createAction({
+    description: (action) => `Mark PR #${action.payload.prNumber} as ready for review`,
+    execute: async ({ action, ctx }) => {
+      await markPRReady(ctx, action.payload.prNumber);
+      return { ok: true };
+    },
+    predict: (action) => ({
+      description: `Mark PR #${action.payload.prNumber} as ready for review`,
+      checks: [
+        {
+          field: "pr.isDraft",
+          comparator: "eq",
+          expected: false,
+          description: "PR is no longer a draft"
+        }
+      ]
+    }),
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "markPRReady execute did not return ok=true" };
+      }
+      return void 0;
+    }
+  });
+}
+function requestReviewerAction(createAction) {
+  return createAction({
+    description: (action) => `Request review from ${action.payload.reviewer} on PR #${action.payload.prNumber}`,
+    execute: async ({ action, ctx }) => {
+      await requestReviewer(
+        ctx,
+        action.payload.prNumber,
+        action.payload.reviewer
+      );
+      return { ok: true };
+    },
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return {
+          message: "requestReviewer execute did not return ok=true"
+        };
+      }
+      return void 0;
+    }
+  });
+}
 function stopAction(createAction) {
   return createAction({
     description: (action) => `Stop: ${action.payload.message}`,
@@ -46359,6 +46440,9 @@ function isInvalidIteration({ context }) {
 function needsSubIssues(_guardContext) {
   return false;
 }
+function branchPrepCleanAndReadyForReview({ context }) {
+  return branchPrepClean({ context }) && readyForReview({ context });
+}
 function branchPrepClean({ context }) {
   return context.domain.branchPrepResult === "clean";
 }
@@ -46531,8 +46615,33 @@ function buildIterateFixQueue(context, registry2) {
   return buildIterateQueue(context, registry2, "retry");
 }
 function buildTransitionToReviewQueue(context, registry2) {
-  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  const sub = context.domain.currentSubIssue ?? context.domain.issue;
+  const branchName = context.domain.branch ?? `claude/issue/${sub.number}`;
   return [
+    registry2.setupGit.create({
+      token: context.runnerCtx?.token ?? ""
+    }),
+    registry2.prepareBranch.create({
+      branchName
+    })
+  ];
+}
+function buildCompletingReviewTransitionQueue(context, registry2) {
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  const prNumber = context.domain.pr?.number;
+  const actions = [];
+  if (prNumber && context.domain.pr?.isDraft) {
+    actions.push(registry2.markPRReady.create({ prNumber }));
+  }
+  if (prNumber) {
+    actions.push(
+      registry2.requestReviewer.create({
+        prNumber,
+        reviewer: context.domain.botUsername
+      })
+    );
+  }
+  actions.push(
     registry2.updateStatus.create({
       issueNumber: target.number,
       status: "In review"
@@ -46541,8 +46650,13 @@ function buildTransitionToReviewQueue(context, registry2) {
       issueNumber: target.number,
       message: "CI passed, transitioning to review",
       phase: "review"
+    }),
+    registry2.persistState.create({
+      issueNumber: target.number,
+      reason: "review-transition"
     })
-  ];
+  );
+  return actions;
 }
 function buildReviewQueue(context, registry2) {
   const sub = requireCurrentSubIssue(context);
@@ -46971,6 +47085,9 @@ function createExampleQueueAssigners(registry2) {
   const assignTransitionToReviewQueue = assign({
     actionQueue: ({ context }) => buildTransitionToReviewQueue(context, registry2)
   });
+  const assignCompletingReviewTransitionQueue = assign({
+    actionQueue: ({ context }) => buildCompletingReviewTransitionQueue(context, registry2)
+  });
   const assignReviewQueue = assign({
     actionQueue: ({ context }) => buildReviewQueue(context, registry2)
   });
@@ -47050,6 +47167,7 @@ function createExampleQueueAssigners(registry2) {
     assignInitializingQueue,
     assignIterateFixQueue,
     assignTransitionToReviewQueue,
+    assignCompletingReviewTransitionQueue,
     assignTriageQueue,
     assignIterateQueue,
     assignReviewQueue,
@@ -47811,6 +47929,39 @@ var ExampleContextLoader = class _ExampleContextLoader {
       { status: status === "In progress" ? "Ready" : status }
     );
   }
+  async markPRReady(prNumber) {
+    const options = this.requireOptions();
+    const { repository } = await options.octokit.graphql(GET_PR_ID_QUERY, {
+      owner: options.owner,
+      repo: options.repo,
+      prNumber
+    });
+    await options.octokit.graphql(MARK_PR_READY_MUTATION, {
+      prId: repository.pullRequest.id
+    });
+    this.updatePr({
+      ...this.extractPr() ?? {
+        number: prNumber,
+        state: "OPEN",
+        isDraft: false,
+        title: "",
+        headRef: "",
+        baseRef: "",
+        labels: [],
+        reviews: []
+      },
+      isDraft: false
+    });
+  }
+  async requestReviewer(prNumber, reviewer) {
+    const options = this.requireOptions();
+    await options.octokit.rest.pulls.requestReviewers({
+      owner: options.owner,
+      repo: options.repo,
+      pull_number: prNumber,
+      reviewers: [reviewer]
+    });
+  }
   async save() {
     if (this.state === null || this.remoteUpdate === null) return false;
     await this.remoteUpdate(this.state);
@@ -47840,6 +47991,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   setupGit: setupGitAction(createAction),
   prepareBranch: prepareBranchAction(createAction),
   gitPush: gitPushAction(createAction),
+  markPRReady: markPRReadyAction(createAction),
+  requestReviewer: requestReviewerAction(createAction),
   stop: stopAction(createAction)
 })).guards(() => ({
   isStatusMisaligned,
@@ -47903,6 +48056,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   triggeredByReviewAndCommented,
   prReviewWithCIPassed,
   prReviewWithCINotFailed,
+  branchPrepCleanAndReadyForReview,
   branchPrepClean,
   branchPrepRebased,
   branchPrepConflicts
@@ -47924,6 +48078,10 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "preparing", guard: "shouldIterateSubIssue" },
         // Branch prep results (checked before alreadyOrchestrated so
         // the prepare→iterate flow completes before stopping)
+        {
+          target: "completingReviewTransition",
+          guard: "branchPrepCleanAndReadyForReview"
+        },
         { target: "iterating", guard: "branchPrepClean" },
         { target: "branchRebased", guard: "branchPrepRebased" },
         { target: "blocking", guard: "branchPrepConflicts" },
@@ -48003,7 +48161,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "triaging", guard: "needsTriage" },
         { target: "preparing", guard: "canIterate" },
         // Sub-issue status-based routing (before isSubIssue catch-all)
-        { target: "reviewing", guard: "isInReview" },
+        { target: "awaitingReview", guard: "isInReview" },
         { target: "transitioningToReview", guard: "readyForReview" },
         // Parent iterating on current sub-issue (after orchestration resets stale state)
         { target: "preparing", guard: "shouldIterateSubIssue" },
@@ -48062,10 +48220,15 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
       entry: queue.assignTransitionToReviewQueue,
       always: RUNNER_STATES.executingQueue
     },
+    completingReviewTransition: {
+      entry: queue.assignCompletingReviewTransitionQueue,
+      always: RUNNER_STATES.executingQueue
+    },
     reviewing: {
       entry: queue.assignReviewQueue,
       always: RUNNER_STATES.executingQueue
     },
+    awaitingReview: { type: "final" },
     grooming: {
       entry: queue.assignGroomQueue,
       always: RUNNER_STATES.executingQueue
@@ -48151,7 +48314,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
     processingCI: {
       always: [
         { target: "transitioningToReview", guard: "readyForReview" },
-        { target: "reviewing", guard: "ciPassed" },
+        // CI passed but todos not done — continue iterating to finish remaining work
+        { target: "iterating", guard: "ciPassed" },
         { target: "blocking", guard: "maxFailuresReached" },
         { target: "iteratingFix", guard: "ciFailed" },
         { target: "iterating" }

@@ -17,10 +17,12 @@ import { checkOffTodoInBody } from "@more/issue-state";
 import {
   applyGrooming,
   applyTriage,
+  markPRReady,
   persistIssueState,
   reconcileSubIssues,
   removeIssueLabels,
   repositoryFor,
+  requestReviewer,
   setIssueStatus,
 } from "./commands.js";
 import type {
@@ -853,6 +855,57 @@ export function gitPushAction(createAction: ExampleCreateAction) {
   });
 }
 
+export function markPRReadyAction(createAction: ExampleCreateAction) {
+  return createAction<{ prNumber: number }>({
+    description: (action) =>
+      `Mark PR #${action.payload.prNumber} as ready for review`,
+    execute: async ({ action, ctx }) => {
+      await markPRReady(ctx, action.payload.prNumber);
+      return { ok: true };
+    },
+    predict: (action) => ({
+      description: `Mark PR #${action.payload.prNumber} as ready for review`,
+      checks: [
+        {
+          field: "pr.isDraft",
+          comparator: "eq" as const,
+          expected: false,
+          description: "PR is no longer a draft",
+        },
+      ],
+    }),
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return { message: "markPRReady execute did not return ok=true" };
+      }
+      return undefined;
+    },
+  });
+}
+
+export function requestReviewerAction(createAction: ExampleCreateAction) {
+  return createAction<{ prNumber: number; reviewer: string }>({
+    description: (action) =>
+      `Request review from ${action.payload.reviewer} on PR #${action.payload.prNumber}`,
+    execute: async ({ action, ctx }) => {
+      await requestReviewer(
+        ctx,
+        action.payload.prNumber,
+        action.payload.reviewer,
+      );
+      return { ok: true };
+    },
+    verify: ({ executeResult }) => {
+      if (!isOkResult(executeResult)) {
+        return {
+          message: "requestReviewer execute did not return ok=true",
+        };
+      }
+      return undefined;
+    },
+  });
+}
+
 export function stopAction(createAction: ExampleCreateAction) {
   return createAction<{ message: string }>({
     description: (action) => `Stop: ${action.payload.message}`,
@@ -881,6 +934,8 @@ export type ExampleRegistry = TActionRegistryFromDefs<{
   setupGit: ReturnType<typeof setupGitAction>;
   prepareBranch: ReturnType<typeof prepareBranchAction>;
   gitPush: ReturnType<typeof gitPushAction>;
+  markPRReady: ReturnType<typeof markPRReadyAction>;
+  requestReviewer: ReturnType<typeof requestReviewerAction>;
   stop: ReturnType<typeof stopAction>;
 }>;
 export type ExampleAction = ActionFromRegistry<ExampleRegistry>;

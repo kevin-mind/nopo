@@ -209,8 +209,39 @@ function buildTransitionToReviewQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
-  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  const sub = context.domain.currentSubIssue ?? context.domain.issue;
+  const branchName = context.domain.branch ?? `claude/issue/${sub.number}`;
   return [
+    registry.setupGit.create({
+      token: context.runnerCtx?.token ?? "",
+    }),
+    registry.prepareBranch.create({
+      branchName,
+    }),
+  ];
+}
+
+function buildCompletingReviewTransitionQueue(
+  context: Ctx,
+  registry: ExampleRegistry,
+): ExampleAction[] {
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  const prNumber = context.domain.pr?.number;
+  const actions: ExampleAction[] = [];
+
+  if (prNumber && context.domain.pr?.isDraft) {
+    actions.push(registry.markPRReady.create({ prNumber }));
+  }
+  if (prNumber) {
+    actions.push(
+      registry.requestReviewer.create({
+        prNumber,
+        reviewer: context.domain.botUsername,
+      }),
+    );
+  }
+
+  actions.push(
     registry.updateStatus.create({
       issueNumber: target.number,
       status: "In review",
@@ -220,7 +251,13 @@ function buildTransitionToReviewQueue(
       message: "CI passed, transitioning to review",
       phase: "review",
     }),
-  ];
+    registry.persistState.create({
+      issueNumber: target.number,
+      reason: "review-transition",
+    }),
+  );
+
+  return actions;
 }
 
 function buildReviewQueue(
@@ -798,6 +835,17 @@ export function createExampleQueueAssigners(registry: ExampleRegistry) {
       buildTransitionToReviewQueue(context, registry),
   });
 
+  const assignCompletingReviewTransitionQueue = assign<
+    Ctx,
+    AnyEventObject,
+    undefined,
+    EventObject,
+    never
+  >({
+    actionQueue: ({ context }) =>
+      buildCompletingReviewTransitionQueue(context, registry),
+  });
+
   const assignReviewQueue = assign<
     Ctx,
     AnyEventObject,
@@ -1050,6 +1098,7 @@ export function createExampleQueueAssigners(registry: ExampleRegistry) {
     assignInitializingQueue,
     assignIterateFixQueue,
     assignTransitionToReviewQueue,
+    assignCompletingReviewTransitionQueue,
     assignTriageQueue,
     assignIterateQueue,
     assignReviewQueue,

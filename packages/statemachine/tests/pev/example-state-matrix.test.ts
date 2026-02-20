@@ -15,11 +15,11 @@ const RUNNER_CTX: ExternalRunnerContext = {
   repo: "test-repo",
 };
 
-async function run(domain: ExampleContext) {
+async function run(domain: ExampleContext, maxCycles = 1) {
   const actor = createActor(exampleMachine, {
     input: {
       domain,
-      maxCycles: 1,
+      maxCycles,
       runnerCtx: RUNNER_CTX,
       services: mockExampleServices(),
     },
@@ -280,12 +280,59 @@ describe("Example Machine — state matrix hardening", () => {
         }),
         parentIssue,
       }),
+      2, // needs 2 cycles: transitioningToReview (rebase) → completingReviewTransition
     );
     expect(String(snap.value)).toBe("done");
     expect(hasHistoryMessage(snap, "CI passed, transitioning to review")).toBe(
       true,
     );
     expect(snap.context.domain.issue.projectStatus).toBe("In review");
+  });
+
+  it("routes to iterating when CI passed but todos not done", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      hasSubIssues: true,
+    });
+    const snap = await run(
+      mockExampleContext({
+        ...baseDomain,
+        trigger: "workflow-run-completed",
+        ciResult: "success",
+        issue: mockExampleIssue({
+          number: 42,
+          projectStatus: "In progress",
+          assignees: ["nopo-bot"],
+          body: "## Todos\n- [x] Task 1\n- [ ] Task 2",
+        }),
+        parentIssue,
+      }),
+    );
+    expect(String(snap.value)).toBe("done");
+    expect(hasActionType(snap, "runClaudeIteration")).toBe(true);
+  });
+
+  it("routes to awaitingReview when status is already In review", async () => {
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      hasSubIssues: true,
+    });
+    const snap = await run(
+      mockExampleContext({
+        ...baseDomain,
+        trigger: "issue-edited",
+        issue: mockExampleIssue({
+          number: 42,
+          projectStatus: "In review",
+        }),
+        parentIssue,
+      }),
+    );
+    // awaitingReview is a final state — no actions, no looping
+    expect(String(snap.value)).toBe("awaitingReview");
+    expect(snap.context.completedActions).toHaveLength(0);
   });
 
   it("handles PR push trigger with iteration status reset", async () => {

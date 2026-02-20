@@ -429,10 +429,9 @@ describe("Example Machine — Review", () => {
 
     const snap = await runExampleMachine(domain);
 
-    expect(String(snap.value)).toBe("done");
-    const actionTypes = snap.context.completedActions.map((a) => a.action.type);
-    expect(actionTypes).toContain("updateStatus");
-    expect(actionTypes).toContain("appendHistory");
+    // isInReview routes to awaitingReview (final) — no looping, waits for review event
+    expect(String(snap.value)).toBe("awaitingReview");
+    expect(snap.context.completedActions).toHaveLength(0);
   });
 
   it("adds comment context when staying in review after comments", async () => {
@@ -506,7 +505,7 @@ describe("Example Machine — Review", () => {
     expect(snap.context.domain.issue.projectStatus).toBe("Done");
   });
 
-  it("handles pr-review-requested trigger via review queue", async () => {
+  it("handles pr-review-requested trigger on In review sub-issue as no-op", async () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
@@ -521,11 +520,8 @@ describe("Example Machine — Review", () => {
     });
 
     const snap = await runExampleMachine(domain);
-    expect(String(snap.value)).toBe("done");
-    expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
-      "updateStatus",
-      "appendHistory",
-    ]);
+    expect(String(snap.value)).toBe("awaitingReview");
+    expect(snap.context.completedActions).toEqual([]);
   });
 });
 

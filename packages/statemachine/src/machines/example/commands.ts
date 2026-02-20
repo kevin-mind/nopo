@@ -76,6 +76,16 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     issue.body += `| ${entry.timestamp ?? "-"} | - | ${entry.phase} | ${entry.message} | ${entry.sha ?? "-"} | ${entry.runLink ?? "-"} |\n`;
   }
 
+  async markPRReady(_prNumber: number): Promise<void> {
+    if (this.context.pr) {
+      this.context.pr.isDraft = false;
+    }
+  }
+
+  async requestReviewer(_prNumber: number, _reviewer: string): Promise<void> {
+    // In-memory: no-op
+  }
+
   async assignBotToSubIssue(
     _subIssueNumber: number,
     _botUsername: string,
@@ -145,6 +155,21 @@ export function reconcileSubIssues(
   subIssueNumbers: number[],
 ): void {
   repositoryFor(context).reconcileSubIssues(subIssueNumbers);
+}
+
+export async function markPRReady(
+  context: ExampleContext,
+  prNumber: number,
+): Promise<void> {
+  await repositoryFor(context).markPRReady?.(prNumber);
+}
+
+export async function requestReviewer(
+  context: ExampleContext,
+  prNumber: number,
+  reviewer: string,
+): Promise<void> {
+  await repositoryFor(context).requestReviewer?.(prNumber, reviewer);
 }
 
 export async function persistIssueState(

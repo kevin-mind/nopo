@@ -290,6 +290,11 @@ function needsSubIssues(_guardContext: GuardArgs): boolean {
 // Branch preparation guards (two-queue architecture)
 // ---------------------------------------------------------------------------
 
+/** Branch prep clean and ready for review — transition to review */
+function branchPrepCleanAndReadyForReview({ context }: GuardArgs): boolean {
+  return branchPrepClean({ context }) && readyForReview({ context });
+}
+
 /** Branch prep completed with no rebase needed — safe to continue to iterate */
 function branchPrepClean({ context }: GuardArgs): boolean {
   return context.domain.branchPrepResult === "clean";
@@ -367,6 +372,7 @@ export {
   triggeredByReviewAndCommented,
   prReviewWithCIPassed,
   prReviewWithCINotFailed,
+  branchPrepCleanAndReadyForReview,
   branchPrepClean,
   branchPrepRebased,
   branchPrepConflicts,

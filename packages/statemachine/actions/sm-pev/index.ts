@@ -149,7 +149,7 @@ async function run(): Promise<void> {
     const ctx = snapshot.context;
     const stateKey =
       typeof snapshot.value === "object"
-        ? Object.values(snapshot.value as Record<string, string>).join(".")
+        ? Object.values(snapshot.value).join(".")
         : String(snapshot.value);
 
     // Deduplicate: only log when state actually changes
@@ -209,7 +209,7 @@ async function run(): Promise<void> {
   const ctx = finalSnapshot.context;
   const finalState =
     typeof finalSnapshot.value === "object"
-      ? Object.values(finalSnapshot.value as Record<string, string>).join(".")
+      ? Object.values(finalSnapshot.value).join(".")
       : String(finalSnapshot.value);
 
   if (ctx.error) {
