@@ -46166,20 +46166,8 @@ function applyPrResponseOutputAction(createAction) {
 function recordFailureAction(createAction) {
   return createAction({
     description: (action) => `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
-    predict: (action, ctx) => {
-      const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
-      const current = issue2.failures ?? 0;
-      return {
-        checks: [
-          {
-            comparator: "gte",
-            description: "Failures should be incremented",
-            field: "issue.failures",
-            expected: current + 1
-          }
-        ]
-      };
-    },
+    // No predict: failures are in-memory only (not persisted to GitHub project fields
+    // via save()). Verify refreshes from GitHub where the value is still 0.
     execute: async ({ action, ctx }) => {
       const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
       const current = issue2.failures ?? 0;
@@ -47850,6 +47838,16 @@ var ExampleContextLoader = class _ExampleContextLoader {
       type: "tableCell",
       children: [{ type: "text", value: text5 }]
     });
+    const linkCell = (url, label) => ({
+      type: "tableCell",
+      children: [
+        {
+          type: "link",
+          url,
+          children: [{ type: "text", value: label }]
+        }
+      ]
+    });
     const newRow = {
       type: "tableRow",
       children: [
@@ -47858,7 +47856,7 @@ var ExampleContextLoader = class _ExampleContextLoader {
         cell(entry.phase),
         cell(entry.message),
         cell(entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-"),
-        cell(entry.runLink ?? "-")
+        entry.runLink ? linkCell(entry.runLink, "Run") : cell("-")
       ]
     };
     if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
@@ -47866,17 +47864,8 @@ var ExampleContextLoader = class _ExampleContextLoader {
       const rows = table.children;
       const lastRow = rows.length > 1 ? rows[rows.length - 1] : null;
       const lastMessage = lastRow?.children?.[3]?.children?.[0]?.value;
-      if (lastMessage?.includes("Running...") && lastRow?.children) {
-        const cells = lastRow.children;
-        if (cells[0]?.children?.[0]) cells[0].children[0].value = timeCell;
-        if (cells[1]?.children?.[0])
-          cells[1].children[0].value = String(iteration - 1);
-        if (cells[2]?.children?.[0]) cells[2].children[0].value = entry.phase;
-        if (cells[3]?.children?.[0]) cells[3].children[0].value = entry.message;
-        if (cells[4]?.children?.[0])
-          cells[4].children[0].value = entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-";
-        if (cells[5]?.children?.[0])
-          cells[5].children[0].value = entry.runLink ?? "-";
+      if (lastMessage?.includes("Running...")) {
+        rows[rows.length - 1] = newRow;
       } else {
         table.children.push(newRow);
       }
@@ -47931,8 +47920,18 @@ var ExampleContextLoader = class _ExampleContextLoader {
     if (update.sha !== void 0 && cells[4]?.children?.[0]) {
       cells[4].children[0].value = update.sha ? `\`${update.sha.slice(0, 7)}\`` : "-";
     }
-    if (update.runLink !== void 0 && cells[5]?.children?.[0]) {
-      cells[5].children[0].value = update.runLink || "-";
+    if (update.runLink !== void 0 && cells[5]) {
+      if (update.runLink) {
+        cells[5].children = [
+          {
+            type: "link",
+            url: update.runLink,
+            children: [{ type: "text", value: "Run" }]
+          }
+        ];
+      } else if (cells[5].children?.[0]) {
+        cells[5].children[0].value = "-";
+      }
     }
   }
   addIssueLabels(labels) {

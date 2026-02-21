@@ -981,6 +981,16 @@ export class ExampleContextLoader implements IssueStateRepository {
       type: "tableCell" as const,
       children: [{ type: "text" as const, value: text }],
     });
+    const linkCell = (url: string, label: string) => ({
+      type: "tableCell" as const,
+      children: [
+        {
+          type: "link" as const,
+          url,
+          children: [{ type: "text" as const, value: label }],
+        },
+      ],
+    });
     const newRow = {
       type: "tableRow" as const,
       children: [
@@ -989,7 +999,7 @@ export class ExampleContextLoader implements IssueStateRepository {
         cell(entry.phase),
         cell(entry.message),
         cell(entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-"),
-        cell(entry.runLink ?? "-"),
+        entry.runLink ? linkCell(entry.runLink, "Run") : cell("-"),
       ],
     };
 
@@ -1004,20 +1014,9 @@ export class ExampleContextLoader implements IssueStateRepository {
       const lastRow = rows.length > 1 ? rows[rows.length - 1] : null;
       const lastMessage = lastRow?.children?.[3]?.children?.[0]?.value;
 
-      if (lastMessage?.includes("Running...") && lastRow?.children) {
-        // Replace the orphaned "Running..." row instead of appending
-        const cells = lastRow.children;
-        if (cells[0]?.children?.[0]) cells[0].children[0].value = timeCell;
-        if (cells[1]?.children?.[0])
-          cells[1].children[0].value = String(iteration - 1);
-        if (cells[2]?.children?.[0]) cells[2].children[0].value = entry.phase;
-        if (cells[3]?.children?.[0]) cells[3].children[0].value = entry.message;
-        if (cells[4]?.children?.[0])
-          cells[4].children[0].value = entry.sha
-            ? `\`${entry.sha.slice(0, 7)}\``
-            : "-";
-        if (cells[5]?.children?.[0])
-          cells[5].children[0].value = entry.runLink ?? "-";
+      if (lastMessage?.includes("Running...")) {
+        // Replace the orphaned "Running..." row with the new row
+        rows[rows.length - 1] = newRow;
       } else {
         // Append new row
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast table children manipulation
@@ -1104,8 +1103,20 @@ export class ExampleContextLoader implements IssueStateRepository {
         ? `\`${update.sha.slice(0, 7)}\``
         : "-";
     }
-    if (update.runLink !== undefined && cells[5]?.children?.[0]) {
-      cells[5].children[0].value = update.runLink || "-";
+    if (update.runLink !== undefined && cells[5]) {
+      if (update.runLink) {
+        // Replace cell contents with a link node
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast link node construction
+        (cells[5] as { children: unknown[] }).children = [
+          {
+            type: "link",
+            url: update.runLink,
+            children: [{ type: "text", value: "Run" }],
+          },
+        ];
+      } else if (cells[5].children?.[0]) {
+        cells[5].children[0].value = "-";
+      }
     }
   }
 
