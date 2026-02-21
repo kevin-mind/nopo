@@ -190,6 +190,7 @@ function buildCompletingReviewTransitionQueue(
 ): ExampleAction[] {
   const target = context.domain.currentSubIssue ?? context.domain.issue;
   const prNumber = context.domain.pr?.number;
+  const issueNumber = target.number;
   const actions: ExampleAction[] = [];
 
   if (prNumber && context.domain.pr?.isDraft) {
@@ -206,9 +207,26 @@ function buildCompletingReviewTransitionQueue(
 
   actions.push(
     registry.updateStatus.create({
-      issueNumber: target.number,
+      issueNumber,
       status: "In review",
     }),
+  );
+
+  // Run Claude review inline (PAT-based reviewer requests don't trigger
+  // workflow events, so we can't rely on pr-review-requested trigger)
+  actions.push(
+    registry.runClaudeReview.create({
+      issueNumber,
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: target.title,
+        ISSUE_BODY: target.body,
+        ISSUE_COMMENTS: target.comments.join("\n"),
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        REVIEWER: "unknown",
+      },
+    }),
+    registry.applyReviewOutput.create({ issueNumber }),
   );
 
   return actions;
@@ -481,13 +499,14 @@ function buildAwaitingReviewQueue(
 ): ExampleAction[] {
   const target = context.domain.currentSubIssue ?? context.domain.issue;
   const prNumber = context.domain.pr?.number;
+  const issueNumber = target.number;
   const actions: ExampleAction[] = [];
 
   // Ensure status is "In review" (idempotent)
   if (target.projectStatus !== "In review") {
     actions.push(
       registry.updateStatus.create({
-        issueNumber: target.number,
+        issueNumber,
         status: "In review",
       }),
     );
@@ -500,6 +519,24 @@ function buildAwaitingReviewQueue(
         prNumber,
         reviewer: context.domain.reviewerUsername,
       }),
+    );
+  }
+
+  // Run Claude review inline if CI is passing
+  if (context.domain.ciResult === "success") {
+    actions.push(
+      registry.runClaudeReview.create({
+        issueNumber,
+        promptVars: {
+          ISSUE_NUMBER: String(issueNumber),
+          ISSUE_TITLE: target.title,
+          ISSUE_BODY: target.body,
+          ISSUE_COMMENTS: target.comments.join("\n"),
+          REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+          REVIEWER: "unknown",
+        },
+      }),
+      registry.applyReviewOutput.create({ issueNumber }),
     );
   }
 

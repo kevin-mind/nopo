@@ -46676,9 +46676,6 @@ function canIterate({ context }) {
 function isInReview({ context }) {
   return context.domain.issue.projectStatus === "In review";
 }
-function isInReviewAndCIPassed({ context }) {
-  return context.cycleCount === 0 && isInReview({ context }) && ciPassed({ context });
-}
 function isInReviewFirstCycle({ context }) {
   return context.cycleCount === 0 && isInReview({ context });
 }
@@ -47004,6 +47001,7 @@ function buildTransitionToReviewQueue(context, registry2) {
 function buildCompletingReviewTransitionQueue(context, registry2) {
   const target = context.domain.currentSubIssue ?? context.domain.issue;
   const prNumber = context.domain.pr?.number;
+  const issueNumber = target.number;
   const actions = [];
   if (prNumber && context.domain.pr?.isDraft) {
     actions.push(registry2.markPRReady.create({ prNumber }));
@@ -47018,9 +47016,23 @@ function buildCompletingReviewTransitionQueue(context, registry2) {
   }
   actions.push(
     registry2.updateStatus.create({
-      issueNumber: target.number,
+      issueNumber,
       status: "In review"
     })
+  );
+  actions.push(
+    registry2.runClaudeReview.create({
+      issueNumber,
+      promptVars: {
+        ISSUE_NUMBER: String(issueNumber),
+        ISSUE_TITLE: target.title,
+        ISSUE_BODY: target.body,
+        ISSUE_COMMENTS: target.comments.join("\n"),
+        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+        REVIEWER: "unknown"
+      }
+    }),
+    registry2.applyReviewOutput.create({ issueNumber })
   );
   return actions;
 }
@@ -47218,11 +47230,12 @@ function buildOrchestrateQueue(context, registry2) {
 function buildAwaitingReviewQueue(context, registry2) {
   const target = context.domain.currentSubIssue ?? context.domain.issue;
   const prNumber = context.domain.pr?.number;
+  const issueNumber = target.number;
   const actions = [];
   if (target.projectStatus !== "In review") {
     actions.push(
       registry2.updateStatus.create({
-        issueNumber: target.number,
+        issueNumber,
         status: "In review"
       })
     );
@@ -47233,6 +47246,22 @@ function buildAwaitingReviewQueue(context, registry2) {
         prNumber,
         reviewer: context.domain.reviewerUsername
       })
+    );
+  }
+  if (context.domain.ciResult === "success") {
+    actions.push(
+      registry2.runClaudeReview.create({
+        issueNumber,
+        promptVars: {
+          ISSUE_NUMBER: String(issueNumber),
+          ISSUE_TITLE: target.title,
+          ISSUE_BODY: target.body,
+          ISSUE_COMMENTS: target.comments.join("\n"),
+          REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+          REVIEWER: "unknown"
+        }
+      }),
+      registry2.applyReviewOutput.create({ issueNumber })
     );
   }
   return actions;
@@ -48272,7 +48301,6 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   needsTriage,
   canIterate,
   isInReview,
-  isInReviewAndCIPassed,
   isInReviewFirstCycle,
   isAlreadyDone,
   isBlocked,
@@ -48434,8 +48462,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "reviewing", guard: "triggeredByReview" },
         // ARC 33-35
         { target: "triaging", guard: "needsTriage" },
-        // "In review" — run Claude review if CI passed, otherwise request reviewer
-        { target: "prReviewing", guard: "isInReviewAndCIPassed" },
+        // "In review" — first cycle requests reviewer + runs review if CI passed
         { target: "ensureReviewRequested", guard: "isInReviewFirstCycle" },
         { target: "awaitingReview", guard: "isInReview" },
         { target: "preparing", guard: "canIterate" },

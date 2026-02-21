@@ -60,11 +60,6 @@ function isInReview({ context }: GuardArgs): boolean {
   return context.domain.issue.projectStatus === "In review";
 }
 
-/** In review + CI passed: run Claude review inline (first cycle only) */
-function isInReviewAndCIPassed({ context }: GuardArgs): boolean {
-  return context.cycleCount === 0 && isInReview({ context }) && ciPassed({ context });
-}
-
 /** In review on first cycle: ensures reviewer is requested before stopping */
 function isInReviewFirstCycle({ context }: GuardArgs): boolean {
   return context.cycleCount === 0 && isInReview({ context });
@@ -358,7 +353,6 @@ export {
   needsTriage,
   canIterate,
   isInReview,
-  isInReviewAndCIPassed,
   isInReviewFirstCycle,
   isAlreadyDone,
   isBlocked,
