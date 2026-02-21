@@ -180,6 +180,11 @@ export interface IssueStateRepository {
   }): void;
   markPRReady?(prNumber: number): Promise<void>;
   requestReviewer?(prNumber: number, reviewer: string): Promise<void>;
+  submitReview?(
+    prNumber: number,
+    event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
+    body: string,
+  ): Promise<void>;
 }
 
 /**
@@ -1257,6 +1262,21 @@ export class ExampleContextLoader implements IssueStateRepository {
       repo: options.repo,
       pull_number: prNumber,
       reviewers: [reviewer],
+    });
+  }
+
+  async submitReview(
+    prNumber: number,
+    event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
+    body: string,
+  ): Promise<void> {
+    const options = this.requireOptions();
+    await options.octokit.rest.pulls.createReview({
+      owner: options.owner,
+      repo: options.repo,
+      pull_number: prNumber,
+      event,
+      body,
     });
   }
 

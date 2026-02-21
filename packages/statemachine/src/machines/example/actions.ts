@@ -23,6 +23,7 @@ import {
   repositoryFor,
   requestReviewer,
   setIssueStatus,
+  submitReview,
 } from "./commands.js";
 import type {
   ExampleGroomingOutput,
@@ -555,6 +556,17 @@ export function applyReviewOutputAction(createAction: ExampleCreateAction) {
       const output = ctx.reviewOutput;
       if (!output) {
         return { ok: true, message: "No review output to apply" };
+      }
+      // Submit the review to GitHub
+      const prNumber = ctx.pr?.number;
+      if (prNumber) {
+        const event =
+          output.decision === "approve"
+            ? ("APPROVE" as const)
+            : output.decision === "request_changes"
+              ? ("REQUEST_CHANGES" as const)
+              : ("COMMENT" as const);
+        await submitReview(ctx, prNumber, event, output.body);
       }
       // Store the decision for downstream routing (approved → merge, changes → iterate)
       ctx.reviewDecision =

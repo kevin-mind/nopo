@@ -45815,6 +45815,8 @@ var InMemoryIssueStateRepository = class {
   }
   async requestReviewer(_prNumber, _reviewer) {
   }
+  async submitReview(_prNumber, _event, _body) {
+  }
   async setProjectMetadata(_fields) {
   }
   async assignBotToSubIssue(_subIssueNumber, _botUsername) {
@@ -45860,6 +45862,9 @@ async function markPRReady(context, prNumber) {
 }
 async function requestReviewer(context, prNumber, reviewer) {
   await repositoryFor(context).requestReviewer?.(prNumber, reviewer);
+}
+async function submitReview(context, prNumber, event, body) {
+  await repositoryFor(context).submitReview?.(prNumber, event, body);
 }
 async function persistIssueState(context) {
   const repository = context.repository;
@@ -46259,6 +46264,11 @@ function applyReviewOutputAction(createAction) {
       const output = ctx.reviewOutput;
       if (!output) {
         return { ok: true, message: "No review output to apply" };
+      }
+      const prNumber = ctx.pr?.number;
+      if (prNumber) {
+        const event = output.decision === "approve" ? "APPROVE" : output.decision === "request_changes" ? "REQUEST_CHANGES" : "COMMENT";
+        await submitReview(ctx, prNumber, event, output.body);
       }
       ctx.reviewDecision = output.decision === "approve" ? "APPROVED" : output.decision === "request_changes" ? "CHANGES_REQUESTED" : "COMMENTED";
       ctx.reviewOutput = null;
@@ -48251,6 +48261,16 @@ var ExampleContextLoader = class _ExampleContextLoader {
       repo: options.repo,
       pull_number: prNumber,
       reviewers: [reviewer]
+    });
+  }
+  async submitReview(prNumber, event, body) {
+    const options = this.requireOptions();
+    await options.octokit.rest.pulls.createReview({
+      owner: options.owner,
+      repo: options.repo,
+      pull_number: prNumber,
+      event,
+      body
     });
   }
   async setProjectMetadata(fields) {

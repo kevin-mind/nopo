@@ -117,6 +117,14 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     // In-memory: no-op
   }
 
+  async submitReview(
+    _prNumber: number,
+    _event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
+    _body: string,
+  ): Promise<void> {
+    // In-memory: no-op
+  }
+
   async setProjectMetadata(_fields: {
     priority?: string;
     size?: string;
@@ -209,6 +217,15 @@ export async function requestReviewer(
   reviewer: string,
 ): Promise<void> {
   await repositoryFor(context).requestReviewer?.(prNumber, reviewer);
+}
+
+export async function submitReview(
+  context: ExampleContext,
+  prNumber: number,
+  event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
+  body: string,
+): Promise<void> {
+  await repositoryFor(context).submitReview?.(prNumber, event, body);
 }
 
 export async function persistIssueState(
