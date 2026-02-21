@@ -94,6 +94,14 @@ async function run(): Promise<void> {
   const octokit = github.getOctokit(token);
   const oktLike = asOctokitLike(octokit);
 
+  // Build workflowRunUrl from GitHub Actions env vars (same as events.ts buildEventFromWorkflow)
+  const serverUrl = process.env.GITHUB_SERVER_URL ?? "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY ?? `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID;
+  const workflowRunUrl = runId
+    ? `${serverUrl}/${repository}/actions/runs/${runId}`
+    : null;
+
   const loader = new ExampleContextLoader();
   const loaded = await loader.load({
     octokit: oktLike,
@@ -101,6 +109,7 @@ async function run(): Promise<void> {
     owner,
     repo,
     projectNumber,
+    workflowRunUrl,
     event: {
       type: trigger,
       owner,

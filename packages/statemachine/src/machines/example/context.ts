@@ -206,6 +206,8 @@ export interface ExampleContext {
   branch: string | null;
   hasBranch: boolean;
   botUsername: string;
+  /** Username to request PR reviews from (distinct from bot to avoid author-is-reviewer). */
+  reviewerUsername: string;
   /** Max CI failures before blocking (circuit breaker). Default 3. */
   maxRetries?: number;
   /** Result of branch preparation: clean (no rebase), rebased (force-pushed), or conflicts. */
@@ -219,6 +221,7 @@ export interface ExampleContext {
 }
 
 const DEFAULT_BOT_USERNAME = "nopo-bot";
+const DEFAULT_REVIEWER_USERNAME = "nopo-reviewer";
 
 // ---------------------------------------------------------------------------
 // Context loading skeleton (Sprint 1)
@@ -253,7 +256,7 @@ type ExampleWorkflowContext = Pick<
 >;
 type ExampleRuntimeContext = Pick<
   ExampleContext,
-  "ciResult" | "reviewDecision" | "botUsername"
+  "ciResult" | "reviewDecision" | "botUsername" | "reviewerUsername"
 >;
 
 interface ExampleContextWritablePatch {
@@ -714,6 +717,8 @@ export class ExampleContextLoader implements IssueStateRepository {
         options.botUsername ??
         options.seed?.botUsername ??
         DEFAULT_BOT_USERNAME,
+      reviewerUsername:
+        options.seed?.reviewerUsername ?? DEFAULT_REVIEWER_USERNAME,
     };
   }
 
@@ -750,6 +755,7 @@ export class ExampleContextLoader implements IssueStateRepository {
       branch,
       hasBranch: Boolean(branch),
       botUsername: runtime.botUsername,
+      reviewerUsername: runtime.reviewerUsername,
       branchPrepResult: options.seed?.branchPrepResult ?? null,
       triageOutput: options.seed?.triageOutput ?? null,
       groomingOutput: options.seed?.groomingOutput ?? null,
@@ -988,10 +994,35 @@ export class ExampleContextLoader implements IssueStateRepository {
     };
 
     if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
-      // Append row to existing table
       const table = children[headingIdx + 1]!;
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast table children manipulation
-      (table.children as unknown[]).push(newRow);
+      const rows = table.children as Array<{
+        children?: Array<{
+          children?: Array<{ type: string; value?: string }>;
+        }>;
+      }>;
+      const lastRow = rows.length > 1 ? rows[rows.length - 1] : null;
+      const lastMessage = lastRow?.children?.[3]?.children?.[0]?.value;
+
+      if (lastMessage?.includes("Running...") && lastRow?.children) {
+        // Replace the orphaned "Running..." row instead of appending
+        const cells = lastRow.children;
+        if (cells[0]?.children?.[0]) cells[0].children[0].value = timeCell;
+        if (cells[1]?.children?.[0])
+          cells[1].children[0].value = String(iteration - 1);
+        if (cells[2]?.children?.[0]) cells[2].children[0].value = entry.phase;
+        if (cells[3]?.children?.[0]) cells[3].children[0].value = entry.message;
+        if (cells[4]?.children?.[0])
+          cells[4].children[0].value = entry.sha
+            ? `\`${entry.sha.slice(0, 7)}\``
+            : "-";
+        if (cells[5]?.children?.[0])
+          cells[5].children[0].value = entry.runLink ?? "-";
+      } else {
+        // Append new row
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast table children manipulation
+        (table.children as unknown[]).push(newRow);
+      }
     } else {
       // Create heading + table with header row + data row
       const headerRow = {

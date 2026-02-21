@@ -199,7 +199,7 @@ function buildCompletingReviewTransitionQueue(
     actions.push(
       registry.requestReviewer.create({
         prNumber,
-        reviewer: context.domain.botUsername,
+        reviewer: context.domain.reviewerUsername,
       }),
     );
   }

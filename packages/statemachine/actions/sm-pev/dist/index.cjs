@@ -46879,7 +46879,7 @@ function buildCompletingReviewTransitionQueue(context, registry2) {
     actions.push(
       registry2.requestReviewer.create({
         prNumber,
-        reviewer: context.domain.botUsername
+        reviewer: context.domain.reviewerUsername
       })
     );
   }
@@ -47321,6 +47321,7 @@ var ExampleIssuePatchSchema = external_exports.object({
   subIssues: external_exports.array(ExampleSubIssueSchema).optional()
 });
 var DEFAULT_BOT_USERNAME2 = "nopo-bot";
+var DEFAULT_REVIEWER_USERNAME = "nopo-reviewer";
 function normalizeProjectStatus(value) {
   return value === "Ready" ? "In progress" : value;
 }
@@ -47652,7 +47653,8 @@ var ExampleContextLoader = class _ExampleContextLoader {
     return {
       ciResult: ciFromEvent ?? ciResultFromLinkedPr(linkedPr) ?? options.seed?.ciResult ?? null,
       reviewDecision: reviewFromEvent ?? reviewDecisionFromLinkedPr(linkedPr) ?? options.seed?.reviewDecision ?? null,
-      botUsername: options.botUsername ?? options.seed?.botUsername ?? DEFAULT_BOT_USERNAME2
+      botUsername: options.botUsername ?? options.seed?.botUsername ?? DEFAULT_BOT_USERNAME2,
+      reviewerUsername: options.seed?.reviewerUsername ?? DEFAULT_REVIEWER_USERNAME
     };
   }
   buildContext(state, options) {
@@ -47684,6 +47686,7 @@ var ExampleContextLoader = class _ExampleContextLoader {
       branch,
       hasBranch: Boolean(branch),
       botUsername: runtime.botUsername,
+      reviewerUsername: runtime.reviewerUsername,
       branchPrepResult: options.seed?.branchPrepResult ?? null,
       triageOutput: options.seed?.triageOutput ?? null,
       groomingOutput: options.seed?.groomingOutput ?? null,
@@ -47860,7 +47863,23 @@ var ExampleContextLoader = class _ExampleContextLoader {
     };
     if (headingIdx !== -1 && children[headingIdx + 1]?.type === "table") {
       const table = children[headingIdx + 1];
-      table.children.push(newRow);
+      const rows = table.children;
+      const lastRow = rows.length > 1 ? rows[rows.length - 1] : null;
+      const lastMessage = lastRow?.children?.[3]?.children?.[0]?.value;
+      if (lastMessage?.includes("Running...") && lastRow?.children) {
+        const cells = lastRow.children;
+        if (cells[0]?.children?.[0]) cells[0].children[0].value = timeCell;
+        if (cells[1]?.children?.[0])
+          cells[1].children[0].value = String(iteration - 1);
+        if (cells[2]?.children?.[0]) cells[2].children[0].value = entry.phase;
+        if (cells[3]?.children?.[0]) cells[3].children[0].value = entry.message;
+        if (cells[4]?.children?.[0])
+          cells[4].children[0].value = entry.sha ? `\`${entry.sha.slice(0, 7)}\`` : "-";
+        if (cells[5]?.children?.[0])
+          cells[5].children[0].value = entry.runLink ?? "-";
+      } else {
+        table.children.push(newRow);
+      }
     } else {
       const headerRow = {
         type: "tableRow",
@@ -68844,6 +68863,10 @@ async function run() {
   core3.info(`Issue: #${issueNumber}, Trigger: ${trigger}`);
   const octokit = github.getOctokit(token);
   const oktLike = asOctokitLike(octokit);
+  const serverUrl = process.env.GITHUB_SERVER_URL ?? "https://github.com";
+  const repository = process.env.GITHUB_REPOSITORY ?? `${owner}/${repo}`;
+  const runId = process.env.GITHUB_RUN_ID;
+  const workflowRunUrl = runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null;
   const loader = new ExampleContextLoader();
   const loaded = await loader.load({
     octokit: oktLike,
@@ -68851,6 +68874,7 @@ async function run() {
     owner,
     repo,
     projectNumber,
+    workflowRunUrl,
     event: {
       type: trigger,
       owner,

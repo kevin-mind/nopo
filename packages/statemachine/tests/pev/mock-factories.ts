@@ -66,6 +66,7 @@ const buildExampleContext = createMockFactory<ExampleContextFixture>({
   branch: null,
   hasBranch: false,
   botUsername: "nopo-bot",
+  reviewerUsername: "nopo-reviewer",
 });
 
 export const mockExamplePR = buildExamplePR;
