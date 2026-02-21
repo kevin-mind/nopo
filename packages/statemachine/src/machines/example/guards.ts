@@ -55,8 +55,9 @@ function canIterate({ context }: GuardArgs): boolean {
   return context.domain.issue.assignees.includes(bot);
 }
 
-/** In review: status is "In review" */
+/** In review: status is "In review". Only fires on first cycle to prevent looping. */
 function isInReview({ context }: GuardArgs): boolean {
+  if (context.cycleCount > 0) return false;
   return context.domain.issue.projectStatus === "In review";
 }
 

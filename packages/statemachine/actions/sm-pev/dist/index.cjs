@@ -46674,6 +46674,7 @@ function canIterate({ context }) {
   return context.domain.issue.assignees.includes(bot);
 }
 function isInReview({ context }) {
+  if (context.cycleCount > 0) return false;
   return context.domain.issue.projectStatus === "In review";
 }
 function isAlreadyDone({ context }) {
