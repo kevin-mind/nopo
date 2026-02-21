@@ -38,6 +38,7 @@ import {
   needsTriage,
   canIterate,
   isInReview,
+  isInReviewAndCIPassed,
   isInReviewFirstCycle,
   isAlreadyDone,
   isBlocked,
@@ -142,6 +143,7 @@ export const exampleMachine = createMachineFactory<
     needsTriage,
     canIterate,
     isInReview,
+    isInReviewAndCIPassed,
     isInReviewFirstCycle,
     isAlreadyDone,
     isBlocked,
@@ -304,7 +306,8 @@ export const exampleMachine = createMachineFactory<
           { target: "reviewing", guard: "triggeredByReview" },
           // ARC 33-35
           { target: "triaging", guard: "needsTriage" },
-          // "In review" — first cycle requests reviewer, subsequent cycles stop
+          // "In review" — run Claude review if CI passed, otherwise request reviewer
+          { target: "prReviewing", guard: "isInReviewAndCIPassed" },
           { target: "ensureReviewRequested", guard: "isInReviewFirstCycle" },
           { target: "awaitingReview", guard: "isInReview" },
           { target: "preparing", guard: "canIterate" },

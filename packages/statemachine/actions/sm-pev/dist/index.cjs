@@ -46676,6 +46676,9 @@ function canIterate({ context }) {
 function isInReview({ context }) {
   return context.domain.issue.projectStatus === "In review";
 }
+function isInReviewAndCIPassed({ context }) {
+  return context.cycleCount === 0 && isInReview({ context }) && ciPassed({ context });
+}
 function isInReviewFirstCycle({ context }) {
   return context.cycleCount === 0 && isInReview({ context });
 }
@@ -48269,6 +48272,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   needsTriage,
   canIterate,
   isInReview,
+  isInReviewAndCIPassed,
   isInReviewFirstCycle,
   isAlreadyDone,
   isBlocked,
@@ -48430,7 +48434,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "reviewing", guard: "triggeredByReview" },
         // ARC 33-35
         { target: "triaging", guard: "needsTriage" },
-        // "In review" — first cycle requests reviewer, subsequent cycles stop
+        // "In review" — run Claude review if CI passed, otherwise request reviewer
+        { target: "prReviewing", guard: "isInReviewAndCIPassed" },
         { target: "ensureReviewRequested", guard: "isInReviewFirstCycle" },
         { target: "awaitingReview", guard: "isInReview" },
         { target: "preparing", guard: "canIterate" },
