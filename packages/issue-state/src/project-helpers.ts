@@ -215,9 +215,6 @@ export async function updateProjectFields(
     status?: ProjectStatus | null;
     iteration?: number;
     failures?: number;
-    priority?: string;
-    size?: string;
-    estimate?: number;
   },
 ): Promise<void> {
   const fieldInfo = await getProjectFieldInfo(
