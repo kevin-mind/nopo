@@ -420,7 +420,7 @@ describe("Example Machine — Review", () => {
     expect(snap.context.domain.issue.projectStatus).toBe("Done");
   });
 
-  it("handles pr-review-requested trigger on In review sub-issue as no-op", async () => {
+  it("handles pr-review-requested trigger on In review sub-issue by assigning review", async () => {
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
@@ -435,7 +435,8 @@ describe("Example Machine — Review", () => {
     });
 
     const snap = await runExampleMachine(domain);
-    expect(String(snap.value)).toBe("awaitingReview");
+    // pr-review-requested now routes to the PR review flow (CI not failed → assigned)
+    expect(String(snap.value)).toBe("prReviewAssigned");
     expect(snap.context.completedActions).toEqual([]);
   });
 });

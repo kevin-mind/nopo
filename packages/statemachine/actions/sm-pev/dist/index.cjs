@@ -46714,7 +46714,10 @@ function triggeredByOrchestrateAndNeedsGrooming({
 }) {
   return triggeredByOrchestrate({ context }) && needsGrooming({ context });
 }
-var triggeredByPRReview = firstCycleOnly(triggeredBy("pr-review"));
+var triggeredByPRReview = firstCycleOnly(({ context }) => {
+  const t = context.domain.trigger;
+  return t === "pr-review" || t === "pr-review-requested";
+});
 function prReviewWithCIPassed({ context }) {
   return triggeredByPRReview({ context }) && ciPassed({ context });
 }

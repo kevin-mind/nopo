@@ -126,7 +126,10 @@ function triggeredByOrchestrateAndNeedsGrooming({
 }: GuardArgs): boolean {
   return triggeredByOrchestrate({ context }) && needsGrooming({ context });
 }
-const triggeredByPRReview = firstCycleOnly(triggeredBy("pr-review"));
+const triggeredByPRReview = firstCycleOnly(({ context }: GuardArgs) => {
+  const t = context.domain.trigger;
+  return t === "pr-review" || t === "pr-review-requested";
+});
 
 /** PR review trigger + CI passed → run Claude review */
 function prReviewWithCIPassed({ context }: GuardArgs): boolean {

@@ -201,7 +201,7 @@ describe("example routing skeleton", () => {
     { trigger: "issue-retry", expectedState: "done", needsSubIssue: true },
     { trigger: "issue-comment", expectedState: "done" },
     { trigger: "issue-groom-summary", expectedState: "done" },
-    { trigger: "pr-review-requested", expectedState: "done" },
+    { trigger: "pr-review-requested", expectedState: "prReviewAssigned" },
     { trigger: "merge-queue-entered", expectedState: "done" },
     { trigger: "deployed-prod-failed", expectedState: "done" },
   ];
