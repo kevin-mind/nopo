@@ -14,6 +14,27 @@ import { computeExpectedStatus } from "./milestones.js";
 
 type Ctx = RunnerMachineContext<ExampleContext, ExampleAction>;
 
+/** Build the common promptVars needed by the review prompt. */
+function buildReviewPromptVars(
+  context: Ctx,
+  issueNumber: number,
+): Record<string, string> {
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  return {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: target.title,
+    ISSUE_BODY: target.body,
+    ISSUE_COMMENTS: target.comments.join("\n"),
+    REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+    REVIEWER: "unknown",
+    PR_NUMBER: String(context.domain.pr?.number ?? 0),
+    HEAD_REF: context.domain.pr?.headRef ?? context.domain.branch ?? "",
+    BASE_REF: context.domain.pr?.baseRef ?? "main",
+    REPO_OWNER: context.domain.owner,
+    REPO_NAME: context.domain.repo,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Fix state queue — aligns project status with milestone-computed status
 // ---------------------------------------------------------------------------
@@ -217,14 +238,7 @@ function buildCompletingReviewTransitionQueue(
   actions.push(
     registry.runClaudeReview.create({
       issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: target.title,
-        ISSUE_BODY: target.body,
-        ISSUE_COMMENTS: target.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown",
-      },
+      promptVars: buildReviewPromptVars(context, issueNumber),
     }),
     registry.applyReviewOutput.create({ issueNumber }),
   );
@@ -407,14 +421,7 @@ function buildPrReviewQueue(
   return [
     registry.runClaudeReview.create({
       issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown",
-      },
+      promptVars: buildReviewPromptVars(context, issueNumber),
     }),
     registry.applyReviewOutput.create({
       issueNumber,
@@ -527,14 +534,7 @@ function buildAwaitingReviewQueue(
     actions.push(
       registry.runClaudeReview.create({
         issueNumber,
-        promptVars: {
-          ISSUE_NUMBER: String(issueNumber),
-          ISSUE_TITLE: target.title,
-          ISSUE_BODY: target.body,
-          ISSUE_COMMENTS: target.comments.join("\n"),
-          REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-          REVIEWER: "unknown",
-        },
+        promptVars: buildReviewPromptVars(context, issueNumber),
       }),
       registry.applyReviewOutput.create({ issueNumber }),
     );

@@ -46863,6 +46863,22 @@ function branchPrepConflicts({ context }) {
 }
 
 // packages/statemachine/src/machines/example/states.ts
+function buildReviewPromptVars(context, issueNumber) {
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  return {
+    ISSUE_NUMBER: String(issueNumber),
+    ISSUE_TITLE: target.title,
+    ISSUE_BODY: target.body,
+    ISSUE_COMMENTS: target.comments.join("\n"),
+    REVIEW_DECISION: context.domain.reviewDecision ?? "none",
+    REVIEWER: "unknown",
+    PR_NUMBER: String(context.domain.pr?.number ?? 0),
+    HEAD_REF: context.domain.pr?.headRef ?? context.domain.branch ?? "",
+    BASE_REF: context.domain.pr?.baseRef ?? "main",
+    REPO_OWNER: context.domain.owner,
+    REPO_NAME: context.domain.repo
+  };
+}
 function buildFixStateQueue(context, registry2) {
   const ctx = context.domain;
   const issueNumber = ctx.issue.number;
@@ -47023,14 +47039,7 @@ function buildCompletingReviewTransitionQueue(context, registry2) {
   actions.push(
     registry2.runClaudeReview.create({
       issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: target.title,
-        ISSUE_BODY: target.body,
-        ISSUE_COMMENTS: target.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown"
-      }
+      promptVars: buildReviewPromptVars(context, issueNumber)
     }),
     registry2.applyReviewOutput.create({ issueNumber })
   );
@@ -47162,14 +47171,7 @@ function buildPrReviewQueue(context, registry2) {
   return [
     registry2.runClaudeReview.create({
       issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown"
-      }
+      promptVars: buildReviewPromptVars(context, issueNumber)
     }),
     registry2.applyReviewOutput.create({
       issueNumber
@@ -47252,14 +47254,7 @@ function buildAwaitingReviewQueue(context, registry2) {
     actions.push(
       registry2.runClaudeReview.create({
         issueNumber,
-        promptVars: {
-          ISSUE_NUMBER: String(issueNumber),
-          ISSUE_TITLE: target.title,
-          ISSUE_BODY: target.body,
-          ISSUE_COMMENTS: target.comments.join("\n"),
-          REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-          REVIEWER: "unknown"
-        }
+        promptVars: buildReviewPromptVars(context, issueNumber)
       }),
       registry2.applyReviewOutput.create({ issueNumber })
     );
