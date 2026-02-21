@@ -141,5 +141,9 @@ export function isStatusCompatible(
   if (actual === expected) return true;
   // null is equivalent to Backlog
   if (actual === null && expected === "Backlog") return true;
+  // Triaged is a valid intermediate between Backlog and Groomed;
+  // milestones cannot detect triage from artifacts alone so treat
+  // it as compatible with Backlog.
+  if (actual === "Triaged" && expected === "Backlog") return true;
   return false;
 }
