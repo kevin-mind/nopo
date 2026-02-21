@@ -170,6 +170,7 @@ export const mockExampleServices = createMockFactory<ExampleServices>({
       decision: "approve" as const,
       body: "LGTM",
     }),
+    submitReview: async () => {},
   },
   prResponse: {
     respondToPr: async () => ({

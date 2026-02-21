@@ -13051,7 +13051,7 @@ var require_fetch = __commonJS({
         this.emit("terminated", error3);
       }
     };
-    function fetch(input, init = {}) {
+    function fetch2(input, init = {}) {
       webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p = createDeferredPromise();
       let requestObject;
@@ -13981,7 +13981,7 @@ var require_fetch = __commonJS({
       }
     }
     module2.exports = {
-      fetch,
+      fetch: fetch2,
       Fetch,
       fetching,
       finalizeAndReportTiming
@@ -17237,7 +17237,7 @@ var require_undici = __commonJS({
     module2.exports.getGlobalDispatcher = getGlobalDispatcher;
     if (util3.nodeMajor > 16 || util3.nodeMajor === 16 && util3.nodeMinor >= 8) {
       let fetchImpl = null;
-      module2.exports.fetch = async function fetch(resource) {
+      module2.exports.fetch = async function fetch2(resource) {
         if (!fetchImpl) {
           fetchImpl = require_fetch().fetch;
         }
@@ -20713,16 +20713,16 @@ var require_dist_node5 = __commonJS({
       let headers = {};
       let status;
       let url;
-      let { fetch } = globalThis;
+      let { fetch: fetch2 } = globalThis;
       if ((_b = requestOptions.request) == null ? void 0 : _b.fetch) {
-        fetch = requestOptions.request.fetch;
+        fetch2 = requestOptions.request.fetch;
       }
-      if (!fetch) {
+      if (!fetch2) {
         throw new Error(
           "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
         );
       }
-      return fetch(requestOptions.url, {
+      return fetch2(requestOptions.url, {
         method: requestOptions.method,
         body: requestOptions.body,
         redirect: (_c = requestOptions.request) == null ? void 0 : _c.redirect,
@@ -45863,9 +45863,6 @@ async function markPRReady(context, prNumber) {
 async function requestReviewer(context, prNumber, reviewer) {
   await repositoryFor(context).requestReviewer?.(prNumber, reviewer);
 }
-async function submitReview(context, prNumber, event, body) {
-  await repositoryFor(context).submitReview?.(prNumber, event, body);
-}
 async function persistIssueState(context) {
   const repository = context.repository;
   if (!isPersistableRepository(repository)) return true;
@@ -46260,7 +46257,7 @@ function runClaudeReviewAction(createAction) {
 function applyReviewOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply review output to #${action.payload.issueNumber}`,
-    execute: async ({ ctx }) => {
+    execute: async ({ ctx, services }) => {
       const output = ctx.reviewOutput;
       if (!output) {
         return { ok: true, message: "No review output to apply" };
@@ -46268,7 +46265,13 @@ function applyReviewOutputAction(createAction) {
       const prNumber = ctx.pr?.number;
       if (prNumber) {
         const event = output.decision === "approve" ? "APPROVE" : output.decision === "request_changes" ? "REQUEST_CHANGES" : "COMMENT";
-        await submitReview(ctx, prNumber, event, output.body);
+        await services.review.submitReview({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          prNumber,
+          event,
+          body: output.body
+        });
       }
       ctx.reviewDecision = output.decision === "approve" ? "APPROVED" : output.decision === "request_changes" ? "CHANGES_REQUESTED" : "COMMENTED";
       ctx.reviewOutput = null;
@@ -69001,6 +69004,33 @@ function createClaudeReviewService(reviewerToken) {
         );
       }
       return mapClaudeOutputToReviewResult(result.structuredOutput);
+    },
+    async submitReview(input) {
+      const token = reviewerToken ?? process.env.GITHUB_TOKEN;
+      if (!token) {
+        throw new Error("No reviewer token available for submitting review");
+      }
+      const response = await fetch(
+        `https://api.github.com/repos/${input.owner}/${input.repo}/pulls/${input.prNumber}/reviews`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+          },
+          body: JSON.stringify({
+            event: input.event,
+            body: input.body
+          })
+        }
+      );
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(
+          `Failed to submit review: ${response.status} ${errorBody}`
+        );
+      }
     }
   };
 }

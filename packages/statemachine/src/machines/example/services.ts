@@ -106,6 +106,13 @@ interface ExampleReviewService {
       REVIEWER: string;
     };
   }): Promise<ExampleReviewOutput>;
+  submitReview(input: {
+    owner: string;
+    repo: string;
+    prNumber: number;
+    event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
+    body: string;
+  }): Promise<void>;
 }
 
 interface ExamplePrResponseService {
@@ -469,6 +476,33 @@ export function createClaudeReviewService(
         );
       }
       return mapClaudeOutputToReviewResult(result.structuredOutput);
+    },
+    async submitReview(input) {
+      const token = reviewerToken ?? process.env.GITHUB_TOKEN;
+      if (!token) {
+        throw new Error("No reviewer token available for submitting review");
+      }
+      const response = await fetch(
+        `https://api.github.com/repos/${input.owner}/${input.repo}/pulls/${input.prNumber}/reviews`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+          body: JSON.stringify({
+            event: input.event,
+            body: input.body,
+          }),
+        },
+      );
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(
+          `Failed to submit review: ${response.status} ${errorBody}`,
+        );
+      }
     },
   };
 }
