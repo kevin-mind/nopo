@@ -46674,8 +46674,10 @@ function canIterate({ context }) {
   return context.domain.issue.assignees.includes(bot);
 }
 function isInReview({ context }) {
-  if (context.cycleCount > 0) return false;
   return context.domain.issue.projectStatus === "In review";
+}
+function isInReviewFirstCycle({ context }) {
+  return context.cycleCount === 0 && isInReview({ context });
 }
 function isAlreadyDone({ context }) {
   return context.domain.issue.projectStatus === "Done" && context.domain.pr?.state === "MERGED";
@@ -48267,6 +48269,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   needsTriage,
   canIterate,
   isInReview,
+  isInReviewFirstCycle,
   isAlreadyDone,
   isBlocked,
   isError,
@@ -48427,7 +48430,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         { target: "reviewing", guard: "triggeredByReview" },
         // ARC 33-35
         { target: "triaging", guard: "needsTriage" },
-        // "In review" stops iteration — wait for review events
+        // "In review" — first cycle requests reviewer, subsequent cycles stop
+        { target: "ensureReviewRequested", guard: "isInReviewFirstCycle" },
         { target: "awaitingReview", guard: "isInReview" },
         { target: "preparing", guard: "canIterate" },
         // Sub-issue status-based routing (before isSubIssue catch-all)
@@ -48505,10 +48509,11 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
       entry: queue.assignReviewQueue,
       always: RUNNER_STATES.executingQueue
     },
-    awaitingReview: {
+    ensureReviewRequested: {
       entry: queue.assignAwaitingReviewQueue,
       always: RUNNER_STATES.executingQueue
     },
+    awaitingReview: { type: "final" },
     grooming: {
       entry: queue.assignGroomQueue,
       always: RUNNER_STATES.executingQueue

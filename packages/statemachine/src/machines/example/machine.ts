@@ -38,6 +38,7 @@ import {
   needsTriage,
   canIterate,
   isInReview,
+  isInReviewFirstCycle,
   isAlreadyDone,
   isBlocked,
   isError,
@@ -141,6 +142,7 @@ export const exampleMachine = createMachineFactory<
     needsTriage,
     canIterate,
     isInReview,
+    isInReviewFirstCycle,
     isAlreadyDone,
     isBlocked,
     isError,
@@ -302,7 +304,8 @@ export const exampleMachine = createMachineFactory<
           { target: "reviewing", guard: "triggeredByReview" },
           // ARC 33-35
           { target: "triaging", guard: "needsTriage" },
-          // "In review" stops iteration — wait for review events
+          // "In review" — first cycle requests reviewer, subsequent cycles stop
+          { target: "ensureReviewRequested", guard: "isInReviewFirstCycle" },
           { target: "awaitingReview", guard: "isInReview" },
           { target: "preparing", guard: "canIterate" },
           // Sub-issue status-based routing (before isSubIssue catch-all)
@@ -380,10 +383,11 @@ export const exampleMachine = createMachineFactory<
         entry: queue.assignReviewQueue,
         always: RUNNER_STATES.executingQueue,
       },
-      awaitingReview: {
+      ensureReviewRequested: {
         entry: queue.assignAwaitingReviewQueue,
         always: RUNNER_STATES.executingQueue,
       },
+      awaitingReview: { type: "final" },
       grooming: {
         entry: queue.assignGroomQueue,
         always: RUNNER_STATES.executingQueue,

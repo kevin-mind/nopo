@@ -55,10 +55,14 @@ function canIterate({ context }: GuardArgs): boolean {
   return context.domain.issue.assignees.includes(bot);
 }
 
-/** In review: status is "In review". Only fires on first cycle to prevent looping. */
+/** In review: status is "In review" */
 function isInReview({ context }: GuardArgs): boolean {
-  if (context.cycleCount > 0) return false;
   return context.domain.issue.projectStatus === "In review";
+}
+
+/** In review on first cycle: ensures reviewer is requested before stopping */
+function isInReviewFirstCycle({ context }: GuardArgs): boolean {
+  return context.cycleCount === 0 && isInReview({ context });
 }
 
 /** Already done: status Done and PR merged */
@@ -349,6 +353,7 @@ export {
   needsTriage,
   canIterate,
   isInReview,
+  isInReviewFirstCycle,
   isAlreadyDone,
   isBlocked,
   isError,
