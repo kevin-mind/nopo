@@ -22,6 +22,11 @@ export interface ProjectFieldInfo {
   statusOptions: Map<string, string>; // name -> optionId
   iterationFieldId: string | null;
   failuresFieldId: string | null;
+  priorityFieldId: string | null;
+  priorityOptions: Map<string, string>; // name -> optionId
+  sizeFieldId: string | null;
+  sizeOptions: Map<string, string>; // name -> optionId
+  estimateFieldId: string | null;
 }
 
 interface ProjectItemResponse {
@@ -110,6 +115,11 @@ export async function getProjectFieldInfo(
     const statusOptions = new Map<string, string>();
     let iterationFieldId: string | null = null;
     let failuresFieldId: string | null = null;
+    let priorityFieldId: string | null = null;
+    const priorityOptions = new Map<string, string>();
+    let sizeFieldId: string | null = null;
+    const sizeOptions = new Map<string, string>();
+    let estimateFieldId: string | null = null;
 
     for (const field of project.fields.nodes) {
       if (field.name === "Status" && field.options) {
@@ -121,6 +131,18 @@ export async function getProjectFieldInfo(
         iterationFieldId = field.id;
       } else if (field.name === "Failures" && field.dataType === "NUMBER") {
         failuresFieldId = field.id;
+      } else if (field.name === "Priority" && field.options) {
+        priorityFieldId = field.id;
+        for (const option of field.options) {
+          priorityOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Size" && field.options) {
+        sizeFieldId = field.id;
+        for (const option of field.options) {
+          sizeOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Estimate" && field.dataType === "NUMBER") {
+        estimateFieldId = field.id;
       }
     }
 
@@ -131,6 +153,11 @@ export async function getProjectFieldInfo(
       statusOptions,
       iterationFieldId,
       failuresFieldId,
+      priorityFieldId,
+      priorityOptions,
+      sizeFieldId,
+      sizeOptions,
+      estimateFieldId,
     };
   } catch {
     return null;
@@ -175,7 +202,7 @@ export async function updateProjectField(
 }
 
 /**
- * Update project fields (Status, Iteration, Failures) for an issue.
+ * Update project fields (Status, Iteration, Failures, Priority, Size, Estimate) for an issue.
  * If the issue is not in the project, it will be added first.
  */
 export async function updateProjectFields(
@@ -188,6 +215,9 @@ export async function updateProjectFields(
     status?: ProjectStatus | null;
     iteration?: number;
     failures?: number;
+    priority?: string;
+    size?: string;
+    estimate?: number;
   },
 ): Promise<void> {
   const fieldInfo = await getProjectFieldInfo(
@@ -253,6 +283,51 @@ export async function updateProjectFields(
         projectItemId,
         fieldInfo.failuresFieldId,
         { number: fields.failures },
+      ),
+    );
+  }
+
+  // Update Priority field (single-select)
+  if (fields.priority !== undefined && fieldInfo.priorityFieldId) {
+    const optionId = fieldInfo.priorityOptions.get(fields.priority);
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.priorityFieldId,
+          { singleSelectOptionId: optionId },
+        ),
+      );
+    }
+  }
+
+  // Update Size field (single-select)
+  if (fields.size !== undefined && fieldInfo.sizeFieldId) {
+    const optionId = fieldInfo.sizeOptions.get(fields.size);
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.sizeFieldId,
+          { singleSelectOptionId: optionId },
+        ),
+      );
+    }
+  }
+
+  // Update Estimate field (number)
+  if (fields.estimate !== undefined && fieldInfo.estimateFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.estimateFieldId,
+        { number: fields.estimate },
       ),
     );
   }

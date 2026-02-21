@@ -350,10 +350,10 @@ describe("createDomainMachine", () => {
       },
     });
 
-    // Capture intermediate state to check prediction
+    // Capture intermediate state to check prediction (batch mode: queuePredictions)
     actor.subscribe((s) => {
-      if (s.context.prediction) {
-        capturedPrediction = s.context.prediction;
+      if (s.context.queuePredictions.length > 0) {
+        capturedPrediction = s.context.queuePredictions[0]?.prediction ?? null;
       }
     });
 
@@ -448,9 +448,10 @@ describe("createDomainMachine", () => {
     const snapshot = await runMachine(machine, { value: 0 });
 
     expect(String(snapshot.value)).toBe("idle");
-    expect(refreshCallCount).toBe(2);
+    // Batch PEV: single refresh per queue, not per action
+    expect(refreshCallCount).toBe(1);
     // Domain context should have been updated by refreshContext
-    expect(snapshot.context.domain.value).toBe(2);
+    expect(snapshot.context.domain.value).toBe(1);
   });
 
   it("transitions to idle with empty queue after one cycle", async () => {

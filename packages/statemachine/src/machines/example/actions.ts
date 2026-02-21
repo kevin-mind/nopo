@@ -608,8 +608,16 @@ export function recordFailureAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
-    // No predict: failures are in-memory only (not persisted to GitHub project fields
-    // via save()). Verify refreshes from GitHub where the value is still 0.
+    predict: (_action, ctx) => ({
+      description: "Failures should be incremented",
+      checks: [
+        {
+          comparator: "gte" as const,
+          field: "issue.failures",
+          expected: (ctx.issue.failures ?? 0) + 1,
+        },
+      ],
+    }),
     execute: async ({ action, ctx }) => {
       const issue =
         ctx.issue.number === action.payload.issueNumber

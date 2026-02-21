@@ -9,7 +9,7 @@
  * transient per-run context like ciResult or reviewDecision.
  *
  * Parent milestone ladder:
- *   Backlog → Triaged (## Triage section in body) → Groomed (hasSubIssues) → In progress → Done
+ *   Backlog → Triaged (## Approach section + type:* label) → Groomed (hasSubIssues) → In progress → Done
  *
  * Labels are descriptive metadata only (type:*, topic:*), not state tracking.
  * State is auto-persisted at queue drain, not by individual actions.
@@ -68,8 +68,11 @@ function computeParentMilestone(ctx: ExampleContext): ParentMilestone {
     return "groomed";
   }
 
-  // 0.5: Has ## Triage section in body → triaged
-  if (ctx.issue.body.includes("## Triage")) {
+  // 0.5: Has ## Approach section in body + type:* label → triaged
+  if (
+    ctx.issue.body.includes("## Approach") &&
+    ctx.issue.labels.some((l) => l.startsWith("type:"))
+  ) {
     return "triaged";
   }
 

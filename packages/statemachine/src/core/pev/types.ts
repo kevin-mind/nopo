@@ -212,15 +212,16 @@ export interface RunnerMachineContext<
 
   /** Queue of actions to execute */
   actionQueue: TAction[];
-  /** Currently executing action */
+  /** Currently executing action (set during batch execute for error reporting) */
   currentAction: TAction | null;
-  /** Prediction for current action */
-  prediction: PredictResult | null;
-  /** Snapshot of domain context before current action executed */
-  preActionSnapshot: TDomainContext | null;
-  /** Result of executing current action */
-  executeResult: unknown;
-  /** Result of verifying current action */
+  /** Collected predictions and execution results for the current queue batch */
+  queuePredictions: Array<{
+    action: TAction;
+    prediction: PredictResult | null;
+    preSnapshot: TDomainContext;
+    executeResult: unknown;
+  }>;
+  /** Result of verifying current action batch */
   verifyResult: PevVerifyResult | null;
   /** Log of completed actions */
   completedActions: Array<{
@@ -236,6 +237,8 @@ export interface RunnerMachineContext<
   error: string | null;
   /** Label for the current queue phase (e.g. "triage", "iterate") */
   queueLabel: string | null;
+  /** Internal: index into completedActions where the current queue's results start */
+  _queueStartIndex: number;
 
   /** External runner context (octokit, tokens, etc.) */
   runnerCtx: ExternalRunnerContext;

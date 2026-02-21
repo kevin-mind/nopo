@@ -290,7 +290,7 @@ describe("runner integration with prediction checks", () => {
 
     const snapshot = await runMachine(registry);
     expect(String(snapshot.value)).toBe("idle");
-    expect(snapshot.context.verifyResult?.pass).toBe(true);
+    expect(snapshot.context.completedActions[0]?.verified).toBe(true);
   });
 
   it("enforces prediction checks even if custom verify returns pass", async () => {
@@ -381,7 +381,7 @@ describe("runner integration with prediction checks", () => {
 
     const snapshot = await runMachine(registry);
     expect(String(snapshot.value)).toBe("idle");
-    expect(snapshot.context.verifyResult?.pass).toBe(true);
+    expect(snapshot.context.completedActions[0]?.verified).toBe(true);
   });
 
   it("treats failure-only verify return object as failed verification", async () => {

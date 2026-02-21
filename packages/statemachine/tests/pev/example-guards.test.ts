@@ -40,15 +40,14 @@ function withRunnerContext(
     services: null,
     actionQueue: [],
     currentAction: null,
-    prediction: null,
-    preActionSnapshot: null,
-    executeResult: null,
+    queuePredictions: [],
     verifyResult: null,
     completedActions: [],
     cycleCount: 0,
     maxCycles: 10,
     error: null,
     queueLabel: null,
+    _queueStartIndex: 0,
     runnerCtx: { token: "token", owner: "owner", repo: "repo" },
   };
 }

@@ -27239,7 +27239,10 @@ function waitFor(actorRef, predicate, options) {
 // packages/statemachine/src/core/pev/runner-states.ts
 var RUNNER_STATES = {
   executingQueue: "executingQueue",
-  runningAction: "runningAction",
+  executingBatch: "executingBatch",
+  persistingBatch: "persistingBatch",
+  refreshingContext: "refreshingContext",
+  verifyingBatch: "verifyingBatch",
   queueComplete: "queueComplete",
   executionFailed: "executionFailed",
   verificationFailed: "verificationFailed",
@@ -27450,9 +27453,43 @@ function cloneDomainSnapshot(value) {
     )
   );
 }
+var BatchExecuteError = class extends Error {
+  constructor(message, completedResults, failedAction) {
+    super(message);
+    this.completedResults = completedResults;
+    this.failedAction = failedAction;
+    this.name = "BatchExecuteError";
+  }
+};
 function buildRunnerStates(configId, actionRegistry, hasActionFailureState, hasBeforeQueue) {
   const actionFailureTarget = hasActionFailureState ? `#${configId}.actionFailure` : `#${configId}.${RUNNER_STATES.executionFailed}`;
   const verificationFailureTarget = hasActionFailureState ? `#${configId}.actionFailure` : `#${configId}.${RUNNER_STATES.verificationFailed}`;
+  const collectPredictionsAssign = assign({
+    queuePredictions: ({ context }) => {
+      const preSnapshot = cloneDomainSnapshot(context.domain);
+      return context.actionQueue.map((action) => {
+        const def = actionRegistry[action.type];
+        const prediction = def?.predict != null ? def.predict(action, context.domain) : null;
+        return {
+          action,
+          prediction,
+          preSnapshot,
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState assign callback needs compatible type
+          executeResult: null
+        };
+      });
+    },
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState assign callback needs compatible type
+    actionQueue: () => [],
+    // Reset stale verifyResult from any previous queue cycle
+    verifyResult: () => null,
+    error: () => null,
+    // Track where this queue's completedActions start (so afterQueue gets only this queue's results)
+    _queueStartIndex: ({ context }) => context.completedActions.length
+  });
+  const setQueueStartIndex = assign({
+    _queueStartIndex: ({ context }) => context.completedActions.length
+  });
   const executingQueueState = hasBeforeQueue ? {
     initial: "startingQueue",
     states: {
@@ -27467,35 +27504,24 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState, hasB
           onDone: [
             {
               guard: "queueEmpty",
-              target: `#${configId}.${RUNNER_STATES.queueComplete}`
+              target: `#${configId}.${RUNNER_STATES.queueComplete}`,
+              actions: setQueueStartIndex
             },
-            { target: "dequeuing" }
+            { target: "collectingPredictions" }
           ],
-          onError: "dequeuing"
+          onError: "collectingPredictions"
         }
       },
-      dequeuing: {
+      collectingPredictions: {
         always: [
           {
             guard: "queueEmpty",
-            target: `#${configId}.${RUNNER_STATES.queueComplete}`
+            target: `#${configId}.${RUNNER_STATES.queueComplete}`,
+            actions: setQueueStartIndex
           },
           {
-            target: `#${configId}.${RUNNER_STATES.runningAction}`,
-            actions: assign({
-              currentAction: ({ context }) => context.actionQueue[0] ?? null,
-              actionQueue: ({ context }) => context.actionQueue.slice(1),
-              prediction: ({ context }) => {
-                const action = context.actionQueue[0];
-                if (!action) return null;
-                const def = actionRegistry[action.type];
-                if (!def?.predict) return null;
-                return def.predict(action, context.domain);
-              },
-              preActionSnapshot: ({ context }) => cloneDomainSnapshot(context.domain),
-              executeResult: () => null,
-              verifyResult: () => null
-            })
+            target: `#${configId}.${RUNNER_STATES.executingBatch}`,
+            actions: collectPredictionsAssign
           }
         ]
       }
@@ -27504,112 +27530,148 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState, hasB
     always: [
       {
         guard: "queueEmpty",
-        target: RUNNER_STATES.queueComplete
+        target: RUNNER_STATES.queueComplete,
+        actions: setQueueStartIndex
       },
       {
-        target: RUNNER_STATES.runningAction,
-        actions: assign({
-          currentAction: ({ context }) => context.actionQueue[0] ?? null,
-          actionQueue: ({ context }) => context.actionQueue.slice(1),
-          prediction: ({ context }) => {
-            const action = context.actionQueue[0];
-            if (!action) return null;
-            const def = actionRegistry[action.type];
-            if (!def?.predict) return null;
-            return def.predict(action, context.domain);
-          },
-          preActionSnapshot: ({ context }) => cloneDomainSnapshot(context.domain),
-          executeResult: () => null,
-          verifyResult: () => null
-        })
+        target: RUNNER_STATES.executingBatch,
+        actions: collectPredictionsAssign
       }
     ]
   };
   return {
     [RUNNER_STATES.executingQueue]: executingQueueState,
-    [RUNNER_STATES.runningAction]: {
-      initial: "executing",
-      states: {
-        executing: {
-          invoke: {
-            src: "executeAction",
-            input: ({ context }) => ({
-              action: context.currentAction,
-              domain: context.domain,
-              services: context.services,
-              prediction: context.prediction
-            }),
-            onDone: {
-              target: "verifying",
-              actions: assign({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
-                executeResult: ({ event }) => event.output
-              })
+    [RUNNER_STATES.executingBatch]: {
+      invoke: {
+        src: "executeBatchActions",
+        input: ({ context }) => ({
+          queuePredictions: context.queuePredictions,
+          domain: context.domain,
+          services: context.services
+        }),
+        onDone: {
+          target: RUNNER_STATES.persistingBatch,
+          actions: assign({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
+            queuePredictions: ({ context, event }) => {
+              const results = event.output;
+              return context.queuePredictions.map(
+                (entry, i) => ({
+                  ...entry,
+                  executeResult: results[i]
+                })
+              );
             },
-            onError: {
-              target: actionFailureTarget,
-              actions: assign({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onError event type not inferrable in factory
-                error: ({ event }) => event.error instanceof Error ? event.error.message : String(event.error)
-              })
-            }
-          }
+            currentAction: () => null
+          })
         },
-        verifying: {
-          invoke: {
-            src: "verifyAction",
-            input: ({ context }) => ({
-              action: context.currentAction,
-              runnerCtx: context.runnerCtx,
-              domain: context.domain,
-              preActionSnapshot: context.preActionSnapshot,
-              prediction: context.prediction,
-              executeResult: context.executeResult
-            }),
-            onDone: [
-              {
-                guard: ({
-                  event
-                }) => event.output.verifyResult.pass === true,
-                // After verify pass, go back to dequeuing (skip beforeQueue on subsequent actions)
-                target: hasBeforeQueue ? `#${configId}.${RUNNER_STATES.executingQueue}.dequeuing` : `#${configId}.${RUNNER_STATES.executingQueue}`,
-                actions: assign({
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
-                  verifyResult: ({ event }) => event.output.verifyResult,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
-                  domain: ({ event }) => event.output.newContext,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
-                  completedActions: ({ context, event }) => [
-                    ...context.completedActions,
-                    {
-                      action: context.currentAction,
-                      result: context.executeResult,
-                      verified: event.output.verifyResult.pass
-                    }
-                  ],
-                  currentAction: () => null,
-                  prediction: () => null,
-                  preActionSnapshot: () => null
-                })
-              },
-              {
-                target: verificationFailureTarget,
-                actions: assign({
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
-                  verifyResult: ({ event }) => event.output.verifyResult,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
-                  error: ({ event }) => `Verification failed: ${event.output.verifyResult.message}`
-                })
+        onError: {
+          target: actionFailureTarget,
+          actions: assign({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onError event type not inferrable in factory
+            error: ({ event }) => event.error instanceof Error ? event.error.message : String(event.error),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onError event type not inferrable in factory
+            currentAction: ({ event }) => event.error instanceof BatchExecuteError ? event.error.failedAction : null,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onError event type not inferrable in factory
+            completedActions: ({ context, event }) => {
+              if (event.error instanceof BatchExecuteError) {
+                return [
+                  ...context.completedActions,
+                  ...event.error.completedResults.map(
+                    (r) => ({
+                      action: r.action,
+                      result: r.executeResult,
+                      verified: false
+                    })
+                  )
+                ];
               }
-            ],
-            onError: {
-              target: verificationFailureTarget,
-              actions: assign({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onError event type not inferrable in factory
-                error: ({ event }) => event.error instanceof Error ? event.error.message : String(event.error)
-              })
+              return context.completedActions;
             }
+          })
+        }
+      }
+    },
+    [RUNNER_STATES.persistingBatch]: {
+      invoke: {
+        src: "persistBatchContext",
+        input: ({ context }) => ({
+          runnerCtx: context.runnerCtx,
+          domain: context.domain
+        }),
+        onDone: RUNNER_STATES.refreshingContext,
+        onError: RUNNER_STATES.refreshingContext
+      }
+    },
+    [RUNNER_STATES.refreshingContext]: {
+      invoke: {
+        src: "refreshBatchContext",
+        input: ({ context }) => ({
+          runnerCtx: context.runnerCtx,
+          domain: context.domain
+        }),
+        onDone: {
+          target: RUNNER_STATES.verifyingBatch,
+          actions: assign({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
+            domain: ({ event }) => event.output
+          })
+        },
+        onError: {
+          target: verificationFailureTarget,
+          actions: assign({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onError event type not inferrable in factory
+            error: ({ event }) => event.error instanceof Error ? `Context refresh failed: ${event.error.message}` : `Context refresh failed: ${String(event.error)}`
+          })
+        }
+      }
+    },
+    [RUNNER_STATES.verifyingBatch]: {
+      invoke: {
+        src: "verifyBatchActions",
+        input: ({ context }) => ({
+          queuePredictions: context.queuePredictions,
+          newCtx: context.domain
+        }),
+        onDone: [
+          {
+            guard: ({
+              event
+            }) => event.output.firstFailure !== null,
+            target: verificationFailureTarget,
+            actions: assign({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
+              completedActions: ({ context, event }) => [
+                ...context.completedActions,
+                ...event.output.completedActions
+              ],
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
+              verifyResult: ({ event }) => event.output.firstFailure,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
+              error: ({ event }) => `Verification failed: ${event.output.firstFailure.message}`,
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState assign callback needs compatible type
+              queuePredictions: () => []
+            })
+          },
+          {
+            target: RUNNER_STATES.queueComplete,
+            actions: assign({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
+              completedActions: ({ context, event }) => [
+                ...context.completedActions,
+                ...event.output.completedActions
+              ],
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState assign callback needs compatible type
+              queuePredictions: () => []
+            })
           }
+        ],
+        onError: {
+          target: verificationFailureTarget,
+          actions: assign({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onError event type not inferrable in factory
+            error: ({ event }) => event.error instanceof Error ? event.error.message : String(event.error)
+          })
         }
       }
     },
@@ -27688,32 +27750,53 @@ function createDomainMachine(config2) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions -- XState guard types can't be composed generically
     guards: allGuards,
     actors: {
-      executeAction: fromPromise(
+      executeBatchActions: fromPromise(
         async ({
           input
         }) => {
-          const def = config2.actionRegistry[input.action.type];
-          if (!def) {
-            throw new Error(
-              `No action definition for type: ${input.action.type}`
+          const results = [];
+          for (const entry of input.queuePredictions) {
+            const def = config2.actionRegistry[entry.action.type];
+            if (!def) {
+              throw new BatchExecuteError(
+                `No action definition for type: ${entry.action.type}`,
+                results.map((r, i) => ({
+                  action: input.queuePredictions[i].action,
+                  executeResult: r
+                })),
+                entry.action
+              );
+            }
+            const actionDescription = resolveActionDescription(
+              def,
+              entry.action,
+              input.domain
             );
+            if (actionDescription) {
+              console.info(`[PEV] ${actionDescription}`);
+            }
+            if (entry.prediction?.description) {
+              console.info(`[PEV predict] ${entry.prediction.description}`);
+            }
+            try {
+              const result = await def.execute({
+                action: entry.action,
+                ctx: input.domain,
+                services: input.services
+              });
+              results.push(result);
+            } catch (err) {
+              throw new BatchExecuteError(
+                err instanceof Error ? err.message : String(err),
+                results.map((r, i) => ({
+                  action: input.queuePredictions[i].action,
+                  executeResult: r
+                })),
+                entry.action
+              );
+            }
           }
-          const actionDescription = resolveActionDescription(
-            def,
-            input.action,
-            input.domain
-          );
-          if (actionDescription) {
-            console.info(`[PEV] ${actionDescription}`);
-          }
-          if (input.prediction?.description) {
-            console.info(`[PEV predict] ${input.prediction.description}`);
-          }
-          return def.execute({
-            action: input.action,
-            ctx: input.domain,
-            services: input.services
-          });
+          return results;
         }
       ),
       startBeforeQueue: fromPromise(
@@ -27721,11 +27804,106 @@ function createDomainMachine(config2) {
           input
         }) => {
           if (config2.beforeQueue) {
-            config2.beforeQueue(input.runnerCtx, input.domain, input.queueLabel);
+            await config2.beforeQueue(
+              input.runnerCtx,
+              input.domain,
+              input.queueLabel
+            );
             if (config2.persistContext) {
               await config2.persistContext(input.runnerCtx, input.domain);
             }
           }
+        }
+      ),
+      persistBatchContext: fromPromise(
+        async ({
+          input
+        }) => {
+          if (config2.persistContext) {
+            console.info("[PEV] Persisting state before verify");
+            await config2.persistContext(input.runnerCtx, input.domain);
+          }
+        }
+      ),
+      refreshBatchContext: fromPromise(
+        async ({
+          input
+        }) => {
+          return config2.refreshContext(input.runnerCtx, input.domain);
+        }
+      ),
+      verifyBatchActions: fromPromise(
+        async ({
+          input
+        }) => {
+          const completedActions = [];
+          let firstFailure = null;
+          for (const entry of input.queuePredictions) {
+            const def = config2.actionRegistry[entry.action.type];
+            const predictionEval = evaluatePredictionChecks(
+              entry.prediction?.checks,
+              entry.preSnapshot,
+              input.newCtx
+            );
+            const defaultVerify = predictionEval.pass ? {
+              pass: true,
+              message: entry.prediction?.checks && entry.prediction.checks.length > 0 ? "Prediction checks passed" : "No checks defined \u2014 auto-pass"
+            } : {
+              pass: false,
+              message: "Prediction checks failed",
+              diffs: predictionEval.diffs
+            };
+            if (!def?.verify) {
+              completedActions.push({
+                action: entry.action,
+                result: entry.executeResult,
+                verified: defaultVerify.pass
+              });
+              if (!defaultVerify.pass && firstFailure === null) {
+                firstFailure = defaultVerify;
+              }
+              if (defaultVerify.message) {
+                const prefix = defaultVerify.pass ? "[PEV verify]" : "[PEV verify fail]";
+                console.info(
+                  `${prefix} ${entry.action.type}: ${defaultVerify.message}`
+                );
+              }
+              continue;
+            }
+            const customReturn = def.verify({
+              action: entry.action,
+              oldCtx: entry.preSnapshot,
+              newCtx: input.newCtx,
+              prediction: entry.prediction,
+              predictionEval,
+              predictionDiffs: predictionEval.diffs,
+              executeResult: entry.executeResult
+            });
+            const customResult = normalizeVerifyReturn(customReturn);
+            const verifyResult = {
+              pass: predictionEval.pass && customResult.pass,
+              message: predictionEval.pass || !entry.prediction?.checks?.length ? customResult.message : `${customResult.message} | Prediction checks failed`,
+              diffs: [
+                ...customResult.diffs ?? [],
+                ...predictionEval.pass ? [] : predictionEval.diffs
+              ]
+            };
+            completedActions.push({
+              action: entry.action,
+              result: entry.executeResult,
+              verified: verifyResult.pass
+            });
+            if (!verifyResult.pass && firstFailure === null) {
+              firstFailure = verifyResult;
+            }
+            if (verifyResult.message) {
+              const prefix = verifyResult.pass ? "[PEV verify]" : "[PEV verify fail]";
+              console.info(
+                `${prefix} ${entry.action.type}: ${verifyResult.message}`
+              );
+            }
+          }
+          return { completedActions, firstFailure };
         }
       ),
       persistAfterQueue: fromPromise(
@@ -27737,59 +27915,6 @@ function createDomainMachine(config2) {
             await config2.persistContext(input.runnerCtx, input.domain);
           }
         }
-      ),
-      verifyAction: fromPromise(
-        async ({
-          input
-        }) => {
-          const newCtx = await config2.refreshContext(
-            input.runnerCtx,
-            input.domain
-          );
-          const def = config2.actionRegistry[input.action.type];
-          const predictionEval = evaluatePredictionChecks(
-            input.prediction?.checks,
-            input.preActionSnapshot,
-            newCtx
-          );
-          const defaultVerify = predictionEval.pass ? {
-            pass: true,
-            message: input.prediction?.checks && input.prediction.checks.length > 0 ? "Prediction checks passed" : "No checks defined \u2014 auto-pass"
-          } : {
-            pass: false,
-            message: "Prediction checks failed",
-            diffs: predictionEval.diffs
-          };
-          if (!def?.verify) {
-            return {
-              verifyResult: defaultVerify,
-              newContext: newCtx
-            };
-          }
-          const customReturn = def.verify({
-            action: input.action,
-            oldCtx: input.preActionSnapshot,
-            newCtx,
-            prediction: input.prediction,
-            predictionEval,
-            predictionDiffs: predictionEval.diffs,
-            executeResult: input.executeResult
-          });
-          const customResult = normalizeVerifyReturn(customReturn);
-          const verifyResult = {
-            pass: predictionEval.pass && customResult.pass,
-            message: predictionEval.pass || !input.prediction?.checks?.length ? customResult.message : `${customResult.message} | Prediction checks failed`,
-            diffs: [
-              ...customResult.diffs ?? [],
-              ...predictionEval.pass ? [] : predictionEval.diffs
-            ]
-          };
-          if (verifyResult.message) {
-            const prefix = verifyResult.pass ? "[PEV verify]" : "[PEV verify fail]";
-            console.info(`${prefix} ${verifyResult.message}`);
-          }
-          return { verifyResult, newContext: newCtx };
-        }
       )
     },
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState action types can't be composed generically
@@ -27797,11 +27922,14 @@ function createDomainMachine(config2) {
       ...config2.actions ?? {},
       __runAfterQueue: ({ context }) => {
         if (config2.afterQueue) {
+          const queueActions = context.completedActions.slice(
+            context._queueStartIndex
+          );
           config2.afterQueue(
             context.runnerCtx,
             context.domain,
             context.queueLabel,
-            context.completedActions,
+            queueActions,
             context.error
           );
         }
@@ -27816,15 +27944,15 @@ function createDomainMachine(config2) {
       services: input.services,
       actionQueue: [],
       currentAction: null,
-      prediction: null,
-      preActionSnapshot: null,
-      executeResult: null,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState context init needs compatible type
+      queuePredictions: [],
       verifyResult: null,
       completedActions: [],
       cycleCount: 0,
       maxCycles: input.maxCycles ?? 1,
       error: null,
       queueLabel: null,
+      _queueStartIndex: 0,
       runnerCtx: input.runnerCtx
     }),
     states: allStates
@@ -46166,8 +46294,16 @@ function applyPrResponseOutputAction(createAction) {
 function recordFailureAction(createAction) {
   return createAction({
     description: (action) => `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
-    // No predict: failures are in-memory only (not persisted to GitHub project fields
-    // via save()). Verify refreshes from GitHub where the value is still 0.
+    predict: (_action, ctx) => ({
+      description: "Failures should be incremented",
+      checks: [
+        {
+          comparator: "gte",
+          field: "issue.failures",
+          expected: (ctx.issue.failures ?? 0) + 1
+        }
+      ]
+    }),
     execute: async ({ action, ctx }) => {
       const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
       const current = issue2.failures ?? 0;
@@ -68909,52 +69045,35 @@ async function run() {
     }
   });
   let lastState = "";
-  let pendingVerify = null;
   actor.subscribe((snapshot) => {
     const ctx2 = snapshot.context;
     const stateKey = typeof snapshot.value === "object" ? Object.values(snapshot.value).join(".") : String(snapshot.value);
     if (stateKey === lastState) return;
     lastState = stateKey;
-    if (pendingVerify && stateKey !== "verifying") {
-      const { action: verifiedAction, prediction: pred } = pendingVerify;
-      const result = ctx2.verifyResult;
-      const icon = result?.pass === false ? "\u2717" : "\u2713";
-      const desc = pred?.description ? `: ${pred.description}` : "";
-      const checkLines = (pred?.checks ?? []).map((c) => {
-        const diff = result?.diffs?.find((d) => d.field === c.field);
-        if (diff) {
-          return `    \u2717 ${c.description ?? c.field} (expected: ${JSON.stringify(diff.expected)}, actual: ${JSON.stringify(diff.actual)})`;
-        }
-        return `    \u2713 ${c.description ?? c.field}`;
-      }).join("\n");
-      core3.info(
-        `[verify] ${icon} ${verifiedAction}${desc}${checkLines ? `
-${checkLines}` : ""}`
-      );
-      if (result?.pass === false && result.message) {
-        core3.warning(`[verify] ${result.message}`);
-      }
-      pendingVerify = null;
-    }
-    const action = ctx2.currentAction?.type ?? "\u2014";
-    const queued = ctx2.actionQueue.map((a) => a.type).join(" \u2192 ");
     const cycle = `cycle ${ctx2.cycleCount + 1}/${ctx2.maxCycles}`;
     if (stateKey === "routing") {
       const d = ctx2.domain;
       core3.info(
         `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"} parentIssue=${d.parentIssue ? `#${d.parentIssue.number}` : "null"} issue=#${d.issue.number}`
       );
-    } else if (stateKey === "executing") {
-      core3.info(
-        `[exec] ${action} (${cycle}${queued ? `, next: ${queued}` : ""})`
+    } else if (stateKey === "executingBatch") {
+      const actions = ctx2.queuePredictions.map((p) => p.action.type).join(" \u2192 ");
+      core3.info(`[batch exec] ${actions} (${cycle})`);
+    } else if (stateKey === "persistingBatch") {
+      core3.info(`[batch persist] saving mutations before verify`);
+    } else if (stateKey === "refreshingContext") {
+      core3.info(`[batch refresh] re-fetching state from GitHub`);
+    } else if (stateKey === "verifyingBatch") {
+      const predictions = ctx2.queuePredictions.filter(
+        (p) => p.prediction?.checks?.length
       );
-    } else if (stateKey === "verifying") {
-      pendingVerify = { action, prediction: ctx2.prediction };
+      core3.info(`[batch verify] checking ${predictions.length} prediction(s)`);
     } else if (stateKey === "done") {
       core3.info(
         `[done] ${ctx2.completedActions.length} actions executed over ${ctx2.cycleCount} cycles`
       );
     } else {
+      const action = ctx2.currentAction?.type ?? "\u2014";
       core3.info(`[${stateKey}] action=${action}, ${cycle}`);
     }
   });

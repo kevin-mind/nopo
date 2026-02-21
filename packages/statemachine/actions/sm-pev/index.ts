@@ -150,10 +150,6 @@ async function run(): Promise<void> {
 
   // Log meaningful state transitions
   let lastState = "";
-  let pendingVerify: {
-    action: string;
-    prediction: typeof ctx.prediction;
-  } | null = null;
   actor.subscribe((snapshot) => {
     const ctx = snapshot.context;
     const stateKey =
@@ -165,32 +161,6 @@ async function run(): Promise<void> {
     if (stateKey === lastState) return;
     lastState = stateKey;
 
-    // When leaving verifying state, log the verify result
-    if (pendingVerify && stateKey !== "verifying") {
-      const { action: verifiedAction, prediction: pred } = pendingVerify;
-      const result = ctx.verifyResult;
-      const icon = result?.pass === false ? "✗" : "✓";
-      const desc = pred?.description ? `: ${pred.description}` : "";
-      const checkLines = (pred?.checks ?? [])
-        .map((c) => {
-          const diff = result?.diffs?.find((d) => d.field === c.field);
-          if (diff) {
-            return `    ✗ ${c.description ?? c.field} (expected: ${JSON.stringify(diff.expected)}, actual: ${JSON.stringify(diff.actual)})`;
-          }
-          return `    ✓ ${c.description ?? c.field}`;
-        })
-        .join("\n");
-      core.info(
-        `[verify] ${icon} ${verifiedAction}${desc}${checkLines ? `\n${checkLines}` : ""}`,
-      );
-      if (result?.pass === false && result.message) {
-        core.warning(`[verify] ${result.message}`);
-      }
-      pendingVerify = null;
-    }
-
-    const action = ctx.currentAction?.type ?? "—";
-    const queued = ctx.actionQueue.map((a) => a.type).join(" → ");
     const cycle = `cycle ${ctx.cycleCount + 1}/${ctx.maxCycles}`;
 
     if (stateKey === "routing") {
@@ -198,17 +168,26 @@ async function run(): Promise<void> {
       core.info(
         `[routing] ${cycle} | status=${d.issue.projectStatus} trigger=${d.trigger} branchPrep=${d.branchPrepResult} ci=${d.ciResult} failures=${d.issue.failures ?? 0} maxRetries=${d.maxRetries ?? "default(3)"} parentIssue=${d.parentIssue ? `#${d.parentIssue.number}` : "null"} issue=#${d.issue.number}`,
       );
-    } else if (stateKey === "executing") {
-      core.info(
-        `[exec] ${action} (${cycle}${queued ? `, next: ${queued}` : ""})`,
+    } else if (stateKey === "executingBatch") {
+      const actions = ctx.queuePredictions
+        .map((p) => p.action.type)
+        .join(" → ");
+      core.info(`[batch exec] ${actions} (${cycle})`);
+    } else if (stateKey === "persistingBatch") {
+      core.info(`[batch persist] saving mutations before verify`);
+    } else if (stateKey === "refreshingContext") {
+      core.info(`[batch refresh] re-fetching state from GitHub`);
+    } else if (stateKey === "verifyingBatch") {
+      const predictions = ctx.queuePredictions.filter(
+        (p) => p.prediction?.checks?.length,
       );
-    } else if (stateKey === "verifying") {
-      pendingVerify = { action, prediction: ctx.prediction };
+      core.info(`[batch verify] checking ${predictions.length} prediction(s)`);
     } else if (stateKey === "done") {
       core.info(
         `[done] ${ctx.completedActions.length} actions executed over ${ctx.cycleCount} cycles`,
       );
     } else {
+      const action = ctx.currentAction?.type ?? "—";
       core.info(`[${stateKey}] action=${action}, ${cycle}`);
     }
   });

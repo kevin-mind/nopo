@@ -11,6 +11,13 @@ export interface TriagePromptVars extends Record<string, string> {
 export interface ExampleTriageOutput {
   labelsToAdd: string[];
   summary: string;
+  priority?: "none" | "low" | "medium" | "high" | "critical";
+  size?: "xs" | "s" | "m" | "l" | "xl";
+  estimate?: number;
+  requirements?: string[];
+  initialQuestions?: string[];
+  relatedIssues?: number[];
+  agentNotes?: string[];
 }
 
 export interface ExampleGroomingOutput {
@@ -128,10 +135,27 @@ const ClaudeTriageOutputSchema = z.object({
       "test",
       "chore",
     ]),
+    priority: z.enum(["none", "low", "medium", "high", "critical"]).optional(),
+    size: z.enum(["xs", "s", "m", "l", "xl"]).optional(),
+    estimate: z
+      .union([
+        z.literal(1),
+        z.literal(2),
+        z.literal(3),
+        z.literal(5),
+        z.literal(8),
+        z.literal(13),
+        z.literal(21),
+      ])
+      .optional(),
     topics: z.array(z.string()),
     needs_info: z.boolean(),
   }),
+  requirements: z.array(z.string()).optional(),
   initial_approach: z.string(),
+  initial_questions: z.array(z.string()).optional(),
+  related_issues: z.array(z.number()).optional(),
+  agent_notes: z.array(z.string()).optional(),
 });
 
 const ClaudeGroomingSummaryOutputSchema = z.object({
@@ -201,6 +225,25 @@ function mapClaudeOutputToTriageResult(output: unknown): ExampleTriageOutput {
   return {
     labelsToAdd: [...new Set(labelsToAdd)],
     summary: parsed.initial_approach,
+    priority: parsed.triage.priority,
+    size: parsed.triage.size,
+    estimate: parsed.triage.estimate,
+    requirements:
+      parsed.requirements && parsed.requirements.length > 0
+        ? parsed.requirements
+        : undefined,
+    initialQuestions:
+      parsed.initial_questions && parsed.initial_questions.length > 0
+        ? parsed.initial_questions
+        : undefined,
+    relatedIssues:
+      parsed.related_issues && parsed.related_issues.length > 0
+        ? parsed.related_issues
+        : undefined,
+    agentNotes:
+      parsed.agent_notes && parsed.agent_notes.length > 0
+        ? parsed.agent_notes
+        : undefined,
   };
 }
 

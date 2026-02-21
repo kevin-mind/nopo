@@ -90,6 +90,56 @@ describe("createClaudeTriageService", () => {
     ).rejects.toThrow("claude unavailable");
   });
 
+  it("extracts full triage output including priority, size, estimate, requirements", async () => {
+    vi.mocked(resolvePrompt).mockReturnValue({
+      prompt: "triage prompt",
+      outputSchema: {},
+    });
+    vi.mocked(executeClaudeSDK).mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: "",
+      structuredOutput: {
+        triage: {
+          type: "enhancement",
+          priority: "high",
+          size: "m",
+          estimate: 5,
+          topics: ["api"],
+          needs_info: false,
+        },
+        requirements: ["Must support OAuth", "Must return proper errors"],
+        initial_approach: "Add auth middleware",
+        initial_questions: ["Which OAuth provider?"],
+        related_issues: [100],
+        agent_notes: ["Auth module in src/auth/"],
+      },
+    });
+
+    const service = createClaudeTriageService();
+    const result = await service.triageIssue({
+      issueNumber: 42,
+      promptVars: {
+        ISSUE_NUMBER: "42",
+        ISSUE_TITLE: "Add auth",
+        ISSUE_BODY: "Body",
+        ISSUE_COMMENTS: "",
+      },
+    });
+
+    expect(result).toEqual({
+      labelsToAdd: ["type:enhancement", "topic:api"],
+      summary: "Add auth middleware",
+      priority: "high",
+      size: "m",
+      estimate: 5,
+      requirements: ["Must support OAuth", "Must return proper errors"],
+      initialQuestions: ["Which OAuth provider?"],
+      relatedIssues: [100],
+      agentNotes: ["Auth module in src/auth/"],
+    });
+  });
+
   it("throws when Claude structured output is invalid", async () => {
     vi.mocked(resolvePrompt).mockReturnValue({
       prompt: "triage prompt",

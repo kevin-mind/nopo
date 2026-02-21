@@ -17,7 +17,10 @@
  */
 export const RUNNER_STATES = {
   executingQueue: "executingQueue",
-  runningAction: "runningAction",
+  executingBatch: "executingBatch",
+  persistingBatch: "persistingBatch",
+  refreshingContext: "refreshingContext",
+  verifyingBatch: "verifyingBatch",
   queueComplete: "queueComplete",
   executionFailed: "executionFailed",
   verificationFailed: "verificationFailed",
