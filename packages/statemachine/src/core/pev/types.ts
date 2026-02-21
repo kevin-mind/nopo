@@ -234,6 +234,8 @@ export interface RunnerMachineContext<
   maxCycles: number;
   /** Error message if execution fails */
   error: string | null;
+  /** Label for the current queue phase (e.g. "triage", "iterate") */
+  queueLabel: string | null;
 
   /** External runner context (octokit, tokens, etc.) */
   runnerCtx: ExternalRunnerContext;
@@ -283,6 +285,26 @@ export interface DomainMachineConfig<
     runnerCtx: ExternalRunnerContext,
     domain: TDomainContext,
   ) => Promise<void>;
+  /** Called once when a queue starts — before any actions execute.
+   *  Mutates domain (e.g. appends history entry). The runner persists to GitHub
+   *  immediately after this returns so the user sees progress in real-time. */
+  beforeQueue?: (
+    runnerCtx: ExternalRunnerContext,
+    domain: TDomainContext,
+    queueLabel: string | null,
+  ) => void;
+  /** Called after queue drains — before persist. Receives all completed action results. */
+  afterQueue?: (
+    runnerCtx: ExternalRunnerContext,
+    domain: TDomainContext,
+    queueLabel: string | null,
+    completedActions: Array<{
+      action: { type: string };
+      result: unknown;
+      verified: boolean;
+    }>,
+    error: string | null,
+  ) => void;
 }
 
 /**

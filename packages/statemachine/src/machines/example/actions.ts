@@ -120,31 +120,7 @@ export function updateStatusAction(createAction: ExampleCreateAction) {
     }),
     execute: async ({ action, ctx }) => {
       setIssueStatus(ctx, action.payload.status);
-      return { ok: true };
-    },
-  });
-}
-
-export function appendHistoryAction(createAction: ExampleCreateAction) {
-  return createAction<{
-    issueNumber: number;
-    message: string;
-    phase?: "triage" | "groom" | "iterate" | "review";
-  }>({
-    description: (action) =>
-      `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
-    execute: async ({ action, ctx }) => {
-      const repo = repositoryFor(ctx);
-      if (repo.appendHistoryEntry) {
-        repo.appendHistoryEntry({
-          phase: action.payload.phase ?? "generic",
-          message: action.payload.message,
-          timestamp: ctx.workflowStartedAt ?? new Date().toISOString(),
-          sha: ctx.ciCommitSha ?? undefined,
-          runLink: ctx.workflowRunUrl ?? undefined,
-        });
-      }
-      return { ok: true };
+      return { ok: true, message: `Status → ${action.payload.status}` };
     },
   });
 }
@@ -156,7 +132,10 @@ export function removeLabelsAction(createAction: ExampleCreateAction) {
     // No predict: "not_includes" comparator not yet available in prediction checks
     execute: async ({ action, ctx }) => {
       removeIssueLabels(ctx, action.payload.labels);
-      return { ok: true };
+      return {
+        ok: true,
+        message: `Removed labels: ${action.payload.labels.join(", ")}`,
+      };
     },
   });
 }
@@ -176,6 +155,7 @@ export function runClaudeTriageAction(createAction: ExampleCreateAction) {
       ctx.triageOutput = output;
       return {
         ok: true,
+        message: "Triage analysis complete",
         output,
       };
     },
@@ -217,23 +197,61 @@ export function applyTriageOutputAction(createAction: ExampleCreateAction) {
       }
       applyTriage(ctx, labelsToAdd);
 
-      // Write structured ## Triage section to issue body
       const output = ctx.triageOutput;
-      const type =
-        labelsToAdd.find((l) => l.startsWith("type:"))?.replace("type:", "") ??
-        "unknown";
-      const topics = labelsToAdd
-        .filter((l) => l.startsWith("topic:"))
-        .map((l) => l.replace("topic:", ""));
-      const approach = output?.summary ?? "";
 
-      const triageSection = [
-        "## Triage",
-        "",
-        `**Type:** ${type}`,
-        `**Topics:** ${topics.join(", ") || "none"}`,
-        `**Approach:** ${approach}`,
-      ].join("\n");
+      // Build structured body sections
+      const sections: string[] = [];
+
+      // ## Requirements
+      if (output?.requirements && output.requirements.length > 0) {
+        sections.push(
+          [
+            "## Requirements",
+            "",
+            ...output.requirements.map((r) => `- ${r}`),
+          ].join("\n"),
+        );
+      }
+
+      // ## Approach
+      if (output?.summary) {
+        sections.push(["## Approach", "", output.summary].join("\n"));
+      }
+
+      // ## Questions
+      if (output?.initialQuestions && output.initialQuestions.length > 0) {
+        sections.push(
+          [
+            "## Questions",
+            "",
+            ...output.initialQuestions.map((q) => `- ${q}`),
+          ].join("\n"),
+        );
+      }
+
+      // ## Related Issues
+      if (output?.relatedIssues && output.relatedIssues.length > 0) {
+        sections.push(
+          [
+            "## Related Issues",
+            "",
+            ...output.relatedIssues.map((n) => `- #${n}`),
+          ].join("\n"),
+        );
+      }
+
+      // ## Agent Notes
+      if (output?.agentNotes && output.agentNotes.length > 0) {
+        sections.push(
+          [
+            "## Agent Notes",
+            "",
+            ...output.agentNotes.map((n) => `- ${n}`),
+          ].join("\n"),
+        );
+      }
+
+      const triageContent = sections.join("\n\n");
 
       const repo = repositoryFor(ctx);
       const body = ctx.issue.body;
@@ -241,18 +259,40 @@ export function applyTriageOutputAction(createAction: ExampleCreateAction) {
       const newBody =
         historyIdx >= 0
           ? body.slice(0, historyIdx) +
-            triageSection +
+            triageContent +
             "\n\n" +
             body.slice(historyIdx)
-          : body + "\n\n" + triageSection;
+          : body + "\n\n" + triageContent;
       if (repo.updateBody) {
         repo.updateBody(newBody);
       } else {
         ctx.issue.body = newBody;
       }
 
+      // Set project metadata (priority, size, estimate) if available
+      if (
+        repo.setProjectMetadata &&
+        (output?.priority || output?.size || output?.estimate)
+      ) {
+        const metadata: {
+          priority?: string;
+          size?: string;
+          estimate?: number;
+        } = {};
+        if (output.priority && output.priority !== "none") {
+          metadata.priority = output.priority;
+        }
+        if (output.size) {
+          metadata.size = output.size.toUpperCase();
+        }
+        if (output.estimate) {
+          metadata.estimate = output.estimate;
+        }
+        await repo.setProjectMetadata(metadata);
+      }
+
       ctx.triageOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied triage labels and body sections" };
     },
     verify: (args) => {
       const { action, executeResult, predictionEval, predictionDiffs } = args;
@@ -287,6 +327,7 @@ export function runClaudeGroomingAction(createAction: ExampleCreateAction) {
       ctx.groomingOutput = output;
       return {
         ok: true,
+        message: "Grooming analysis complete",
         output,
       };
     },
@@ -307,7 +348,11 @@ export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
       if (output.labelsToAdd.length > 0) {
         applyGrooming(ctx, output.labelsToAdd);
       }
-      return { ok: true, decision: output.decision };
+      return {
+        ok: true,
+        message: "Applied grooming labels",
+        decision: output.decision,
+      };
     },
   });
 }
@@ -351,7 +396,11 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
         }
       }
       ctx.groomingOutput = null;
-      return { ok: true, decision: output.decision };
+      return {
+        ok: true,
+        message: "Sub-issues reconciled",
+        decision: output.decision,
+      };
     },
     verify: ({ executeResult, newCtx }) => {
       if (!isOkResult(executeResult)) {
@@ -389,6 +438,7 @@ export function runClaudeIterationAction(createAction: ExampleCreateAction) {
       ctx.iterationOutput = output;
       return {
         ok: true,
+        message: `${action.payload.mode === "retry" ? "Retry" : "Iteration"} complete`,
         output,
       };
     },
@@ -434,7 +484,7 @@ export function applyIterationOutputAction(createAction: ExampleCreateAction) {
       }
 
       ctx.iterationOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied iteration output" };
     },
     verify: ({ executeResult }) => {
       const executeSucceeded = isOkResult(executeResult);
@@ -461,7 +511,7 @@ export function runClaudeReviewAction(createAction: ExampleCreateAction) {
         promptVars: action.payload.promptVars,
       });
       ctx.reviewOutput = output;
-      return { ok: true, output };
+      return { ok: true, message: "Review analysis complete", output };
     },
   });
 }
@@ -480,7 +530,7 @@ export function applyReviewOutputAction(createAction: ExampleCreateAction) {
         applyTriage(ctx, labelsToAdd);
       }
       ctx.reviewOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied review output" };
     },
   });
 }
@@ -498,7 +548,7 @@ export function runClaudePrResponseAction(createAction: ExampleCreateAction) {
         promptVars: action.payload.promptVars,
       });
       ctx.prResponseOutput = output;
-      return { ok: true, output };
+      return { ok: true, message: "PR response analysis complete", output };
     },
   });
 }
@@ -517,7 +567,7 @@ export function applyPrResponseOutputAction(createAction: ExampleCreateAction) {
         applyTriage(ctx, labelsToAdd);
       }
       ctx.prResponseOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied PR response output" };
     },
   });
 }
@@ -553,7 +603,7 @@ export function recordFailureAction(createAction: ExampleCreateAction) {
           : (ctx.currentSubIssue ?? ctx.issue);
       const current = issue.failures ?? 0;
       Object.assign(issue, { failures: current + 1 });
-      return { ok: true };
+      return { ok: true, message: `Failure #${current + 1} recorded` };
     },
   });
 }
@@ -588,7 +638,11 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
         (s) => s.projectStatus !== "Done" && s.state === "OPEN",
       );
       const repo = repositoryFor(ctx);
-      if (!firstSub) return { ok: true };
+      if (!firstSub)
+        return {
+          ok: true,
+          message: "Orchestration complete (no active sub-issues)",
+        };
 
       // Detect stale review: sub-issue is "In review" but PR is closed or missing.
       // Reset to "In progress" so the machine can re-route to iterate in the same run.
@@ -612,7 +666,10 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
       if (repo.assignBotToSubIssue) {
         await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
       }
-      return { ok: true };
+      return {
+        ok: true,
+        message: `Orchestration: advancing to sub-issue #${firstSub.number}`,
+      };
     },
   });
 }
@@ -622,7 +679,11 @@ export function setupGitAction(createAction: ExampleCreateAction) {
     description: () => "Configure git credentials for PAT-based push",
     execute: async ({ action }) => {
       if (!isGitEnvironment()) {
-        return { ok: true, skipped: true };
+        return {
+          ok: true,
+          skipped: true,
+          message: "Git setup skipped (not in CI)",
+        };
       }
       const { token } = action.payload;
       await execAsync('git config user.name "nopo-bot"');
@@ -637,6 +698,7 @@ export function setupGitAction(createAction: ExampleCreateAction) {
       const { stdout: userEmail } = await execAsync("git config user.email");
       return {
         ok: true,
+        message: "Git credentials configured",
         userName: userName.trim(),
         userEmail: userEmail.trim(),
       };
@@ -668,7 +730,12 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
     execute: async ({ action, ctx }) => {
       if (!isGitEnvironment()) {
         ctx.branchPrepResult = "clean";
-        return { ok: true, skipped: true, branch: action.payload.branchName };
+        return {
+          ok: true,
+          skipped: true,
+          message: "Branch prep skipped (not in CI)",
+          branch: action.payload.branchName,
+        };
       }
       const { branchName, baseBranch = "main" } = action.payload;
 
@@ -718,6 +785,7 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
           ctx.branchPrepResult = "conflicts";
           return {
             ok: true,
+            message: "Branch has conflicts",
             branch: branchName,
             result: "conflicts" as const,
           };
@@ -735,6 +803,7 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
         );
         return {
           ok: true,
+          message: "Branch rebased",
           branch: currentBranch.trim(),
           result: "rebased" as const,
         };
@@ -749,6 +818,7 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
 
       return {
         ok: true,
+        message: "Branch ready",
         branch: currentBranch.trim(),
         result: "clean" as const,
       };
@@ -777,7 +847,7 @@ export function gitPushAction(createAction: ExampleCreateAction) {
       `Push branch "${action.payload.branchName}" to origin`,
     execute: async ({ action }) => {
       if (!isGitEnvironment()) {
-        return { ok: true, skipped: true };
+        return { ok: true, skipped: true, message: "Push skipped (not in CI)" };
       }
       const { branchName, forceWithLease = true } = action.payload;
       const forceFlag = forceWithLease ? " --force-with-lease" : "";
@@ -788,6 +858,7 @@ export function gitPushAction(createAction: ExampleCreateAction) {
 
       return {
         ok: true,
+        message: `Pushed to ${branchName}`,
         sha: localSha.trim(),
       };
     },
@@ -806,7 +877,10 @@ export function markPRReadyAction(createAction: ExampleCreateAction) {
       `Mark PR #${action.payload.prNumber} as ready for review`,
     execute: async ({ action, ctx }) => {
       await markPRReady(ctx, action.payload.prNumber);
-      return { ok: true };
+      return {
+        ok: true,
+        message: `PR #${action.payload.prNumber} marked ready`,
+      };
     },
     predict: (action) => ({
       description: `Mark PR #${action.payload.prNumber} as ready for review`,
@@ -839,12 +913,20 @@ export function requestReviewerAction(createAction: ExampleCreateAction) {
           action.payload.prNumber,
           action.payload.reviewer,
         );
-        return { ok: true };
+        return {
+          ok: true,
+          message: `Requested review from ${action.payload.reviewer}`,
+        };
       } catch (error) {
         // Non-fatal: reviewer might be the PR author or unavailable.
         // Don't abort the queue — updateStatus must still run.
         const msg = error instanceof Error ? error.message : String(error);
-        return { ok: true, skipped: true, reason: msg };
+        return {
+          ok: true,
+          skipped: true,
+          message: `Review request skipped: ${msg}`,
+          reason: msg,
+        };
       }
     },
     verify: ({ executeResult }) => {
@@ -861,13 +943,15 @@ export function requestReviewerAction(createAction: ExampleCreateAction) {
 export function stopAction(createAction: ExampleCreateAction) {
   return createAction<{ message: string }>({
     description: (action) => `Stop: ${action.payload.message}`,
-    execute: async (_input) => ({ ok: true }),
+    execute: async ({ action }) => ({
+      ok: true,
+      message: action.payload.message,
+    }),
   });
 }
 
 export type ExampleRegistry = TActionRegistryFromDefs<{
   updateStatus: ReturnType<typeof updateStatusAction>;
-  appendHistory: ReturnType<typeof appendHistoryAction>;
   removeLabels: ReturnType<typeof removeLabelsAction>;
   runClaudeTriage: ReturnType<typeof runClaudeTriageAction>;
   applyTriageOutput: ReturnType<typeof applyTriageOutputAction>;

@@ -71,9 +71,40 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
     // In-memory: append a simple text representation to body
     const issue = this.context.issue;
     if (!issue.body.includes("## Iteration History")) {
-      issue.body += `\n\n## Iteration History\n\n| Time | # | Phase | Action | SHA | Run |\n|---|---|---|---|---|---|\n`;
+      issue.body += `\n\n## Iteration History\n\n| Time | # | Phase | Result | SHA | Run |\n|---|---|---|---|---|---|\n`;
     }
     issue.body += `| ${entry.timestamp ?? "-"} | - | ${entry.phase} | ${entry.message} | ${entry.sha ?? "-"} | ${entry.runLink ?? "-"} |\n`;
+  }
+
+  updateLastHistoryEntry(update: {
+    message?: string;
+    sha?: string;
+    runLink?: string;
+  }): void {
+    // In-memory: find the last table row and update it
+    const issue = this.context.issue;
+    const lines = issue.body.split("\n");
+    // Find the last non-empty table row
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i]!;
+      if (
+        line.startsWith("|") &&
+        !line.startsWith("|---") &&
+        !line.startsWith("| Time")
+      ) {
+        const cells = line.split("|").filter(Boolean);
+        if (cells.length >= 6) {
+          if (update.message !== undefined) cells[3] = ` ${update.message} `;
+          if (update.sha !== undefined)
+            cells[4] = update.sha ? ` \`${update.sha.slice(0, 7)}\` ` : " - ";
+          if (update.runLink !== undefined)
+            cells[5] = update.runLink ? ` ${update.runLink} ` : " - ";
+          lines[i] = `|${cells.join("|")}|`;
+          break;
+        }
+      }
+    }
+    issue.body = lines.join("\n");
   }
 
   async markPRReady(_prNumber: number): Promise<void> {
@@ -84,6 +115,14 @@ class InMemoryIssueStateRepository implements IssueStateRepository {
 
   async requestReviewer(_prNumber: number, _reviewer: string): Promise<void> {
     // In-memory: no-op
+  }
+
+  async setProjectMetadata(_fields: {
+    priority?: string;
+    size?: string;
+    estimate?: number;
+  }): Promise<void> {
+    // In-memory: no-op (project fields only exist on GitHub)
   }
 
   async assignBotToSubIssue(

@@ -63,6 +63,7 @@ describe("example triage actions", () => {
     });
     expect(result).toEqual({
       ok: true,
+      message: "Triage analysis complete",
       output: {
         labelsToAdd: ["triaged", "type:bug"],
         summary: "Classified as bug",
@@ -103,11 +104,75 @@ describe("example triage actions", () => {
 
     expect(ctx.issue.labels).toEqual(["type:enhancement", "topic:automation"]);
     expect(updateBody).toHaveBeenCalledOnce();
-    expect(ctx.issue.body).toContain("## Triage");
-    expect(ctx.issue.body).toContain("**Type:** enhancement");
-    expect(ctx.issue.body).toContain("**Topics:** automation");
+    expect(ctx.issue.body).not.toContain("## Triage");
+    expect(ctx.issue.body).toContain("## Approach");
+    expect(ctx.issue.body).toContain("Classified as enhancement");
     expect(ctx.triageOutput).toBeNull();
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({
+      ok: true,
+      message: "Applied triage labels and body sections",
+    });
+  });
+
+  it("applyTriageOutput writes full structured sections from rich triage output", async () => {
+    const updateBody = vi.fn((body: string) => {
+      ctx.issue.body = body;
+    });
+    const ctx: ExampleContext = mockExampleContext({
+      issue: mockExampleIssue({ labels: [] }),
+      triageOutput: {
+        labelsToAdd: ["type:bug", "topic:api"],
+        summary: "Fix the auth endpoint",
+        priority: "high",
+        size: "m",
+        estimate: 5,
+        requirements: [
+          "Must handle OAuth tokens",
+          "Must return 401 on failure",
+        ],
+        initialQuestions: ["Which OAuth provider?"],
+        relatedIssues: [100, 200],
+        agentNotes: ["Auth module is in src/auth/"],
+      },
+    });
+    const repository: IssueStateRepository = {
+      setIssueStatus: vi.fn(),
+      addIssueLabels: vi.fn((labels: string[]) => {
+        ctx.issue.labels = [...new Set([...ctx.issue.labels, ...labels])];
+      }),
+      reconcileSubIssues: vi.fn(),
+      updateBody,
+    };
+    ctx.repository = repository;
+    const actionDef = applyTriageOutputAction(createAction);
+
+    const result = await actionDef.execute({
+      action: {
+        type: "applyTriageOutput",
+        payload: { issueNumber: 42 },
+      },
+      ctx,
+      services: mockExampleServices(),
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      message: "Applied triage labels and body sections",
+    });
+    expect(ctx.issue.body).not.toContain("## Triage");
+    expect(ctx.issue.body).toContain("## Requirements");
+    expect(ctx.issue.body).toContain("- Must handle OAuth tokens");
+    expect(ctx.issue.body).toContain("- Must return 401 on failure");
+    expect(ctx.issue.body).toContain("## Approach");
+    expect(ctx.issue.body).toContain("Fix the auth endpoint");
+    expect(ctx.issue.body).toContain("## Questions");
+    expect(ctx.issue.body).toContain("- Which OAuth provider?");
+    expect(ctx.issue.body).toContain("## Related Issues");
+    expect(ctx.issue.body).toContain("- #100");
+    expect(ctx.issue.body).toContain("- #200");
+    expect(ctx.issue.body).toContain("## Agent Notes");
+    expect(ctx.issue.body).toContain("- Auth module is in src/auth/");
+    expect(ctx.triageOutput).toBeNull();
   });
 });
 
@@ -153,6 +218,7 @@ describe("example grooming actions", () => {
     });
     expect(result).toEqual({
       ok: true,
+      message: "Grooming analysis complete",
       output: {
         labelsToAdd: ["groomed", "needs-spec"],
         suggestedSubIssueNumbers: [421, 422],
@@ -225,8 +291,16 @@ describe("example grooming actions", () => {
       services: mockExampleServices(),
     });
 
-    expect(applyResult).toEqual({ ok: true, decision: "ready" });
-    expect(reconcileResult).toEqual({ ok: true, decision: "ready" });
+    expect(applyResult).toEqual({
+      ok: true,
+      message: "Applied grooming labels",
+      decision: "ready",
+    });
+    expect(reconcileResult).toEqual({
+      ok: true,
+      message: "Sub-issues reconciled",
+      decision: "ready",
+    });
     expect(ctx.issue.labels).toEqual(["needs-spec"]);
     expect(createSubIssue).toHaveBeenCalledTimes(2);
     expect(ctx.issue.hasSubIssues).toBe(true);
@@ -265,7 +339,11 @@ describe("example grooming actions", () => {
     });
 
     // Execute succeeds but hasSubIssues is still false
-    expect(reconcileResult).toEqual({ ok: true, decision: "ready" });
+    expect(reconcileResult).toEqual({
+      ok: true,
+      message: "Sub-issues reconciled",
+      decision: "ready",
+    });
     expect(ctx.issue.hasSubIssues).toBe(false);
 
     // Verify should fail since prediction expects hasSubIssues=true
@@ -341,6 +419,7 @@ describe("example iteration actions", () => {
     });
     expect(result).toEqual({
       ok: true,
+      message: "Iteration complete",
       output: {
         labelsToAdd: ["iteration:ready", "ci:fixing"],
         summary: "Address CI and rerun checks",
@@ -375,7 +454,7 @@ describe("example iteration actions", () => {
       services: mockExampleServices(),
     });
 
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, message: "Applied iteration output" });
     expect(ctx.issue.labels).toEqual(["ci:fixing"]);
     expect(ctx.iterationOutput).toBeNull();
   });

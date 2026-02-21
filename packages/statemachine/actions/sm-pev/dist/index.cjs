@@ -27450,35 +27450,83 @@ function cloneDomainSnapshot(value) {
     )
   );
 }
-function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
+function buildRunnerStates(configId, actionRegistry, hasActionFailureState, hasBeforeQueue) {
   const actionFailureTarget = hasActionFailureState ? `#${configId}.actionFailure` : `#${configId}.${RUNNER_STATES.executionFailed}`;
   const verificationFailureTarget = hasActionFailureState ? `#${configId}.actionFailure` : `#${configId}.${RUNNER_STATES.verificationFailed}`;
-  return {
-    [RUNNER_STATES.executingQueue]: {
-      always: [
-        {
-          guard: "queueEmpty",
-          target: RUNNER_STATES.queueComplete
-        },
-        {
-          target: RUNNER_STATES.runningAction,
-          actions: assign({
-            currentAction: ({ context }) => context.actionQueue[0] ?? null,
-            actionQueue: ({ context }) => context.actionQueue.slice(1),
-            prediction: ({ context }) => {
-              const action = context.actionQueue[0];
-              if (!action) return null;
-              const def = actionRegistry[action.type];
-              if (!def?.predict) return null;
-              return def.predict(action, context.domain);
+  const executingQueueState = hasBeforeQueue ? {
+    initial: "startingQueue",
+    states: {
+      startingQueue: {
+        invoke: {
+          src: "startBeforeQueue",
+          input: ({ context }) => ({
+            runnerCtx: context.runnerCtx,
+            domain: context.domain,
+            queueLabel: context.queueLabel
+          }),
+          onDone: [
+            {
+              guard: "queueEmpty",
+              target: `#${configId}.${RUNNER_STATES.queueComplete}`
             },
-            preActionSnapshot: ({ context }) => cloneDomainSnapshot(context.domain),
-            executeResult: () => null,
-            verifyResult: () => null
-          })
+            { target: "dequeuing" }
+          ],
+          onError: "dequeuing"
         }
-      ]
-    },
+      },
+      dequeuing: {
+        always: [
+          {
+            guard: "queueEmpty",
+            target: `#${configId}.${RUNNER_STATES.queueComplete}`
+          },
+          {
+            target: `#${configId}.${RUNNER_STATES.runningAction}`,
+            actions: assign({
+              currentAction: ({ context }) => context.actionQueue[0] ?? null,
+              actionQueue: ({ context }) => context.actionQueue.slice(1),
+              prediction: ({ context }) => {
+                const action = context.actionQueue[0];
+                if (!action) return null;
+                const def = actionRegistry[action.type];
+                if (!def?.predict) return null;
+                return def.predict(action, context.domain);
+              },
+              preActionSnapshot: ({ context }) => cloneDomainSnapshot(context.domain),
+              executeResult: () => null,
+              verifyResult: () => null
+            })
+          }
+        ]
+      }
+    }
+  } : {
+    always: [
+      {
+        guard: "queueEmpty",
+        target: RUNNER_STATES.queueComplete
+      },
+      {
+        target: RUNNER_STATES.runningAction,
+        actions: assign({
+          currentAction: ({ context }) => context.actionQueue[0] ?? null,
+          actionQueue: ({ context }) => context.actionQueue.slice(1),
+          prediction: ({ context }) => {
+            const action = context.actionQueue[0];
+            if (!action) return null;
+            const def = actionRegistry[action.type];
+            if (!def?.predict) return null;
+            return def.predict(action, context.domain);
+          },
+          preActionSnapshot: ({ context }) => cloneDomainSnapshot(context.domain),
+          executeResult: () => null,
+          verifyResult: () => null
+        })
+      }
+    ]
+  };
+  return {
+    [RUNNER_STATES.executingQueue]: executingQueueState,
     [RUNNER_STATES.runningAction]: {
       initial: "executing",
       states: {
@@ -27523,7 +27571,8 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
                 guard: ({
                   event
                 }) => event.output.verifyResult.pass === true,
-                target: `#${configId}.${RUNNER_STATES.executingQueue}`,
+                // After verify pass, go back to dequeuing (skip beforeQueue on subsequent actions)
+                target: hasBeforeQueue ? `#${configId}.${RUNNER_STATES.executingQueue}.dequeuing` : `#${configId}.${RUNNER_STATES.executingQueue}`,
                 actions: assign({
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
                   verifyResult: ({ event }) => event.output.verifyResult,
@@ -27565,9 +27614,12 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
       }
     },
     [RUNNER_STATES.queueComplete]: {
-      entry: assign({
-        cycleCount: ({ context }) => context.cycleCount + 1
-      }),
+      entry: [
+        assign({
+          cycleCount: ({ context }) => context.cycleCount + 1
+        }),
+        "__runAfterQueue"
+      ],
       initial: "persisting",
       states: {
         persisting: {
@@ -27617,7 +27669,8 @@ function createDomainMachine(config2) {
   const runnerStates = buildRunnerStates(
     config2.id,
     config2.actionRegistry,
-    "actionFailure" in config2.domainStates
+    "actionFailure" in config2.domainStates,
+    Boolean(config2.beforeQueue)
   );
   const allStates = {
     ...config2.domainStates,
@@ -27661,6 +27714,18 @@ function createDomainMachine(config2) {
             ctx: input.domain,
             services: input.services
           });
+        }
+      ),
+      startBeforeQueue: fromPromise(
+        async ({
+          input
+        }) => {
+          if (config2.beforeQueue) {
+            config2.beforeQueue(input.runnerCtx, input.domain, input.queueLabel);
+            if (config2.persistContext) {
+              await config2.persistContext(input.runnerCtx, input.domain);
+            }
+          }
         }
       ),
       persistAfterQueue: fromPromise(
@@ -27727,8 +27792,22 @@ function createDomainMachine(config2) {
         }
       )
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions -- XState action types can't be composed generically
-    actions: config2.actions ?? {}
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState action types can't be composed generically
+    actions: {
+      ...config2.actions ?? {},
+      __runAfterQueue: ({ context }) => {
+        if (config2.afterQueue) {
+          config2.afterQueue(
+            context.runnerCtx,
+            context.domain,
+            context.queueLabel,
+            context.completedActions,
+            context.error
+          );
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }
   }).createMachine({
     id: config2.id,
     initial: "routing",
@@ -27745,6 +27824,7 @@ function createDomainMachine(config2) {
       cycleCount: 0,
       maxCycles: input.maxCycles ?? 1,
       error: null,
+      queueLabel: null,
       runnerCtx: input.runnerCtx
     }),
     states: allStates
@@ -27841,6 +27921,12 @@ function createMachineFactory() {
       };
       return buildFactory(nextState);
     }
+    function beforeQueue(fn) {
+      return buildFactory({ ...state, beforeQueue: fn });
+    }
+    function afterQueue(fn) {
+      return buildFactory({ ...state, afterQueue: fn });
+    }
     function build(opts) {
       const usingStoredParts = !("actionRegistry" in opts && opts.actionRegistry != null);
       if (usingStoredParts) {
@@ -27859,7 +27945,9 @@ function createMachineFactory() {
           actionRegistry,
           guards: guards2,
           refreshContext: refreshContext2,
-          persistContext: state.persistContext
+          persistContext: state.persistContext,
+          beforeQueue: state.beforeQueue,
+          afterQueue: state.afterQueue
         };
         return createDomainMachine(machineConfig2);
       }
@@ -27879,6 +27967,8 @@ function createMachineFactory() {
       states,
       refreshContext,
       persistContext: persistContext2,
+      beforeQueue,
+      afterQueue,
       build
     };
   }
@@ -27888,7 +27978,9 @@ function createMachineFactory() {
     domainStates: {},
     domainStatesBuilder: void 0,
     refreshContext: void 0,
-    persistContext: void 0
+    persistContext: void 0,
+    beforeQueue: void 0,
+    afterQueue: void 0
   });
 }
 
@@ -44622,6 +44714,11 @@ async function getProjectFieldInfo(octokit, owner, repo, issueNumber, projectNum
     const statusOptions = /* @__PURE__ */ new Map();
     let iterationFieldId = null;
     let failuresFieldId = null;
+    let priorityFieldId = null;
+    const priorityOptions = /* @__PURE__ */ new Map();
+    let sizeFieldId = null;
+    const sizeOptions = /* @__PURE__ */ new Map();
+    let estimateFieldId = null;
     for (const field of project.fields.nodes) {
       if (field.name === "Status" && field.options) {
         statusFieldId = field.id;
@@ -44632,6 +44729,18 @@ async function getProjectFieldInfo(octokit, owner, repo, issueNumber, projectNum
         iterationFieldId = field.id;
       } else if (field.name === "Failures" && field.dataType === "NUMBER") {
         failuresFieldId = field.id;
+      } else if (field.name === "Priority" && field.options) {
+        priorityFieldId = field.id;
+        for (const option of field.options) {
+          priorityOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Size" && field.options) {
+        sizeFieldId = field.id;
+        for (const option of field.options) {
+          sizeOptions.set(option.name, option.id);
+        }
+      } else if (field.name === "Estimate" && field.dataType === "NUMBER") {
+        estimateFieldId = field.id;
       }
     }
     return {
@@ -44640,7 +44749,12 @@ async function getProjectFieldInfo(octokit, owner, repo, issueNumber, projectNum
       statusFieldId,
       statusOptions,
       iterationFieldId,
-      failuresFieldId
+      failuresFieldId,
+      priorityFieldId,
+      priorityOptions,
+      sizeFieldId,
+      sizeOptions,
+      estimateFieldId
     };
   } catch {
     return null;
@@ -44703,6 +44817,45 @@ async function updateProjectFields(octokit, owner, repo, issueNumber, projectNum
         projectItemId,
         fieldInfo.failuresFieldId,
         { number: fields.failures }
+      )
+    );
+  }
+  if (fields.priority !== void 0 && fieldInfo.priorityFieldId) {
+    const optionId = fieldInfo.priorityOptions.get(fields.priority);
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.priorityFieldId,
+          { singleSelectOptionId: optionId }
+        )
+      );
+    }
+  }
+  if (fields.size !== void 0 && fieldInfo.sizeFieldId) {
+    const optionId = fieldInfo.sizeOptions.get(fields.size);
+    if (optionId) {
+      fieldUpdates.push(
+        updateProjectField(
+          octokit,
+          fieldInfo.projectId,
+          projectItemId,
+          fieldInfo.sizeFieldId,
+          { singleSelectOptionId: optionId }
+        )
+      );
+    }
+  }
+  if (fields.estimate !== void 0 && fieldInfo.estimateFieldId) {
+    fieldUpdates.push(
+      updateProjectField(
+        octokit,
+        fieldInfo.projectId,
+        projectItemId,
+        fieldInfo.estimateFieldId,
+        { number: fields.estimate }
       )
     );
   }
@@ -45500,12 +45653,32 @@ var InMemoryIssueStateRepository = class {
 
 ## Iteration History
 
-| Time | # | Phase | Action | SHA | Run |
+| Time | # | Phase | Result | SHA | Run |
 |---|---|---|---|---|---|
 `;
     }
     issue2.body += `| ${entry.timestamp ?? "-"} | - | ${entry.phase} | ${entry.message} | ${entry.sha ?? "-"} | ${entry.runLink ?? "-"} |
 `;
+  }
+  updateLastHistoryEntry(update) {
+    const issue2 = this.context.issue;
+    const lines = issue2.body.split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (line.startsWith("|") && !line.startsWith("|---") && !line.startsWith("| Time")) {
+        const cells = line.split("|").filter(Boolean);
+        if (cells.length >= 6) {
+          if (update.message !== void 0) cells[3] = ` ${update.message} `;
+          if (update.sha !== void 0)
+            cells[4] = update.sha ? ` \`${update.sha.slice(0, 7)}\` ` : " - ";
+          if (update.runLink !== void 0)
+            cells[5] = update.runLink ? ` ${update.runLink} ` : " - ";
+          lines[i] = `|${cells.join("|")}|`;
+          break;
+        }
+      }
+    }
+    issue2.body = lines.join("\n");
   }
   async markPRReady(_prNumber) {
     if (this.context.pr) {
@@ -45513,6 +45686,8 @@ var InMemoryIssueStateRepository = class {
     }
   }
   async requestReviewer(_prNumber, _reviewer) {
+  }
+  async setProjectMetadata(_fields) {
   }
   async assignBotToSubIssue(_subIssueNumber, _botUsername) {
   }
@@ -45618,25 +45793,7 @@ function updateStatusAction(createAction) {
     }),
     execute: async ({ action, ctx }) => {
       setIssueStatus(ctx, action.payload.status);
-      return { ok: true };
-    }
-  });
-}
-function appendHistoryAction(createAction) {
-  return createAction({
-    description: (action) => `Append ${action.payload.phase ?? "generic"} history: "${action.payload.message}"`,
-    execute: async ({ action, ctx }) => {
-      const repo = repositoryFor(ctx);
-      if (repo.appendHistoryEntry) {
-        repo.appendHistoryEntry({
-          phase: action.payload.phase ?? "generic",
-          message: action.payload.message,
-          timestamp: ctx.workflowStartedAt ?? (/* @__PURE__ */ new Date()).toISOString(),
-          sha: ctx.ciCommitSha ?? void 0,
-          runLink: ctx.workflowRunUrl ?? void 0
-        });
-      }
-      return { ok: true };
+      return { ok: true, message: `Status \u2192 ${action.payload.status}` };
     }
   });
 }
@@ -45646,7 +45803,10 @@ function removeLabelsAction(createAction) {
     // No predict: "not_includes" comparator not yet available in prediction checks
     execute: async ({ action, ctx }) => {
       removeIssueLabels(ctx, action.payload.labels);
-      return { ok: true };
+      return {
+        ok: true,
+        message: `Removed labels: ${action.payload.labels.join(", ")}`
+      };
     }
   });
 }
@@ -45661,6 +45821,7 @@ function runClaudeTriageAction(createAction) {
       ctx.triageOutput = output;
       return {
         ok: true,
+        message: "Triage analysis complete",
         output
       };
     }
@@ -45694,27 +45855,71 @@ function applyTriageOutputAction(createAction) {
       }
       applyTriage(ctx, labelsToAdd);
       const output = ctx.triageOutput;
-      const type = labelsToAdd.find((l) => l.startsWith("type:"))?.replace("type:", "") ?? "unknown";
-      const topics = labelsToAdd.filter((l) => l.startsWith("topic:")).map((l) => l.replace("topic:", ""));
-      const approach = output?.summary ?? "";
-      const triageSection = [
-        "## Triage",
-        "",
-        `**Type:** ${type}`,
-        `**Topics:** ${topics.join(", ") || "none"}`,
-        `**Approach:** ${approach}`
-      ].join("\n");
+      const sections = [];
+      if (output?.requirements && output.requirements.length > 0) {
+        sections.push(
+          [
+            "## Requirements",
+            "",
+            ...output.requirements.map((r) => `- ${r}`)
+          ].join("\n")
+        );
+      }
+      if (output?.summary) {
+        sections.push(["## Approach", "", output.summary].join("\n"));
+      }
+      if (output?.initialQuestions && output.initialQuestions.length > 0) {
+        sections.push(
+          [
+            "## Questions",
+            "",
+            ...output.initialQuestions.map((q) => `- ${q}`)
+          ].join("\n")
+        );
+      }
+      if (output?.relatedIssues && output.relatedIssues.length > 0) {
+        sections.push(
+          [
+            "## Related Issues",
+            "",
+            ...output.relatedIssues.map((n) => `- #${n}`)
+          ].join("\n")
+        );
+      }
+      if (output?.agentNotes && output.agentNotes.length > 0) {
+        sections.push(
+          [
+            "## Agent Notes",
+            "",
+            ...output.agentNotes.map((n) => `- ${n}`)
+          ].join("\n")
+        );
+      }
+      const triageContent = sections.join("\n\n");
       const repo = repositoryFor(ctx);
       const body = ctx.issue.body;
       const historyIdx = body.indexOf("## Iteration History");
-      const newBody = historyIdx >= 0 ? body.slice(0, historyIdx) + triageSection + "\n\n" + body.slice(historyIdx) : body + "\n\n" + triageSection;
+      const newBody = historyIdx >= 0 ? body.slice(0, historyIdx) + triageContent + "\n\n" + body.slice(historyIdx) : body + "\n\n" + triageContent;
       if (repo.updateBody) {
         repo.updateBody(newBody);
       } else {
         ctx.issue.body = newBody;
       }
+      if (repo.setProjectMetadata && (output?.priority || output?.size || output?.estimate)) {
+        const metadata = {};
+        if (output.priority && output.priority !== "none") {
+          metadata.priority = output.priority;
+        }
+        if (output.size) {
+          metadata.size = output.size.toUpperCase();
+        }
+        if (output.estimate) {
+          metadata.estimate = output.estimate;
+        }
+        await repo.setProjectMetadata(metadata);
+      }
       ctx.triageOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied triage labels and body sections" };
     },
     verify: (args) => {
       const { action, executeResult, predictionEval, predictionDiffs } = args;
@@ -45744,6 +45949,7 @@ function runClaudeGroomingAction(createAction) {
       ctx.groomingOutput = output;
       return {
         ok: true,
+        message: "Grooming analysis complete",
         output
       };
     }
@@ -45760,7 +45966,11 @@ function applyGroomingOutputAction(createAction) {
       if (output.labelsToAdd.length > 0) {
         applyGrooming(ctx, output.labelsToAdd);
       }
-      return { ok: true, decision: output.decision };
+      return {
+        ok: true,
+        message: "Applied grooming labels",
+        decision: output.decision
+      };
     }
   });
 }
@@ -45798,7 +46008,11 @@ function reconcileSubIssuesAction(createAction) {
         }
       }
       ctx.groomingOutput = null;
-      return { ok: true, decision: output.decision };
+      return {
+        ok: true,
+        message: "Sub-issues reconciled",
+        decision: output.decision
+      };
     },
     verify: ({ executeResult, newCtx }) => {
       if (!isOkResult(executeResult)) {
@@ -45828,6 +46042,7 @@ function runClaudeIterationAction(createAction) {
       ctx.iterationOutput = output;
       return {
         ok: true,
+        message: `${action.payload.mode === "retry" ? "Retry" : "Iteration"} complete`,
         output
       };
     }
@@ -45859,7 +46074,7 @@ function applyIterationOutputAction(createAction) {
         }
       }
       ctx.iterationOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied iteration output" };
     },
     verify: ({ executeResult }) => {
       const executeSucceeded = isOkResult(executeResult);
@@ -45881,7 +46096,7 @@ function runClaudeReviewAction(createAction) {
         promptVars: action.payload.promptVars
       });
       ctx.reviewOutput = output;
-      return { ok: true, output };
+      return { ok: true, message: "Review analysis complete", output };
     }
   });
 }
@@ -45894,7 +46109,7 @@ function applyReviewOutputAction(createAction) {
         applyTriage(ctx, labelsToAdd);
       }
       ctx.reviewOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied review output" };
     }
   });
 }
@@ -45907,7 +46122,7 @@ function runClaudePrResponseAction(createAction) {
         promptVars: action.payload.promptVars
       });
       ctx.prResponseOutput = output;
-      return { ok: true, output };
+      return { ok: true, message: "PR response analysis complete", output };
     }
   });
 }
@@ -45920,7 +46135,7 @@ function applyPrResponseOutputAction(createAction) {
         applyTriage(ctx, labelsToAdd);
       }
       ctx.prResponseOutput = null;
-      return { ok: true };
+      return { ok: true, message: "Applied PR response output" };
     }
   });
 }
@@ -45945,7 +46160,7 @@ function recordFailureAction(createAction) {
       const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
       const current = issue2.failures ?? 0;
       Object.assign(issue2, { failures: current + 1 });
-      return { ok: true };
+      return { ok: true, message: `Failure #${current + 1} recorded` };
     }
   });
 }
@@ -45973,7 +46188,11 @@ function runOrchestrationAction(createAction) {
         (s) => s.projectStatus !== "Done" && s.state === "OPEN"
       );
       const repo = repositoryFor(ctx);
-      if (!firstSub) return { ok: true };
+      if (!firstSub)
+        return {
+          ok: true,
+          message: "Orchestration complete (no active sub-issues)"
+        };
       const isStaleReview = firstSub.projectStatus === "In review" && (!ctx.pr || ctx.pr.state !== "OPEN");
       if (isStaleReview) {
         if (repo.updateSubIssueProjectStatus) {
@@ -45990,7 +46209,10 @@ function runOrchestrationAction(createAction) {
       if (repo.assignBotToSubIssue) {
         await repo.assignBotToSubIssue(firstSub.number, ctx.botUsername);
       }
-      return { ok: true };
+      return {
+        ok: true,
+        message: `Orchestration: advancing to sub-issue #${firstSub.number}`
+      };
     }
   });
 }
@@ -45999,7 +46221,11 @@ function setupGitAction(createAction) {
     description: () => "Configure git credentials for PAT-based push",
     execute: async ({ action }) => {
       if (!isGitEnvironment()) {
-        return { ok: true, skipped: true };
+        return {
+          ok: true,
+          skipped: true,
+          message: "Git setup skipped (not in CI)"
+        };
       }
       const { token } = action.payload;
       await execAsync('git config user.name "nopo-bot"');
@@ -46013,6 +46239,7 @@ function setupGitAction(createAction) {
       const { stdout: userEmail } = await execAsync("git config user.email");
       return {
         ok: true,
+        message: "Git credentials configured",
         userName: userName.trim(),
         userEmail: userEmail.trim()
       };
@@ -46038,7 +46265,12 @@ function prepareBranchAction(createAction) {
     execute: async ({ action, ctx }) => {
       if (!isGitEnvironment()) {
         ctx.branchPrepResult = "clean";
-        return { ok: true, skipped: true, branch: action.payload.branchName };
+        return {
+          ok: true,
+          skipped: true,
+          message: "Branch prep skipped (not in CI)",
+          branch: action.payload.branchName
+        };
       }
       const { branchName, baseBranch = "main" } = action.payload;
       await execAsync("git fetch origin");
@@ -46074,6 +46306,7 @@ function prepareBranchAction(createAction) {
           ctx.branchPrepResult = "conflicts";
           return {
             ok: true,
+            message: "Branch has conflicts",
             branch: branchName,
             result: "conflicts"
           };
@@ -46087,6 +46320,7 @@ function prepareBranchAction(createAction) {
         );
         return {
           ok: true,
+          message: "Branch rebased",
           branch: currentBranch2.trim(),
           result: "rebased"
         };
@@ -46097,6 +46331,7 @@ function prepareBranchAction(createAction) {
       );
       return {
         ok: true,
+        message: "Branch ready",
         branch: currentBranch.trim(),
         result: "clean"
       };
@@ -46121,7 +46356,7 @@ function gitPushAction(createAction) {
     description: (action) => `Push branch "${action.payload.branchName}" to origin`,
     execute: async ({ action }) => {
       if (!isGitEnvironment()) {
-        return { ok: true, skipped: true };
+        return { ok: true, skipped: true, message: "Push skipped (not in CI)" };
       }
       const { branchName, forceWithLease = true } = action.payload;
       const forceFlag = forceWithLease ? " --force-with-lease" : "";
@@ -46129,6 +46364,7 @@ function gitPushAction(createAction) {
       const { stdout: localSha } = await execAsync("git rev-parse HEAD");
       return {
         ok: true,
+        message: `Pushed to ${branchName}`,
         sha: localSha.trim()
       };
     },
@@ -46145,7 +46381,10 @@ function markPRReadyAction(createAction) {
     description: (action) => `Mark PR #${action.payload.prNumber} as ready for review`,
     execute: async ({ action, ctx }) => {
       await markPRReady(ctx, action.payload.prNumber);
-      return { ok: true };
+      return {
+        ok: true,
+        message: `PR #${action.payload.prNumber} marked ready`
+      };
     },
     predict: (action) => ({
       description: `Mark PR #${action.payload.prNumber} as ready for review`,
@@ -46176,10 +46415,18 @@ function requestReviewerAction(createAction) {
           action.payload.prNumber,
           action.payload.reviewer
         );
-        return { ok: true };
+        return {
+          ok: true,
+          message: `Requested review from ${action.payload.reviewer}`
+        };
       } catch (error3) {
         const msg = error3 instanceof Error ? error3.message : String(error3);
-        return { ok: true, skipped: true, reason: msg };
+        return {
+          ok: true,
+          skipped: true,
+          message: `Review request skipped: ${msg}`,
+          reason: msg
+        };
       }
     },
     verify: ({ executeResult }) => {
@@ -46195,7 +46442,10 @@ function requestReviewerAction(createAction) {
 function stopAction(createAction) {
   return createAction({
     description: (action) => `Stop: ${action.payload.message}`,
-    execute: async (_input) => ({ ok: true })
+    execute: async ({ action }) => ({
+      ok: true,
+      message: action.payload.message
+    })
   });
 }
 
@@ -46221,7 +46471,7 @@ function computeParentMilestone(ctx) {
   if (ctx.issue.hasSubIssues) {
     return "groomed";
   }
-  if (ctx.issue.body.includes("## Triage")) {
+  if (ctx.issue.body.includes("## Approach") && ctx.issue.labels.some((l) => l.startsWith("type:"))) {
     return "triaged";
   }
   return "backlog";
@@ -46464,13 +46714,8 @@ function branchPrepConflicts({ context }) {
 function buildFixStateQueue(context, registry2) {
   const ctx = context.domain;
   const issueNumber = ctx.issue.number;
-  const currentStatus = ctx.issue.projectStatus;
   const expectedStatus = computeExpectedStatus(ctx);
   return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: `State fix: ${String(currentStatus)} \u2192 ${String(expectedStatus)}`
-    }),
     registry2.updateStatus.create({
       issueNumber,
       status: expectedStatus
@@ -46480,11 +46725,6 @@ function buildFixStateQueue(context, registry2) {
 function buildTriageQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
   return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Triaging issue",
-      phase: "triage"
-    }),
     registry2.runClaudeTriage.create({
       issueNumber,
       promptVars: {
@@ -46506,11 +46746,6 @@ function buildTriageQueue(context, registry2) {
 function buildGroomQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
   return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Grooming issue",
-      phase: "groom"
-    }),
     registry2.runClaudeGrooming.create({
       issueNumber,
       promptVars: {
@@ -46557,20 +46792,6 @@ function buildIterateQueue(context, registry2, mode = "iterate") {
       registry2.recordFailure.create({
         issueNumber,
         failureType: "ci"
-      }),
-      registry2.appendHistory.create({
-        issueNumber,
-        message: "CI failed, returning to iteration",
-        phase: "iterate"
-      })
-    );
-  }
-  if (context.domain.reviewDecision === "CHANGES_REQUESTED") {
-    prelude.push(
-      registry2.appendHistory.create({
-        issueNumber,
-        message: "Review requested changes, returning to iteration",
-        phase: "review"
       })
     );
   }
@@ -46579,10 +46800,6 @@ function buildIterateQueue(context, registry2, mode = "iterate") {
     registry2.updateStatus.create({
       issueNumber,
       status: "In progress"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: mode === "retry" ? "Fixing CI" : "Starting iteration"
     }),
     registry2.runClaudeIteration.create({
       issueNumber,
@@ -46648,45 +46865,21 @@ function buildCompletingReviewTransitionQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber: target.number,
       status: "In review"
-    }),
-    registry2.appendHistory.create({
-      issueNumber: target.number,
-      message: "CI passed, transitioning to review",
-      phase: "review"
     })
   );
   return actions;
 }
 function buildReviewQueue(context, registry2) {
   const sub = requireCurrentSubIssue(context);
-  const prelude = context.domain.reviewDecision === "COMMENTED" ? [
-    registry2.appendHistory.create({
-      issueNumber: sub.number,
-      message: "Review commented, staying in review",
-      phase: "review"
-    })
-  ] : [];
   return [
-    ...prelude,
     registry2.updateStatus.create({
       issueNumber: sub.number,
       status: "In review"
-    }),
-    registry2.appendHistory.create({
-      issueNumber: sub.number,
-      message: "Requesting review"
     })
   ];
 }
-function buildAwaitingMergeQueue(context, registry2) {
-  const sub = requireCurrentSubIssue(context);
-  return [
-    registry2.appendHistory.create({
-      issueNumber: sub.number,
-      message: "Review approved, awaiting merge",
-      phase: "review"
-    })
-  ];
+function buildAwaitingMergeQueue(_context, _registry) {
+  return [];
 }
 function buildMergeQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
@@ -46694,11 +46887,6 @@ function buildMergeQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Done"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "PR merged, issue marked done",
-      phase: "review"
     })
   ];
   const needsOrchestration = context.domain.parentIssue !== null || context.domain.issue.hasSubIssues;
@@ -46708,23 +46896,13 @@ function buildMergeQueue(context, registry2) {
       registry2.runOrchestration.create({
         issueNumber: parentNumber,
         initParentIfNeeded: false
-      }),
-      registry2.appendHistory.create({
-        issueNumber: parentNumber,
-        message: "Orchestration command processed"
       })
     );
   }
   return queue;
 }
-function buildDeployedStageQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to stage succeeded"
-    })
-  ];
+function buildDeployedStageQueue(_context, _registry) {
+  return [];
 }
 function buildDeployedProdQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
@@ -46732,10 +46910,6 @@ function buildDeployedProdQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Done"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to production succeeded"
     })
   ];
 }
@@ -46745,10 +46919,6 @@ function buildDeployedStageFailureQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Error"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to stage failed"
     })
   ];
 }
@@ -46758,10 +46928,6 @@ function buildDeployedProdFailureQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Error"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Deployment to production failed"
     })
   ];
 }
@@ -46771,10 +46937,6 @@ function buildPivotQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Blocked"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Pivot requested, blocking current path for replanning"
     })
   ];
 }
@@ -46784,10 +46946,6 @@ function buildResetQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Backlog"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Issue reset to backlog"
     })
   ];
 }
@@ -46795,11 +46953,6 @@ function buildRetryQueue(context, registry2) {
   const sub = requireCurrentSubIssue(context);
   const issueNumber = sub.number;
   return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Retry requested, resuming iteration",
-      phase: "iterate"
-    }),
     registry2.updateStatus.create({
       issueNumber,
       status: "In progress"
@@ -46834,15 +46987,8 @@ function buildRetryQueue(context, registry2) {
     })
   ];
 }
-function buildCommentQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  const suffix = context.domain.commentContextDescription ? ` (${context.domain.commentContextDescription})` : "";
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: `Issue comment trigger received${suffix}`
-    })
-  ];
+function buildCommentQueue(_context, _registry) {
+  return [];
 }
 function buildPrReviewQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
@@ -46860,11 +47006,6 @@ function buildPrReviewQueue(context, registry2) {
     }),
     registry2.applyReviewOutput.create({
       issueNumber
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "PR review workflow requested",
-      phase: "review"
     })
   ];
 }
@@ -46884,23 +47025,11 @@ function buildPrRespondingQueue(context, registry2) {
     }),
     registry2.applyPrResponseOutput.create({
       issueNumber
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Prepared automated PR response",
-      phase: "review"
     })
   ];
 }
-function buildPrRespondingHumanQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Human PR response required",
-      phase: "review"
-    })
-  ];
+function buildPrRespondingHumanQueue(_context, _registry) {
+  return [];
 }
 function buildPrPushQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
@@ -46908,11 +47037,6 @@ function buildPrPushQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "In progress"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "PR updated by push; awaiting CI and review loop",
-      phase: "iterate"
     })
   ];
 }
@@ -46922,10 +47046,6 @@ function buildInitializingQueue(context, registry2) {
     registry2.runOrchestration.create({
       issueNumber,
       initParentIfNeeded: true
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Initializing"
     })
   ];
 }
@@ -46937,22 +47057,11 @@ function buildOrchestrateQueue(context, registry2) {
     registry2.runOrchestration.create({
       issueNumber,
       initParentIfNeeded
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Orchestration command processed"
     })
   ];
 }
-function buildOrchestrationWaitingQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Current phase is in review; waiting for merge before advancing",
-      phase: "review"
-    })
-  ];
+function buildOrchestrationWaitingQueue(_context, _registry) {
+  return [];
 }
 function buildOrchestrationCompleteQueue(context, registry2) {
   const issueNumber = context.domain.issue.number;
@@ -46960,52 +47069,29 @@ function buildOrchestrationCompleteQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Done"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "All sub-issue phases are complete",
-      phase: "review"
     })
   ];
 }
-function buildMergeQueueEntryQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Issue entered merge queue",
-      phase: "review"
-    })
-  ];
+function buildMergeQueueEntryQueue(_context, _registry) {
+  return [];
 }
 function buildBlockQueue(context, registry2) {
   const isParent = context.domain.parentIssue === null;
   const currentSub = context.domain.currentSubIssue;
   if (isParent && currentSub?.projectStatus === "Blocked") {
     const issueNumber2 = context.domain.issue.number;
-    const subFailures = currentSub.failures ?? 0;
     return [
       registry2.updateStatus.create({
         issueNumber: issueNumber2,
         status: "Blocked"
-      }),
-      registry2.appendHistory.create({
-        issueNumber: issueNumber2,
-        message: `Blocked: Sub-issue #${currentSub.number} is blocked (${subFailures} failures)`
       })
     ];
   }
   const issueNumber = currentSub?.number ?? context.domain.issue.number;
-  const failures = (currentSub ?? context.domain.issue).failures ?? 0;
   return [
     registry2.updateStatus.create({
       issueNumber,
       status: "Blocked"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: `Blocked: Max failures reached (${failures})`,
-      phase: "iterate"
     })
   ];
 }
@@ -47015,150 +47101,119 @@ function buildMergeQueueFailureQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Error"
-    }),
-    registry2.appendHistory.create({
-      issueNumber,
-      message: "Merge queue failed",
-      phase: "review"
     })
   ];
 }
-function buildActionFailureQueue(context, registry2) {
-  const issueNumber = context.domain.issue.number;
-  const message = context.error ? `Action execution failed: ${context.error}` : "Action execution failed";
-  return [
-    registry2.appendHistory.create({
-      issueNumber,
-      message
-    })
-  ];
+function buildActionFailureQueue(_context, _registry) {
+  return [];
+}
+function assignQueue(label, builder, registry2) {
+  return assign({
+    actionQueue: ({ context }) => builder(context, registry2),
+    queueLabel: () => label
+  });
 }
 function createExampleQueueAssigners(registry2) {
-  const assignFixStateQueue = assign({
-    actionQueue: ({ context }) => buildFixStateQueue(context, registry2)
-  });
-  const assignPrepareQueue = assign({
-    actionQueue: ({ context }) => buildPrepareQueue(context, registry2)
-  });
-  const assignTriageQueue = assign({
-    actionQueue: ({ context }) => buildTriageQueue(context, registry2)
-  });
-  const assignIterateQueue = assign({
-    actionQueue: ({ context }) => buildIterateQueue(context, registry2)
-  });
-  const assignIterateFixQueue = assign({
-    actionQueue: ({ context }) => buildIterateFixQueue(context, registry2)
-  });
-  const assignTransitionToReviewQueue = assign({
-    actionQueue: ({ context }) => buildTransitionToReviewQueue(context, registry2)
-  });
-  const assignCompletingReviewTransitionQueue = assign({
-    actionQueue: ({ context }) => buildCompletingReviewTransitionQueue(context, registry2)
-  });
-  const assignReviewQueue = assign({
-    actionQueue: ({ context }) => buildReviewQueue(context, registry2)
-  });
-  const assignGroomQueue = assign({
-    actionQueue: ({ context }) => buildGroomQueue(context, registry2)
-  });
-  const assignAwaitingMergeQueue = assign({
-    actionQueue: ({ context }) => buildAwaitingMergeQueue(context, registry2)
-  });
-  const assignMergeQueue = assign({
-    actionQueue: ({ context }) => buildMergeQueue(context, registry2)
-  });
-  const assignDeployedStageQueue = assign({
-    actionQueue: ({ context }) => buildDeployedStageQueue(context, registry2)
-  });
-  const assignDeployedProdQueue = assign({
-    actionQueue: ({ context }) => buildDeployedProdQueue(context, registry2)
-  });
-  const assignDeployedStageFailureQueue = assign({
-    actionQueue: ({ context }) => buildDeployedStageFailureQueue(context, registry2)
-  });
-  const assignDeployedProdFailureQueue = assign({
-    actionQueue: ({ context }) => buildDeployedProdFailureQueue(context, registry2)
-  });
-  const assignPivotQueue = assign({
-    actionQueue: ({ context }) => buildPivotQueue(context, registry2)
-  });
-  const assignResetQueue = assign({
-    actionQueue: ({ context }) => buildResetQueue(context, registry2)
-  });
-  const assignRetryQueue = assign({
-    actionQueue: ({ context }) => buildRetryQueue(context, registry2)
-  });
-  const assignCommentQueue = assign({
-    actionQueue: ({ context }) => buildCommentQueue(context, registry2)
-  });
-  const assignPrReviewQueue = assign({
-    actionQueue: ({ context }) => buildPrReviewQueue(context, registry2)
-  });
-  const assignPrRespondingQueue = assign({
-    actionQueue: ({ context }) => buildPrRespondingQueue(context, registry2)
-  });
-  const assignPrRespondingHumanQueue = assign({
-    actionQueue: ({ context }) => buildPrRespondingHumanQueue(context, registry2)
-  });
-  const assignPrPushQueue = assign({
-    actionQueue: ({ context }) => buildPrPushQueue(context, registry2)
-  });
-  const assignInitializingQueue = assign({
-    actionQueue: ({ context }) => buildInitializingQueue(context, registry2)
-  });
-  const assignOrchestrateQueue = assign({
-    actionQueue: ({ context }) => buildOrchestrateQueue(context, registry2)
-  });
-  const assignOrchestrationWaitingQueue = assign({
-    actionQueue: ({ context }) => buildOrchestrationWaitingQueue(context, registry2)
-  });
-  const assignOrchestrationCompleteQueue = assign({
-    actionQueue: ({ context }) => buildOrchestrationCompleteQueue(context, registry2)
-  });
-  const assignMergeQueueEntryQueue = assign({
-    actionQueue: ({ context }) => buildMergeQueueEntryQueue(context, registry2)
-  });
-  const assignBlockQueue = assign({
-    actionQueue: ({ context }) => buildBlockQueue(context, registry2)
-  });
-  const assignMergeQueueFailureQueue = assign({
-    actionQueue: ({ context }) => buildMergeQueueFailureQueue(context, registry2)
-  });
-  const assignActionFailureQueue = assign({
-    actionQueue: ({ context }) => buildActionFailureQueue(context, registry2)
-  });
   return {
-    assignFixStateQueue,
-    assignPrepareQueue,
-    assignBlockQueue,
-    assignInitializingQueue,
-    assignIterateFixQueue,
-    assignTransitionToReviewQueue,
-    assignCompletingReviewTransitionQueue,
-    assignTriageQueue,
-    assignIterateQueue,
-    assignReviewQueue,
-    assignGroomQueue,
-    assignAwaitingMergeQueue,
-    assignMergeQueue,
-    assignDeployedStageQueue,
-    assignDeployedProdQueue,
-    assignDeployedStageFailureQueue,
-    assignDeployedProdFailureQueue,
-    assignPivotQueue,
-    assignResetQueue,
-    assignRetryQueue,
-    assignCommentQueue,
-    assignPrReviewQueue,
-    assignPrRespondingQueue,
-    assignPrRespondingHumanQueue,
-    assignPrPushQueue,
-    assignOrchestrateQueue,
-    assignOrchestrationWaitingQueue,
-    assignOrchestrationCompleteQueue,
-    assignMergeQueueEntryQueue,
-    assignMergeQueueFailureQueue,
-    assignActionFailureQueue
+    assignFixStateQueue: assignQueue("fix-state", buildFixStateQueue, registry2),
+    assignPrepareQueue: assignQueue("prepare", buildPrepareQueue, registry2),
+    assignBlockQueue: assignQueue("block", buildBlockQueue, registry2),
+    assignInitializingQueue: assignQueue(
+      "initialize",
+      buildInitializingQueue,
+      registry2
+    ),
+    assignIterateFixQueue: assignQueue(
+      "iterate",
+      buildIterateFixQueue,
+      registry2
+    ),
+    assignTransitionToReviewQueue: assignQueue(
+      "review",
+      buildTransitionToReviewQueue,
+      registry2
+    ),
+    assignCompletingReviewTransitionQueue: assignQueue(
+      "review",
+      buildCompletingReviewTransitionQueue,
+      registry2
+    ),
+    assignTriageQueue: assignQueue("triage", buildTriageQueue, registry2),
+    assignIterateQueue: assignQueue("iterate", buildIterateQueue, registry2),
+    assignReviewQueue: assignQueue("review", buildReviewQueue, registry2),
+    assignGroomQueue: assignQueue("groom", buildGroomQueue, registry2),
+    assignAwaitingMergeQueue: assignQueue(
+      "review",
+      buildAwaitingMergeQueue,
+      registry2
+    ),
+    assignMergeQueue: assignQueue("merge", buildMergeQueue, registry2),
+    assignDeployedStageQueue: assignQueue(
+      "deploy",
+      buildDeployedStageQueue,
+      registry2
+    ),
+    assignDeployedProdQueue: assignQueue(
+      "deploy",
+      buildDeployedProdQueue,
+      registry2
+    ),
+    assignDeployedStageFailureQueue: assignQueue(
+      "deploy",
+      buildDeployedStageFailureQueue,
+      registry2
+    ),
+    assignDeployedProdFailureQueue: assignQueue(
+      "deploy",
+      buildDeployedProdFailureQueue,
+      registry2
+    ),
+    assignPivotQueue: assignQueue("pivot", buildPivotQueue, registry2),
+    assignResetQueue: assignQueue("reset", buildResetQueue, registry2),
+    assignRetryQueue: assignQueue("retry", buildRetryQueue, registry2),
+    assignCommentQueue: assignQueue("comment", buildCommentQueue, registry2),
+    assignPrReviewQueue: assignQueue("review", buildPrReviewQueue, registry2),
+    assignPrRespondingQueue: assignQueue(
+      "review",
+      buildPrRespondingQueue,
+      registry2
+    ),
+    assignPrRespondingHumanQueue: assignQueue(
+      "review",
+      buildPrRespondingHumanQueue,
+      registry2
+    ),
+    assignPrPushQueue: assignQueue("iterate", buildPrPushQueue, registry2),
+    assignOrchestrateQueue: assignQueue(
+      "orchestrate",
+      buildOrchestrateQueue,
+      registry2
+    ),
+    assignOrchestrationWaitingQueue: assignQueue(
+      "orchestrate",
+      buildOrchestrationWaitingQueue,
+      registry2
+    ),
+    assignOrchestrationCompleteQueue: assignQueue(
+      "orchestrate",
+      buildOrchestrationCompleteQueue,
+      registry2
+    ),
+    assignMergeQueueEntryQueue: assignQueue(
+      "merge",
+      buildMergeQueueEntryQueue,
+      registry2
+    ),
+    assignMergeQueueFailureQueue: assignQueue(
+      "merge",
+      buildMergeQueueFailureQueue,
+      registry2
+    ),
+    assignActionFailureQueue: assignQueue(
+      "error",
+      buildActionFailureQueue,
+      registry2
+    )
   };
 }
 
@@ -47791,7 +47846,7 @@ var ExampleContextLoader = class _ExampleContextLoader {
           cell("Time"),
           cell("#"),
           cell("Phase"),
-          cell("Action"),
+          cell("Result"),
           cell("SHA"),
           cell("Run")
         ]
@@ -47808,6 +47863,35 @@ var ExampleContextLoader = class _ExampleContextLoader {
       };
       children.push(heading2);
       children.push(table);
+    }
+  }
+  updateLastHistoryEntry(update) {
+    const state = this.requireState();
+    const ast = state.issue.bodyAst;
+    const children = ast.children;
+    let headingIdx = -1;
+    for (let i = 0; i < children.length; i++) {
+      const node2 = children[i];
+      if (node2.type === "heading" && node2.depth === 2 && node2.children?.[0]?.type === "text" && node2.children[0].value === "Iteration History") {
+        headingIdx = i;
+        break;
+      }
+    }
+    if (headingIdx === -1) return;
+    const table = children[headingIdx + 1];
+    if (!table || table.type !== "table" || !table.children?.length) return;
+    const rows = table.children;
+    const lastRow = rows[rows.length - 1];
+    if (!lastRow?.children) return;
+    const cells = lastRow.children;
+    if (update.message !== void 0 && cells[3]?.children?.[0]) {
+      cells[3].children[0].value = update.message;
+    }
+    if (update.sha !== void 0 && cells[4]?.children?.[0]) {
+      cells[4].children[0].value = update.sha ? `\`${update.sha.slice(0, 7)}\`` : "-";
+    }
+    if (update.runLink !== void 0 && cells[5]?.children?.[0]) {
+      cells[5].children[0].value = update.runLink || "-";
     }
   }
   addIssueLabels(labels) {
@@ -47929,6 +48013,18 @@ var ExampleContextLoader = class _ExampleContextLoader {
       reviewers: [reviewer]
     });
   }
+  async setProjectMetadata(fields) {
+    const options = this.requireOptions();
+    const state = this.requireState();
+    await updateProjectFields(
+      options.octokit,
+      options.owner,
+      options.repo,
+      state.issue.number,
+      options.projectNumber ?? 0,
+      fields
+    );
+  }
   async save() {
     if (this.state === null || this.remoteUpdate === null) return false;
     await this.remoteUpdate(this.state);
@@ -47939,7 +48035,6 @@ var ExampleContextLoader = class _ExampleContextLoader {
 // packages/statemachine/src/machines/example/machine.ts
 var exampleMachine = createMachineFactory().services().actions((createAction) => ({
   updateStatus: updateStatusAction(createAction),
-  appendHistory: appendHistoryAction(createAction),
   removeLabels: removeLabelsAction(createAction),
   runClaudeTriage: runClaudeTriageAction(createAction),
   applyTriageOutput: applyTriageOutputAction(createAction),
@@ -48317,6 +48412,45 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   };
 }).refreshContext(ExampleContextLoader.refreshFromRunnerContext).persistContext(async (_runnerCtx, domain2) => {
   await persistIssueState(domain2);
+}).beforeQueue((_runnerCtx, domain2, queueLabel) => {
+  if (!queueLabel) return;
+  const repo = repositoryFor(domain2);
+  if (repo.appendHistoryEntry) {
+    repo.appendHistoryEntry({
+      phase: queueLabel,
+      message: "\u23F3 Running...",
+      timestamp: domain2.workflowStartedAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+      sha: domain2.ciCommitSha ?? void 0,
+      runLink: domain2.workflowRunUrl ?? void 0
+    });
+  }
+}).afterQueue((_runnerCtx, domain2, queueLabel, completedActions, error3) => {
+  if (!queueLabel) return;
+  const repo = repositoryFor(domain2);
+  if (!repo.updateLastHistoryEntry) return;
+  const messages = [];
+  let runUrl = domain2.workflowRunUrl ?? void 0;
+  let sha = domain2.ciCommitSha ?? void 0;
+  for (const { result } of completedActions) {
+    if (result && typeof result === "object") {
+      const r = result;
+      if (typeof r.message === "string" && r.message)
+        messages.push(r.message);
+      if (typeof r.runUrl === "string") runUrl = r.runUrl;
+      if (typeof r.sha === "string") sha = r.sha;
+    }
+  }
+  const allPassed = !error3 && completedActions.every(
+    (a) => a.result && typeof a.result === "object" && // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- duck-typed ok check
+    a.result.ok === true
+  );
+  const statusEmoji = allPassed ? "\u2705" : "\u274C";
+  const details = error3 ? error3 : messages.length > 0 ? messages.join(" | ") : queueLabel;
+  repo.updateLastHistoryEntry({
+    message: `${statusEmoji} ${details}`,
+    sha,
+    runLink: runUrl
+  });
 }).build({
   id: "example"
 });
@@ -68343,10 +68477,25 @@ var ClaudeTriageOutputSchema = external_exports.object({
       "test",
       "chore"
     ]),
+    priority: external_exports.enum(["none", "low", "medium", "high", "critical"]).optional(),
+    size: external_exports.enum(["xs", "s", "m", "l", "xl"]).optional(),
+    estimate: external_exports.union([
+      external_exports.literal(1),
+      external_exports.literal(2),
+      external_exports.literal(3),
+      external_exports.literal(5),
+      external_exports.literal(8),
+      external_exports.literal(13),
+      external_exports.literal(21)
+    ]).optional(),
     topics: external_exports.array(external_exports.string()),
     needs_info: external_exports.boolean()
   }),
-  initial_approach: external_exports.string()
+  requirements: external_exports.array(external_exports.string()).optional(),
+  initial_approach: external_exports.string(),
+  initial_questions: external_exports.array(external_exports.string()).optional(),
+  related_issues: external_exports.array(external_exports.number()).optional(),
+  agent_notes: external_exports.array(external_exports.string()).optional()
 });
 var ClaudeGroomingSummaryOutputSchema = external_exports.object({
   summary: external_exports.string(),
@@ -68405,7 +68554,14 @@ function mapClaudeOutputToTriageResult(output) {
   ];
   return {
     labelsToAdd: [...new Set(labelsToAdd)],
-    summary: parsed.initial_approach
+    summary: parsed.initial_approach,
+    priority: parsed.triage.priority,
+    size: parsed.triage.size,
+    estimate: parsed.triage.estimate,
+    requirements: parsed.requirements && parsed.requirements.length > 0 ? parsed.requirements : void 0,
+    initialQuestions: parsed.initial_questions && parsed.initial_questions.length > 0 ? parsed.initial_questions : void 0,
+    relatedIssues: parsed.related_issues && parsed.related_issues.length > 0 ? parsed.related_issues : void 0,
+    agentNotes: parsed.agent_notes && parsed.agent_notes.length > 0 ? parsed.agent_notes : void 0
   };
 }
 var ClaudeEngineerOutputSchema = external_exports.object({

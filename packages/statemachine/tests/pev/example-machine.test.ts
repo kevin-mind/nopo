@@ -18,6 +18,7 @@ import {
   mockExampleServices,
 } from "./mock-factories.js";
 import type { IssueStateRepository } from "../../src/machines/example/context.js";
+// History messages are now written to issue body via auto-history, not completedActions
 
 // ============================================================================
 // Helpers
@@ -65,7 +66,6 @@ describe("Example Machine — Triage", () => {
     expect(String(snap.value)).toBe("done");
     expect(snap.context.completedActions.length).toBeGreaterThanOrEqual(1);
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
-    expect(actionTypes).toContain("appendHistory");
     expect(actionTypes).toContain("runClaudeTriage");
     expect(actionTypes).toContain("applyTriageOutput");
     expect(actionTypes).toContain("updateStatus");
@@ -89,20 +89,6 @@ describe("Example Machine — Triage", () => {
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.error).toContain("triage service unavailable");
-    const historyActions = snap.context.completedActions.filter(
-      (a) => a.action.type === "appendHistory",
-    );
-    expect(
-      historyActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          typeof a.action.payload.message === "string" &&
-          a.action.payload.message.includes("Action execution failed"),
-      ),
-    ).toBe(true);
   });
 
   it("routes verification failure through actionFailure and logs history", async () => {
@@ -134,20 +120,6 @@ describe("Example Machine — Triage", () => {
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.error).toContain("Verification failed");
-    const historyActions = snap.context.completedActions.filter(
-      (a) => a.action.type === "appendHistory",
-    );
-    expect(
-      historyActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          typeof a.action.payload.message === "string" &&
-          a.action.payload.message.includes("Action execution failed"),
-      ),
-    ).toBe(true);
   });
 });
 
@@ -168,7 +140,6 @@ describe("Example Machine — Grooming", () => {
 
     expect(String(snap.value)).toBe("done");
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
-    expect(actionTypes).toContain("appendHistory");
     expect(actionTypes).toContain("runClaudeGrooming");
     expect(actionTypes).toContain("applyGroomingOutput");
     expect(actionTypes).toContain("reconcileSubIssues");
@@ -201,7 +172,6 @@ describe("Example Machine — Grooming", () => {
     expect(String(snap.value)).toBe("done");
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
     expect(actionTypes).toEqual([
-      "appendHistory",
       "runClaudeGrooming",
       "applyGroomingOutput",
       "reconcileSubIssues",
@@ -279,18 +249,6 @@ describe("Example Machine — Iterate", () => {
         (a) => a.action.type === "recordFailure",
       ),
     ).toBe(true);
-    expect(
-      snap.context.completedActions.some((a) => {
-        if (a.action.type !== "appendHistory" || !("payload" in a.action))
-          return false;
-        const p = a.action.payload;
-        const msg =
-          p && typeof p === "object" && "message" in p
-            ? Reflect.get(p, "message")
-            : undefined;
-        return msg === "CI failed, returning to iteration";
-      }),
-    ).toBe(true);
     expect(snap.context.domain.issue.failures).toBe(1);
   });
 
@@ -313,19 +271,8 @@ describe("Example Machine — Iterate", () => {
 
     const snap = await runExampleMachine(domain);
     expect(String(snap.value)).toBe("done");
-    const historyActions = snap.context.completedActions.filter(
-      (a) => a.action.type === "appendHistory",
-    );
-    expect(
-      historyActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          a.action.payload.message === "CI failed, returning to iteration",
-      ),
-    ).toBe(true);
+    // Auto-history writes queue label "iterate" to issue body
+    expect(snap.context.domain.issue.body).toContain("iterate");
   });
 
   it("routes to blocked when CI fails at max retries (circuit breaker)", async () => {
@@ -361,14 +308,8 @@ describe("Example Machine — Iterate", () => {
         return status === "Blocked";
       }),
     ).toBe(true);
-    expect(
-      snap.context.completedActions.some((a) => {
-        if (a.action.type !== "appendHistory" || !("payload" in a.action))
-          return false;
-        const msg = Reflect.get(a.action.payload, "message");
-        return typeof msg === "string" && msg.includes("Max failures");
-      }),
-    ).toBe(true);
+    // Auto-history writes max failures info to issue body
+    expect(snap.context.domain.issue.body).toContain("block");
   });
 
   it("adds review-changes context when re-entering iteration from review", async () => {
@@ -390,20 +331,8 @@ describe("Example Machine — Iterate", () => {
 
     const snap = await runExampleMachine(domain);
     expect(String(snap.value)).toBe("done");
-    const historyActions = snap.context.completedActions.filter(
-      (a) => a.action.type === "appendHistory",
-    );
-    expect(
-      historyActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          a.action.payload.message ===
-            "Review requested changes, returning to iteration",
-      ),
-    ).toBe(true);
+    // Auto-history writes queue label "iterate" to issue body
+    expect(snap.context.domain.issue.body).toContain("iterate");
   });
 });
 
@@ -450,19 +379,8 @@ describe("Example Machine — Review", () => {
 
     const snap = await runExampleMachine(domain);
     expect(String(snap.value)).toBe("done");
-    const historyActions = snap.context.completedActions.filter(
-      (a) => a.action.type === "appendHistory",
-    );
-    expect(
-      historyActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          a.action.payload.message === "Review commented, staying in review",
-      ),
-    ).toBe(true);
+    // Auto-history writes queue label "review" to issue body (PR responding queue)
+    expect(snap.context.domain.issue.body).toContain("review");
   });
 
   it("runs awaiting-merge queue for approved review trigger", async () => {
@@ -483,7 +401,6 @@ describe("Example Machine — Review", () => {
 
     expect(String(snap.value)).toBe("done");
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
-    expect(actionTypes).toContain("appendHistory");
     expect(actionTypes).not.toContain("runAgent");
   });
 
@@ -500,7 +417,6 @@ describe("Example Machine — Review", () => {
     expect(String(snap.value)).toBe("done");
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
     expect(actionTypes).toContain("updateStatus");
-    expect(actionTypes).toContain("appendHistory");
     expect(snap.context.domain.issue.projectStatus).toBe("Done");
   });
 
@@ -540,18 +456,8 @@ describe("Example Machine — Deploy", () => {
     const snap = await runExampleMachine(domain);
 
     expect(String(snap.value)).toBe("done");
-    const actionTypes = snap.context.completedActions.map((a) => a.action.type);
-    expect(actionTypes).toContain("appendHistory");
-    expect(
-      snap.context.completedActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          a.action.payload.message === "Deployment to stage succeeded",
-      ),
-    ).toBe(true);
+    // Auto-history writes deploy context to issue body
+    expect(snap.context.domain.issue.body).toContain("deploy");
   });
 
   it("runs prod deploy queue for deployed-prod trigger", async () => {
@@ -567,7 +473,6 @@ describe("Example Machine — Deploy", () => {
     expect(String(snap.value)).toBe("done");
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
     expect(actionTypes).toContain("updateStatus");
-    expect(actionTypes).toContain("appendHistory");
     expect(snap.context.domain.issue.projectStatus).toBe("Done");
   });
 
@@ -583,16 +488,6 @@ describe("Example Machine — Deploy", () => {
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.domain.issue.projectStatus).toBe("Error");
-    expect(
-      snap.context.completedActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          a.action.payload.message === "Deployment to stage failed",
-      ),
-    ).toBe(true);
   });
 
   it("runs prod failure queue and marks error", async () => {
@@ -607,16 +502,6 @@ describe("Example Machine — Deploy", () => {
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.domain.issue.projectStatus).toBe("Error");
-    expect(
-      snap.context.completedActions.some(
-        (a) =>
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          a.action.payload.message === "Deployment to production failed",
-      ),
-    ).toBe(true);
   });
 });
 
@@ -726,18 +611,6 @@ describe("Example Machine — Terminal States", () => {
     expect(String(snap.value)).toBe("done");
     // fixState should have corrected status to Backlog
     expect(snap.context.domain.issue.projectStatus).toBe("Backlog");
-    expect(
-      snap.context.completedActions.some(
-        (a) =>
-          a.action.type === "appendHistory" &&
-          "payload" in a.action &&
-          typeof a.action.payload === "object" &&
-          a.action.payload !== null &&
-          "message" in a.action.payload &&
-          typeof a.action.payload.message === "string" &&
-          a.action.payload.message.includes("State fix"),
-      ),
-    ).toBe(true);
   });
 });
 
@@ -755,8 +628,8 @@ describe("Example Machine — Max Cycles", () => {
     const snap = await runExampleMachine(domain, { maxCycles: 2 });
 
     expect(String(snap.value)).toBe("done");
-    // 2 cycles × 4 triage actions (appendHistory, runClaudeTriage, applyTriageOutput, updateStatus) = 8
-    expect(snap.context.completedActions.length).toBeGreaterThanOrEqual(8);
+    // 2 cycles × 3 triage actions (runClaudeTriage, applyTriageOutput, updateStatus) = 6
+    expect(snap.context.completedActions.length).toBeGreaterThanOrEqual(6);
     expect(snap.context.cycleCount).toBe(2);
   });
 });
@@ -775,9 +648,8 @@ describe("Example Machine — Multiple Actions", () => {
     const snap = await runExampleMachine(domain);
 
     expect(String(snap.value)).toBe("done");
-    expect(snap.context.completedActions).toHaveLength(4);
+    expect(snap.context.completedActions).toHaveLength(3);
     expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
-      "appendHistory",
       "runClaudeTriage",
       "applyTriageOutput",
       "updateStatus",

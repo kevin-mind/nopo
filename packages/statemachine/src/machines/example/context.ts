@@ -161,10 +161,20 @@ export interface IssueStateRepository {
   ): Promise<void>;
   removeIssueLabels?(labels: string[]): void;
   updateBody?(body: string): void;
+  setProjectMetadata?(fields: {
+    priority?: string;
+    size?: string;
+    estimate?: number;
+  }): Promise<void>;
   appendHistoryEntry?(entry: {
     phase: string;
     message: string;
     timestamp?: string;
+    sha?: string;
+    runLink?: string;
+  }): void;
+  updateLastHistoryEntry?(update: {
+    message?: string;
     sha?: string;
     runLink?: string;
   }): void;
@@ -990,7 +1000,7 @@ export class ExampleContextLoader implements IssueStateRepository {
           cell("Time"),
           cell("#"),
           cell("Phase"),
-          cell("Action"),
+          cell("Result"),
           cell("SHA"),
           cell("Run"),
         ],
@@ -1009,6 +1019,62 @@ export class ExampleContextLoader implements IssueStateRepository {
       children.push(heading as (typeof children)[number]);
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast node insertion
       children.push(table as (typeof children)[number]);
+    }
+  }
+
+  updateLastHistoryEntry(update: {
+    message?: string;
+    sha?: string;
+    runLink?: string;
+  }): void {
+    const state = this.requireState();
+    const ast = state.issue.bodyAst;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast recursive types require assertion
+    const children = ast.children as Array<{
+      type: string;
+      depth?: number;
+      children?: Array<{ type: string; value?: string; children?: unknown[] }>;
+    }>;
+
+    // Find "Iteration History" heading
+    let headingIdx = -1;
+    for (let i = 0; i < children.length; i++) {
+      const node = children[i]!;
+      if (
+        node.type === "heading" &&
+        node.depth === 2 &&
+        node.children?.[0]?.type === "text" &&
+        node.children[0].value === "Iteration History"
+      ) {
+        headingIdx = i;
+        break;
+      }
+    }
+    if (headingIdx === -1) return;
+
+    const table = children[headingIdx + 1];
+    if (!table || table.type !== "table" || !table.children?.length) return;
+
+    // Last row is the one we just added in beforeQueue
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- mdast table row manipulation
+    const rows = table.children as Array<{
+      children?: Array<{ children?: Array<{ type: string; value?: string }> }>;
+    }>;
+    const lastRow = rows[rows.length - 1];
+    if (!lastRow?.children) return;
+
+    const cells = lastRow.children;
+    // Columns: [Time, #, Phase, Result, SHA, Run]
+    if (update.message !== undefined && cells[3]?.children?.[0]) {
+      cells[3].children[0].value = update.message;
+    }
+    if (update.sha !== undefined && cells[4]?.children?.[0]) {
+      cells[4].children[0].value = update.sha
+        ? `\`${update.sha.slice(0, 7)}\``
+        : "-";
+    }
+    if (update.runLink !== undefined && cells[5]?.children?.[0]) {
+      cells[5].children[0].value = update.runLink || "-";
     }
   }
 
@@ -1150,6 +1216,23 @@ export class ExampleContextLoader implements IssueStateRepository {
       pull_number: prNumber,
       reviewers: [reviewer],
     });
+  }
+
+  async setProjectMetadata(fields: {
+    priority?: string;
+    size?: string;
+    estimate?: number;
+  }): Promise<void> {
+    const options = this.requireOptions();
+    const state = this.requireState();
+    await updateProjectFields(
+      options.octokit,
+      options.owner,
+      options.repo,
+      state.issue.number,
+      options.projectNumber ?? 0,
+      fields,
+    );
   }
 
   async save(): Promise<boolean> {

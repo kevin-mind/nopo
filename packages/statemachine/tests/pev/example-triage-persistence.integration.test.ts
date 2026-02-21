@@ -138,7 +138,6 @@ describe("triage integration persistence flow", () => {
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
-      "appendHistory",
       "runClaudeTriage",
       "applyTriageOutput",
       "updateStatus",
@@ -228,7 +227,6 @@ describe("triage integration persistence flow", () => {
     // All queue actions complete; auto-persist failure at queue drain is non-fatal
     expect(String(snap.value)).toBe("done");
     expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
-      "appendHistory",
       "runClaudeTriage",
       "applyTriageOutput",
       "updateStatus",
@@ -302,10 +300,7 @@ describe("triage integration persistence flow", () => {
 
     expect(String(snap.value)).toBe("done");
     expect(snap.context.error).toBeTruthy();
-    expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
-      "appendHistory",
-      "appendHistory",
-    ]);
+    expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([]);
     // Auto-persist at queue drain still calls update (non-fatal persist)
     expect(update).toHaveBeenCalled();
   });

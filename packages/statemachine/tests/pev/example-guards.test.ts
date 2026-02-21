@@ -48,6 +48,7 @@ function withRunnerContext(
     cycleCount: 0,
     maxCycles: 10,
     error: null,
+    queueLabel: null,
     runnerCtx: { token: "token", owner: "owner", repo: "repo" },
   };
 }

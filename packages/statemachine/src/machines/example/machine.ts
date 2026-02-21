@@ -11,7 +11,6 @@ import { createMachineFactory } from "../../core/pev/domain-machine-factory.js";
 import type { ExampleContext } from "./context.js";
 import {
   updateStatusAction,
-  appendHistoryAction,
   removeLabelsAction,
   runClaudeTriageAction,
   applyTriageOutputAction,
@@ -103,7 +102,7 @@ import {
 } from "./guards.js";
 import { createExampleQueueAssigners } from "./states.js";
 import { ExampleContextLoader } from "./context.js";
-import { persistIssueState } from "./commands.js";
+import { persistIssueState, repositoryFor } from "./commands.js";
 import type { ExampleMachineEvent } from "./events.js";
 import type { ExampleServices } from "./services.js";
 import { RUNNER_STATES } from "../../core/pev/runner-states.js";
@@ -116,7 +115,6 @@ export const exampleMachine = createMachineFactory<
   .services<ExampleServices>()
   .actions((createAction) => ({
     updateStatus: updateStatusAction(createAction),
-    appendHistory: appendHistoryAction(createAction),
     removeLabels: removeLabelsAction(createAction),
     runClaudeTriage: runClaudeTriageAction(createAction),
     applyTriageOutput: applyTriageOutputAction(createAction),
@@ -498,6 +496,61 @@ export const exampleMachine = createMachineFactory<
   .refreshContext(ExampleContextLoader.refreshFromRunnerContext)
   .persistContext(async (_runnerCtx, domain) => {
     await persistIssueState(domain);
+  })
+  .beforeQueue((_runnerCtx, domain, queueLabel) => {
+    if (!queueLabel) return;
+    const repo = repositoryFor(domain);
+    if (repo.appendHistoryEntry) {
+      repo.appendHistoryEntry({
+        phase: queueLabel,
+        message: "⏳ Running...",
+        timestamp: domain.workflowStartedAt ?? new Date().toISOString(),
+        sha: domain.ciCommitSha ?? undefined,
+        runLink: domain.workflowRunUrl ?? undefined,
+      });
+    }
+  })
+  .afterQueue((_runnerCtx, domain, queueLabel, completedActions, error) => {
+    if (!queueLabel) return;
+    const repo = repositoryFor(domain);
+    if (!repo.updateLastHistoryEntry) return;
+
+    const messages: string[] = [];
+    let runUrl = domain.workflowRunUrl ?? undefined;
+    let sha = domain.ciCommitSha ?? undefined;
+
+    for (const { result } of completedActions) {
+      if (result && typeof result === "object") {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- duck-typed action result inspection
+        const r = result as Record<string, unknown>;
+        if (typeof r.message === "string" && r.message)
+          messages.push(r.message);
+        if (typeof r.runUrl === "string") runUrl = r.runUrl;
+        if (typeof r.sha === "string") sha = r.sha;
+      }
+    }
+
+    const allPassed =
+      !error &&
+      completedActions.every(
+        (a) =>
+          a.result &&
+          typeof a.result === "object" &&
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- duck-typed ok check
+          (a.result as Record<string, unknown>).ok === true,
+      );
+    const statusEmoji = allPassed ? "✅" : "❌";
+    const details = error
+      ? error
+      : messages.length > 0
+        ? messages.join(" | ")
+        : queueLabel;
+
+    repo.updateLastHistoryEntry({
+      message: `${statusEmoji} ${details}`,
+      sha,
+      runLink: runUrl,
+    });
   })
   .build({
     id: "example",

@@ -60,6 +60,7 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- action registry lookup is runtime-typed
   actionRegistry: Record<string, any>,
   hasActionFailureState: boolean,
+  hasBeforeQueue: boolean,
 ): Record<string, unknown> {
   type Ctx = RunnerMachineContext<TDomainContext, TAction>;
   const actionFailureTarget = hasActionFailureState
@@ -69,35 +70,91 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
     ? `#${configId}.actionFailure`
     : `#${configId}.${RUNNER_STATES.verificationFailed}`;
 
-  return {
-    [RUNNER_STATES.executingQueue]: {
-      always: [
-        {
-          guard: "queueEmpty",
-          target: RUNNER_STATES.queueComplete,
-        },
-        {
-          target: RUNNER_STATES.runningAction,
-          actions: assign({
-            currentAction: ({ context }: { context: Ctx }) =>
-              context.actionQueue[0] ?? null,
-            actionQueue: ({ context }: { context: Ctx }) =>
-              context.actionQueue.slice(1),
-            prediction: ({ context }: { context: Ctx }) => {
-              const action = context.actionQueue[0];
-              if (!action) return null;
-              const def = actionRegistry[action.type];
-              if (!def?.predict) return null;
-              return def.predict(action, context.domain);
+  // When beforeQueue is configured, executingQueue first invokes it and persists,
+  // then proceeds to dequeuing actions. Without beforeQueue, skip straight to dequeuing.
+  const executingQueueState = hasBeforeQueue
+    ? {
+        initial: "startingQueue",
+        states: {
+          startingQueue: {
+            invoke: {
+              src: "startBeforeQueue",
+              input: ({ context }: { context: Ctx }) => ({
+                runnerCtx: context.runnerCtx,
+                domain: context.domain,
+                queueLabel: context.queueLabel,
+              }),
+              onDone: [
+                {
+                  guard: "queueEmpty",
+                  target: `#${configId}.${RUNNER_STATES.queueComplete}`,
+                },
+                { target: "dequeuing" },
+              ],
+              onError: "dequeuing",
             },
-            preActionSnapshot: ({ context }: { context: Ctx }) =>
-              cloneDomainSnapshot(context.domain),
-            executeResult: () => null,
-            verifyResult: () => null,
-          }),
+          },
+          dequeuing: {
+            always: [
+              {
+                guard: "queueEmpty",
+                target: `#${configId}.${RUNNER_STATES.queueComplete}`,
+              },
+              {
+                target: `#${configId}.${RUNNER_STATES.runningAction}`,
+                actions: assign({
+                  currentAction: ({ context }: { context: Ctx }) =>
+                    context.actionQueue[0] ?? null,
+                  actionQueue: ({ context }: { context: Ctx }) =>
+                    context.actionQueue.slice(1),
+                  prediction: ({ context }: { context: Ctx }) => {
+                    const action = context.actionQueue[0];
+                    if (!action) return null;
+                    const def = actionRegistry[action.type];
+                    if (!def?.predict) return null;
+                    return def.predict(action, context.domain);
+                  },
+                  preActionSnapshot: ({ context }: { context: Ctx }) =>
+                    cloneDomainSnapshot(context.domain),
+                  executeResult: () => null,
+                  verifyResult: () => null,
+                }),
+              },
+            ],
+          },
         },
-      ],
-    },
+      }
+    : {
+        always: [
+          {
+            guard: "queueEmpty",
+            target: RUNNER_STATES.queueComplete,
+          },
+          {
+            target: RUNNER_STATES.runningAction,
+            actions: assign({
+              currentAction: ({ context }: { context: Ctx }) =>
+                context.actionQueue[0] ?? null,
+              actionQueue: ({ context }: { context: Ctx }) =>
+                context.actionQueue.slice(1),
+              prediction: ({ context }: { context: Ctx }) => {
+                const action = context.actionQueue[0];
+                if (!action) return null;
+                const def = actionRegistry[action.type];
+                if (!def?.predict) return null;
+                return def.predict(action, context.domain);
+              },
+              preActionSnapshot: ({ context }: { context: Ctx }) =>
+                cloneDomainSnapshot(context.domain),
+              executeResult: () => null,
+              verifyResult: () => null,
+            }),
+          },
+        ],
+      };
+
+  return {
+    [RUNNER_STATES.executingQueue]: executingQueueState,
 
     [RUNNER_STATES.runningAction]: {
       initial: "executing",
@@ -153,7 +210,10 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
                     };
                   };
                 }) => event.output.verifyResult.pass === true,
-                target: `#${configId}.${RUNNER_STATES.executingQueue}`,
+                // After verify pass, go back to dequeuing (skip beforeQueue on subsequent actions)
+                target: hasBeforeQueue
+                  ? `#${configId}.${RUNNER_STATES.executingQueue}.dequeuing`
+                  : `#${configId}.${RUNNER_STATES.executingQueue}`,
                 actions: assign({
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- onDone event type not inferrable in factory
                   verifyResult: ({ event }: any) => event.output.verifyResult,
@@ -200,9 +260,12 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
     },
 
     [RUNNER_STATES.queueComplete]: {
-      entry: assign({
-        cycleCount: ({ context }: { context: Ctx }) => context.cycleCount + 1,
-      }),
+      entry: [
+        assign({
+          cycleCount: ({ context }: { context: Ctx }) => context.cycleCount + 1,
+        }),
+        "__runAfterQueue",
+      ],
       initial: "persisting",
       states: {
         persisting: {
@@ -265,6 +328,7 @@ export function createDomainMachine<
     config.id,
     config.actionRegistry,
     "actionFailure" in config.domainStates,
+    Boolean(config.beforeQueue),
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- XState factory composition
@@ -318,6 +382,24 @@ export function createDomainMachine<
             ctx: input.domain,
             services: input.services,
           });
+        },
+      ),
+      startBeforeQueue: fromPromise(
+        async ({
+          input,
+        }: {
+          input: {
+            runnerCtx: Ctx["runnerCtx"];
+            domain: TDomainContext;
+            queueLabel: string | null;
+          };
+        }) => {
+          if (config.beforeQueue) {
+            config.beforeQueue(input.runnerCtx, input.domain, input.queueLabel);
+            if (config.persistContext) {
+              await config.persistContext(input.runnerCtx, input.domain);
+            }
+          }
         },
       ),
       persistAfterQueue: fromPromise(
@@ -414,8 +496,22 @@ export function createDomainMachine<
         },
       ),
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions -- XState action types can't be composed generically
-    actions: (config.actions ?? {}) as any,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- XState action types can't be composed generically
+    actions: {
+      ...(config.actions ?? {}),
+      __runAfterQueue: ({ context }: { context: Ctx }) => {
+        if (config.afterQueue) {
+          config.afterQueue(
+            context.runnerCtx,
+            context.domain,
+            context.queueLabel,
+            context.completedActions,
+            context.error,
+          );
+        }
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
   }).createMachine({
     id: config.id,
     initial: "routing",
@@ -436,6 +532,7 @@ export function createDomainMachine<
       cycleCount: 0,
       maxCycles: input.maxCycles ?? 1,
       error: null,
+      queueLabel: null,
       runnerCtx: input.runnerCtx,
     }),
 

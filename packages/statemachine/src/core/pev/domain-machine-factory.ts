@@ -30,6 +30,24 @@ type PersistContextFn<TDomain> = (
   domain: TDomain,
 ) => Promise<void>;
 
+type BeforeQueueFn<TDomain> = (
+  runnerCtx: ExternalRunnerContext,
+  domain: TDomain,
+  queueLabel: string | null,
+) => void;
+
+type AfterQueueFn<TDomain> = (
+  runnerCtx: ExternalRunnerContext,
+  domain: TDomain,
+  queueLabel: string | null,
+  completedActions: Array<{
+    action: { type: string };
+    result: unknown;
+    verified: boolean;
+  }>,
+  error: string | null,
+) => void;
+
 type TGuardFn<TDomain, TAction extends { type: string }> = (args: {
   context: RunnerMachineContext<TDomain, TAction>;
 }) => boolean;
@@ -148,6 +166,26 @@ interface MachineFactory<
     TServices
   >;
 
+  beforeQueue(
+    fn: BeforeQueueFn<TDomain>,
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  >;
+
+  afterQueue(
+    fn: AfterQueueFn<TDomain>,
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  >;
+
   build<TEvent extends EventObject = TFactoryEvent>(
     opts:
       | { id: string }
@@ -178,6 +216,8 @@ interface RuntimeFactoryState<
   domainStatesBuilder: StatesBuilder<NonNullable<TRegistry>> | undefined;
   refreshContext: RefreshContextFn<TDomain> | undefined;
   persistContext: PersistContextFn<TDomain> | undefined;
+  beforeQueue: BeforeQueueFn<TDomain> | undefined;
+  afterQueue: AfterQueueFn<TDomain> | undefined;
 }
 
 export function createMachineFactory<
@@ -399,6 +439,30 @@ export function createMachineFactory<
       return buildFactory<TRegistry>(nextState);
     }
 
+    function beforeQueue(
+      fn: BeforeQueueFn<TDomain>,
+    ): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      TServices
+    > {
+      return buildFactory<TRegistry>({ ...state, beforeQueue: fn });
+    }
+
+    function afterQueue(
+      fn: AfterQueueFn<TDomain>,
+    ): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      TServices
+    > {
+      return buildFactory<TRegistry>({ ...state, afterQueue: fn });
+    }
+
     function build<TEvent extends EventObject = TFactoryEvent>(
       opts:
         | { id: string }
@@ -440,6 +504,8 @@ export function createMachineFactory<
           guards,
           refreshContext,
           persistContext: state.persistContext,
+          beforeQueue: state.beforeQueue,
+          afterQueue: state.afterQueue,
         };
         return createDomainMachine<
           TDomain,
@@ -473,6 +539,8 @@ export function createMachineFactory<
       states,
       refreshContext,
       persistContext,
+      beforeQueue,
+      afterQueue,
       build,
     };
   }
@@ -484,5 +552,7 @@ export function createMachineFactory<
     domainStatesBuilder: undefined,
     refreshContext: undefined,
     persistContext: undefined,
+    beforeQueue: undefined,
+    afterQueue: undefined,
   });
 }
