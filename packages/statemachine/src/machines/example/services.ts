@@ -194,7 +194,6 @@ function mapClaudeOutputToTriageResult(output: unknown): ExampleTriageOutput {
     (topic) => `topic:${normalizeLabelPart(topic)}`,
   );
   const labelsToAdd = [
-    "triaged",
     `type:${parsed.triage.type}`,
     ...(parsed.triage.needs_info ? ["needs-info"] : []),
     ...topicLabels,
@@ -235,8 +234,7 @@ function mapGroomingSummaryToOutput(
   engineerOutput: unknown,
 ): ExampleGroomingOutput {
   const summary = ClaudeGroomingSummaryOutputSchema.parse(summaryOutput);
-  const labelsToAdd =
-    summary.decision === "ready" ? ["groomed"] : ["needs-grooming-info"];
+  const labelsToAdd: string[] = [];
   const engineer = ClaudeEngineerOutputSchema.safeParse(engineerOutput);
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
@@ -261,7 +259,7 @@ function mapClaudeOutputToIterationResult(
 ): ExampleIterationOutput {
   const parsed = ClaudeIterationOutputSchema.parse(output);
   return {
-    labelsToAdd: ["iteration:ready"],
+    labelsToAdd: [],
     summary: parsed.agent_notes.join("; ") || parsed.status,
     status: parsed.status,
     todosCompleted:
@@ -273,7 +271,7 @@ function mapClaudeOutputToIterationResult(
 
 function mapClaudeOutputToReviewResult(output: unknown): ExampleReviewOutput {
   const parsed = ClaudeReviewOutputSchema.parse(output);
-  const labelsToAdd = ["reviewed", ...parsed.review.labels_to_add];
+  const labelsToAdd = [...parsed.review.labels_to_add];
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
     summary: parsed.summary,
@@ -284,10 +282,7 @@ function mapClaudeOutputToPrResponseResult(
   output: unknown,
 ): ExamplePrResponseOutput {
   const parsed = ClaudePrResponseOutputSchema.parse(output);
-  const labelsToAdd = [
-    "response-prepared",
-    ...parsed.pr_response.labels_to_add,
-  ];
+  const labelsToAdd = [...parsed.pr_response.labels_to_add];
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
     summary: parsed.summary,

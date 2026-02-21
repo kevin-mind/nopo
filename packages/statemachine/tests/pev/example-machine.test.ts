@@ -111,15 +111,14 @@ describe("Example Machine — Triage", () => {
       issue: mockExampleIssue({ labels: [] }),
       triageOutput: null,
     });
-    const repository: IssueStateRepository & { save: () => Promise<boolean> } =
-      {
-        setIssueStatus: () => {},
-        addIssueLabels: () => {
-          // Intentionally no-op to force prediction-check failure.
-        },
-        reconcileSubIssues: () => {},
-        save: async () => true,
-      };
+    const repository: IssueStateRepository = {
+      setIssueStatus: () => {},
+      addIssueLabels: () => {
+        // Intentionally no-op to force prediction-check failure.
+      },
+      reconcileSubIssues: () => {},
+      updateBody: () => {},
+    };
     domain.repository = repository;
 
     const snap = await runExampleMachine(domain, {
@@ -756,7 +755,7 @@ describe("Example Machine — Max Cycles", () => {
     const snap = await runExampleMachine(domain, { maxCycles: 2 });
 
     expect(String(snap.value)).toBe("done");
-    // 2 cycles × 4 triage actions = 8 completed
+    // 2 cycles × 4 triage actions (appendHistory, runClaudeTriage, applyTriageOutput, updateStatus) = 8
     expect(snap.context.completedActions.length).toBeGreaterThanOrEqual(8);
     expect(snap.context.cycleCount).toBe(2);
   });
@@ -776,13 +775,12 @@ describe("Example Machine — Multiple Actions", () => {
     const snap = await runExampleMachine(domain);
 
     expect(String(snap.value)).toBe("done");
-    expect(snap.context.completedActions).toHaveLength(5);
+    expect(snap.context.completedActions).toHaveLength(4);
     expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
       "appendHistory",
       "runClaudeTriage",
       "applyTriageOutput",
       "updateStatus",
-      "persistState",
     ]);
     expect(snap.context.actionQueue).toHaveLength(0);
   });

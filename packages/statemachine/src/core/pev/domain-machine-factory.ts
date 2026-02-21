@@ -25,6 +25,11 @@ type RefreshContextFn<TDomain> = (
   current: TDomain,
 ) => Promise<TDomain>;
 
+type PersistContextFn<TDomain> = (
+  runnerCtx: ExternalRunnerContext,
+  domain: TDomain,
+) => Promise<void>;
+
 type TGuardFn<TDomain, TAction extends { type: string }> = (args: {
   context: RunnerMachineContext<TDomain, TAction>;
 }) => boolean;
@@ -132,6 +137,17 @@ interface MachineFactory<
     TServices
   >;
 
+  persistContext(): PersistContextFn<TDomain> | undefined;
+  persistContext(
+    fn: PersistContextFn<TDomain>,
+  ): MachineFactory<
+    TDomain,
+    TRegistry,
+    TActionOverride,
+    TFactoryEvent,
+    TServices
+  >;
+
   build<TEvent extends EventObject = TFactoryEvent>(
     opts:
       | { id: string }
@@ -161,6 +177,7 @@ interface RuntimeFactoryState<
   domainStates: Record<string, unknown>;
   domainStatesBuilder: StatesBuilder<NonNullable<TRegistry>> | undefined;
   refreshContext: RefreshContextFn<TDomain> | undefined;
+  persistContext: PersistContextFn<TDomain> | undefined;
 }
 
 export function createMachineFactory<
@@ -357,6 +374,31 @@ export function createMachineFactory<
       return buildFactory<TRegistry>(nextState);
     }
 
+    function persistContext(): PersistContextFn<TDomain> | undefined;
+    function persistContext(
+      fn: PersistContextFn<TDomain>,
+    ): MachineFactory<
+      TDomain,
+      TRegistry,
+      TActionOverride,
+      TFactoryEvent,
+      TServices
+    >;
+    function persistContext(fn?: PersistContextFn<TDomain>) {
+      if (fn === undefined) {
+        return state.persistContext;
+      }
+      const nextState: RuntimeFactoryState<
+        TDomain,
+        TRegistry,
+        TActionOverride
+      > = {
+        ...state,
+        persistContext: fn,
+      };
+      return buildFactory<TRegistry>(nextState);
+    }
+
     function build<TEvent extends EventObject = TFactoryEvent>(
       opts:
         | { id: string }
@@ -397,6 +439,7 @@ export function createMachineFactory<
           actionRegistry,
           guards,
           refreshContext,
+          persistContext: state.persistContext,
         };
         return createDomainMachine<
           TDomain,
@@ -429,6 +472,7 @@ export function createMachineFactory<
       guards,
       states,
       refreshContext,
+      persistContext,
       build,
     };
   }
@@ -439,5 +483,6 @@ export function createMachineFactory<
     domainStates: {},
     domainStatesBuilder: undefined,
     refreshContext: undefined,
+    persistContext: undefined,
   });
 }

@@ -57,7 +57,7 @@ describe("createClaudeIterationService", () => {
       },
     });
     expect(result).toEqual({
-      labelsToAdd: ["iteration:ready"],
+      labelsToAdd: [],
       summary: "Fix tests; then request review",
       status: "completed_todo",
       todosCompleted: ["Fix flaky test"],

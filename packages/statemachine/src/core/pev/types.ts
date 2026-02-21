@@ -278,6 +278,11 @@ export interface DomainMachineConfig<
     runnerCtx: ExternalRunnerContext,
     current: TDomainContext,
   ) => Promise<TDomainContext>;
+  /** Auto-persist domain context after every queue drain (optional). */
+  persistContext?: (
+    runnerCtx: ExternalRunnerContext,
+    domain: TDomainContext,
+  ) => Promise<void>;
 }
 
 /**

@@ -203,15 +203,31 @@ function buildRunnerStates<TDomainContext, TAction extends { type: string }>(
       entry: assign({
         cycleCount: ({ context }: { context: Ctx }) => context.cycleCount + 1,
       }),
-      always: [
-        {
-          guard: "maxCyclesReached",
-          target: RUNNER_STATES.done,
+      initial: "persisting",
+      states: {
+        persisting: {
+          invoke: {
+            src: "persistAfterQueue",
+            input: ({ context }: { context: Ctx }) => ({
+              runnerCtx: context.runnerCtx,
+              domain: context.domain,
+            }),
+            onDone: "routable",
+            onError: "routable",
+          },
         },
-        {
-          target: `#${configId}.routing`,
+        routable: {
+          always: [
+            {
+              guard: "maxCyclesReached",
+              target: `#${configId}.${RUNNER_STATES.done}`,
+            },
+            {
+              target: `#${configId}.routing`,
+            },
+          ],
         },
-      ],
+      },
     },
 
     [RUNNER_STATES.executionFailed]: {
@@ -302,6 +318,21 @@ export function createDomainMachine<
             ctx: input.domain,
             services: input.services,
           });
+        },
+      ),
+      persistAfterQueue: fromPromise(
+        async ({
+          input,
+        }: {
+          input: {
+            runnerCtx: Ctx["runnerCtx"];
+            domain: TDomainContext;
+          };
+        }) => {
+          if (config.persistContext) {
+            console.info("[PEV] Auto-persisting state after queue drain");
+            await config.persistContext(input.runnerCtx, input.domain);
+          }
         },
       ),
       verifyAction: fromPromise(

@@ -8,11 +8,11 @@
  * IMPORTANT: Only use DURABLE signals (observable on every run) — not
  * transient per-run context like ciResult or reviewDecision.
  *
- * Labels "triaged" and "groomed" are DEPRECATED — project statuses
- * (Triaged, Groomed) replace them. Milestones use artifact-based
- * signals: hasSubIssues, sub-issue statuses, PR state, bot assignment.
- * "Triaged" cannot be detected from artifacts so it is NOT a milestone;
- * the guard treats it as a valid intermediate between Backlog and Groomed.
+ * Parent milestone ladder:
+ *   Backlog → Triaged (## Triage section in body) → Groomed (hasSubIssues) → In progress → Done
+ *
+ * Labels are descriptive metadata only (type:*, topic:*), not state tracking.
+ * State is auto-persisted at queue drain, not by individual actions.
  */
 
 import type { ExampleContext, ExampleProjectStatus } from "./context.js";
@@ -23,7 +23,7 @@ type NonNullStatus = Exclude<ExampleProjectStatus, null>;
 // Milestone types
 // ---------------------------------------------------------------------------
 
-type ParentMilestone = "backlog" | "groomed" | "working" | "done";
+type ParentMilestone = "backlog" | "triaged" | "groomed" | "working" | "done";
 
 type SubIssueMilestone = "backlog" | "working" | "review" | "done";
 
@@ -35,6 +35,7 @@ const PARENT_MILESTONE_STATUS: Record<ParentMilestone, NonNullStatus> = {
   done: "Done",
   working: "In progress",
   groomed: "Groomed",
+  triaged: "Triaged",
   backlog: "Backlog",
 };
 
@@ -65,6 +66,11 @@ function computeParentMilestone(ctx: ExampleContext): ParentMilestone {
   // 1: Has sub-issues → groomed (sub-issues are the artifact of grooming)
   if (ctx.issue.hasSubIssues) {
     return "groomed";
+  }
+
+  // 0.5: Has ## Triage section in body → triaged
+  if (ctx.issue.body.includes("## Triage")) {
+    return "triaged";
   }
 
   // 0: Backlog (default)
@@ -124,10 +130,6 @@ export function computeExpectedStatus(ctx: ExampleContext): NonNullStatus {
 
 /**
  * Check if a status is compatible with the computed expected status.
- *
- * "Triaged" is a valid intermediate between Backlog and Groomed that
- * milestones cannot detect from artifacts alone. The triage action sets
- * this status, and we trust it.
  */
 export function isStatusCompatible(
   actual: ExampleProjectStatus | null,
@@ -136,7 +138,5 @@ export function isStatusCompatible(
   if (actual === expected) return true;
   // null is equivalent to Backlog
   if (actual === null && expected === "Backlog") return true;
-  // Triaged is between Backlog and Groomed — milestones can't detect it
-  if (expected === "Backlog" && actual === "Triaged") return true;
   return false;
 }

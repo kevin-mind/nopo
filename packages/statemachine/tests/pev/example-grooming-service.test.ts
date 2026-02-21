@@ -95,7 +95,7 @@ describe("createClaudeGroomingService", () => {
       expect.objectContaining({ promptDir: "grooming/summary" }),
     );
     expect(result).toEqual({
-      labelsToAdd: ["groomed"],
+      labelsToAdd: [],
       summary: "Split by API and UI tracks",
       decision: "ready",
       recommendedPhases: [

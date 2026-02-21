@@ -27568,15 +27568,31 @@ function buildRunnerStates(configId, actionRegistry, hasActionFailureState) {
       entry: assign({
         cycleCount: ({ context }) => context.cycleCount + 1
       }),
-      always: [
-        {
-          guard: "maxCyclesReached",
-          target: RUNNER_STATES.done
+      initial: "persisting",
+      states: {
+        persisting: {
+          invoke: {
+            src: "persistAfterQueue",
+            input: ({ context }) => ({
+              runnerCtx: context.runnerCtx,
+              domain: context.domain
+            }),
+            onDone: "routable",
+            onError: "routable"
+          }
         },
-        {
-          target: `#${configId}.routing`
+        routable: {
+          always: [
+            {
+              guard: "maxCyclesReached",
+              target: `#${configId}.${RUNNER_STATES.done}`
+            },
+            {
+              target: `#${configId}.routing`
+            }
+          ]
         }
-      ]
+      }
     },
     [RUNNER_STATES.executionFailed]: {
       type: "final"
@@ -27645,6 +27661,16 @@ function createDomainMachine(config2) {
             ctx: input.domain,
             services: input.services
           });
+        }
+      ),
+      persistAfterQueue: fromPromise(
+        async ({
+          input
+        }) => {
+          if (config2.persistContext) {
+            console.info("[PEV] Auto-persisting state after queue drain");
+            await config2.persistContext(input.runnerCtx, input.domain);
+          }
         }
       ),
       verifyAction: fromPromise(
@@ -27805,6 +27831,16 @@ function createMachineFactory() {
       };
       return buildFactory(nextState);
     }
+    function persistContext2(fn) {
+      if (fn === void 0) {
+        return state.persistContext;
+      }
+      const nextState = {
+        ...state,
+        persistContext: fn
+      };
+      return buildFactory(nextState);
+    }
     function build(opts) {
       const usingStoredParts = !("actionRegistry" in opts && opts.actionRegistry != null);
       if (usingStoredParts) {
@@ -27822,7 +27858,8 @@ function createMachineFactory() {
           domainStates,
           actionRegistry,
           guards: guards2,
-          refreshContext: refreshContext2
+          refreshContext: refreshContext2,
+          persistContext: state.persistContext
         };
         return createDomainMachine(machineConfig2);
       }
@@ -27841,6 +27878,7 @@ function createMachineFactory() {
       guards,
       states,
       refreshContext,
+      persistContext: persistContext2,
       build
     };
   }
@@ -27849,7 +27887,8 @@ function createMachineFactory() {
     guards: void 0,
     domainStates: {},
     domainStatesBuilder: void 0,
-    refreshContext: void 0
+    refreshContext: void 0,
+    persistContext: void 0
   });
 }
 
@@ -45630,8 +45669,9 @@ function runClaudeTriageAction(createAction) {
 function applyTriageOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply triage output to #${action.payload.issueNumber}`,
-    predict: (action) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
+    predict: (action, ctx) => {
+      const labelsToAdd = action.payload.labelsToAdd ?? ctx.triageOutput?.labelsToAdd ?? [];
+      if (labelsToAdd.length === 0) return { checks: [] };
       return {
         checks: [
           {
@@ -45653,16 +45693,31 @@ function applyTriageOutputAction(createAction) {
         throw new Error("No triage labels available to apply");
       }
       applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist triage output");
+      const output = ctx.triageOutput;
+      const type = labelsToAdd.find((l) => l.startsWith("type:"))?.replace("type:", "") ?? "unknown";
+      const topics = labelsToAdd.filter((l) => l.startsWith("topic:")).map((l) => l.replace("topic:", ""));
+      const approach = output?.summary ?? "";
+      const triageSection = [
+        "## Triage",
+        "",
+        `**Type:** ${type}`,
+        `**Topics:** ${topics.join(", ") || "none"}`,
+        `**Approach:** ${approach}`
+      ].join("\n");
+      const repo = repositoryFor(ctx);
+      const body = ctx.issue.body;
+      const historyIdx = body.indexOf("## Iteration History");
+      const newBody = historyIdx >= 0 ? body.slice(0, historyIdx) + triageSection + "\n\n" + body.slice(historyIdx) : body + "\n\n" + triageSection;
+      if (repo.updateBody) {
+        repo.updateBody(newBody);
+      } else {
+        ctx.issue.body = newBody;
       }
       ctx.triageOutput = null;
       return { ok: true };
     },
     verify: (args) => {
       const { action, executeResult, predictionEval, predictionDiffs } = args;
-      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
       const executeSucceeded = isOkResult(executeResult);
       if (!executeSucceeded) {
         return {
@@ -45670,6 +45725,7 @@ function applyTriageOutputAction(createAction) {
         };
       }
       if (predictionEval.pass) return;
+      const labelsToAdd = action.payload.labelsToAdd ?? [];
       return {
         message: `Missing triage labels after apply: ${labelsToAdd.join(", ")}`,
         diffs: predictionDiffs
@@ -45696,28 +45752,14 @@ function runClaudeGroomingAction(createAction) {
 function applyGroomingOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply grooming output to #${action.payload.issueNumber}`,
-    predict: (_action, ctx) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All grooming labels should exist on issue after apply",
-          checks: (ctx.groomingOutput?.labelsToAdd ?? ["groomed"]).map(
-            (label) => ({
-              comparator: "includes",
-              description: `Issue labels should include "${label}"`,
-              field: "issue.labels",
-              expected: label
-            })
-          )
-        }
-      ]
-    }),
     execute: async ({ ctx }) => {
       const output = ctx.groomingOutput;
       if (!output) {
         throw new Error("No grooming output available to apply");
       }
-      applyGrooming(ctx, output.labelsToAdd);
+      if (output.labelsToAdd.length > 0) {
+        applyGrooming(ctx, output.labelsToAdd);
+      }
       return { ok: true, decision: output.decision };
     }
   });
@@ -45754,10 +45796,6 @@ function reconcileSubIssuesAction(createAction) {
         } else if (existingNumbers.length > 0) {
           reconcileSubIssues(ctx, existingNumbers);
         }
-      }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist grooming output");
       }
       ctx.groomingOutput = null;
       return { ok: true, decision: output.decision };
@@ -45798,29 +45836,12 @@ function runClaudeIterationAction(createAction) {
 function applyIterationOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply iteration output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All iteration labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["iteration:ready"]).map(
-            (label) => ({
-              comparator: "includes",
-              description: `Issue labels should include "${label}"`,
-              field: "issue.labels",
-              expected: label
-            })
-          )
-        }
-      ]
-    }),
     execute: async ({ action, ctx }) => {
       const output = ctx.iterationOutput;
       const labelsToAdd = action.payload.labelsToAdd ?? output?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No iteration labels available to apply");
+      if (labelsToAdd && labelsToAdd.length > 0) {
+        applyTriage(ctx, labelsToAdd);
       }
-      applyTriage(ctx, labelsToAdd);
       const todosCompleted = output?.todosCompleted;
       const shouldCheckTodos = (output?.status === "completed_todo" || output?.status === "all_done") && todosCompleted && todosCompleted.length > 0;
       if (shouldCheckTodos) {
@@ -45837,26 +45858,17 @@ function applyIterationOutputAction(createAction) {
           issue2.body = body;
         }
       }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist iteration output");
-      }
       ctx.iterationOutput = null;
       return { ok: true };
     },
-    verify: ({ action, executeResult, predictionEval, predictionDiffs }) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["iteration:ready"];
+    verify: ({ executeResult }) => {
       const executeSucceeded = isOkResult(executeResult);
       if (!executeSucceeded) {
         return {
           message: "Iteration output execute step did not return ok=true"
         };
       }
-      if (predictionEval.pass) return;
-      return {
-        message: `Missing iteration labels after apply: ${labelsToAdd.join(", ")}`,
-        diffs: predictionDiffs
-      };
+      return void 0;
     }
   });
 }
@@ -45876,29 +45888,10 @@ function runClaudeReviewAction(createAction) {
 function applyReviewOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply review output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All review labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["reviewed"]).map((label) => ({
-            comparator: "includes",
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label
-          }))
-        }
-      ]
-    }),
     execute: async ({ action, ctx }) => {
       const labelsToAdd = action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No review labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist review output");
+      if (labelsToAdd && labelsToAdd.length > 0) {
+        applyTriage(ctx, labelsToAdd);
       }
       ctx.reviewOutput = null;
       return { ok: true };
@@ -45921,29 +45914,10 @@ function runClaudePrResponseAction(createAction) {
 function applyPrResponseOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply PR response output to #${action.payload.issueNumber}`,
-    predict: (action, ctx) => ({
-      checks: [
-        {
-          comparator: "all",
-          description: "All PR response labels should exist on issue after apply",
-          checks: (action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd ?? []).map((label) => ({
-            comparator: "includes",
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label
-          }))
-        }
-      ]
-    }),
     execute: async ({ action, ctx }) => {
       const labelsToAdd = action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No PR response labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist PR response output");
+      if (labelsToAdd && labelsToAdd.length > 0) {
+        applyTriage(ctx, labelsToAdd);
       }
       ctx.prResponseOutput = null;
       return { ok: true };
@@ -45953,24 +45927,24 @@ function applyPrResponseOutputAction(createAction) {
 function recordFailureAction(createAction) {
   return createAction({
     description: (action) => `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
-    // No predict: failures are updated in-memory only (not persisted until
-    // a subsequent persist action), so external refresh won't see the change.
+    predict: (action, ctx) => {
+      const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
+      const current = issue2.failures ?? 0;
+      return {
+        checks: [
+          {
+            comparator: "gte",
+            description: "Failures should be incremented",
+            field: "issue.failures",
+            expected: current + 1
+          }
+        ]
+      };
+    },
     execute: async ({ action, ctx }) => {
       const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
       const current = issue2.failures ?? 0;
       Object.assign(issue2, { failures: current + 1 });
-      return { ok: true };
-    }
-  });
-}
-function persistStateAction(createAction) {
-  return createAction({
-    description: (action) => `Persist issue #${action.payload.issueNumber} state (${action.payload.reason})`,
-    execute: async ({ ctx }) => {
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist state");
-      }
       return { ok: true };
     }
   });
@@ -45994,10 +45968,6 @@ function runOrchestrationAction(createAction) {
     execute: async ({ action, ctx }) => {
       if (action.payload.initParentIfNeeded) {
         setIssueStatus(ctx, "In progress");
-      }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist orchestration step");
       }
       const firstSub = ctx.issue.subIssues.find(
         (s) => s.projectStatus !== "Done" && s.state === "OPEN"
@@ -46234,6 +46204,7 @@ var PARENT_MILESTONE_STATUS = {
   done: "Done",
   working: "In progress",
   groomed: "Groomed",
+  triaged: "Triaged",
   backlog: "Backlog"
 };
 function computeParentMilestone(ctx) {
@@ -46249,6 +46220,9 @@ function computeParentMilestone(ctx) {
   }
   if (ctx.issue.hasSubIssues) {
     return "groomed";
+  }
+  if (ctx.issue.body.includes("## Triage")) {
+    return "triaged";
   }
   return "backlog";
 }
@@ -46281,7 +46255,6 @@ function computeExpectedStatus(ctx) {
 function isStatusCompatible(actual, expected) {
   if (actual === expected) return true;
   if (actual === null && expected === "Backlog") return true;
-  if (expected === "Backlog" && actual === "Triaged") return true;
   return false;
 }
 
@@ -46501,10 +46474,6 @@ function buildFixStateQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: expectedStatus
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "fix-status-misalignment"
     })
   ];
 }
@@ -46531,10 +46500,6 @@ function buildTriageQueue(context, registry2) {
     registry2.updateStatus.create({
       issueNumber,
       status: "Triaged"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "triage-complete"
     })
   ];
 }
@@ -46688,10 +46653,6 @@ function buildCompletingReviewTransitionQueue(context, registry2) {
       issueNumber: target.number,
       message: "CI passed, transitioning to review",
       phase: "review"
-    }),
-    registry2.persistState.create({
-      issueNumber: target.number,
-      reason: "review-transition"
     })
   );
   return actions;
@@ -46714,10 +46675,6 @@ function buildReviewQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber: sub.number,
       message: "Requesting review"
-    }),
-    registry2.persistState.create({
-      issueNumber: sub.number,
-      reason: "review-queue"
     })
   ];
 }
@@ -46742,10 +46699,6 @@ function buildMergeQueue(context, registry2) {
       issueNumber,
       message: "PR merged, issue marked done",
       phase: "review"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "merge-complete"
     })
   ];
   const needsOrchestration = context.domain.parentIssue !== null || context.domain.issue.hasSubIssues;
@@ -46770,10 +46723,6 @@ function buildDeployedStageQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Deployment to stage succeeded"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-stage-success"
     })
   ];
 }
@@ -46787,10 +46736,6 @@ function buildDeployedProdQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Deployment to production succeeded"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-prod-success"
     })
   ];
 }
@@ -46804,10 +46749,6 @@ function buildDeployedStageFailureQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Deployment to stage failed"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-stage-failure"
     })
   ];
 }
@@ -46821,10 +46762,6 @@ function buildDeployedProdFailureQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Deployment to production failed"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "deploy-prod-failure"
     })
   ];
 }
@@ -46838,10 +46775,6 @@ function buildPivotQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Pivot requested, blocking current path for replanning"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "pivot-blocked"
     })
   ];
 }
@@ -46855,10 +46788,6 @@ function buildResetQueue(context, registry2) {
     registry2.appendHistory.create({
       issueNumber,
       message: "Issue reset to backlog"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "reset-to-backlog"
     })
   ];
 }
@@ -46984,10 +46913,6 @@ function buildPrPushQueue(context, registry2) {
       issueNumber,
       message: "PR updated by push; awaiting CI and review loop",
       phase: "iterate"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "pr-push-status-update"
     })
   ];
 }
@@ -47040,10 +46965,6 @@ function buildOrchestrationCompleteQueue(context, registry2) {
       issueNumber,
       message: "All sub-issue phases are complete",
       phase: "review"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "orchestration-complete"
     })
   ];
 }
@@ -47071,10 +46992,6 @@ function buildBlockQueue(context, registry2) {
       registry2.appendHistory.create({
         issueNumber: issueNumber2,
         message: `Blocked: Sub-issue #${currentSub.number} is blocked (${subFailures} failures)`
-      }),
-      registry2.persistState.create({
-        issueNumber: issueNumber2,
-        reason: "sub-issue-blocked"
       })
     ];
   }
@@ -47089,10 +47006,6 @@ function buildBlockQueue(context, registry2) {
       issueNumber,
       message: `Blocked: Max failures reached (${failures})`,
       phase: "iterate"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "max-failures-blocked"
     })
   ];
 }
@@ -47107,10 +47020,6 @@ function buildMergeQueueFailureQueue(context, registry2) {
       issueNumber,
       message: "Merge queue failed",
       phase: "review"
-    }),
-    registry2.persistState.create({
-      issueNumber,
-      reason: "merge-queue-failure"
     })
   ];
 }
@@ -48045,7 +47954,6 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   applyPrResponseOutput: applyPrResponseOutputAction(createAction),
   runOrchestration: runOrchestrationAction(createAction),
   recordFailure: recordFailureAction(createAction),
-  persistState: persistStateAction(createAction),
   setupGit: setupGitAction(createAction),
   prepareBranch: prepareBranchAction(createAction),
   gitPush: gitPushAction(createAction),
@@ -48407,7 +48315,9 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
     alreadyBlocked: { type: "final" },
     error: { type: "final" }
   };
-}).refreshContext(ExampleContextLoader.refreshFromRunnerContext).build({
+}).refreshContext(ExampleContextLoader.refreshFromRunnerContext).persistContext(async (_runnerCtx, domain2) => {
+  await persistIssueState(domain2);
+}).build({
   id: "example"
 });
 
@@ -68489,7 +68399,6 @@ function mapClaudeOutputToTriageResult(output) {
     (topic) => `topic:${normalizeLabelPart(topic)}`
   );
   const labelsToAdd = [
-    "triaged",
     `type:${parsed.triage.type}`,
     ...parsed.triage.needs_info ? ["needs-info"] : [],
     ...topicLabels
@@ -68520,7 +68429,7 @@ var ClaudeEngineerOutputSchema = external_exports.object({
 });
 function mapGroomingSummaryToOutput(summaryOutput, engineerOutput) {
   const summary = ClaudeGroomingSummaryOutputSchema.parse(summaryOutput);
-  const labelsToAdd = summary.decision === "ready" ? ["groomed"] : ["needs-grooming-info"];
+  const labelsToAdd = [];
   const engineer = ClaudeEngineerOutputSchema.safeParse(engineerOutput);
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
@@ -68540,7 +68449,7 @@ function mapGroomingSummaryToOutput(summaryOutput, engineerOutput) {
 function mapClaudeOutputToIterationResult(output) {
   const parsed = ClaudeIterationOutputSchema.parse(output);
   return {
-    labelsToAdd: ["iteration:ready"],
+    labelsToAdd: [],
     summary: parsed.agent_notes.join("; ") || parsed.status,
     status: parsed.status,
     todosCompleted: parsed.todos_completed && parsed.todos_completed.length > 0 ? parsed.todos_completed : void 0
@@ -68548,7 +68457,7 @@ function mapClaudeOutputToIterationResult(output) {
 }
 function mapClaudeOutputToReviewResult(output) {
   const parsed = ClaudeReviewOutputSchema.parse(output);
-  const labelsToAdd = ["reviewed", ...parsed.review.labels_to_add];
+  const labelsToAdd = [...parsed.review.labels_to_add];
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
     summary: parsed.summary
@@ -68556,10 +68465,7 @@ function mapClaudeOutputToReviewResult(output) {
 }
 function mapClaudeOutputToPrResponseResult(output) {
   const parsed = ClaudePrResponseOutputSchema.parse(output);
-  const labelsToAdd = [
-    "response-prepared",
-    ...parsed.pr_response.labels_to_add
-  ];
+  const labelsToAdd = [...parsed.pr_response.labels_to_add];
   return {
     labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
     summary: parsed.summary

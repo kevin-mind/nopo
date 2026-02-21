@@ -18,7 +18,6 @@ import {
   applyGrooming,
   applyTriage,
   markPRReady,
-  persistIssueState,
   reconcileSubIssues,
   removeIssueLabels,
   repositoryFor,
@@ -190,8 +189,10 @@ export function applyTriageOutputAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Apply triage output to #${action.payload.issueNumber}`,
-    predict: (action) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
+    predict: (action, ctx) => {
+      const labelsToAdd =
+        action.payload.labelsToAdd ?? ctx.triageOutput?.labelsToAdd ?? [];
+      if (labelsToAdd.length === 0) return { checks: [] };
       return {
         checks: [
           {
@@ -215,16 +216,46 @@ export function applyTriageOutputAction(createAction: ExampleCreateAction) {
         throw new Error("No triage labels available to apply");
       }
       applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist triage output");
+
+      // Write structured ## Triage section to issue body
+      const output = ctx.triageOutput;
+      const type =
+        labelsToAdd.find((l) => l.startsWith("type:"))?.replace("type:", "") ??
+        "unknown";
+      const topics = labelsToAdd
+        .filter((l) => l.startsWith("topic:"))
+        .map((l) => l.replace("topic:", ""));
+      const approach = output?.summary ?? "";
+
+      const triageSection = [
+        "## Triage",
+        "",
+        `**Type:** ${type}`,
+        `**Topics:** ${topics.join(", ") || "none"}`,
+        `**Approach:** ${approach}`,
+      ].join("\n");
+
+      const repo = repositoryFor(ctx);
+      const body = ctx.issue.body;
+      const historyIdx = body.indexOf("## Iteration History");
+      const newBody =
+        historyIdx >= 0
+          ? body.slice(0, historyIdx) +
+            triageSection +
+            "\n\n" +
+            body.slice(historyIdx)
+          : body + "\n\n" + triageSection;
+      if (repo.updateBody) {
+        repo.updateBody(newBody);
+      } else {
+        ctx.issue.body = newBody;
       }
+
       ctx.triageOutput = null;
       return { ok: true };
     },
     verify: (args) => {
       const { action, executeResult, predictionEval, predictionDiffs } = args;
-      const labelsToAdd = action.payload.labelsToAdd ?? ["triaged"];
       const executeSucceeded = isOkResult(executeResult);
       if (!executeSucceeded) {
         return {
@@ -232,6 +263,7 @@ export function applyTriageOutputAction(createAction: ExampleCreateAction) {
         };
       }
       if (predictionEval.pass) return;
+      const labelsToAdd = action.payload.labelsToAdd ?? [];
       return {
         message: `Missing triage labels after apply: ${labelsToAdd.join(", ")}`,
         diffs: predictionDiffs,
@@ -267,28 +299,14 @@ export function applyGroomingOutputAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Apply grooming output to #${action.payload.issueNumber}`,
-    predict: (_action, ctx) => ({
-      checks: [
-        {
-          comparator: "all" as const,
-          description: "All grooming labels should exist on issue after apply",
-          checks: (ctx.groomingOutput?.labelsToAdd ?? ["groomed"]).map(
-            (label) => ({
-              comparator: "includes" as const,
-              description: `Issue labels should include "${label}"`,
-              field: "issue.labels",
-              expected: label,
-            }),
-          ),
-        },
-      ],
-    }),
     execute: async ({ ctx }) => {
       const output = ctx.groomingOutput;
       if (!output) {
         throw new Error("No grooming output available to apply");
       }
-      applyGrooming(ctx, output.labelsToAdd);
+      if (output.labelsToAdd.length > 0) {
+        applyGrooming(ctx, output.labelsToAdd);
+      }
       return { ok: true, decision: output.decision };
     },
   });
@@ -331,10 +349,6 @@ export function reconcileSubIssuesAction(createAction: ExampleCreateAction) {
         } else if (existingNumbers.length > 0) {
           reconcileSubIssues(ctx, existingNumbers);
         }
-      }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist grooming output");
       }
       ctx.groomingOutput = null;
       return { ok: true, decision: output.decision };
@@ -388,30 +402,12 @@ export function applyIterationOutputAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Apply iteration output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description:
-            "All iteration labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["iteration:ready"]).map(
-            (label) => ({
-              comparator: "includes" as const,
-              description: `Issue labels should include "${label}"`,
-              field: "issue.labels",
-              expected: label,
-            }),
-          ),
-        },
-      ],
-    }),
     execute: async ({ action, ctx }) => {
       const output = ctx.iterationOutput;
       const labelsToAdd = action.payload.labelsToAdd ?? output?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No iteration labels available to apply");
+      if (labelsToAdd && labelsToAdd.length > 0) {
+        applyTriage(ctx, labelsToAdd);
       }
-      applyTriage(ctx, labelsToAdd);
 
       const todosCompleted = output?.todosCompleted;
       const shouldCheckTodos =
@@ -437,26 +433,17 @@ export function applyIterationOutputAction(createAction: ExampleCreateAction) {
         }
       }
 
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist iteration output");
-      }
       ctx.iterationOutput = null;
       return { ok: true };
     },
-    verify: ({ action, executeResult, predictionEval, predictionDiffs }) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ["iteration:ready"];
+    verify: ({ executeResult }) => {
       const executeSucceeded = isOkResult(executeResult);
       if (!executeSucceeded) {
         return {
           message: "Iteration output execute step did not return ok=true",
         };
       }
-      if (predictionEval.pass) return;
-      return {
-        message: `Missing iteration labels after apply: ${labelsToAdd.join(", ")}`,
-        diffs: predictionDiffs,
-      };
+      return undefined;
     },
   });
 }
@@ -486,31 +473,11 @@ export function applyReviewOutputAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Apply review output to #${action.payload.issueNumber}`,
-    predict: (action) => ({
-      checks: [
-        {
-          comparator: "all",
-          description:
-            "All review labels from apply payload should exist on issue.labels",
-          checks: (action.payload.labelsToAdd ?? ["reviewed"]).map((label) => ({
-            comparator: "includes" as const,
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label,
-          })),
-        },
-      ],
-    }),
     execute: async ({ action, ctx }) => {
       const labelsToAdd =
         action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No review labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist review output");
+      if (labelsToAdd && labelsToAdd.length > 0) {
+        applyTriage(ctx, labelsToAdd);
       }
       ctx.reviewOutput = null;
       return { ok: true };
@@ -543,35 +510,11 @@ export function applyPrResponseOutputAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Apply PR response output to #${action.payload.issueNumber}`,
-    predict: (action, ctx) => ({
-      checks: [
-        {
-          comparator: "all" as const,
-          description:
-            "All PR response labels should exist on issue after apply",
-          checks: (
-            action.payload.labelsToAdd ??
-            ctx.prResponseOutput?.labelsToAdd ??
-            []
-          ).map((label) => ({
-            comparator: "includes" as const,
-            description: `Issue labels should include "${label}"`,
-            field: "issue.labels",
-            expected: label,
-          })),
-        },
-      ],
-    }),
     execute: async ({ action, ctx }) => {
       const labelsToAdd =
         action.payload.labelsToAdd ?? ctx.prResponseOutput?.labelsToAdd;
-      if (!labelsToAdd || labelsToAdd.length === 0) {
-        throw new Error("No PR response labels available to apply");
-      }
-      applyTriage(ctx, labelsToAdd);
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist PR response output");
+      if (labelsToAdd && labelsToAdd.length > 0) {
+        applyTriage(ctx, labelsToAdd);
       }
       ctx.prResponseOutput = null;
       return { ok: true };
@@ -586,8 +529,23 @@ export function recordFailureAction(createAction: ExampleCreateAction) {
   }>({
     description: (action) =>
       `Record ${action.payload.failureType} failure for #${action.payload.issueNumber}`,
-    // No predict: failures are updated in-memory only (not persisted until
-    // a subsequent persist action), so external refresh won't see the change.
+    predict: (action, ctx) => {
+      const issue =
+        ctx.issue.number === action.payload.issueNumber
+          ? ctx.issue
+          : (ctx.currentSubIssue ?? ctx.issue);
+      const current = issue.failures ?? 0;
+      return {
+        checks: [
+          {
+            comparator: "gte" as const,
+            description: "Failures should be incremented",
+            field: "issue.failures",
+            expected: current + 1,
+          },
+        ],
+      };
+    },
     execute: async ({ action, ctx }) => {
       const issue =
         ctx.issue.number === action.payload.issueNumber
@@ -595,23 +553,6 @@ export function recordFailureAction(createAction: ExampleCreateAction) {
           : (ctx.currentSubIssue ?? ctx.issue);
       const current = issue.failures ?? 0;
       Object.assign(issue, { failures: current + 1 });
-      return { ok: true };
-    },
-  });
-}
-
-export function persistStateAction(createAction: ExampleCreateAction) {
-  return createAction<{
-    issueNumber: number;
-    reason: string;
-  }>({
-    description: (action) =>
-      `Persist issue #${action.payload.issueNumber} state (${action.payload.reason})`,
-    execute: async ({ ctx }) => {
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist state");
-      }
       return { ok: true };
     },
   });
@@ -641,10 +582,6 @@ export function runOrchestrationAction(createAction: ExampleCreateAction) {
     execute: async ({ action, ctx }) => {
       if (action.payload.initParentIfNeeded) {
         setIssueStatus(ctx, "In progress");
-      }
-      const persisted = await persistIssueState(ctx);
-      if (!persisted) {
-        throw new Error("Failed to persist orchestration step");
       }
       // Assign bot to the first non-Done sub-issue to start iteration
       const firstSub = ctx.issue.subIssues.find(
@@ -905,7 +842,7 @@ export function requestReviewerAction(createAction: ExampleCreateAction) {
         return { ok: true };
       } catch (error) {
         // Non-fatal: reviewer might be the PR author or unavailable.
-        // Don't abort the queue — updateStatus and persistState must still run.
+        // Don't abort the queue — updateStatus must still run.
         const msg = error instanceof Error ? error.message : String(error);
         return { ok: true, skipped: true, reason: msg };
       }
@@ -945,7 +882,6 @@ export type ExampleRegistry = TActionRegistryFromDefs<{
   applyPrResponseOutput: ReturnType<typeof applyPrResponseOutputAction>;
   runOrchestration: ReturnType<typeof runOrchestrationAction>;
   recordFailure: ReturnType<typeof recordFailureAction>;
-  persistState: ReturnType<typeof persistStateAction>;
   setupGit: ReturnType<typeof setupGitAction>;
   prepareBranch: ReturnType<typeof prepareBranchAction>;
   gitPush: ReturnType<typeof gitPushAction>;

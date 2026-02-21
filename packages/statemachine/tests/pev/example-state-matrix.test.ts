@@ -441,7 +441,7 @@ describe("Example Machine — state matrix hardening", () => {
     );
     expect(String(snap.value)).toBe("done");
     expect(snap.context.domain.issue.projectStatus).toBe("Done");
-    expect(hasActionType(snap, "persistState")).toBe(true);
+    expect(hasActionType(snap, "updateStatus")).toBe(true);
     expect(hasHistoryMessage(snap, "All sub-issue phases are complete")).toBe(
       true,
     );

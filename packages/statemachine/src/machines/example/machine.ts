@@ -26,7 +26,6 @@ import {
   applyPrResponseOutputAction,
   runOrchestrationAction,
   recordFailureAction,
-  persistStateAction,
   setupGitAction,
   prepareBranchAction,
   gitPushAction,
@@ -104,6 +103,7 @@ import {
 } from "./guards.js";
 import { createExampleQueueAssigners } from "./states.js";
 import { ExampleContextLoader } from "./context.js";
+import { persistIssueState } from "./commands.js";
 import type { ExampleMachineEvent } from "./events.js";
 import type { ExampleServices } from "./services.js";
 import { RUNNER_STATES } from "../../core/pev/runner-states.js";
@@ -131,7 +131,6 @@ export const exampleMachine = createMachineFactory<
     applyPrResponseOutput: applyPrResponseOutputAction(createAction),
     runOrchestration: runOrchestrationAction(createAction),
     recordFailure: recordFailureAction(createAction),
-    persistState: persistStateAction(createAction),
     setupGit: setupGitAction(createAction),
     prepareBranch: prepareBranchAction(createAction),
     gitPush: gitPushAction(createAction),
@@ -497,6 +496,9 @@ export const exampleMachine = createMachineFactory<
     };
   })
   .refreshContext(ExampleContextLoader.refreshFromRunnerContext)
+  .persistContext(async (_runnerCtx, domain) => {
+    await persistIssueState(domain);
+  })
   .build({
     id: "example",
   });

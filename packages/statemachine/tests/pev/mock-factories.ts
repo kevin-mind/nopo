@@ -140,13 +140,13 @@ export const mockIssueStateIssueData: MockFactory<IssueData> =
 export const mockExampleServices = createMockFactory<ExampleServices>({
   triage: {
     triageIssue: async () => ({
-      labelsToAdd: ["triaged"],
+      labelsToAdd: ["type:enhancement"],
       summary: "Issue triaged",
     }),
   },
   grooming: {
     groomIssue: async () => ({
-      labelsToAdd: ["groomed"],
+      labelsToAdd: [],
       decision: "ready" as const,
       summary: "Issue groomed",
       recommendedPhases: [
@@ -160,19 +160,19 @@ export const mockExampleServices = createMockFactory<ExampleServices>({
   },
   iteration: {
     iterateIssue: async () => ({
-      labelsToAdd: ["iteration:ready"],
+      labelsToAdd: [],
       summary: "Iteration plan ready",
     }),
   },
   review: {
     reviewIssue: async () => ({
-      labelsToAdd: ["reviewed"],
+      labelsToAdd: [],
       summary: "Review analyzed",
     }),
   },
   prResponse: {
     respondToPr: async () => ({
-      labelsToAdd: ["response-prepared"],
+      labelsToAdd: [],
       summary: "Response prepared",
     }),
   },

@@ -142,33 +142,23 @@ describe("triage integration persistence flow", () => {
       "runClaudeTriage",
       "applyTriageOutput",
       "updateStatus",
-      "persistState",
     ]);
     expect(vi.mocked(executeClaudeSDK)).toHaveBeenCalledOnce();
-    expect(update).toHaveBeenCalledTimes(2);
-    // First persist (from applyTriageOutput): labels applied, status not yet updated
+    // Auto-persist at queue drain: status updated to "Triaged", labels applied
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
         issue: expect.objectContaining({
           labels: expect.arrayContaining([
-            "triaged",
             "type:enhancement",
             "topic:automation",
           ]),
-        }),
-      }),
-    );
-    // Second persist (from persistState): status updated to "Triaged"
-    expect(update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        issue: expect.objectContaining({
           projectStatus: "Triaged",
         }),
       }),
     );
   });
 
-  it("routes to actionFailure when persistence update throws", async () => {
+  it("completes all actions even when persistence update throws (auto-persist error is non-fatal)", async () => {
     const update = vi.fn(async () => {
       throw new Error("persist failed");
     });
@@ -235,12 +225,13 @@ describe("triage integration persistence flow", () => {
       timeout: 5000,
     });
 
+    // All queue actions complete; auto-persist failure at queue drain is non-fatal
     expect(String(snap.value)).toBe("done");
-    expect(snap.context.error).toContain("persist failed");
     expect(snap.context.completedActions.map((a) => a.action.type)).toEqual([
       "appendHistory",
       "runClaudeTriage",
-      "appendHistory",
+      "applyTriageOutput",
+      "updateStatus",
     ]);
   });
 
@@ -315,6 +306,7 @@ describe("triage integration persistence flow", () => {
       "appendHistory",
       "appendHistory",
     ]);
-    expect(update).not.toHaveBeenCalled();
+    // Auto-persist at queue drain still calls update (non-fatal persist)
+    expect(update).toHaveBeenCalled();
   });
 });

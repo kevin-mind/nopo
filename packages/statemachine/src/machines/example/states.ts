@@ -36,10 +36,6 @@ function buildFixStateQueue(
       issueNumber,
       status: expectedStatus,
     }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "fix-status-misalignment",
-    }),
   ];
 }
 
@@ -69,10 +65,6 @@ function buildTriageQueue(
     registry.updateStatus.create({
       issueNumber,
       status: "Triaged",
-    }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "triage-complete",
     }),
   ];
 }
@@ -255,10 +247,6 @@ function buildCompletingReviewTransitionQueue(
       message: "CI passed, transitioning to review",
       phase: "review",
     }),
-    registry.persistState.create({
-      issueNumber: target.number,
-      reason: "review-transition",
-    }),
   );
 
   return actions;
@@ -288,10 +276,6 @@ function buildReviewQueue(
     registry.appendHistory.create({
       issueNumber: sub.number,
       message: "Requesting review",
-    }),
-    registry.persistState.create({
-      issueNumber: sub.number,
-      reason: "review-queue",
     }),
   ];
 }
@@ -325,10 +309,6 @@ function buildMergeQueue(
       message: "PR merged, issue marked done",
       phase: "review",
     }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "merge-complete",
-    }),
   ];
   const needsOrchestration =
     context.domain.parentIssue !== null || context.domain.issue.hasSubIssues;
@@ -359,10 +339,6 @@ function buildDeployedStageQueue(
       issueNumber,
       message: "Deployment to stage succeeded",
     }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "deploy-stage-success",
-    }),
   ];
 }
 
@@ -379,10 +355,6 @@ function buildDeployedProdQueue(
     registry.appendHistory.create({
       issueNumber,
       message: "Deployment to production succeeded",
-    }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "deploy-prod-success",
     }),
   ];
 }
@@ -401,10 +373,6 @@ function buildDeployedStageFailureQueue(
       issueNumber,
       message: "Deployment to stage failed",
     }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "deploy-stage-failure",
-    }),
   ];
 }
 
@@ -421,10 +389,6 @@ function buildDeployedProdFailureQueue(
     registry.appendHistory.create({
       issueNumber,
       message: "Deployment to production failed",
-    }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "deploy-prod-failure",
     }),
   ];
 }
@@ -443,10 +407,6 @@ function buildPivotQueue(
       issueNumber,
       message: "Pivot requested, blocking current path for replanning",
     }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "pivot-blocked",
-    }),
   ];
 }
 
@@ -463,10 +423,6 @@ function buildResetQueue(
     registry.appendHistory.create({
       issueNumber,
       message: "Issue reset to backlog",
-    }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "reset-to-backlog",
     }),
   ];
 }
@@ -619,10 +575,6 @@ function buildPrPushQueue(
       message: "PR updated by push; awaiting CI and review loop",
       phase: "iterate",
     }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "pr-push-status-update",
-    }),
   ];
 }
 
@@ -691,10 +643,6 @@ function buildOrchestrationCompleteQueue(
       message: "All sub-issue phases are complete",
       phase: "review",
     }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "orchestration-complete",
-    }),
   ];
 }
 
@@ -732,10 +680,6 @@ function buildBlockQueue(
         issueNumber,
         message: `Blocked: Sub-issue #${currentSub.number} is blocked (${subFailures} failures)`,
       }),
-      registry.persistState.create({
-        issueNumber,
-        reason: "sub-issue-blocked",
-      }),
     ];
   }
 
@@ -751,10 +695,6 @@ function buildBlockQueue(
       issueNumber,
       message: `Blocked: Max failures reached (${failures})`,
       phase: "iterate",
-    }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "max-failures-blocked",
     }),
   ];
 }
@@ -773,10 +713,6 @@ function buildMergeQueueFailureQueue(
       issueNumber,
       message: "Merge queue failed",
       phase: "review",
-    }),
-    registry.persistState.create({
-      issueNumber,
-      reason: "merge-queue-failure",
     }),
   ];
 }

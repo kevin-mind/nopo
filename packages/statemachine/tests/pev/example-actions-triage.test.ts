@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applyGroomingOutputAction,
   applyIterationOutputAction,
-  persistStateAction,
   reconcileSubIssuesAction,
   applyTriageOutputAction,
   runClaudeGroomingAction,
@@ -71,24 +70,25 @@ describe("example triage actions", () => {
     });
   });
 
-  it("applyTriageOutput consumes triage output and persists when save exists", async () => {
-    const save = vi.fn(async () => true);
+  it("applyTriageOutput consumes triage output, applies labels, and writes triage section to body", async () => {
+    const updateBody = vi.fn((body: string) => {
+      ctx.issue.body = body;
+    });
     const ctx: ExampleContext = mockExampleContext({
       issue: mockExampleIssue({ labels: [] }),
       triageOutput: {
-        labelsToAdd: ["triaged", "type:enhancement"],
+        labelsToAdd: ["type:enhancement", "topic:automation"],
         summary: "Classified as enhancement",
       },
     });
-    const repository: IssueStateRepository & { save: () => Promise<boolean> } =
-      {
-        setIssueStatus: vi.fn(),
-        addIssueLabels: vi.fn((labels: string[]) => {
-          ctx.issue.labels = [...new Set([...ctx.issue.labels, ...labels])];
-        }),
-        reconcileSubIssues: vi.fn(),
-        save,
-      };
+    const repository: IssueStateRepository = {
+      setIssueStatus: vi.fn(),
+      addIssueLabels: vi.fn((labels: string[]) => {
+        ctx.issue.labels = [...new Set([...ctx.issue.labels, ...labels])];
+      }),
+      reconcileSubIssues: vi.fn(),
+      updateBody,
+    };
     ctx.repository = repository;
     const actionDef = applyTriageOutputAction(createAction);
 
@@ -101,8 +101,11 @@ describe("example triage actions", () => {
       services: mockExampleServices(),
     });
 
-    expect(ctx.issue.labels).toEqual(["triaged", "type:enhancement"]);
-    expect(save).toHaveBeenCalledOnce();
+    expect(ctx.issue.labels).toEqual(["type:enhancement", "topic:automation"]);
+    expect(updateBody).toHaveBeenCalledOnce();
+    expect(ctx.issue.body).toContain("## Triage");
+    expect(ctx.issue.body).toContain("**Type:** enhancement");
+    expect(ctx.issue.body).toContain("**Topics:** automation");
     expect(ctx.triageOutput).toBeNull();
     expect(result).toEqual({ ok: true });
   });
@@ -158,8 +161,7 @@ describe("example grooming actions", () => {
     });
   });
 
-  it("apply/reconcile grooming output updates labels, creates sub-issues, persists, and clears output", async () => {
-    const save = vi.fn(async () => true);
+  it("apply/reconcile grooming output updates labels, creates sub-issues, and clears output", async () => {
     let nextIssueNumber = 1000;
     const createSubIssue = vi.fn(async () => {
       const issueNumber = nextIssueNumber++;
@@ -178,7 +180,7 @@ describe("example grooming actions", () => {
         hasSubIssues: false,
       }),
       groomingOutput: {
-        labelsToAdd: ["groomed", "needs-spec"],
+        labelsToAdd: ["needs-spec"],
         decision: "ready",
         summary: "Split work",
         recommendedPhases: [
@@ -187,23 +189,21 @@ describe("example grooming actions", () => {
         ],
       },
     });
-    const repository: IssueStateRepository & { save: () => Promise<boolean> } =
-      {
-        setIssueStatus: vi.fn(),
-        addIssueLabels: vi.fn((labels: string[]) => {
-          ctx.issue.labels = [...new Set([...ctx.issue.labels, ...labels])];
-        }),
-        reconcileSubIssues: vi.fn((subIssueNumbers: number[]) => {
-          ctx.issue.subIssues = subIssueNumbers.map((number) => ({
-            number,
-            projectStatus: "Backlog",
-            state: "OPEN",
-          }));
-          ctx.issue.hasSubIssues = subIssueNumbers.length > 0;
-        }),
-        createSubIssue,
-        save,
-      };
+    const repository: IssueStateRepository = {
+      setIssueStatus: vi.fn(),
+      addIssueLabels: vi.fn((labels: string[]) => {
+        ctx.issue.labels = [...new Set([...ctx.issue.labels, ...labels])];
+      }),
+      reconcileSubIssues: vi.fn((subIssueNumbers: number[]) => {
+        ctx.issue.subIssues = subIssueNumbers.map((number) => ({
+          number,
+          projectStatus: "Backlog",
+          state: "OPEN",
+        }));
+        ctx.issue.hasSubIssues = subIssueNumbers.length > 0;
+      }),
+      createSubIssue,
+    };
     ctx.repository = repository;
     const applyDef = applyGroomingOutputAction(createAction);
     const reconcileDef = reconcileSubIssuesAction(createAction);
@@ -227,16 +227,14 @@ describe("example grooming actions", () => {
 
     expect(applyResult).toEqual({ ok: true, decision: "ready" });
     expect(reconcileResult).toEqual({ ok: true, decision: "ready" });
-    expect(ctx.issue.labels).toEqual(["groomed", "needs-spec"]);
+    expect(ctx.issue.labels).toEqual(["needs-spec"]);
     expect(createSubIssue).toHaveBeenCalledTimes(2);
     expect(ctx.issue.hasSubIssues).toBe(true);
     expect(ctx.issue.subIssues).toHaveLength(2);
-    expect(save).toHaveBeenCalledOnce();
     expect(ctx.groomingOutput).toBeNull();
   });
 
   it("reconcileSubIssues verification fails when no recommended phases returned", async () => {
-    const save = vi.fn(async () => true);
     const ctx: ExampleContext = mockExampleContext({
       issue: mockExampleIssue({
         labels: [],
@@ -244,18 +242,16 @@ describe("example grooming actions", () => {
         hasSubIssues: false,
       }),
       groomingOutput: {
-        labelsToAdd: ["groomed"],
+        labelsToAdd: [],
         decision: "ready",
         summary: "Ready but no phases",
       },
     });
-    const repository: IssueStateRepository & { save: () => Promise<boolean> } =
-      {
-        setIssueStatus: vi.fn(),
-        addIssueLabels: vi.fn(),
-        reconcileSubIssues: vi.fn(),
-        save,
-      };
+    const repository: IssueStateRepository = {
+      setIssueStatus: vi.fn(),
+      addIssueLabels: vi.fn(),
+      reconcileSubIssues: vi.fn(),
+    };
     ctx.repository = repository;
     const reconcileDef = reconcileSubIssuesAction(createAction);
 
@@ -352,24 +348,21 @@ describe("example iteration actions", () => {
     });
   });
 
-  it("applyIterationOutput consumes output, persists labels, and clears output", async () => {
-    const save = vi.fn(async () => true);
+  it("applyIterationOutput consumes output, applies labels, and clears output", async () => {
     const ctx: ExampleContext = mockExampleContext({
       issue: mockExampleIssue({ labels: [] }),
       iterationOutput: {
-        labelsToAdd: ["iteration:ready"],
+        labelsToAdd: ["ci:fixing"],
         summary: "summary",
       },
     });
-    const repository: IssueStateRepository & { save: () => Promise<boolean> } =
-      {
-        setIssueStatus: vi.fn(),
-        addIssueLabels: vi.fn((labels: string[]) => {
-          ctx.issue.labels = [...new Set([...ctx.issue.labels, ...labels])];
-        }),
-        reconcileSubIssues: vi.fn(),
-        save,
-      };
+    const repository: IssueStateRepository = {
+      setIssueStatus: vi.fn(),
+      addIssueLabels: vi.fn((labels: string[]) => {
+        ctx.issue.labels = [...new Set([...ctx.issue.labels, ...labels])];
+      }),
+      reconcileSubIssues: vi.fn(),
+    };
     ctx.repository = repository;
     const actionDef = applyIterationOutputAction(createAction);
 
@@ -383,36 +376,7 @@ describe("example iteration actions", () => {
     });
 
     expect(result).toEqual({ ok: true });
-    expect(ctx.issue.labels).toEqual(["iteration:ready"]);
-    expect(save).toHaveBeenCalledOnce();
+    expect(ctx.issue.labels).toEqual(["ci:fixing"]);
     expect(ctx.iterationOutput).toBeNull();
-  });
-});
-
-describe("state persistence action", () => {
-  it("persistState invokes repository save and succeeds", async () => {
-    const save = vi.fn(async () => true);
-    const ctx: ExampleContext = mockExampleContext();
-    const repository: IssueStateRepository & { save: () => Promise<boolean> } =
-      {
-        setIssueStatus: vi.fn(),
-        addIssueLabels: vi.fn(),
-        reconcileSubIssues: vi.fn(),
-        save,
-      };
-    ctx.repository = repository;
-    const actionDef = persistStateAction(createAction);
-
-    const result = await actionDef.execute({
-      action: {
-        type: "persistState",
-        payload: { issueNumber: 42, reason: "test" },
-      },
-      ctx,
-      services: mockExampleServices(),
-    });
-
-    expect(result).toEqual({ ok: true });
-    expect(save).toHaveBeenCalledOnce();
   });
 });

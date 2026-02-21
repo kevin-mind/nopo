@@ -179,8 +179,7 @@ describe("grooming integration persistence flow", () => {
       "applyGroomingOutput",
       "reconcileSubIssues",
     ]);
-    // The reconcileSubIssues action calls createSubIssue on the loader,
-    // but addSubIssueToParent is mocked, so we just verify the persist was called
+    // Auto-persist at queue drain calls update
     expect(update).toHaveBeenCalled();
   });
 
@@ -247,6 +246,7 @@ describe("grooming integration persistence flow", () => {
       "appendHistory",
       "appendHistory",
     ]);
-    expect(update).not.toHaveBeenCalled();
+    // Auto-persist at queue drain still calls update (non-fatal persist)
+    expect(update).toHaveBeenCalled();
   });
 });

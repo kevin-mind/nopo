@@ -55,7 +55,6 @@ describe("createClaudeTriageService", () => {
     expect(executeClaudeSDK).toHaveBeenCalledOnce();
     expect(result).toEqual({
       labelsToAdd: [
-        "triaged",
         "type:bug",
         "needs-info",
         "topic:ci-pipeline",

@@ -47,7 +47,7 @@ describe("review services", () => {
     });
 
     expect(result).toEqual({
-      labelsToAdd: ["reviewed", "needs-followup"],
+      labelsToAdd: ["needs-followup"],
       summary: "Investigate requested follow-up changes",
     });
   });
@@ -83,7 +83,7 @@ describe("review services", () => {
     });
 
     expect(result).toEqual({
-      labelsToAdd: ["response-prepared", "awaiting-human"],
+      labelsToAdd: ["awaiting-human"],
       summary: "Prepared reply and highlighted blockers",
     });
   });
