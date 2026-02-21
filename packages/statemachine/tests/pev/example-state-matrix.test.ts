@@ -316,8 +316,8 @@ describe("Example Machine — state matrix hardening", () => {
         parentIssue,
       }),
     );
-    // awaitingReview is a final state — no actions, no looping
-    expect(String(snap.value)).toBe("awaitingReview");
+    // awaitingReview re-requests reviewer if PR exists, then done
+    expect(String(snap.value)).toBe("done");
     expect(snap.context.completedActions).toHaveLength(0);
   });
 

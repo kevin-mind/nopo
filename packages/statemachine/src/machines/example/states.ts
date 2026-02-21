@@ -475,6 +475,37 @@ function buildOrchestrateQueue(
   ];
 }
 
+function buildAwaitingReviewQueue(
+  context: Ctx,
+  registry: ExampleRegistry,
+): ExampleAction[] {
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  const prNumber = context.domain.pr?.number;
+  const actions: ExampleAction[] = [];
+
+  // Ensure status is "In review" (idempotent)
+  if (target.projectStatus !== "In review") {
+    actions.push(
+      registry.updateStatus.create({
+        issueNumber: target.number,
+        status: "In review",
+      }),
+    );
+  }
+
+  // Re-request reviewer if PR exists (idempotent, non-fatal)
+  if (prNumber) {
+    actions.push(
+      registry.requestReviewer.create({
+        prNumber,
+        reviewer: context.domain.reviewerUsername,
+      }),
+    );
+  }
+
+  return actions;
+}
+
 function buildOrchestrationWaitingQueue(
   _context: Ctx,
   _registry: ExampleRegistry,
@@ -643,6 +674,11 @@ export function createExampleQueueAssigners(registry: ExampleRegistry) {
     assignOrchestrateQueue: assignQueue(
       "orchestrate",
       buildOrchestrateQueue,
+      registry,
+    ),
+    assignAwaitingReviewQueue: assignQueue(
+      "review",
+      buildAwaitingReviewQueue,
       registry,
     ),
     assignOrchestrationWaitingQueue: assignQueue(

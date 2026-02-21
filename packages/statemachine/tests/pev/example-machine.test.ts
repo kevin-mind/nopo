@@ -357,8 +357,8 @@ describe("Example Machine — Review", () => {
 
     const snap = await runExampleMachine(domain);
 
-    // isInReview routes to awaitingReview (final) — no looping, waits for review event
-    expect(String(snap.value)).toBe("awaitingReview");
+    // isInReview routes to awaitingReview queue (re-requests reviewer if PR exists)
+    expect(String(snap.value)).toBe("done");
     expect(snap.context.completedActions).toHaveLength(0);
   });
 

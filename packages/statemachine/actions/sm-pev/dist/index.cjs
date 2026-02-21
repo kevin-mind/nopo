@@ -47209,6 +47209,28 @@ function buildOrchestrateQueue(context, registry2) {
     })
   ];
 }
+function buildAwaitingReviewQueue(context, registry2) {
+  const target = context.domain.currentSubIssue ?? context.domain.issue;
+  const prNumber = context.domain.pr?.number;
+  const actions = [];
+  if (target.projectStatus !== "In review") {
+    actions.push(
+      registry2.updateStatus.create({
+        issueNumber: target.number,
+        status: "In review"
+      })
+    );
+  }
+  if (prNumber) {
+    actions.push(
+      registry2.requestReviewer.create({
+        prNumber,
+        reviewer: context.domain.reviewerUsername
+      })
+    );
+  }
+  return actions;
+}
 function buildOrchestrationWaitingQueue(_context, _registry) {
   return [];
 }
@@ -47336,6 +47358,11 @@ function createExampleQueueAssigners(registry2) {
     assignOrchestrateQueue: assignQueue(
       "orchestrate",
       buildOrchestrateQueue,
+      registry2
+    ),
+    assignAwaitingReviewQueue: assignQueue(
+      "review",
+      buildAwaitingReviewQueue,
       registry2
     ),
     assignOrchestrationWaitingQueue: assignQueue(
@@ -48477,7 +48504,10 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
       entry: queue.assignReviewQueue,
       always: RUNNER_STATES.executingQueue
     },
-    awaitingReview: { type: "final" },
+    awaitingReview: {
+      entry: queue.assignAwaitingReviewQueue,
+      always: RUNNER_STATES.executingQueue
+    },
     grooming: {
       entry: queue.assignGroomQueue,
       always: RUNNER_STATES.executingQueue

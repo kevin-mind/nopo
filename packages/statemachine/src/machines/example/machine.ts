@@ -380,7 +380,10 @@ export const exampleMachine = createMachineFactory<
         entry: queue.assignReviewQueue,
         always: RUNNER_STATES.executingQueue,
       },
-      awaitingReview: { type: "final" },
+      awaitingReview: {
+        entry: queue.assignAwaitingReviewQueue,
+        always: RUNNER_STATES.executingQueue,
+      },
       grooming: {
         entry: queue.assignGroomQueue,
         always: RUNNER_STATES.executingQueue,
