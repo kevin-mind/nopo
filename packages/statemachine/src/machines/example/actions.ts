@@ -37,6 +37,35 @@ type ExampleCreateAction = TCreateActionForDomain<
 
 const execAsync = promisify(execCb);
 
+/** Logging wrapper around execAsync — logs cwd, command, stdout, stderr. */
+async function execLog(
+  cmd: string,
+  opts?: { cwd?: string },
+): Promise<{ stdout: string; stderr: string }> {
+  const cwd = opts?.cwd ?? process.cwd();
+  console.info(`[exec] $ ${cmd} (cwd: ${cwd})`);
+  try {
+    const result = await execAsync(cmd, opts);
+    const stdout = String(result.stdout);
+    const stderr = String(result.stderr);
+    if (stdout.trim()) console.info(`[exec] stdout: ${stdout.trim()}`);
+    if (stderr.trim()) console.warn(`[exec] stderr: ${stderr.trim()}`);
+    return { stdout, stderr };
+  } catch (err: unknown) {
+    if (err != null && typeof err === "object") {
+      const stdout = Reflect.get(err, "stdout");
+      const stderr = Reflect.get(err, "stderr");
+      if (typeof stdout === "string" && stdout.trim())
+        console.info(`[exec] stdout: ${stdout.trim()}`);
+      if (typeof stderr === "string" && stderr.trim())
+        console.warn(`[exec] stderr: ${stderr.trim()}`);
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[exec] FAILED: ${message}`);
+    throw err;
+  }
+}
+
 /** Returns true when running inside GitHub Actions (git ops only make sense there). */
 function isGitEnvironment(): boolean {
   return process.env.GITHUB_ACTIONS === "true";
@@ -686,16 +715,16 @@ export function setupGitAction(createAction: ExampleCreateAction) {
         };
       }
       const { token } = action.payload;
-      await execAsync('git config user.name "nopo-bot"');
-      await execAsync(
+      await execLog('git config user.name "nopo-bot"');
+      await execLog(
         'git config user.email "nopo-bot@users.noreply.github.com"',
       );
-      await execAsync(
+      await execLog(
         `git config url."https://x-access-token:${token}@github.com/".insteadOf "https://github.com/"`,
       );
       // Verify by reading back
-      const { stdout: userName } = await execAsync("git config user.name");
-      const { stdout: userEmail } = await execAsync("git config user.email");
+      const { stdout: userName } = await execLog("git config user.name");
+      const { stdout: userEmail } = await execLog("git config user.email");
       return {
         ok: true,
         message: "Git credentials configured",
@@ -740,12 +769,12 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
       const { branchName, baseBranch = "main" } = action.payload;
 
       // Fetch all refs
-      await execAsync("git fetch origin");
+      await execLog("git fetch origin");
 
       // Check if remote branch exists
       let remoteBranchExists = false;
       try {
-        await execAsync(`git rev-parse --verify origin/${branchName}`);
+        await execLog(`git rev-parse --verify origin/${branchName}`);
         remoteBranchExists = true;
       } catch {
         // Branch doesn't exist remotely
@@ -754,34 +783,34 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
       if (remoteBranchExists) {
         // Checkout existing branch
         try {
-          await execAsync(`git checkout ${branchName}`);
+          await execLog(`git checkout ${branchName}`);
         } catch {
           // Local branch doesn't exist, create from remote
-          await execAsync(`git checkout -b ${branchName} origin/${branchName}`);
+          await execLog(`git checkout -b ${branchName} origin/${branchName}`);
         }
       } else {
         // Create new branch from base
         try {
-          await execAsync(`git checkout -b ${branchName} origin/${baseBranch}`);
+          await execLog(`git checkout -b ${branchName} origin/${baseBranch}`);
         } catch {
           // Branch might already exist locally
-          await execAsync(`git checkout ${branchName}`);
-          await execAsync(`git reset --hard origin/${baseBranch}`);
+          await execLog(`git checkout ${branchName}`);
+          await execLog(`git reset --hard origin/${baseBranch}`);
         }
       }
 
       // Check if behind main and rebase if needed
-      const { stdout: behindCount } = await execAsync(
+      const { stdout: behindCount } = await execLog(
         `git rev-list --count HEAD..origin/${baseBranch}`,
       );
       const behind = parseInt(behindCount.trim(), 10);
 
       if (behind > 0) {
         try {
-          await execAsync(`git rebase origin/${baseBranch}`);
+          await execLog(`git rebase origin/${baseBranch}`);
         } catch {
           // Abort rebase on conflict
-          await execAsync("git rebase --abort");
+          await execLog("git rebase --abort");
           ctx.branchPrepResult = "conflicts";
           return {
             ok: true,
@@ -792,13 +821,11 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
         }
 
         // Rebase succeeded — force push the rebased branch
-        await execAsync(
-          `git push --force-with-lease origin HEAD:${branchName}`,
-        );
+        await execLog(`git push --force-with-lease origin HEAD:${branchName}`);
         ctx.branchPrepResult = "rebased";
 
         // Read back current branch
-        const { stdout: currentBranch } = await execAsync(
+        const { stdout: currentBranch } = await execLog(
           "git branch --show-current",
         );
         return {
@@ -812,7 +839,7 @@ export function prepareBranchAction(createAction: ExampleCreateAction) {
       ctx.branchPrepResult = "clean";
 
       // Read back current branch
-      const { stdout: currentBranch } = await execAsync(
+      const { stdout: currentBranch } = await execLog(
         "git branch --show-current",
       );
 
@@ -851,10 +878,10 @@ export function gitPushAction(createAction: ExampleCreateAction) {
       }
       const { branchName, forceWithLease = true } = action.payload;
       const forceFlag = forceWithLease ? " --force-with-lease" : "";
-      await execAsync(`git push${forceFlag} origin HEAD:${branchName}`);
+      await execLog(`git push${forceFlag} origin HEAD:${branchName}`);
 
       // Read back local HEAD sha
-      const { stdout: localSha } = await execAsync("git rev-parse HEAD");
+      const { stdout: localSha } = await execLog("git rev-parse HEAD");
 
       return {
         ok: true,
