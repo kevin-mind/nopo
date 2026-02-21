@@ -46255,13 +46255,17 @@ function runClaudeReviewAction(createAction) {
 function applyReviewOutputAction(createAction) {
   return createAction({
     description: (action) => `Apply review output to #${action.payload.issueNumber}`,
-    execute: async ({ action, ctx }) => {
-      const labelsToAdd = action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
-      if (labelsToAdd && labelsToAdd.length > 0) {
-        applyTriage(ctx, labelsToAdd);
+    execute: async ({ ctx }) => {
+      const output = ctx.reviewOutput;
+      if (!output) {
+        return { ok: true, message: "No review output to apply" };
       }
+      ctx.reviewDecision = output.decision === "approve" ? "APPROVED" : output.decision === "request_changes" ? "CHANGES_REQUESTED" : "COMMENTED";
       ctx.reviewOutput = null;
-      return { ok: true, message: "Applied review output" };
+      return {
+        ok: true,
+        message: `Review decision: ${output.decision}`
+      };
     }
   });
 }
@@ -68770,10 +68774,9 @@ var ClaudeIterationOutputSchema = external_exports.object({
   agent_notes: external_exports.array(external_exports.string())
 });
 var ClaudeReviewOutputSchema = external_exports.object({
-  review: external_exports.object({
-    labels_to_add: external_exports.array(external_exports.string())
-  }),
-  summary: external_exports.string()
+  decision: external_exports.enum(["approve", "request_changes", "comment"]),
+  body: external_exports.string(),
+  agent_notes: external_exports.array(external_exports.string()).optional()
 });
 var ClaudePrResponseOutputSchema = external_exports.object({
   pr_response: external_exports.object({
@@ -68855,10 +68858,10 @@ function mapClaudeOutputToIterationResult(output) {
 }
 function mapClaudeOutputToReviewResult(output) {
   const parsed = ClaudeReviewOutputSchema.parse(output);
-  const labelsToAdd = [...parsed.review.labels_to_add];
   return {
-    labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
-    summary: parsed.summary
+    decision: parsed.decision,
+    body: parsed.body,
+    agentNotes: parsed.agent_notes
   };
 }
 function mapClaudeOutputToPrResponseResult(output) {

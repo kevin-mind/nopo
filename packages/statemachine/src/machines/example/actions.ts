@@ -548,18 +548,26 @@ export function runClaudeReviewAction(createAction: ExampleCreateAction) {
 export function applyReviewOutputAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
-    labelsToAdd?: string[];
   }>({
     description: (action) =>
       `Apply review output to #${action.payload.issueNumber}`,
-    execute: async ({ action, ctx }) => {
-      const labelsToAdd =
-        action.payload.labelsToAdd ?? ctx.reviewOutput?.labelsToAdd;
-      if (labelsToAdd && labelsToAdd.length > 0) {
-        applyTriage(ctx, labelsToAdd);
+    execute: async ({ ctx }) => {
+      const output = ctx.reviewOutput;
+      if (!output) {
+        return { ok: true, message: "No review output to apply" };
       }
+      // Store the decision for downstream routing (approved → merge, changes → iterate)
+      ctx.reviewDecision =
+        output.decision === "approve"
+          ? "APPROVED"
+          : output.decision === "request_changes"
+            ? "CHANGES_REQUESTED"
+            : "COMMENTED";
       ctx.reviewOutput = null;
-      return { ok: true, message: "Applied review output" };
+      return {
+        ok: true,
+        message: `Review decision: ${output.decision}`,
+      };
     },
   });
 }

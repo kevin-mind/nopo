@@ -26,10 +26,9 @@ describe("review services", () => {
       exitCode: 0,
       output: "",
       structuredOutput: {
-        review: {
-          labels_to_add: ["needs followup"],
-        },
-        summary: "Investigate requested follow-up changes",
+        decision: "request_changes",
+        body: "Investigate requested follow-up changes",
+        agent_notes: ["checked CI logs"],
       },
     });
 
@@ -47,8 +46,9 @@ describe("review services", () => {
     });
 
     expect(result).toEqual({
-      labelsToAdd: ["needs-followup"],
-      summary: "Investigate requested follow-up changes",
+      decision: "request_changes",
+      body: "Investigate requested follow-up changes",
+      agentNotes: ["checked CI logs"],
     });
   });
 

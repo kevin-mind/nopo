@@ -62,8 +62,9 @@ export interface ExampleIterationOutput {
 }
 
 export interface ExampleReviewOutput {
-  labelsToAdd: string[];
-  summary: string;
+  decision: "approve" | "request_changes" | "comment";
+  body: string;
+  agentNotes?: string[];
 }
 
 export interface ExamplePrResponseOutput {
@@ -195,10 +196,9 @@ const ClaudeIterationOutputSchema = z.object({
 });
 
 const ClaudeReviewOutputSchema = z.object({
-  review: z.object({
-    labels_to_add: z.array(z.string()),
-  }),
-  summary: z.string(),
+  decision: z.enum(["approve", "request_changes", "comment"]),
+  body: z.string(),
+  agent_notes: z.array(z.string()).optional(),
 });
 
 const ClaudePrResponseOutputSchema = z.object({
@@ -314,10 +314,10 @@ function mapClaudeOutputToIterationResult(
 
 function mapClaudeOutputToReviewResult(output: unknown): ExampleReviewOutput {
   const parsed = ClaudeReviewOutputSchema.parse(output);
-  const labelsToAdd = [...parsed.review.labels_to_add];
   return {
-    labelsToAdd: [...new Set(labelsToAdd.map(normalizeLabelPart))],
-    summary: parsed.summary,
+    decision: parsed.decision,
+    body: parsed.body,
+    agentNotes: parsed.agent_notes,
   };
 }
 

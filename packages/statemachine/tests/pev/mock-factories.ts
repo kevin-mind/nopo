@@ -167,8 +167,8 @@ export const mockExampleServices = createMockFactory<ExampleServices>({
   },
   review: {
     reviewIssue: async () => ({
-      labelsToAdd: [],
-      summary: "Review analyzed",
+      decision: "approve" as const,
+      body: "LGTM",
     }),
   },
   prResponse: {
