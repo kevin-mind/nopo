@@ -338,6 +338,11 @@ function branchPrepClean({ context }: GuardArgs): boolean {
   return context.domain.branchPrepResult === "clean";
 }
 
+/** Branch prep clean but already iterated this run — stop and wait for CI */
+function branchPrepCleanAfterIterate({ context }: GuardArgs): boolean {
+  return branchPrepClean({ context }) && context.domain.hasIterated === true;
+}
+
 /** Branch was rebased and force-pushed — machine should stop so CI retriggers */
 function branchPrepRebased({ context }: GuardArgs): boolean {
   return context.domain.branchPrepResult === "rebased";
@@ -413,6 +418,7 @@ export {
   prReviewWithCINotFailed,
   branchPrepCleanAndReadyForReview,
   branchPrepClean,
+  branchPrepCleanAfterIterate,
   branchPrepRebased,
   branchPrepConflicts,
 };

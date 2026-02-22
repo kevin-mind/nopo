@@ -217,6 +217,8 @@ export interface ExampleContext {
   maxRetries?: number;
   /** Result of branch preparation: clean (no rebase), rebased (force-pushed), or conflicts. */
   branchPrepResult?: "clean" | "rebased" | "conflicts" | null;
+  /** True after an iterate/iterateFix queue has run. Prevents re-iteration after push. */
+  hasIterated?: boolean;
   triageOutput?: ExampleTriageOutput | null;
   groomingOutput?: ExampleGroomingOutput | null;
   iterationOutput?: ExampleIterationOutput | null;
@@ -566,7 +568,12 @@ export class ExampleContextLoader implements IssueStateRepository {
         const refreshedFromRepository = current.repository.toContext({
           seed: current,
         });
-        if (refreshedFromRepository) return refreshedFromRepository;
+        if (refreshedFromRepository) {
+          // Carry over ephemeral machine state (same as the octokit path below)
+          refreshedFromRepository.branchPrepResult = current.branchPrepResult;
+          refreshedFromRepository.hasIterated = current.hasIterated;
+          return refreshedFromRepository;
+        }
       }
       return current;
     }
@@ -604,7 +611,12 @@ export class ExampleContextLoader implements IssueStateRepository {
     if (!loaded) return current;
 
     const next = loader.toContext();
-    return next ?? current;
+    if (!next) return current;
+    // Carry over ephemeral machine state that doesn't come from GitHub.
+    // These are set by state machine transitions and must survive refresh.
+    next.branchPrepResult = current.branchPrepResult;
+    next.hasIterated = current.hasIterated;
+    return next;
   }
 
   private requireState(): ExampleIssueState {

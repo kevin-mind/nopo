@@ -9,7 +9,11 @@ import { assign } from "xstate";
 import type { AnyEventObject, EventObject } from "xstate";
 import type { RunnerMachineContext } from "../../core/pev/types.js";
 import type { ExampleContext } from "./context.js";
-import type { ExampleAction, ExampleRegistry } from "./actions.js";
+import type {
+  ExampleAction,
+  ExampleRegistry,
+  ReviewPromptVars,
+} from "./actions.js";
 import { computeExpectedStatus } from "./milestones.js";
 
 type Ctx = RunnerMachineContext<ExampleContext, ExampleAction>;
@@ -18,7 +22,7 @@ type Ctx = RunnerMachineContext<ExampleContext, ExampleAction>;
 function buildReviewPromptVars(
   context: Ctx,
   issueNumber: number,
-): Record<string, string> {
+): ReviewPromptVars {
   const target = context.domain.currentSubIssue ?? context.domain.issue;
   return {
     ISSUE_NUMBER: String(issueNumber),
@@ -437,14 +441,7 @@ function buildPrRespondingQueue(
   return [
     registry.runClaudePrResponse.create({
       issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown",
-      },
+      promptVars: buildReviewPromptVars(context, issueNumber),
     }),
     registry.applyPrResponseOutput.create({
       issueNumber,

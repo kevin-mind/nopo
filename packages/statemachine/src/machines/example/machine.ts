@@ -98,6 +98,7 @@ import {
   prReviewWithCINotFailed,
   branchPrepCleanAndReadyForReview,
   branchPrepClean,
+  branchPrepCleanAfterIterate,
   branchPrepRebased,
   branchPrepConflicts,
 } from "./guards.js";
@@ -142,7 +143,7 @@ export const exampleMachine = createMachineFactory<
     needsTriage,
     canIterate,
     isInReview,
-      isInReviewFirstCycle,
+    isInReviewFirstCycle,
     isAlreadyDone,
     isBlocked,
     isError,
@@ -202,6 +203,7 @@ export const exampleMachine = createMachineFactory<
     prReviewWithCINotFailed,
     branchPrepCleanAndReadyForReview,
     branchPrepClean,
+    branchPrepCleanAfterIterate,
     branchPrepRebased,
     branchPrepConflicts,
   }))
@@ -227,6 +229,8 @@ export const exampleMachine = createMachineFactory<
             target: "completingReviewTransition",
             guard: "branchPrepCleanAndReadyForReview",
           },
+          // Already iterated+pushed this run — stop and wait for CI
+          { target: "idle", guard: "branchPrepCleanAfterIterate" },
           { target: "iterating", guard: "branchPrepClean" },
           { target: "branchRebased", guard: "branchPrepRebased" },
           { target: "blocking", guard: "branchPrepConflicts" },
@@ -345,6 +349,7 @@ export const exampleMachine = createMachineFactory<
             domain: ({ context }) => ({
               ...context.domain,
               branchPrepResult: null,
+              hasIterated: true,
             }),
           }),
           queue.assignIterateQueue,
@@ -357,6 +362,7 @@ export const exampleMachine = createMachineFactory<
             domain: ({ context }) => ({
               ...context.domain,
               branchPrepResult: null,
+              hasIterated: true,
             }),
           }),
           queue.assignIterateFixQueue,
@@ -405,7 +411,15 @@ export const exampleMachine = createMachineFactory<
         always: RUNNER_STATES.executingQueue,
       },
       retrying: {
-        entry: queue.assignRetryQueue,
+        entry: [
+          assign({
+            domain: ({ context }) => ({
+              ...context.domain,
+              hasIterated: true,
+            }),
+          }),
+          queue.assignRetryQueue,
+        ],
         always: RUNNER_STATES.executingQueue,
       },
       commenting: {

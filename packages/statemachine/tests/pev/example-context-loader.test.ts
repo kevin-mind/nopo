@@ -354,6 +354,74 @@ describe("ExampleContextLoader", () => {
     expect(refreshed).toBe(current);
   });
 
+  it("refreshFromRunnerContext carries over ephemeral state with octokit", async () => {
+    vi.mocked(parseIssue).mockResolvedValue({
+      data: {
+        owner: "owner",
+        repo: "repo",
+        issue: mockIssueStateIssueData({ number: 42 }),
+        parentIssue: null,
+      },
+      update: async () => {},
+    });
+    const current = mockExampleContext({
+      trigger: "issue-assigned",
+      owner: "owner",
+      repo: "repo",
+      issue: mockExampleIssue({ number: 42 }),
+      branchPrepResult: "clean",
+      hasIterated: true,
+    });
+    const refreshed = await ExampleContextLoader.refreshFromRunnerContext(
+      {
+        token: "token",
+        owner: "owner",
+        repo: "repo",
+        octokit: OCTOKIT,
+      },
+      current,
+    );
+    expect(refreshed).not.toBe(current);
+    expect(refreshed.branchPrepResult).toBe("clean");
+    expect(refreshed.hasIterated).toBe(true);
+  });
+
+  it("refreshFromRunnerContext carries over ephemeral state without octokit (repository path)", async () => {
+    // When octokit is null but repository is an ExampleContextLoader,
+    // the toContext path is taken — ephemeral state must still carry over.
+    vi.mocked(parseIssue).mockResolvedValue({
+      data: {
+        owner: "owner",
+        repo: "repo",
+        issue: mockIssueStateIssueData({ number: 42 }),
+        parentIssue: null,
+      },
+      update: async () => {},
+    });
+
+    // First, create a context with a real ExampleContextLoader as repository
+    const loader = new ExampleContextLoader();
+    await loader.load({
+      trigger: "issue-assigned",
+      octokit: OCTOKIT,
+      owner: "owner",
+      repo: "repo",
+      event: mockExampleNormalizedEvent({ issueNumber: 42 }),
+    });
+    const contextWithLoader = loader.toContext();
+    expect(contextWithLoader).not.toBeNull();
+    // Set ephemeral fields
+    contextWithLoader!.branchPrepResult = "rebased";
+    contextWithLoader!.hasIterated = true;
+
+    const refreshed = await ExampleContextLoader.refreshFromRunnerContext(
+      { token: "token", owner: "owner", repo: "repo" }, // no octokit
+      contextWithLoader!,
+    );
+    expect(refreshed.branchPrepResult).toBe("rebased");
+    expect(refreshed.hasIterated).toBe(true);
+  });
+
   it("refreshFromRunnerContext reloads context with valid octokit", async () => {
     vi.mocked(parseIssue).mockResolvedValue({
       data: {

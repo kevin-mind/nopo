@@ -24,6 +24,8 @@ import {
   todosDone,
   readyForReview,
   branchPrepCleanAndReadyForReview,
+  branchPrepCleanAfterIterate,
+  branchPrepConflicts,
 } from "../../src/machines/example/guards.js";
 import {
   mockExampleContext,
@@ -445,6 +447,67 @@ describe("example guards", () => {
       branchPrepCleanAndReadyForReview({
         context: withRunnerContext(notReady),
       }),
+    ).toBe(false);
+  });
+
+  it("branchPrepCleanAfterIterate requires clean + hasIterated", () => {
+    const cleanAndIterated = mockExampleContext({
+      branchPrepResult: "clean",
+      hasIterated: true,
+    });
+    const cleanNotIterated = mockExampleContext({
+      branchPrepResult: "clean",
+      hasIterated: false,
+    });
+    const cleanNoFlag = mockExampleContext({
+      branchPrepResult: "clean",
+    });
+    const nullAndIterated = mockExampleContext({
+      branchPrepResult: null,
+      hasIterated: true,
+    });
+    const rebasedAndIterated = mockExampleContext({
+      branchPrepResult: "rebased",
+      hasIterated: true,
+    });
+    expect(
+      branchPrepCleanAfterIterate({
+        context: withRunnerContext(cleanAndIterated),
+      }),
+    ).toBe(true);
+    expect(
+      branchPrepCleanAfterIterate({
+        context: withRunnerContext(cleanNotIterated),
+      }),
+    ).toBe(false);
+    expect(
+      branchPrepCleanAfterIterate({
+        context: withRunnerContext(cleanNoFlag),
+      }),
+    ).toBe(false);
+    expect(
+      branchPrepCleanAfterIterate({
+        context: withRunnerContext(nullAndIterated),
+      }),
+    ).toBe(false);
+    expect(
+      branchPrepCleanAfterIterate({
+        context: withRunnerContext(rebasedAndIterated),
+      }),
+    ).toBe(false);
+  });
+
+  it("branchPrepConflicts routes to blocking even when hasIterated", () => {
+    const conflicts = mockExampleContext({
+      branchPrepResult: "conflicts",
+      hasIterated: true,
+    });
+    // branchPrepConflicts fires — branchPrepCleanAfterIterate does not
+    expect(branchPrepConflicts({ context: withRunnerContext(conflicts) })).toBe(
+      true,
+    );
+    expect(
+      branchPrepCleanAfterIterate({ context: withRunnerContext(conflicts) }),
     ).toBe(false);
   });
 

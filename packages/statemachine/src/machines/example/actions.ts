@@ -117,9 +117,14 @@ interface IterationPromptVars extends TriagePromptVars {
   AGENT_NOTES: string;
 }
 
-interface ReviewPromptVars extends TriagePromptVars {
+export interface ReviewPromptVars extends TriagePromptVars {
   REVIEW_DECISION: string;
   REVIEWER: string;
+  PR_NUMBER: string;
+  HEAD_REF: string;
+  BASE_REF: string;
+  REPO_OWNER: string;
+  REPO_NAME: string;
 }
 
 /** Build full example action defs object from atomic action builders. */

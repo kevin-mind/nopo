@@ -222,6 +222,103 @@ describe("Example Machine — Iterate", () => {
     }
   });
 
+  it("stops after iterate+branch prep instead of looping", async () => {
+    // With enough cycles, the old behavior would loop: prepare → iterate →
+    // prepare → iterate → ... The fix: after iterating, branchPrepClean
+    // routes to idle instead of iterating again.
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      assignees: ["nopo-bot"],
+      hasSubIssues: true,
+    });
+
+    const domain = mockExampleContext({
+      trigger: "issue-assigned",
+      issue: mockExampleIssue({
+        number: 100,
+        assignees: ["nopo-bot"],
+      }),
+      parentIssue,
+    });
+
+    // Allow 5 cycles — enough to expose the loop if the fix is missing
+    const snap = await runExampleMachine(domain, { maxCycles: 5 });
+
+    expect(snap.status).toBe("done");
+    const actionTypes = snap.context.completedActions.map((a) => a.action.type);
+    // Should run: prepare (setupGit+prepareBranch) then iterate
+    // (updateStatus+runClaudeIteration+applyIterationOutput)
+    // then prepare again (setupGit+prepareBranch) then STOP (idle)
+    expect(actionTypes).toContain("setupGit");
+    expect(actionTypes).toContain("prepareBranch");
+    expect(actionTypes).toContain("runClaudeIteration");
+
+    // Should NOT have iterated more than once
+    const iterationCount = actionTypes.filter(
+      (t) => t === "runClaudeIteration",
+    ).length;
+    expect(iterationCount).toBe(1);
+  });
+
+  it("stops after iteratingFix+branch prep instead of looping (CI failure)", async () => {
+    // CI failure → iteratingFix sets hasIterated → prepare → idle
+    // Without the fix, this would loop: iteratingFix → prepare → iterate → prepare → ...
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      assignees: ["nopo-bot"],
+      hasSubIssues: true,
+    });
+    const domain = mockExampleContext({
+      trigger: "workflow-run-completed",
+      ciResult: "failure",
+      maxRetries: 3,
+      issue: mockExampleIssue({
+        number: 100,
+        assignees: ["nopo-bot"],
+        failures: 0,
+      }),
+      parentIssue,
+    });
+
+    const snap = await runExampleMachine(domain, { maxCycles: 5 });
+    expect(snap.status).toBe("done");
+    const actionTypes = snap.context.completedActions.map((a) => a.action.type);
+    // Should iterate exactly once (in iteratingFix), then prepare, then stop
+    const iterationCount = actionTypes.filter(
+      (t) => t === "runClaudeIteration",
+    ).length;
+    expect(iterationCount).toBe(1);
+  });
+
+  it("stops after retry+branch prep instead of double-iterating", async () => {
+    // Retry → sets hasIterated → prepare → idle (no second iteration)
+    const parentIssue = mockExampleIssue({
+      number: 99,
+      projectStatus: "In progress",
+      assignees: ["nopo-bot"],
+      hasSubIssues: true,
+    });
+    const domain = mockExampleContext({
+      trigger: "issue-retry",
+      issue: mockExampleIssue({
+        number: 100,
+        assignees: ["nopo-bot"],
+        failures: 2,
+      }),
+      parentIssue,
+    });
+
+    const snap = await runExampleMachine(domain, { maxCycles: 5 });
+    expect(snap.status).toBe("done");
+    const actionTypes = snap.context.completedActions.map((a) => a.action.type);
+    const iterationCount = actionTypes.filter(
+      (t) => t === "runClaudeIteration",
+    ).length;
+    expect(iterationCount).toBe(1);
+  });
+
   it("records failure and re-enters iteration on first CI failure", async () => {
     const parentIssue = mockExampleIssue({
       number: 99,

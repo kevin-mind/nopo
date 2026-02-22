@@ -46872,6 +46872,9 @@ function branchPrepCleanAndReadyForReview({ context }) {
 function branchPrepClean({ context }) {
   return context.domain.branchPrepResult === "clean";
 }
+function branchPrepCleanAfterIterate({ context }) {
+  return branchPrepClean({ context }) && context.domain.hasIterated === true;
+}
 function branchPrepRebased({ context }) {
   return context.domain.branchPrepResult === "rebased";
 }
@@ -47200,14 +47203,7 @@ function buildPrRespondingQueue(context, registry2) {
   return [
     registry2.runClaudePrResponse.create({
       issueNumber,
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: context.domain.issue.title,
-        ISSUE_BODY: context.domain.issue.body,
-        ISSUE_COMMENTS: context.domain.issue.comments.join("\n"),
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        REVIEWER: "unknown"
-      }
+      promptVars: buildReviewPromptVars(context, issueNumber)
     }),
     registry2.applyPrResponseOutput.create({
       issueNumber
@@ -47760,7 +47756,11 @@ var ExampleContextLoader = class _ExampleContextLoader {
         const refreshedFromRepository = current.repository.toContext({
           seed: current
         });
-        if (refreshedFromRepository) return refreshedFromRepository;
+        if (refreshedFromRepository) {
+          refreshedFromRepository.branchPrepResult = current.branchPrepResult;
+          refreshedFromRepository.hasIterated = current.hasIterated;
+          return refreshedFromRepository;
+        }
       }
       return current;
     }
@@ -47793,7 +47793,10 @@ var ExampleContextLoader = class _ExampleContextLoader {
     });
     if (!loaded) return current;
     const next = loader.toContext();
-    return next ?? current;
+    if (!next) return current;
+    next.branchPrepResult = current.branchPrepResult;
+    next.hasIterated = current.hasIterated;
+    return next;
   }
   requireState() {
     if (this.state === null) {
@@ -48383,6 +48386,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   prReviewWithCINotFailed,
   branchPrepCleanAndReadyForReview,
   branchPrepClean,
+  branchPrepCleanAfterIterate,
   branchPrepRebased,
   branchPrepConflicts
 })).states(({ registry: registry2 }) => {
@@ -48407,6 +48411,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
           target: "completingReviewTransition",
           guard: "branchPrepCleanAndReadyForReview"
         },
+        // Already iterated+pushed this run — stop and wait for CI
+        { target: "idle", guard: "branchPrepCleanAfterIterate" },
         { target: "iterating", guard: "branchPrepClean" },
         { target: "branchRebased", guard: "branchPrepRebased" },
         { target: "blocking", guard: "branchPrepConflicts" },
@@ -48524,7 +48530,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         assign({
           domain: ({ context }) => ({
             ...context.domain,
-            branchPrepResult: null
+            branchPrepResult: null,
+            hasIterated: true
           })
         }),
         queue.assignIterateQueue
@@ -48536,7 +48543,8 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
         assign({
           domain: ({ context }) => ({
             ...context.domain,
-            branchPrepResult: null
+            branchPrepResult: null,
+            hasIterated: true
           })
         }),
         queue.assignIterateFixQueue
@@ -48585,7 +48593,15 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
       always: RUNNER_STATES.executingQueue
     },
     retrying: {
-      entry: queue.assignRetryQueue,
+      entry: [
+        assign({
+          domain: ({ context }) => ({
+            ...context.domain,
+            hasIterated: true
+          })
+        }),
+        queue.assignRetryQueue
+      ],
       always: RUNNER_STATES.executingQueue
     },
     commenting: {
