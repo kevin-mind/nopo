@@ -219,15 +219,6 @@ export async function requestReviewer(
   await repositoryFor(context).requestReviewer?.(prNumber, reviewer);
 }
 
-export async function submitReview(
-  context: ExampleContext,
-  prNumber: number,
-  event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
-  body: string,
-): Promise<void> {
-  await repositoryFor(context).submitReview?.(prNumber, event, body);
-}
-
 export async function persistIssueState(
   context: ExampleContext,
 ): Promise<boolean> {
