@@ -83,6 +83,18 @@ describe("computeExpectedStatus", () => {
       });
       expect(computeExpectedStatus(ctx)).toBe("Done");
     });
+
+    it("returns Triaged when body has ## Approach section and type:* label", () => {
+      const ctx = mockExampleContext({
+        parentIssue: null,
+        issue: mockExampleIssue({
+          hasSubIssues: false,
+          body: "## Approach\nSome text",
+          labels: ["type:enhancement"],
+        }),
+      });
+      expect(computeExpectedStatus(ctx)).toBe("Triaged");
+    });
   });
 
   describe("sub-issue path (parentIssue !== null)", () => {
@@ -128,6 +140,30 @@ describe("computeExpectedStatus", () => {
         pr: mockExamplePR({ state: "MERGED" }),
       };
       expect(computeExpectedStatus(ctx)).toBe("Done");
+    });
+
+    it("returns In progress when PR is OPEN but draft and bot is assigned", () => {
+      const ctx = {
+        ...mockExampleContext({
+          parentIssue: mockExampleIssue({ number: 1 }),
+          issue: mockExampleIssue({ assignees: ["nopo-bot"] }),
+          botUsername: "nopo-bot",
+        }),
+        pr: mockExamplePR({ state: "OPEN", isDraft: true }),
+      };
+      expect(computeExpectedStatus(ctx)).toBe("In progress");
+    });
+
+    it("returns Backlog when PR is OPEN but draft and bot is not assigned", () => {
+      const ctx = {
+        ...mockExampleContext({
+          parentIssue: mockExampleIssue({ number: 1 }),
+          issue: mockExampleIssue({ assignees: [] }),
+          botUsername: "nopo-bot",
+        }),
+        pr: mockExamplePR({ state: "OPEN", isDraft: true }),
+      };
+      expect(computeExpectedStatus(ctx)).toBe("Backlog");
     });
   });
 });
