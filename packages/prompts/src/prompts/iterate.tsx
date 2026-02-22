@@ -48,41 +48,35 @@ const Iterate = promptFactory()
         {`This is iteration ${inputs.iteration}. Make **incremental progress** - do NOT try to complete everything at once.`}
       </section>
 
-      <section title="1. Assess Current State">
-        <codeblock lang="bash">
-          {"git status && git log --oneline -3"}
-        </codeblock>
-        {"\nCheck which todos are done vs pending."}
+      <section title="CRITICAL: Environment Rules">
+        {[
+          "The environment is ALREADY set up. You MUST NOT:",
+          "- Install or upgrade packages (no `npm install -g`, `pnpm install`, `pip install`, etc.)",
+          "- Change Node versions (no `nvm use`, `n install`, etc.)",
+          "- Debug CI runner environment issues (Node version, pnpm version, Python, uv, etc.)",
+          "- Run `make check` or `make test` without a filter — these run the FULL monorepo",
+          "- Spend time on infrastructure that isn't directly related to the code fix",
+          "",
+          "If a tool or command isn't available, **set status to `blocked`** immediately.",
+          "Do NOT try to install or fix the environment — that is not your job.",
+        ].join("\n")}
       </section>
 
-      <section title="1.5. Check for Conflicts with Main">
-        {`**Before doing any work**, check if your branch has conflicts with main:`}
-        <codeblock lang="bash">{`git fetch origin main\ngit merge-base --is-ancestor origin/main HEAD && echo "Up to date" || echo "Behind main"`}</codeblock>
-        {`\n**If behind main**, try to rebase:`}
-        <codeblock lang="bash">{"git rebase origin/main"}</codeblock>
+      <section title="1. Assess Current State">
         {[
-          `\n**If rebase fails with conflicts**:`,
-          "1. Check the conflict severity: `git diff --name-only --diff-filter=U`",
-          "2. If conflicts are in files YOU modified, try to resolve them",
-          "3. If conflicts are in files you didn't touch or are too complex:",
-          "   - Abort the rebase: `git rebase --abort`",
-          '   - Set status to `blocked` with `blocked_reason: "Merge conflicts with main that require human intervention. Conflicting files: [list them]"`',
-          "   - **Do NOT waste iterations on unresolvable conflicts**",
+          "The branch has already been rebased onto main and pushed. Do NOT run git fetch/rebase.",
           "",
-          "**Simple conflicts** (your changes + main changes in different parts of same file):",
-          "- Resolve by keeping both changes appropriately",
-          "- `git add <file>` and `git rebase --continue`",
-          "",
-          "**Complex conflicts** (overlapping changes, structural refactors, deleted files):",
-          "- These need human judgment - set status to `blocked` immediately",
+          "Check which todos are done vs pending by reading the issue body above.",
         ].join("\n")}
       </section>
 
       <section title="2. Determine Action">
         {[
           "**If CI failed** (`LAST_CI_RESULT = failure`):",
-          "- Run `make check && make test` to reproduce locally",
-          "- Fix the issues, verify, commit",
+          "- Reproduce the failure with **scoped** commands: `pnpm --filter <package> test`",
+          "- Do NOT run `make check` or `make test` (runs full monorepo, wastes time)",
+          "- Determine the relevant package from the issue labels (e.g., `topic:statemachine` → `@more/statemachine`)",
+          "- Fix the issues, verify with the scoped command, commit",
           "",
           "**If CI passed or first iteration**:",
           "- Review unchecked todos (those without `[x]`)",
@@ -112,11 +106,13 @@ const Iterate = promptFactory()
 
       <section title="4. Fix and Verify Before Committing">
         {[
-          "**Always run `make fix` before committing** to auto-fix formatting and lint issues:",
+          "**Always verify before committing.** Use scoped commands for the relevant package, NOT the full monorepo:",
+          "- `pnpm --filter <package> exec eslint --fix .` — auto-fix lint/formatting",
+          "- `pnpm --filter <package> exec tsc --noEmit` — type check",
+          "- `pnpm --filter <package> test` — run tests",
+          "",
+          "Only use `make check` / `make test` if changes span multiple packages.",
         ].join("\n")}
-        <codeblock lang="bash">
-          {"make fix && make check && make test"}
-        </codeblock>
         {"\n**STOP if any command fails.** Fix before committing."}
       </section>
 
