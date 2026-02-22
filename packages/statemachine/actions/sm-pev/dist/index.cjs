@@ -46329,6 +46329,27 @@ function recordFailureAction(createAction) {
     }
   });
 }
+function resetFailuresAction(createAction) {
+  return createAction({
+    description: (action) => `Reset failure counter for #${action.payload.issueNumber}`,
+    predict: () => ({
+      description: "Failures should be reset to 0",
+      checks: [
+        {
+          comparator: "eq",
+          field: "issue.failures",
+          expected: 0
+        }
+      ]
+    }),
+    execute: async ({ action, ctx }) => {
+      const issue2 = ctx.issue.number === action.payload.issueNumber ? ctx.issue : ctx.currentSubIssue ?? ctx.issue;
+      const previous3 = issue2.failures ?? 0;
+      Object.assign(issue2, { failures: 0 });
+      return { ok: true, message: `Failures reset from ${previous3} to 0` };
+    }
+  });
+}
 function runOrchestrationAction(createAction) {
   return createAction({
     description: (action) => `Run orchestration step for #${action.payload.issueNumber}`,
@@ -47146,41 +47167,19 @@ function buildResetQueue(context, registry2) {
   ];
 }
 function buildRetryQueue(context, registry2) {
+  const ctx = context.domain;
   const sub = requireCurrentSubIssue(context);
   const issueNumber = sub.number;
+  const expectedStatus = computeExpectedStatus(ctx);
+  const branchName = ctx.branch ?? `claude/issue/${issueNumber}`;
   return [
+    registry2.resetFailures.create({ issueNumber }),
     registry2.updateStatus.create({
       issueNumber,
-      status: "In progress"
+      status: expectedStatus
     }),
-    registry2.runClaudeIteration.create({
-      issueNumber,
-      mode: "retry",
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: sub.title,
-        ISSUE_BODY: sub.body,
-        ISSUE_COMMENTS: sub.comments.join("\n"),
-        ISSUE_LABELS: sub.labels.join(", "),
-        CI_RESULT: context.domain.ciResult ?? "none",
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(sub.iteration ?? 0),
-        LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(sub.failures ?? 0),
-        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
-        PR_CREATE_COMMAND: [
-          `gh pr create --draft`,
-          `--title "fix: implement #${issueNumber}"`,
-          `--body "Fixes #${issueNumber}"`,
-          `--base main`,
-          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`
-        ].join(" \\\n  "),
-        AGENT_NOTES: ""
-      }
-    }),
-    registry2.applyIterationOutput.create({
-      issueNumber
-    })
+    registry2.setupGit.create({ token: context.runnerCtx?.token ?? "" }),
+    registry2.prepareBranch.create({ branchName })
   ];
 }
 function buildCommentQueue(_context, _registry) {
@@ -48315,6 +48314,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
   applyPrResponseOutput: applyPrResponseOutputAction(createAction),
   runOrchestration: runOrchestrationAction(createAction),
   recordFailure: recordFailureAction(createAction),
+  resetFailures: resetFailuresAction(createAction),
   setupGit: setupGitAction(createAction),
   prepareBranch: prepareBranchAction(createAction),
   gitPush: gitPushAction(createAction),
@@ -48593,15 +48593,7 @@ var exampleMachine = createMachineFactory().services().actions((createAction) =>
       always: RUNNER_STATES.executingQueue
     },
     retrying: {
-      entry: [
-        assign({
-          domain: ({ context }) => ({
-            ...context.domain,
-            hasIterated: true
-          })
-        }),
-        queue.assignRetryQueue
-      ],
+      entry: queue.assignRetryQueue,
       always: RUNNER_STATES.executingQueue
     },
     commenting: {

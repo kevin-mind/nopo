@@ -93,8 +93,14 @@ describe("Example Machine — state matrix hardening", () => {
         }),
         parentIssue,
       }),
+      2, // retry queue + iterate queue need 2 cycles
     );
     expect(String(snap.value)).toBe("done");
+    // Retry queue resets failures, sets milestone-based status, and preps branch
+    expect(hasActionType(snap, "resetFailures")).toBe(true);
+    expect(hasActionType(snap, "updateStatus")).toBe(true);
+    expect(hasActionType(snap, "prepareBranch")).toBe(true);
+    // After retry queue, branchPrepClean routes to iterating
     expect(hasActionType(snap, "runClaudeIteration")).toBe(true);
     expect(hasActionType(snap, "applyIterationOutput")).toBe(true);
     // Auto-history writes queue label "retry"

@@ -372,41 +372,19 @@ function buildRetryQueue(
   context: Ctx,
   registry: ExampleRegistry,
 ): ExampleAction[] {
+  const ctx = context.domain;
   const sub = requireCurrentSubIssue(context);
   const issueNumber = sub.number;
+  const expectedStatus = computeExpectedStatus(ctx);
+  const branchName = ctx.branch ?? `claude/issue/${issueNumber}`;
   return [
+    registry.resetFailures.create({ issueNumber }),
     registry.updateStatus.create({
       issueNumber,
-      status: "In progress",
+      status: expectedStatus,
     }),
-    registry.runClaudeIteration.create({
-      issueNumber,
-      mode: "retry",
-      promptVars: {
-        ISSUE_NUMBER: String(issueNumber),
-        ISSUE_TITLE: sub.title,
-        ISSUE_BODY: sub.body,
-        ISSUE_COMMENTS: sub.comments.join("\n"),
-        ISSUE_LABELS: sub.labels.join(", "),
-        CI_RESULT: context.domain.ciResult ?? "none",
-        REVIEW_DECISION: context.domain.reviewDecision ?? "none",
-        ITERATION: String(sub.iteration ?? 0),
-        LAST_CI_RESULT: context.domain.ciResult ?? "none",
-        CONSECUTIVE_FAILURES: String(sub.failures ?? 0),
-        BRANCH_NAME: context.domain.branch ?? `claude/issue/${issueNumber}`,
-        PR_CREATE_COMMAND: [
-          `gh pr create --draft`,
-          `--title "fix: implement #${issueNumber}"`,
-          `--body "Fixes #${issueNumber}"`,
-          `--base main`,
-          `--head ${context.domain.branch ?? `claude/issue/${issueNumber}`}`,
-        ].join(" \\\n  "),
-        AGENT_NOTES: "",
-      },
-    }),
-    registry.applyIterationOutput.create({
-      issueNumber,
-    }),
+    registry.setupGit.create({ token: context.runnerCtx?.token ?? "" }),
+    registry.prepareBranch.create({ branchName }),
   ];
 }
 

@@ -25,6 +25,7 @@ import {
   applyPrResponseOutputAction,
   runOrchestrationAction,
   recordFailureAction,
+  resetFailuresAction,
   setupGitAction,
   prepareBranchAction,
   gitPushAction,
@@ -131,6 +132,7 @@ export const exampleMachine = createMachineFactory<
     applyPrResponseOutput: applyPrResponseOutputAction(createAction),
     runOrchestration: runOrchestrationAction(createAction),
     recordFailure: recordFailureAction(createAction),
+    resetFailures: resetFailuresAction(createAction),
     setupGit: setupGitAction(createAction),
     prepareBranch: prepareBranchAction(createAction),
     gitPush: gitPushAction(createAction),
@@ -411,15 +413,7 @@ export const exampleMachine = createMachineFactory<
         always: RUNNER_STATES.executingQueue,
       },
       retrying: {
-        entry: [
-          assign({
-            domain: ({ context }) => ({
-              ...context.domain,
-              hasIterated: true,
-            }),
-          }),
-          queue.assignRetryQueue,
-        ],
+        entry: queue.assignRetryQueue,
         always: RUNNER_STATES.executingQueue,
       },
       commenting: {

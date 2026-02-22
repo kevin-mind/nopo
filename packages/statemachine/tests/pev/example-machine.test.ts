@@ -292,8 +292,8 @@ describe("Example Machine — Iterate", () => {
     expect(iterationCount).toBe(1);
   });
 
-  it("stops after retry+branch prep instead of double-iterating", async () => {
-    // Retry → sets hasIterated → prepare → idle (no second iteration)
+  it("retry resets failures, rebases, and routes to normal iteration", async () => {
+    // Retry resets circuit breaker + preps branch → routing picks up normally
     const parentIssue = mockExampleIssue({
       number: 99,
       projectStatus: "In progress",
@@ -305,7 +305,8 @@ describe("Example Machine — Iterate", () => {
       issue: mockExampleIssue({
         number: 100,
         assignees: ["nopo-bot"],
-        failures: 2,
+        failures: 3,
+        projectStatus: "Blocked",
       }),
       parentIssue,
     });
@@ -313,10 +314,18 @@ describe("Example Machine — Iterate", () => {
     const snap = await runExampleMachine(domain, { maxCycles: 5 });
     expect(snap.status).toBe("done");
     const actionTypes = snap.context.completedActions.map((a) => a.action.type);
+    // Retry queue resets failures, sets milestone status, preps branch
+    expect(actionTypes).toContain("resetFailures");
+    expect(actionTypes).toContain("prepareBranch");
+    // Then routing continues — exactly 1 iteration via branchPrepClean
     const iterationCount = actionTypes.filter(
       (t) => t === "runClaudeIteration",
     ).length;
     expect(iterationCount).toBe(1);
+    // Status set to milestone-computed value (bot assigned → "In progress")
+    expect(snap.context.domain.issue.projectStatus).toBe("In progress");
+    // Failures reset to 0
+    expect(snap.context.domain.issue.failures).toBe(0);
   });
 
   it("records failure and re-enters iteration on first CI failure", async () => {

@@ -660,6 +660,32 @@ export function recordFailureAction(createAction: ExampleCreateAction) {
   });
 }
 
+export function resetFailuresAction(createAction: ExampleCreateAction) {
+  return createAction<{ issueNumber: number }>({
+    description: (action) =>
+      `Reset failure counter for #${action.payload.issueNumber}`,
+    predict: () => ({
+      description: "Failures should be reset to 0",
+      checks: [
+        {
+          comparator: "eq" as const,
+          field: "issue.failures",
+          expected: 0,
+        },
+      ],
+    }),
+    execute: async ({ action, ctx }) => {
+      const issue =
+        ctx.issue.number === action.payload.issueNumber
+          ? ctx.issue
+          : (ctx.currentSubIssue ?? ctx.issue);
+      const previous = issue.failures ?? 0;
+      Object.assign(issue, { failures: 0 });
+      return { ok: true, message: `Failures reset from ${previous} to 0` };
+    },
+  });
+}
+
 export function runOrchestrationAction(createAction: ExampleCreateAction) {
   return createAction<{
     issueNumber: number;
@@ -1016,6 +1042,7 @@ export type ExampleRegistry = TActionRegistryFromDefs<{
   applyPrResponseOutput: ReturnType<typeof applyPrResponseOutputAction>;
   runOrchestration: ReturnType<typeof runOrchestrationAction>;
   recordFailure: ReturnType<typeof recordFailureAction>;
+  resetFailures: ReturnType<typeof resetFailuresAction>;
   setupGit: ReturnType<typeof setupGitAction>;
   prepareBranch: ReturnType<typeof prepareBranchAction>;
   gitPush: ReturnType<typeof gitPushAction>;
