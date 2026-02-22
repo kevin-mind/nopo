@@ -37,7 +37,6 @@ jobs:
       - uses: ./.github/actions/sm-context
         id: context
         with:
-          github_json: ${{ toJson(github) }}
           github_token: ${{ secrets.NOPO_BOT_PAT }}
 
   pev:

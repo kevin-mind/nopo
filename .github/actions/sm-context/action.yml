@@ -5,9 +5,6 @@ description: >-
   scoped per-issue regardless of event type.
 
 inputs:
-  github_json:
-    description: 'Full GitHub context JSON (pass toJson(github) from the caller)'
-    required: true
   github_token:
     description: 'GitHub token for GraphQL API calls'
     required: true
@@ -32,20 +29,26 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Write github context to file
+      shell: bash
+      run: cat "$GITHUB_EVENT_PATH" > /tmp/github_event.json
     - name: Resolve context
       id: resolve
       shell: bash
       env:
-        GITHUB_JSON: ${{ inputs.github_json }}
+        GITHUB_CONTEXT_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_CONTEXT_REPOSITORY: ${{ github.repository }}
+        GITHUB_CONTEXT_ACTION: ${{ github.event.action }}
         GH_TOKEN: ${{ inputs.github_token }}
       run: |
         set -euo pipefail
 
-        EVENT_NAME=$(echo "$GITHUB_JSON" | jq -r '.event_name')
-        ACTION=$(echo "$GITHUB_JSON" | jq -r '.event.action // ""')
-        REPO_FULL=$(echo "$GITHUB_JSON" | jq -r '.repository // ""')
+        EVENT_NAME="$GITHUB_CONTEXT_EVENT_NAME"
+        ACTION="$GITHUB_CONTEXT_ACTION"
+        REPO_FULL="$GITHUB_CONTEXT_REPOSITORY"
         OWNER="${REPO_FULL%%/*}"
         REPO="${REPO_FULL##*/}"
+        EVENT_JSON="/tmp/github_event.json"
 
         # ---------------------------------------------------------------
         # 1. Resolve issue number
@@ -54,19 +57,19 @@ runs:
 
         case "$EVENT_NAME" in
           issues|issue_comment)
-            ISSUE_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.issue.number // 0')
+            ISSUE_NUMBER=$(jq -r '.issue.number // 0' "$EVENT_JSON")
             ;;
 
           workflow_dispatch)
-            ISSUE_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.inputs.resource_number // 0')
+            ISSUE_NUMBER=$(jq -r '.inputs.resource_number // 0' "$EVENT_JSON")
             ;;
 
           discussion|discussion_comment)
-            ISSUE_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.discussion.number // 0')
+            ISSUE_NUMBER=$(jq -r '.discussion.number // 0' "$EVENT_JSON")
             ;;
 
           pull_request|pull_request_review|pull_request_review_comment)
-            PR_NUMBER=$(echo "$GITHUB_JSON" | jq -r '.event.pull_request.number // 0')
+            PR_NUMBER=$(jq -r '.pull_request.number // 0' "$EVENT_JSON")
             if [ "$PR_NUMBER" != "0" ] && [ "$PR_NUMBER" != "null" ]; then
               ISSUE_NUMBER=$(gh api graphql \
                 -f query='query($owner: String!, $repo: String!, $prNumber: Int!) {
@@ -85,7 +88,7 @@ runs:
             ;;
 
           workflow_run)
-            HEAD_BRANCH=$(echo "$GITHUB_JSON" | jq -r '.event.workflow_run.head_branch // ""')
+            HEAD_BRANCH=$(jq -r '.workflow_run.head_branch // ""' "$EVENT_JSON")
             if [ -n "$HEAD_BRANCH" ]; then
               ISSUE_NUMBER=$(gh api graphql \
                 -f query='query($owner: String!, $repo: String!, $headRef: String!) {
@@ -118,7 +121,7 @@ runs:
 
         case "$EVENT_NAME" in
           workflow_dispatch)
-            OVERRIDE=$(echo "$GITHUB_JSON" | jq -r '.event.inputs.trigger_type // ""')
+            OVERRIDE=$(jq -r '.inputs.trigger_type // ""' "$EVENT_JSON")
             if [ -n "$OVERRIDE" ]; then
               # Validate against known triggers
               case "$OVERRIDE" in
@@ -152,7 +155,7 @@ runs:
             ;;
 
           issue_comment)
-            COMMENT_BODY=$(echo "$GITHUB_JSON" | jq -r '.event.comment.body // ""')
+            COMMENT_BODY=$(jq -r '.comment.body // ""' "$EVENT_JSON")
             if echo "$COMMENT_BODY" | grep -qE '/(lfg|implement|continue)'; then
               TRIGGER="issue-orchestrate"
             elif echo "$COMMENT_BODY" | grep -qE '/retry'; then
@@ -174,7 +177,7 @@ runs:
             ;;
 
           pull_request_review)
-            REVIEW_STATE=$(echo "$GITHUB_JSON" | jq -r '.event.review.state // ""' | tr '[:upper:]' '[:lower:]')
+            REVIEW_STATE=$(jq -r '.review.state // ""' "$EVENT_JSON" | tr '[:upper:]' '[:lower:]')
             case "$REVIEW_STATE" in
               approved)           TRIGGER="pr-review-approved" ;;
               changes_requested)  TRIGGER="pr-review-submitted" ;;
