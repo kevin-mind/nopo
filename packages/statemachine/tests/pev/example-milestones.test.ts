@@ -11,10 +11,15 @@ import {
 
 describe("computeExpectedStatus", () => {
   describe("parent-issue path (parentIssue === null)", () => {
-    it("returns Backlog when no sub-issues", () => {
+    it("returns Backlog when issue is new and untriaged (no sub-issues, unstructured body, no type labels)", () => {
       const ctx = mockExampleContext({
         parentIssue: null,
-        issue: mockExampleIssue({ hasSubIssues: false, subIssues: [] }),
+        issue: mockExampleIssue({
+          hasSubIssues: false,
+          subIssues: [],
+          body: "A raw description without structured sections.",
+          labels: [], // no type:* labels — not yet triaged
+        }),
       });
       expect(computeExpectedStatus(ctx)).toBe("Backlog");
     });
@@ -184,13 +189,13 @@ describe("isStatusCompatible", () => {
     expect(isStatusCompatible(null, "In progress")).toBe(false);
   });
 
-  it("returns true when actual is Triaged and expected is Backlog", () => {
-    expect(isStatusCompatible("Triaged", "Backlog")).toBe(true);
-  });
-
-  it("returns false for mismatched statuses", () => {
+  it("returns false for mismatched statuses including Triaged when expected is Backlog", () => {
     expect(isStatusCompatible("In progress", "Done")).toBe(false);
     expect(isStatusCompatible("Backlog", "Done")).toBe(false);
     expect(isStatusCompatible("Triaged", "Done")).toBe(false);
+    // Triaged is NOT compatible with Backlog: if project status is Triaged,
+    // milestones must also detect triage signals (## Approach + type:* label).
+    // A Triaged project status with no triage artifacts is a state mismatch.
+    expect(isStatusCompatible("Triaged", "Backlog")).toBe(false);
   });
 });

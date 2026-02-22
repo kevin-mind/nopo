@@ -1292,13 +1292,21 @@ export class ExampleContextLoader implements IssueStateRepository {
     });
   }
 
-  async setProjectMetadata(_fields: {
+  async setProjectMetadata(fields: {
     priority?: string;
     size?: string;
     estimate?: number;
   }): Promise<void> {
-    // Not implemented: updateProjectFields does not support priority/size/estimate fields.
-    // These would require a separate GitHub Projects API call.
+    const options = this.requireOptions();
+    const state = this.requireState();
+    await updateProjectFields(
+      options.octokit,
+      options.owner,
+      options.repo,
+      state.issue.number,
+      options.projectNumber ?? 0,
+      fields,
+    );
   }
 
   async save(): Promise<boolean> {

@@ -91,8 +91,6 @@ function botIsAssigned({ context }: GuardArgs): boolean {
 /**
  * Status misalignment: project status doesn't match what milestones compute.
  * Only fires on first cycle (cycleCount === 0) to prevent looping after fix.
- * Allows "Triaged" as a valid intermediate between Backlog and Groomed since
- * milestones cannot detect triage from artifacts alone.
  */
 function isStatusMisaligned({ context }: GuardArgs): boolean {
   if (context.cycleCount > 0) return false;
